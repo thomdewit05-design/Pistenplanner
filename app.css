@@ -466,3 +466,83 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
   .drawing .sheet{transform:translateY(100%)!important}
   .drawing .fabs{bottom:calc(16px + var(--safe-b))}
 }
+
+/* ---------- telefoon liggend: paneel links, kaart rechts, knoppen in een rij ---------- */
+@media (orientation:landscape) and (max-height:500px){
+  :root{--side:min(46vw,360px);--gap:8px}
+  .fab{width:44px;height:44px;border-radius:13px}
+  .fab .ic{width:19px;height:19px}
+
+  .topbar{top:calc(var(--gap) + var(--safe-t));left:calc(var(--gap) + var(--safe-l));right:auto;width:var(--side)}
+  .area-btn{padding:5px 10px 5px 5px;gap:8px;border-radius:14px}
+  .area-logo{width:30px;height:30px;border-radius:8px}
+  .area-txt small{display:none}
+  .area-txt b{font-size:16px}
+  .area-stats{font-size:11.5px;margin-top:1px}
+  .topbar #layersBtn,.topbar #groupBtn,.topbar #statusBtn{position:fixed;top:calc(var(--gap) + var(--safe-t))}
+  .topbar #layersBtn{right:calc(var(--gap) + var(--safe-r))}
+  .topbar #groupBtn{right:calc(var(--gap) + 52px + var(--safe-r))}
+  .topbar #statusBtn{right:calc(var(--gap) + 104px + var(--safe-r))}
+  .layer-menu{top:calc(60px + var(--safe-t));right:calc(var(--gap) + var(--safe-r));max-height:calc(100% - 70px);overflow:auto}
+
+  .sheet{top:calc(58px + var(--safe-t));left:calc(var(--gap) + var(--safe-l));right:auto;bottom:calc(var(--gap) + var(--safe-b));width:var(--side);max-height:none;border-radius:16px;transform:none!important;box-shadow:var(--sh-2);transition:transform .25s}
+  .handle{display:none}
+  .sheet-body{padding:12px 14px 14px;gap:10px}
+  .brandline{display:none}
+  .eta b{font-size:26px}
+  .eta span{font-size:13px}
+  .stat{font-size:12.5px;padding:4px 9px}
+  .btn{padding:9px 12px;font-size:14px}
+  .od input{padding:8px 2px;font-size:15px}
+  .od-row{grid-template-columns:14px minmax(0,1fr) 34px}
+  .icon-btn{width:34px;height:34px}
+  .hint{font-size:12px}
+  .wx summary{padding:9px 12px}
+  .wx-now b{font-size:21px}
+  .wx-ic{width:28px;height:28px}
+  .wx-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .wx-cell{padding:6px 8px}
+  .wx-cell b{font-size:16px}
+  ol.steps li{padding-bottom:12px}
+  .st-title{font-size:14px}
+  .st-sub{font-size:12.5px}
+
+  /* kaartknoppen in een rij rechtsonder */
+  .fabs{flex-direction:row;right:calc(var(--gap) + var(--safe-r));bottom:calc(var(--gap) + var(--safe-b));gap:8px}
+  .leaflet-control-zoom{display:none}
+  .leaflet-bottom.leaflet-right .leaflet-control-attribution{margin-bottom:58px}
+
+  /* meldingen bovenin het kaartdeel */
+  .nav-banner,.draw-bar{left:calc(var(--side) + 2*var(--gap) + var(--safe-l));right:calc(164px + var(--safe-r));top:calc(var(--gap) + var(--safe-t));max-width:none}
+  .nav-main{padding:9px 12px;gap:10px}
+  .nav-arrow{width:36px;height:36px}
+  .nav-dist{font-size:24px}
+  .nav-txt b{font-size:14.5px}
+  .nav-sub{padding:6px 12px;font-size:12.5px}
+  .nav-warn{padding:6px 12px;font-size:12.5px}
+  .draw-bar{padding:6px 6px 6px 12px}
+  .db-txt b{font-size:15px}
+  .db-txt small{font-size:11.5px}
+  .toast{top:calc(60px + var(--safe-t));left:calc(var(--side) + 2*var(--gap) + var(--safe-l) + (100vw - var(--side) - 3*var(--gap) - var(--safe-l) - var(--safe-r))/2)}
+
+  /* tijdens tekenen: paneel weg, hele breedte voor de kaart */
+  .drawing .sheet{transform:translateX(calc(-100% - 20px))!important}
+  .drawing .draw-bar{left:calc(var(--gap) + var(--safe-l))}
+  .drawing .topbar .area-btn{visibility:hidden}
+
+  /* schermen als zijpaneel links, de kaart blijft zichtbaar */
+  .picker,.sos{inset:var(--gap) auto var(--gap) calc(var(--gap) + var(--safe-l));width:min(440px,calc(100vw - 2*var(--gap) - var(--safe-l) - var(--safe-r)));border-radius:16px;box-shadow:var(--sh-2);padding:12px 16px;gap:9px}
+  .picker h2{font-size:22px}
+  .picker-head .label{margin-bottom:2px}
+  .sos h2{font-size:24px}
+  .call{padding:11px 14px}
+  .call b{font-size:21px}
+  .call .ic{width:24px;height:24px}
+  .sos-coord{font-size:20px}
+  .qr{width:104px;height:104px}
+  .share-panel,.g-code-row{padding:10px}
+  .g-code{font-size:24px}
+  .st-actions .btn{padding:8px 10px;font-size:13.5px}
+  .search input{padding:9px 0;font-size:15px}
+  .near-btn{padding:8px}
+}

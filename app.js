@@ -231,7 +231,12 @@ function drawPistes(){
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
   st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
 }
-const sheetPad = () => window.innerWidth >= 900 ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
+// paneel opzij: op een groot scherm, of op een liggende telefoon
+const SIDE_MQ = matchMedia("(min-width:900px), (orientation:landscape) and (max-height:500px)");
+const LAND_MQ = matchMedia("(orientation:landscape) and (max-height:500px)");
+const isSide = () => SIDE_MQ.matches;
+const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
+  : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
                                                  : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
 function fitArea(instant){ if(S.area) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:!instant}); }
 function fitRoute(){
@@ -521,7 +526,7 @@ function renderResult(){
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
     if(ev.target.closest(".close-btn")) return;
     const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
-    if(window.innerWidth < 900) setSheet(false);
+    if(!isSide()) setSheet(false);
   });
   res.querySelectorAll(".close-btn").forEach(b => b.onclick = () => {
     const s = steps[+b.dataset.i]; setClosed(s.items.map(x => x.e.i), true);
@@ -654,7 +659,7 @@ async function onPos(p){
     } else S.offCount = 0;
   }
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
-  if(S.follow) map.panTo(ll, {animate:true});
+  if(S.follow) showAt(ll);
   updateNav();
   groupOnPos();
   if(!$("group").hidden) renderGroup();
@@ -717,14 +722,14 @@ function toggleFollow(){
   if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); update(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
-  if(window.innerWidth < 900) setSheet(false);
-  if(S.pos) map.setView([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 16));
+  if(!isSide()) setSheet(false);
+  if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 16));
   else toast("Locatie zoeken…");
   update();
 }
 $("locBtn").onclick = () => {
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
-  if(S.pos) map.setView([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
+  if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
 };
 $("fromMe").onclick = () => {
   if(S.fromMe){ S.fromMe = false; update(); return; }
@@ -770,7 +775,7 @@ function placeInput(inp, key){
     if(key==="from") S.fromMe = false; else { S.target = null; S.via = null; }
     inp.blur(); update();
   });
-  inp.addEventListener("focus", () => { inp.select(); if(window.innerWidth < 900) setSheet(true); });
+  inp.addEventListener("focus", () => { inp.select(); if(!isSide()) setSheet(true); });
 }
 placeInput($("from"), "from"); placeInput($("to"), "to");
 $("swap").onclick = () => {
@@ -1321,7 +1326,7 @@ function startDraw(){
   S.to = null;
   document.body.classList.add("drawing"); $("drawBtn").classList.add("drawing");
   $("drawBar").hidden = false; map.closePopup();
-  if(window.innerWidth < 900) setSheet(false);
+  if(!isSide()) setSheet(false);
   update(); renderDrawBar();
 }
 function stopDraw(){
@@ -1330,7 +1335,7 @@ function stopDraw(){
   $("drawBar").hidden = true;
   if(S.wps.length === 1 && !(S.fromMe && S.pos)) S.wps = [];   // één los punt is nog geen route
   update();
-  if(S.path?.length){ fitRoute(); if(window.innerWidth < 900) setSheet(true); }
+  if(S.path?.length){ fitRoute(); if(!isSide()) setSheet(true); }
 }
 $("drawBtn").onclick = () => S.draw ? stopDraw() : startDraw();
 $("dbDone").onclick = stopDraw;
@@ -1368,7 +1373,7 @@ function renderRoutes(){
     if(S.draw) stopDraw();
     S.wps = wpsIn(r.wps); S.target = null; S.via = null; S.planBy = null; S.fromMe = false;
     update(); fitRoute(); toast(`Route "${r.name}" geladen.`);
-    if(window.innerWidth < 900) setSheet(false);
+    if(!isSide()) setSheet(false);
   });
   $("mrList").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     const list = loadRoutes(), [r] = list.splice(+b.dataset.del, 1);
@@ -1390,6 +1395,21 @@ $("myRoutes").addEventListener("toggle", renderRoutes);
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
 $("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
 $("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.value; save(); update(); } };
+
+// een punt in het midden van het zichtbare deel van de kaart zetten (niet achter het paneel)
+function showAt(ll, zoom){
+  const z = zoom ?? map.getZoom(), sh = $("sheet");
+  let dx = 0, dy = 0;
+  if(LAND_MQ.matches || isSide()) dx = (sh.offsetWidth + 16) / 2;
+  else if(!sh.classList.contains("open")) dy = -(sheetPeek()) / 2;
+  const c = map.project(L.latLng(ll), z).subtract([dx, dy]);
+  map.setView(map.unproject(c, z), z, {animate:true});
+}
+
+// ================= draaien =================
+LAND_MQ.addEventListener("change", () => {
+  setTimeout(() => { map.invalidateSize(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); setPeek(); }, 250);
+});
 
 // ================= start =================
 if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
