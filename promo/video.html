@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Skipiloot teaser</title>
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>html,body{margin:0;background:#000}canvas{display:block;width:540px;height:960px}</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Teaser van 30 seconden, staand (1080 x 1920), voor Instagram Reels, TikTok en Shorts.
+// renderAt(t) tekent één moment; record() neemt de hele video op als MP4 en geeft hem terug als base64.
+const W = 1080, H = 1920, DUR = 30, FPS = 30;
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const NAVY = "#0F1B2A", NAVY2 = "#22395A", YEL = "#FFC400", INK = "#1A1300";
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeInOut = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const back = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3*Math.pow(x - 1, 3) + c1*Math.pow(x - 1, 2); };
+const F = (w, s, fam = "Barlow") => `${w} ${s}px "${fam}"`;
+
+// ---------- beelden ----------
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let A = {};
+async function loadAll(){
+  const [logo, s1, s2, s3, s4] = await Promise.all(["../icons/icon-512.png", "shots/1-route.png", "shots/2-nav.png", "shots/3-group.png", "shots/4-sun.png"].map(img));
+  // iconen uit de app zelf
+  const doc = new DOMParser().parseFromString(await (await fetch("../index.html")).text(), "text/html");
+  const icon = (id, color) => img("data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${doc.getElementById("i-" + id).innerHTML}</svg>`));
+  const ic = {};
+  for(const id of ["sun", "food", "bed", "clock", "alert", "group", "nav", "ski"]) ic[id] = await icon(id, YEL);
+  await Promise.all([document.fonts.load(F(800, 100, "Barlow Condensed")), document.fonts.load(F(700, 50)), document.fonts.load(F(600, 40)), document.fonts.load(F(500, 40))]);
+  A = {logo, shots:[s1, s2, s3, s4], ic};
+}
+
+// ---------- achtergrond: bergen en sneeuw ----------
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const flakes = Array.from({length:160}, () => ({x:rnd()*W, y:rnd()*H, r:1.5 + rnd()*4.5, v:40 + rnd()*110, s:rnd()*6.28, a:.35 + rnd()*.5}));
+function ridge(t, base, amp, seedOff, speed, color){
+  g.fillStyle = color; g.beginPath(); g.moveTo(0, H);
+  for(let x = -20; x <= W + 20; x += 20){
+    const u = (x + t*speed) / W;
+    const y = base - amp * (.55*Math.abs(Math.sin(u*3.1 + seedOff)) + .3*Math.abs(Math.sin(u*7.3 + seedOff*2)) + .15*Math.sin(u*17 + seedOff));
+    g.lineTo(x, y);
+  }
+  g.lineTo(W, H); g.closePath(); g.fill();
+}
+function background(t){
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#0B1522"); gr.addColorStop(.55, NAVY2); gr.addColorStop(1, "#3B5B82");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // zachte gloed achter het midden
+  const rg = g.createRadialGradient(W/2, H*.42, 50, W/2, H*.42, 900); rg.addColorStop(0, "rgba(255,196,0,.10)"); rg.addColorStop(1, "rgba(255,196,0,0)");
+  g.fillStyle = rg; g.fillRect(0, 0, W, H);
+  ridge(t, H*.80, 330, 1.3, 14, "#41658F");
+  ridge(t, H*.88, 260, 4.1, 26, "#6E8FB5");
+  ridge(t, H*.97, 200, 2.2, 42, "#DCE7F2");
+  for(const f of flakes){
+    const y = (f.y + f.v*t) % (H + 20) - 10, x = f.x + Math.sin(t*1.2 + f.s) * 18;
+    g.globalAlpha = f.a; g.fillStyle = "#fff"; g.beginPath(); g.arc(x, y, f.r, 0, 6.283); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+// ---------- tekst ----------
+function text(s, x, y, font, color, align = "center", alpha = 1){
+  g.globalAlpha = alpha; g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = "alphabetic"; g.fillText(s, x, y); g.globalAlpha = 1;
+}
+function wrap(s, font, maxW){
+  g.font = font; const words = s.split(" "), lines = []; let cur = "";
+  for(const w of words){ const tst = cur ? cur + " " + w : w; if(g.measureText(tst).width > maxW && cur){ lines.push(cur); cur = w; } else cur = tst; }
+  if(cur) lines.push(cur); return lines;
+}
+function para(s, y, font, lh, color, alpha = 1, maxW = 920){
+  wrap(s, font, maxW).forEach((l, i) => text(l, W/2, y + i*lh, font, color, "center", alpha));
+}
+function rrect(x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function pill(s, cx, cy, font, bg, fg, alpha = 1, padX = 34, h = 76){
+  g.font = font; const w = g.measureText(s).width + padX*2;
+  g.globalAlpha = alpha; g.fillStyle = bg; rrect(cx - w/2, cy - h/2, w, h, h/2); g.fill();
+  g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(s, cx, cy + 2); g.textBaseline = "alphabetic"; g.globalAlpha = 1;
+}
+
+// ---------- telefoon ----------
+const PW = 600, PH = Math.round(PW * 2532 / 1170), BZ = 22;
+function phone(cx, cy, scale, shotA, shotB, mix, zoom, alpha = 1){
+  g.save(); g.globalAlpha = alpha; g.translate(cx, cy); g.scale(scale, scale);
+  const w = PW + BZ*2, h = PH + BZ*2;
+  g.shadowColor = "rgba(0,0,0,.55)"; g.shadowBlur = 80; g.shadowOffsetY = 30;
+  g.fillStyle = "#05090F"; rrect(-w/2, -h/2, w, h, 86); g.fill();
+  g.shadowColor = "transparent";
+  g.strokeStyle = "#2B3B50"; g.lineWidth = 4; rrect(-w/2 + 2, -h/2 + 2, w - 4, h - 4, 84); g.stroke();
+  g.save(); rrect(-PW/2, -PH/2, PW, PH, 64); g.clip();
+  const draw = (im, a) => { if(!im || a <= 0) return; g.globalAlpha = alpha * a; const z = zoom; g.drawImage(im, -PW/2*z, -PH/2*z, PW*z, PH*z); };
+  draw(shotA, 1); draw(shotB, mix);
+  g.restore();
+  g.fillStyle = "#05090F"; rrect(-70, -PH/2 + 14, 140, 38, 19); g.fill();   // camera-eiland
+  g.restore();
+}
+
+// ---------- scènes ----------
+const SCENES = [
+  {a:6.2, b:11, shot:0, title:"Kies waar je heen wilt", sub:"Skipiloot kiest pistes die bij jouw niveau passen"},
+  {a:11, b:15, shot:1, title:"Navigeer met je stem", sub:"Welke piste, welke lift: Skipiloot zegt het je"},
+  {a:15, b:19, shot:2, title:"Ski je met vrienden?", sub:"Eén tik en iedereen krijgt dezelfde route"},
+  {a:19, b:22.6, shot:3, title:"Waar schijnt de zon?", sub:"Zie welke pistes nu in de zon liggen"},
+];
+const FEATURES = [["sun", "Zonnige pistes opzoeken"], ["food", "Lunchstop bij een hut"], ["bed", "Terug naar je hotel of auto"],
+                  ["clock", "Waarschuwing voor de laatste lift"], ["alert", "SOS met je exacte plek"], ["ski", "Meer dan 1.800 skigebieden"]];
+
+function renderAt(t){
+  background(t);
+
+  // 1. logo en naam
+  if(t < 3.4){
+    const out = 1 - prog(t, 2.9, 3.4);
+    const s = back(prog(t, .1, .9)) * (1 + .03*Math.sin(t*2));
+    g.save(); g.globalAlpha = out; g.translate(W/2, 760); g.scale(s, s);
+    g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 60; g.shadowOffsetY = 20;
+    g.drawImage(A.logo, -190, -190, 380, 380); g.restore();
+    const p = easeOut(prog(t, .7, 1.5));
+    g.save(); g.globalAlpha = out * p; g.font = F(800, 190, "Barlow Condensed"); g.textAlign = "center"; g.fillStyle = "#fff";
+    if("letterSpacing" in g) g.letterSpacing = `${(1 - p) * 40 + 6}px`;
+    g.fillText("SKIPILOOT", W/2, 1150 + (1 - p)*40); if("letterSpacing" in g) g.letterSpacing = "0px"; g.restore();
+    text("Jouw piloot op de piste", W/2, 1250, F(600, 56), YEL, "center", out * easeOut(prog(t, 1.4, 2.1)));
+  }
+
+  // 2. de vraag
+  if(t >= 3.2 && t < 6.6){
+    const out = 1 - prog(t, 6.1, 6.6);
+    const p1 = easeOut(prog(t, 3.3, 3.9)), p2 = back(prog(t, 4.5, 5.0));
+    text("Verdwaald op", W/2 - (1 - p1)*300, 820, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
+    text("de piste?", W/2 + (1 - p1)*300, 970, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
+    g.save(); g.globalAlpha = out * clamp(p2); g.translate(W/2, 1190); g.scale(p2, p2);
+    pill("NOOIT MEER.", 0, 0, F(800, 120, "Barlow Condensed"), YEL, INK, 1, 56, 170); g.restore();
+  }
+
+  // 3. de app in een telefoon
+  if(t >= 6 && t < 23){
+    const enter = easeOut(prog(t, 6.0, 6.9)), leave = easeInOut(prog(t, 22.2, 23));
+    const cy = 1185 + (1 - enter)*1300 + leave*1400;
+    let cur = 0; SCENES.forEach((s, i) => { if(t >= s.a) cur = i; });
+    const sc = SCENES[cur], prev = SCENES[Math.max(0, cur - 1)];
+    const mix = cur ? easeInOut(prog(t, sc.a, sc.a + .6)) : 1;
+    const zoom = 1 + .035 * prog(t, sc.a, sc.b);
+    phone(W/2, cy, .88, cur ? A.shots[prev.shot] : A.shots[sc.shot], A.shots[sc.shot], mix, zoom);
+    // onderschrift: oude tekst gaat weg, nieuwe komt in
+    const tin = easeOut(prog(t, sc.a + .15, sc.a + .7)), tout = 1 - prog(t, sc.b - .35, sc.b);
+    const a = tin * (cur === SCENES.length - 1 ? 1 - leave : tout);
+    text(sc.title, W/2, 375 + (1 - tin)*30, F(800, 104, "Barlow Condensed"), "#fff", "center", a);
+    para(sc.sub, 452 + (1 - tin)*30, F(500, 46), 58, "#D6E2EF", a);
+  }
+
+  // 4. en nog meer
+  if(t >= 22.4 && t < 26.3){
+    const out = 1 - prog(t, 25.9, 26.3);
+    text("En nog veel meer", W/2, 520, F(800, 112, "Barlow Condensed"), "#fff", "center", out * easeOut(prog(t, 22.5, 23.1)));
+    FEATURES.forEach(([ic, label], i) => {
+      const p = easeOut(prog(t, 22.9 + i*.28, 23.5 + i*.28)), y = 680 + i*150;
+      g.save(); g.globalAlpha = out * p; g.translate((1 - p) * -120, 0);
+      g.fillStyle = "rgba(255,255,255,.09)"; rrect(110, y, 860, 118, 30); g.fill();
+      g.fillStyle = "rgba(255,196,0,.16)"; rrect(132, y + 17, 84, 84, 22); g.fill();
+      g.drawImage(A.ic[ic], 146, y + 31, 56, 56);
+      g.font = F(600, 45); g.fillStyle = "#fff"; g.textAlign = "left"; g.fillText(label, 248, y + 76);
+      g.restore();
+    });
+  }
+
+  // 5. slot: nog niet uit
+  if(t >= 26){
+    const p = easeOut(prog(t, 26, 26.8));
+    g.save(); g.globalAlpha = p; g.translate(W/2, 600); const s = .8 + .2*p; g.scale(s, s);
+    g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 50; g.shadowOffsetY = 16; g.drawImage(A.logo, -150, -150, 300, 300); g.restore();
+    text("SKIPILOOT", W/2, 900, F(800, 170, "Barlow Condensed"), "#fff", "center", p);
+    const pb = back(prog(t, 26.6, 27.2)), pulse = 1 + .03*Math.sin(t*5);
+    g.save(); g.globalAlpha = clamp(pb); g.translate(W/2, 1060); g.scale(pb*pulse, pb*pulse);
+    pill("BINNENKORT BESCHIKBAAR", 0, 0, F(800, 76, "Barlow Condensed"), YEL, INK, 1, 50, 128); g.restore();
+    const pt = easeOut(prog(t, 27.3, 28));
+    text("De app is nog niet uit.", W/2, 1250, F(700, 56), "#fff", "center", pt);
+    text("Volg ons en ski als eerste mee!", W/2, 1325, F(500, 50), "#D6E2EF", "center", pt);
+    text("Alpen · Pyreneeën · Scandinavië · Noord-Amerika", W/2, 1470, F(500, 38), "#AFC3DA", "center", easeOut(prog(t, 27.8, 28.5)));
+  }
+
+  // altijd zichtbaar (behalve op het slotbeeld): nog niet uit
+  if(t > .9 && t < 26){
+    const a = easeOut(prog(t, .9, 1.4)) * (1 - prog(t, 25.6, 26));
+    pill("BINNENKORT BESCHIKBAAR", W/2, 215, F(700, 34, "Barlow"), YEL, INK, a, 30, 66);
+  }
+}
+
+// ---------- opnemen ----------
+async function record(){
+  const stream = cv.captureStream(FPS);
+  const type = ["video/mp4;codecs=avc1.640028", "video/mp4", "video/webm;codecs=vp9"].find(m => MediaRecorder.isTypeSupported(m));
+  const rec = new MediaRecorder(stream, {mimeType:type, videoBitsPerSecond:14e6});
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+  // eerst alle scènes een keer tekenen, zodat beelden en letters klaarstaan en er geen haperingen in de opname komen
+  for(let t = 0; t <= DUR; t += .5) renderAt(t);
+  renderAt(0); await new Promise(r => setTimeout(r, 300));
+  rec.start();
+  const t0 = performance.now(); let frames = 0, maxT = 0;
+  await new Promise(res => {
+    const step = () => { const t = (performance.now() - t0) / 1000; renderAt(Math.min(t, DUR)); frames++; maxT = t; if(t < DUR + .25) requestAnimationFrame(step); else res(); };
+    requestAnimationFrame(step);
+  });
+  window.recStats = {frames, maxT};
+  rec.stop(); await done;
+  const blob = new Blob(chunks, {type});
+  const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(blob); });
+  return {type, size:blob.size, b64, stats:window.recStats};
+}
+window.ready = loadAll().then(() => { renderAt(0); return true; });
+window.renderAt = renderAt; window.record = record;
+</script>
+</body>
+</html>

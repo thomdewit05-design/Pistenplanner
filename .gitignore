@@ -1,2 +1,7 @@
 .claude/
 __pycache__/
+
+# promotievideo: alleen de scripts bewaren, niet de beelden
+promo/*.mp4
+promo/stills/
+promo/shots/
