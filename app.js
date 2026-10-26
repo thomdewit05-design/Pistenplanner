@@ -114,6 +114,16 @@ async function openArea(id, opts={}){
   }
   for(const w of raw.w) edges.push({t:"w", a:w[0], b:w[1], len:w[2], pts:[[nodes[w[0]].lat,nodes[w[0]].lon],[nodes[w[1]].lat,nodes[w[1]].lon]]});
   edges.forEach((e,i) => e.i = i);
+  // groepen: een hele lift of een hele piste (alle stukken met dezelfde naam, nummer en kleur) gaat samen open of dicht
+  const groups = new Map();
+  edges.forEach(e => {
+    if(e.t==="w") return;
+    const k = e.t==="l" ? (e.name || e.ref ? `l|${e.name}|${e.ref}|${e.kind}` : `e|${e.i}`) : (e.name || e.ref ? `r|${e.name}|${e.ref}|${e.diff}` : `e|${e.i}`);
+    e.key = k;
+    let g = groups.get(k); if(!g){ g = {key:k, t:e.t, e, edges:[], len:0, top:null}; groups.set(k, g); }
+    g.edges.push(e.i); g.len += e.len;
+    const hi = Math.max(nodes[e.a].ele ?? -1, nodes[e.b].ele ?? -1); if(hi > (g.top ?? -1)) g.top = hi;
+  });
   const outRuns = nodes.map(() => []), inRuns = nodes.map(() => []);
   edges.forEach(e => { if(e.t==="r"){ outRuns[e.a].push(e.i); inRuns[e.b].push(e.i); } });
 
@@ -133,7 +143,9 @@ async function openArea(id, opts={}){
   edges.forEach(e => { if(e.t!=="r" || !(e.name||e.ref)) return; const k = e.name+"|"+e.ref+"|"+e.diff; if(seen.has(k)) return; seen.add(k);
     skiNames.set(`Skiën: ${pisteLabel(e)} (${DIFF[e.diff].nl})`, e.i); });
   S.area.skiNames = skiNames;
-  S.closed = new Set(); S.target = null; S.via = null;
+  Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort()});
+  S.risk = null; loadStatus(); applyPendingShare();
+  S.target = null; S.via = null;
   $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
   S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
   $("areaStats").textContent = S.area.statsTxt;
@@ -210,6 +222,10 @@ function drawPistes(){
   if(groups.lift) L.polyline(groups.lift, opt({color:"#14202B", weight:2})).addTo(pisteLayer);
   if(groups.drag) L.polyline(groups.drag, opt({color:"#14202B", weight:1.6, dashArray:"5 4"})).addTo(pisteLayer);
   if(groups.closed) L.polyline(groups.closed, opt({color:"#9AA7B2", weight:3, dashArray:"2 6"})).addTo(pisteLayer);
+  // liften die bij deze wind mogelijk dicht zijn
+  const risky = [...(S.risk?.lifts || [])].filter(i => !S.closed.has(i)).map(i => A.edges[i].pts);
+  if(risky.length) L.polyline(risky, opt({color:"#E28A12", weight:3, dashArray:"8 6"})).addTo(pisteLayer);
+  persistStatus();
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
   st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
 }
@@ -450,21 +466,24 @@ function renderResult(){
   } else if(tm.lastLift != null && tm.close - tm.lastLift < 30){
     warn += `<p class="notice info">${I("clock")}<span>Krap: je neemt de laatste lift om ${hhmm(tm.lastLift)}. De liften sluiten om ${S.liftClose}.</span></p>`;
   }
+  const riskyLifts = steps.filter(s => s.t==="l" && S.risk?.lifts.has(s.e.i)).length;
+  if(riskyLifts) warn += `<p class="notice info">${I("wind")}<span>${riskyLifts === 1 ? "Eén lift" : riskyLifts + " liften"} op je route ${riskyLifts === 1 ? "is" : "zijn"} bij deze wind mogelijk dicht (${S.risk.reason}). Controleer de <button type="button" class="linkbtn" id="openStatus2" style="color:var(--accent)">liftstatus</button>.</span></p>`;
   if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
   const endLabel = S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
   res.innerHTML = warn + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
-      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}</div>
+      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}</div>
       <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
     + `<li class="end"><span class="node">${I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div></div><span></span></li></ol>`;
   $("valley2")?.addEventListener("click", toValley);
+  $("openStatus2")?.addEventListener("click", openStatus);
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
     if(ev.target.closest(".close-btn")) return;
     const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
     if(window.innerWidth < 900) setSheet(false);
   });
   res.querySelectorAll(".close-btn").forEach(b => b.onclick = () => {
-    const s = steps[+b.dataset.i]; s.items.forEach(x => S.closed.add(x.e.i));
+    const s = steps[+b.dataset.i]; setClosed(s.items.map(x => x.e.i), true);
     if(S.target && s.items.some(x => S.target.edges.includes(x.e.i))) S.target = null;
     toast(`${s.t==="l" ? "Lift" : "Piste"} gesloten. Nieuwe route berekend.`);
     drawPistes(); update();
@@ -478,7 +497,7 @@ function renderClosed(){
   for(const i of S.closed){ const e = A.edges[i]; const k = e.t==="l" ? `Lift ${e.name||e.ref||LIFT[e.kind]}` : uc(pisteLabel(e)); (groups.get(k) || groups.set(k, []).get(k)).push(i); }
   const vals = [...groups.values()];
   c.innerHTML = [...groups.keys()].map((k,j) => `<button type="button" class="chip closed" data-j="${j}" title="Weer openen">${I("ban")}${esc(k)}</button>`).join("");
-  c.querySelectorAll("button").forEach(b => b.onclick = () => { vals[+b.dataset.j].forEach(i => S.closed.delete(i)); drawPistes(); update(); });
+  c.querySelectorAll("button").forEach(b => b.onclick = () => { setClosed(vals[+b.dataset.j], false); drawPistes(); update(); });
 }
 
 // ================= kaart aantikken =================
@@ -526,7 +545,7 @@ function edgePopup(ei, latlng, nearNode){
     if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; if(S.from==null) S.from = ch.start; }
     else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; }
     else if(a==="from"){ S.from = nearNode; S.fromMe = false; S.pick = "to"; }
-    else { ch.edges.forEach(i => S.closed.add(i)); if(S.target?.edges.some(i => ch.edges.includes(i))) S.target = null; drawPistes(); toast(`${uc(ch.label)} gesloten.`); }
+    else { setClosed(ch.edges, true); if(S.target?.edges.some(i => ch.edges.includes(i))) S.target = null; drawPistes(); toast(`${uc(ch.label)} gesloten.`); }
     map.closePopup(pop); update();
     if(a==="ski") fitRoute();
   });
@@ -837,6 +856,7 @@ function renderWeather(d){
     <div class="wx-foot"><span>Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
       ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>`;
   $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top`;
+  computeRisk(c, fresh);
 }
 
 // ================= SOS =================
@@ -900,6 +920,148 @@ $("sosShare").onclick = async () => {
 };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("sos").hidden) closeSos(); });
 
+// ================= open en dicht vandaag =================
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; };
+const statusStoreKey = id => `pp-status:${id}:${todayKey()}`;
+const closedKeys = () => { const A = S.area; return A ? [...A.groups.values()].filter(g => g.edges.some(i => S.closed.has(i))).map(g => g.key) : []; };
+// open of dicht zetten gaat altijd per hele lift of hele piste
+function setClosed(edgeIdxs, closed){
+  const A = S.area, keys = new Set(edgeIdxs.map(i => A.edges[i].key).filter(Boolean));
+  for(const k of keys) for(const i of A.groups.get(k).edges) closed ? S.closed.add(i) : S.closed.delete(i);
+  if(closed && S.target?.edges.some(i => S.closed.has(i))) S.target = null;
+}
+function applyKeys(keys){
+  const A = S.area; S.closed = new Set();
+  for(const k of keys){ const g = A.groups.get(k); if(g) g.edges.forEach(i => S.closed.add(i)); }
+}
+function loadStatus(){
+  let keys = [];
+  try{ keys = JSON.parse(localStorage.getItem(statusStoreKey(S.area.id)) || "[]"); }catch(e){}
+  applyKeys(keys);
+  // oude dagen opruimen
+  try{ for(let i = localStorage.length - 1; i >= 0; i--){ const k = localStorage.key(i); if(k?.startsWith("pp-status:") && !k.endsWith(":" + todayKey())) localStorage.removeItem(k); } }catch(e){}
+}
+function persistStatus(){
+  if(!S.area) return;
+  const keys = closedKeys();
+  try{ keys.length ? localStorage.setItem(statusStoreKey(S.area.id), JSON.stringify(keys)) : localStorage.removeItem(statusStoreKey(S.area.id)); }catch(e){}
+  $("statusCount").hidden = !keys.length; $("statusCount").textContent = keys.length;
+}
+
+// delen: #<gebied>/s/<datum>/<nummers van dichte groepen>
+let pendingShare = null;
+function parseShareHash(){
+  const [id, tag, date, list] = location.hash.slice(1).split("/");
+  if(tag === "s" && id) pendingShare = {id, date, list:list || ""};
+}
+function applyPendingShare(){
+  if(!pendingShare || pendingShare.id !== S.area.id) return;
+  const {date, list} = pendingShare; pendingShare = null;
+  if(date !== todayKey()){
+    const nice = `${date.slice(6,8)}-${date.slice(4,6)}`;
+    setTimeout(() => toast(`Deze gedeelde status is van ${nice}, niet van vandaag. Niet toegepast.`, 4500), 600);
+    return;
+  }
+  const keys = list.split(".").filter(Boolean).map(x => S.area.groupKeys[parseInt(x, 36)]).filter(Boolean);
+  applyKeys(keys);
+  setTimeout(() => toast(keys.length ? `Status van je groep geladen: ${keys.length} ${keys.length===1 ? "lift of piste" : "liften en pistes"} dicht.` : "Status van je groep geladen: alles open.", 4000), 600);
+}
+function shareUrl(){
+  const A = S.area, list = closedKeys().map(k => A.groupKeys.indexOf(k)).filter(i => i >= 0).map(i => i.toString(36)).join(".");
+  return `${location.origin}${location.pathname}#${A.id}/s/${todayKey()}/${list}`;
+}
+window.addEventListener("hashchange", () => {
+  const before = pendingShare; parseShareHash();
+  if(!pendingShare || pendingShare === before) return;
+  if(S.area && pendingShare.id === S.area.id){ applyPendingShare(); drawPistes(); update(); if(!$("status").hidden) renderStatus(); }
+  else openArea(pendingShare.id);
+  try{ history.replaceState(null, "", "#" + (S.area?.id || "")); }catch(e){}
+});
+
+// weerrisico: hoge liften bij harde wind
+function computeRisk(c, fresh){
+  const A = S.area, gust = Math.round(c.wind_gusts_10m || 0), top = A.row[10] ?? 0, before = S.risk?.lifts.size || 0;
+  const AERIAL = new Set(["gondola","cable_car","chair_lift","mixed_lift"]);
+  const lifts = new Set();
+  if(gust >= 65){
+    for(const g of A.groups.values()){
+      if(g.t !== "l" || !AERIAL.has(g.e.kind)) continue;
+      if(gust >= 90 || (g.top ?? 0) >= top - 500) g.edges.forEach(i => lifts.add(i));
+    }
+  }
+  S.risk = {lifts, gust, fresh, reason:`windstoten tot ${gust} km/u op ${top} m`};
+  if(lifts.size || before){ drawPistes(); update(); }
+  if(!$("status").hidden) renderStatus();
+}
+
+let stTab = "l";
+const groupName = g => g.t==="l" ? uc(g.e.name || (g.e.ref ? `${LIFT[g.e.kind]||"lift"} ${g.e.ref}` : LIFT[g.e.kind]||"lift")) : uc(pisteLabel(g.e));
+function statusSummary(){
+  const A = S.area, keys = closedKeys(), nl = keys.filter(k => A.groups.get(k).t==="l").length, np = keys.length - nl;
+  $("statusSummary").innerHTML = keys.length
+    ? `Volgens jou dicht: <b>${nl} ${nl===1 ? "lift" : "liften"}</b> en <b>${np} ${np===1 ? "piste" : "pistes"}</b>. Routes gaan hier omheen.`
+    : `Alles staat op <b>open</b>. Zet dicht wat vandaag dicht is; de routes houden er rekening mee.`;
+}
+function renderStatus(){
+  const A = S.area; if(!A) return;
+  const d = new Date();
+  $("statusDate").textContent = `${A.row[1]} · ${d.toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"})}`;
+  const site = A.row[11];
+  $("officialLink").href = site || `https://www.google.com/search?q=${encodeURIComponent(A.row[1] + " liftstatus")}`;
+  $("officialTxt").textContent = site ? "Officiële liftstatus" : "Zoek liftstatus";
+  statusSummary();
+  // weerwaarschuwing
+  const R = S.risk, riskOpen = R ? [...R.lifts].filter(i => !S.closed.has(i)) : [];
+  const nRisk = R ? new Set([...R.lifts].map(i => A.edges[i].key)).size : 0;
+  $("riskBox").innerHTML = R && nRisk ? `<div class="risk"><p>${I("wind")}<span><strong>${nRisk} ${nRisk===1 ? "lift is" : "liften zijn"} mogelijk dicht door wind</strong> (${R.reason}). Hoge gondels en stoeltjesliften stoppen vaak vanaf 60–80 km/u.</span></p>
+      ${riskOpen.length ? `<button type="button" class="btn ghost" id="riskApply">${I("ban")}Zet ze op dicht</button>` : ""}</div>`
+    : R && R.fresh >= 30 ? `<div class="risk"><p>${I("snow")}<span><strong>${Math.round(R.fresh)} cm verse sneeuw</strong> in 24 uur. Hoge pistes en liften gaan dan vaak later open vanwege lawinewerk.</span></p></div>` : "";
+  $("riskApply")?.addEventListener("click", () => { setClosed([...R.lifts], true); drawPistes(); update(); renderStatus(); toast("Liften met windrisico op dicht gezet."); });
+  document.querySelectorAll("#statusTab button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v===stTab)));
+  // lijst
+  const q = norm($("statusQ").value.trim());
+  let list = [...A.groups.values()].filter(g => g.t===stTab && (stTab==="l" || !g.key.startsWith("e|")));
+  if(q) list = list.filter(g => norm(groupName(g) + " " + (g.e.ref||"")).includes(q));
+  const num = g => { const m = /^(\d+)/.exec(g.e.ref || ""); return m ? +m[1] : 9999; };
+  list.sort(stTab==="l" ? (a, b) => groupName(a).localeCompare(groupName(b), "nl") : (a, b) => num(a) - num(b) || groupName(a).localeCompare(groupName(b), "nl"));
+  $("statusList").innerHTML = list.map(g => {
+    const off = g.edges.some(i => S.closed.has(i)), risk = g.t==="l" && g.edges.some(i => R?.lifts.has(i));
+    const node = g.t==="l" ? `<span class="node liftnode">${I("lift")}</span>` : `<span class="node${g.e.diff==="s" ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
+    const meta = g.t==="l" ? `${uc(LIFT[g.e.kind]||"lift")} · ${km(g.len)}${g.top!=null && g.top >= 0 ? ` · tot ${g.top} m` : ""}` : `${uc(DIFF[g.e.diff].nl)} · ${km(g.len)}`;
+    return `<li class="${off ? "off" : ""}" data-k="${esc(g.key)}">${node}<span><span class="st-name">${esc(groupName(g))}</span><span class="st-meta">${meta}</span>${risk && !off ? `<span class="risk-tag">${I("wind")}Mogelijk dicht door wind</span>` : ""}</span>
+      <label class="switch" title="${off ? "Dicht" : "Open"}"><input type="checkbox" ${off ? "" : "checked"} aria-label="${esc(groupName(g))} open"><i></i></label></li>`;
+  }).join("") || `<li class="empty" style="display:block;padding:14px 6px">Niets gevonden${q ? ` voor "${esc($("statusQ").value)}"` : ""}.</li>`;
+  $("statusList").querySelectorAll("li[data-k] input").forEach(inp => inp.onchange = () => {
+    const li = inp.closest("li"), g = A.groups.get(li.dataset.k);
+    setClosed(g.edges, !inp.checked); li.classList.toggle("off", !inp.checked);
+    drawPistes(); update(); statusSummary();
+  });
+}
+function openStatus(){ if(!S.area) return; $("status").hidden = false; $("sharePanel").hidden = true; renderStatus(); }
+function closeStatus(){ $("status").hidden = true; }
+$("statusBtn").onclick = openStatus;
+$("statusClose").onclick = closeStatus;
+$("statusQ").addEventListener("input", renderStatus);
+document.querySelectorAll("#statusTab button").forEach(b => b.onclick = () => { stTab = b.dataset.v; renderStatus(); });
+$("statusReset").onclick = () => { if(!S.closed.size) return; S.closed = new Set(); drawPistes(); update(); renderStatus(); toast("Alles staat weer op open."); };
+document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("status").hidden) closeStatus(); });
+$("shareStatus").onclick = () => {
+  const url = shareUrl(), p = $("sharePanel");
+  p.hidden = !p.hidden; if(p.hidden) return;
+  try{ const qr = qrcode(0, "M"); qr.addData(url); qr.make(); $("qrBox").innerHTML = qr.createSvgTag({cellSize:4, margin:0, scalable:true}); }
+  catch(e){ $("qrBox").innerHTML = `<small class="empty">QR-code lukte niet. Stuur de link.</small>`; }
+};
+$("shareCopy").onclick = async () => {
+  try{ await navigator.clipboard.writeText(shareUrl()); toast("Link gekopieerd. Plak hem in de groepsapp."); }
+  catch(e){ toast("Kopiëren lukte niet."); }
+};
+$("shareSend").onclick = async () => {
+  const url = shareUrl(), n = closedKeys().length;
+  const text = `Liftstatus ${S.area.row[1]} vandaag: ${n ? `${n} ${n===1 ? "lift of piste" : "liften en pistes"} dicht` : "alles open"}. Open in de Pistenplanner:`;
+  if(navigator.share){ try{ await navigator.share({title:"Liftstatus vandaag", text, url}); }catch(e){} }
+  else $("shareCopy").click();
+};
+
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
 $("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
@@ -912,7 +1074,8 @@ applyBase(); update(); setPeek();
   try{ const r = await fetch("data/index.json"); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
   catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
   renderCountries();
-  const want = location.hash.slice(1), byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
+  parseShareHash();
+  const want = location.hash.slice(1).split("/")[0], byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
   const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
   openArea(start || S.index[0][0]);
 })();

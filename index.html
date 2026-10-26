@@ -62,6 +62,10 @@
     <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3.5h3.5l1.8 4.5-2.3 1.5a11 11 0 0 0 6.5 6.5l1.5-2.3 4.5 1.8V19a1.8 1.8 0 0 1-2 1.8A16.5 16.5 0 0 1 3.2 5.5 1.8 1.8 0 0 1 5 3.5Z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></symbol>
+    <symbol id="i-status" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="m3.5 6.5 1.3 1.3L7 5.5"/><path d="m3.5 12 1.3 1.3L7 11"/><path d="M4 16l2.5 3M6.5 16 4 19"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L12 5.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 19.5h1.5M19.5 14v2"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -81,6 +85,7 @@
     <span class="area-txt"><small>Skigebied</small><b id="areaName">Kiezen…</b><span id="areaStats" class="area-stats"></span></span>
     <svg class="ic"><use href="#i-search"/></svg>
   </button>
+  <button type="button" id="statusBtn" class="fab glass" aria-label="Open en dicht vandaag" title="Open en dicht vandaag" aria-haspopup="dialog"><svg class="ic"><use href="#i-status"/></svg><span class="count-dot" id="statusCount" hidden></span></button>
   <button type="button" id="layersBtn" class="fab glass" aria-label="Kaartlagen" aria-haspopup="true"><svg class="ic"><use href="#i-layers"/></svg></button>
 </header>
 
@@ -192,6 +197,39 @@
   <p class="count" id="count"></p>
 </div>
 
+<div id="status" class="picker status" role="dialog" aria-modal="true" aria-labelledby="statusTitle" hidden>
+  <div class="picker-head">
+    <div><p class="label" id="statusDate">Vandaag</p><h2 id="statusTitle">Open en dicht</h2></div>
+    <button type="button" class="icon-btn" id="statusClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
+  </div>
+  <p class="st-summary" id="statusSummary"></p>
+  <div class="st-actions">
+    <a class="btn ghost" id="officialLink" href="#" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg><span id="officialTxt">Officiële liftstatus</span></a>
+    <button type="button" class="btn primary" id="shareStatus"><svg class="ic"><use href="#i-qr"/></svg>Delen met groep</button>
+  </div>
+  <div id="sharePanel" class="share-panel" hidden>
+    <div class="qr" id="qrBox"></div>
+    <div class="share-txt">
+      <b>Laat je groep deze code scannen</b>
+      <small>Of stuur de link. Wie hem opent, krijgt dezelfde liften en pistes op dicht, alleen voor vandaag.</small>
+      <div class="share-btns">
+        <button type="button" class="btn ghost" id="shareSend"><svg class="ic"><use href="#i-share"/></svg>Stuur link</button>
+        <button type="button" class="btn ghost" id="shareCopy"><svg class="ic"><use href="#i-copy"/></svg>Kopieer</button>
+      </div>
+    </div>
+  </div>
+  <div id="riskBox"></div>
+  <div class="search"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="statusQ" placeholder="Zoek lift of piste, naam of nummer" autocomplete="off" aria-label="Zoek lift of piste"></div>
+  <div class="st-tabs">
+    <div class="seg two" id="statusTab" style="margin:0;flex:1">
+      <button type="button" data-v="l"><svg class="ic"><use href="#i-lift"/></svg>Liften</button>
+      <button type="button" data-v="r"><svg class="ic"><use href="#i-ski"/></svg>Pistes</button>
+    </div>
+    <button type="button" class="icon-btn" id="statusReset" title="Alles weer open" aria-label="Alles weer open"><svg class="ic"><use href="#i-reset"/></svg></button>
+  </div>
+  <ul class="st-list" id="statusList"></ul>
+</div>
+
 <div id="sos" class="sos" role="dialog" aria-modal="true" aria-labelledby="sosTitle" hidden>
   <div class="sos-head">
     <div><p class="label">Noodgeval</p><h2 id="sosTitle">Hulp nodig?</h2></div>
@@ -218,6 +256,7 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -47,7 +47,8 @@ for ft in features(os.path.join(SRC, "ski_areas.geojson")):
     if cc not in COUNTRIES: continue
     loc = (pl.get("localized") or {}).get("en") or {}
     areas[p["id"]] = dict(id=p["id"], name=p["name"], cc=cc, region=loc.get("region") or "",
-                          locality=loc.get("locality") or "", x=x, y=y, runs=[], lifts=[])
+                          locality=loc.get("locality") or "", x=x, y=y, runs=[], lifts=[],
+                          website=(p.get("websites") or [""])[0])
 print("areas", len(areas))
 
 def collect(path, kind):
@@ -241,7 +242,7 @@ for a in sorted(areas.values(), key=lambda a: (a["cc"], a["y"], a["x"])):
     km = sum(e["len"] for e in edges if e["k"]=="r")/1000
     eles = [n[2] for n in nodes if n[2] is not None]
     index.append([a["id"], a["name"], a["cc"], a["region"], round(a["x"],4), round(a["y"],4),
-                  round(km), nl, shard_no, round(min(eles)) if eles else None, round(max(eles)) if eles else None])
+                  round(km), nl, shard_no, round(min(eles)) if eles else None, round(max(eles)) if eles else None, a["website"]])
 flush()
 with open(os.path.join(OUT, "data", "index.json"), "w", encoding="utf-8") as f:
     json.dump(index, f, separators=(",",":"), ensure_ascii=False)
