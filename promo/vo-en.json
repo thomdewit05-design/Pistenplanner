@@ -2,10 +2,10 @@
  {
   "file": "vo/en/00.wav",
   "at": 0.4,
-  "dur": 3.59,
+  "dur": 3.64,
   "text": "Meet Skipilot. Your pilot on the slopes.",
   "lead": 0.1,
-  "speech": 2.83
+  "speech": 2.88
  },
  {
   "file": "vo/en/01.wav",
@@ -18,10 +18,10 @@
  {
   "file": "vo/en/02.wav",
   "at": 6.7,
-  "dur": 4.75,
+  "dur": 4.79,
   "text": "Pick where you want to go. Skipilot finds the runs that match your level.",
   "lead": 0.1,
-  "speech": 3.99
+  "speech": 4.03
  },
  {
   "file": "vo/en/03.wav",
