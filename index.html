@@ -17,7 +17,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 <!-- iconenset -->
@@ -68,6 +68,10 @@
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></symbol>
     <symbol id="i-group" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3"/><path d="M2.8 19.5a6.2 6.2 0 0 1 12.4 0"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.1a5 5 0 0 1 5.3 5.4"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5"/><path d="M21 3 14.5 21l-4-7.5L3 9.5 21 3Z"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4-6 4v-17Z"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -114,7 +118,16 @@
   <div class="nav-warn" id="navWarn" hidden></div>
 </div>
 
+<div id="drawBar" class="draw-bar" hidden aria-live="polite">
+  <svg class="ic db-ic"><use href="#i-pencil"/></svg>
+  <div class="db-txt"><b id="dbTitle">Route tekenen</b><small id="dbSub">Tik op liftstations, kruisingen of pistes</small></div>
+  <button type="button" class="icon-btn" id="dbUndo" title="Laatste punt weghalen" aria-label="Laatste punt weghalen"><svg class="ic"><use href="#i-undo"/></svg></button>
+  <button type="button" class="icon-btn" id="dbClear" title="Alles wissen" aria-label="Alle punten wissen"><svg class="ic"><use href="#i-trash"/></svg></button>
+  <button type="button" class="btn primary" id="dbDone">Klaar</button>
+</div>
+
 <div class="fabs">
+  <button type="button" id="drawBtn" class="fab glass" aria-label="Route tekenen" title="Route tekenen"><svg class="ic"><use href="#i-pencil"/></svg></button>
   <button type="button" id="sosBtn" class="fab sos-fab" aria-label="Noodgeval (SOS)" title="Noodgeval">SOS</button>
   <button type="button" id="locBtn" class="fab glass" aria-label="Mijn locatie" title="Mijn locatie"><svg class="ic"><use href="#i-locate"/></svg></button>
   <button type="button" id="fitRouteBtn" class="fab glass" aria-label="Zoom naar route" title="Zoom naar route"><svg class="ic"><use href="#i-route"/></svg></button>
@@ -149,6 +162,14 @@
     </details>
 
     <div id="result" aria-live="polite"><p class="empty">Kies een skigebied om te beginnen.</p></div>
+
+    <details class="settings" id="myRoutes">
+      <summary><svg class="ic"><use href="#i-bookmark"/></svg><span>Mijn routes</span><span class="mr-count" id="mrCount"></span><svg class="ic chev"><use href="#i-chev"/></svg></summary>
+      <div class="set-group">
+        <div class="mr-save"><input type="text" id="mrName" maxlength="40" placeholder="Naam, bijv. Ochtendrondje" aria-label="Naam van de route"><button type="button" class="btn ghost" id="mrSave"><svg class="ic"><use href="#i-bookmark"/></svg>Bewaar</button></div>
+        <ul class="mr-list" id="mrList"></ul>
+      </div>
+    </details>
 
     <details class="settings" id="settings">
       <summary><svg class="ic"><use href="#i-sliders"/></svg><span>Niveau en voorkeuren</span><svg class="ic chev"><use href="#i-chev"/></svg></summary>
@@ -301,6 +322,6 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

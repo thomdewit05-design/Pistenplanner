@@ -13,7 +13,7 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
@@ -144,7 +144,9 @@ async function openArea(id, opts={}){
     skiNames.set(`Skiën: ${pisteLabel(e)} (${DIFF[e.diff].nl})`, e.i); });
   S.area.skiNames = skiNames;
   Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort()});
-  S.risk = null; loadStatus(); applyPendingShare();
+  S.risk = null; S.wps = [];
+  if(S.draw){ S.draw = false; document.body.classList.remove("drawing"); $("drawBtn").classList.remove("drawing"); $("drawBar").hidden = true; }
+  loadStatus(); applyPendingShare();
   S.target = null; S.via = null;
   $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
   S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
@@ -281,7 +283,26 @@ function shortest(a, b, bias){
   const path = []; let v = b; while(v!==a){ const s = prev[v]; path.unshift(s); v = s.from; }
   return path;
 }
+// getekende route: punten (n) en hele pistes (p) achter elkaar
+function wpLegs(){
+  const legs = []; let cur = S.fromMe && S.pos && S.from != null ? S.from : null;
+  for(const w of S.wps){
+    if(w.k === "p"){
+      const ch = w.ch || (w.ch = chainFrom(w.ei));
+      if(cur != null && cur !== ch.start) legs.push([cur, ch.start]);
+      legs.push([ch.start, ch.end, new Set(ch.edges)]); cur = ch.end;
+    } else { if(cur != null && cur !== w.n) legs.push([cur, w.n]); cur = w.n; }
+  }
+  return legs;
+}
+const wpStart = w => w.k === "p" ? (w.ch || (w.ch = chainFrom(w.ei))).start : w.n;
+const wpEnd = w => w.k === "p" ? (w.ch || (w.ch = chainFrom(w.ei))).end : w.n;
 function computePath(){
+  if(S.wps.length){
+    const path = [];
+    for(const [a, b, bias] of wpLegs()){ const p = shortest(a, b, bias); if(!p) return null; path.push(...p); }
+    return path;
+  }
   if(S.from==null) return null;
   const legs = S.target ? [[S.from, S.target.start], [S.target.start, S.target.end, new Set(S.target.edges)]]
              : S.to==null ? null
@@ -300,7 +321,7 @@ function defaultRoute(){
     const {dist} = dijkstra(a, null, out); let c = 0; for(const d of dist) if(d < Infinity) c++;
     if(!best || c > best.c) best = {a, c, dist};
   }
-  S.target = null; S.via = null;
+  S.target = null; S.via = null; S.wps = [];
   if(!best){ S.from = S.to = null; return; }
   S.from = best.a;
   // hoogste bergstation vanwaar je weer terug kunt naar het begin
@@ -393,9 +414,13 @@ function update(){
   $("pickHint").innerHTML = `Tik op een <strong>piste</strong> om hem te skiën, of op een punt om ${S.pick==="from" ? "het <strong>vertrekpunt (A)</strong>" : "de <strong>bestemming (B)</strong>"} te kiezen.`;
   save();
   const A = S.area; if(!A) return;
-  if(S.target) S.to = S.target.end;
+  if(S.wps.length){
+    S.target = null; S.via = null;
+    if(!(S.fromMe && S.pos)) S.from = wpStart(S.wps[0]);
+    S.to = wpEnd(S.wps[S.wps.length-1]);
+  } else if(S.target) S.to = S.target.end;
   if(document.activeElement !== $("from")) $("from").value = S.from!=null ? (S.fromMe ? "Mijn locatie (" + lc(nodeLabel(S.from)) + ")" : nodeLabel(S.from)) : "";
-  if(document.activeElement !== $("to")) $("to").value = S.target ? `Skiën: ${S.target.label}`
+  if(document.activeElement !== $("to")) $("to").value = S.wps.length ? `Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}` : S.target ? `Skiën: ${S.target.label}`
     : S.to!=null && S.to===S.from && S.via!=null ? "Terug naar het vertrekpunt" : S.to!=null ? nodeLabel(S.to) : "";
   renderExtra();
 
@@ -411,7 +436,13 @@ function update(){
     L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2.5, dashArray:"1 9", lineCap:"round", className:"route-core"}).addTo(routeLayer);
     if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.95, dashArray:"10 8"}).addTo(routeLayer);
   }
-  const pins = [[S.from,"a","<span></span>"],[S.via,"v",I("loop")],[S.target ? S.target.start : null,"v",I("ski")],[S.to,"b",I("flag")]];
+  S.wps.forEach((w, i) => {
+    const n = wpStart(w), p = A.nodes[n];
+    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="wpn${w.k==="p" ? " p" : ""}${i===0 ? " first" : ""}">${i+1}</div>`, iconSize:[26,26], iconAnchor:[13,13]}),
+      keyboard:false, interactive:false, zIndexOffset:600 + i}).addTo(markLayer);
+  });
+  const pins = S.wps.length ? [[S.wps.length > 1 ? S.to : null, "b", I("flag")]]
+    : [[S.from,"a","<span></span>"],[S.via,"v",I("loop")],[S.target ? S.target.start : null,"v",I("ski")],[S.to,"b",I("flag")]];
   for(const [n, cls, html] of pins){
     if(n==null || (cls==="a" && S.fromMe && S.pos) || (cls==="b" && S.to===S.from && S.via!=null)) continue;
     const p = A.nodes[n], sz = cls==="v" ? 26 : 30;
@@ -421,15 +452,19 @@ function update(){
   renderResult();
   renderClosed();
   updateNav();
+  if(S.draw) renderDrawBar();
+  if($("myRoutes").open) renderRoutes();
 }
 function renderExtra(){
   const x = $("extra"), parts = [];
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
   if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}<span class="x">${I("close")}</span></button>`);
+  if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
   if(S.planBy) parts.unshift(`<button type="button" class="chip route group-chip" data-k="planby" title="Niet meer tonen">${I("group")}Route van ${esc(S.planBy)}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
   x.querySelectorAll("button").forEach(b => b.onclick = () => {
-    if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
+    if(b.dataset.k==="wps"){ S.wps = []; S.to = null; if(S.draw) renderDrawBar(); }
+    else if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
     update();
   });
 }
@@ -437,7 +472,8 @@ function renderExtra(){
 function renderResult(){
   const res = $("result"), peek = $("peek");
   if(S.from==null || S.to==null){ res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`; peek.innerHTML = ""; return setPeek(); }
-  if(S.from===S.to && S.via==null && !S.target){ res.innerHTML = `<p class="empty">Je bent al op je bestemming. Kies een andere bestemming.</p>`; peek.innerHTML = ""; return setPeek(); }
+  if(S.wps.length && S.path && !S.path.length){ res.innerHTML = `<p class="empty">Tik het volgende punt aan om de route verder te tekenen.</p>`; peek.innerHTML = ""; return setPeek(); }
+  if(S.from===S.to && S.via==null && !S.target && !S.wps.length){ res.innerHTML = `<p class="empty">Je bent al op je bestemming. Kies een andere bestemming.</p>`; peek.innerHTML = ""; return setPeek(); }
   if(!S.path){
     const tips = [];
     if(S.level < 3) tips.push("kies een hoger niveau");
@@ -473,7 +509,8 @@ function renderResult(){
   const riskyLifts = steps.filter(s => s.t==="l" && S.risk?.lifts.has(s.e.i)).length;
   if(riskyLifts) warn += `<p class="notice info">${I("wind")}<span>${riskyLifts === 1 ? "Eén lift" : riskyLifts + " liften"} op je route ${riskyLifts === 1 ? "is" : "zijn"} bij deze wind mogelijk dicht (${S.risk.reason}). Controleer de <button type="button" class="linkbtn" id="openStatus2" style="color:var(--accent)">liftstatus</button>.</span></p>`;
   if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
-  const endLabel = S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
+  const lastWp = S.wps[S.wps.length-1];
+  const endLabel = lastWp ? (lastWp.k === "p" ? `Einde ${lastWp.ch.label}` : nodeLabel(S.to)) : S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
   res.innerHTML = warn + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
       <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}</div>
@@ -522,9 +559,15 @@ map.on("click", ev => {
       prev = c;
     }
   }
+  if(S.draw){
+    if(be >= 0 && bed < 16 && bd > 14 && A.edges[be].t === "r") return addWp({k:"p", ei:be});
+    if(bd <= 36) return addWp({k:"n", n:bn});
+    if(be >= 0 && bed < 16) return addWp({k:"n", n:bn});
+    toast("Tik op een piste, een lift of een liftstation."); return;
+  }
   if(be >= 0 && bed < 16 && bd > 14) return edgePopup(be, ev.latlng, bn);
   if(bd > 36){ toast("Tik op een piste, een lift of een liftstation."); return; }
-  if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; }
+  if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; }
   update();
 });
 function edgePopup(ei, latlng, nearNode){
@@ -546,8 +589,8 @@ function edgePopup(ei, latlng, nearNode){
   const pop = L.popup({closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"}).setLatLng(latlng).setContent(div).openOn(map);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     const a = b.dataset.a;
-    if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; if(S.from==null) S.from = ch.start; }
-    else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; }
+    if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from==null) S.from = ch.start; }
+    else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; S.wps = []; }
     else if(a==="from"){ S.from = nearNode; S.fromMe = false; S.pick = "to"; }
     else { setClosed(ch.edges, true); if(S.target?.edges.some(i => ch.edges.includes(i))) S.target = null; drawPistes(); toast(`${uc(ch.label)} gesloten.`); }
     map.closePopup(pop); update();
@@ -723,7 +766,7 @@ function placeInput(inp, key){
     for(const [s, n] of A.names){ const k = norm(s); if(k===v){ hit = n; break; } if(hit==null && k.includes(v)) hit = n; }
     if(hit==null && key==="to") for(const [s, ei] of A.skiNames) if(norm(s).includes(v)){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
     if(hit==null){ toast(`Geen punt gevonden voor "${raw}".`); return; }
-    S[key] = hit; if(key==="to") S.planBy = null;
+    S[key] = hit; if(key==="to"){ S.planBy = null; S.wps = []; }
     if(key==="from") S.fromMe = false; else { S.target = null; S.via = null; }
     inp.blur(); update();
   });
@@ -790,7 +833,7 @@ function toValley(){
     if(!best || e < best.e - 30 || (Math.abs(e - best.e) <= 30 && d < best.d)) best = {n, e, d};
   });
   if(!best){ toast("Vanaf hier is geen weg naar beneden gevonden."); return; }
-  S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from"; S.planBy = null;
+  S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from"; S.planBy = null; S.wps = [];
   update(); fitRoute();
   toast(`Naar het dal: ${lc(nodeLabel(best.n))}${best.e < 9999 ? `, ${best.e} m` : ""}`);
 }
@@ -1141,6 +1184,7 @@ async function adoptPlan(d){
   if(!S.area || S.area.id !== d.area){ if(!S.index.some(r => r[0] === d.area)) return; await openArea(d.area, {keepView:false}); }
   const A = S.area;
   applyKeys((d.closed || []).map(i => A.groupKeys[i]).filter(Boolean));
+  S.wps = wpsIn(d.wps); if(S.draw) stopDraw();
   S.via = Number.isInteger(d.via) && A.nodes[d.via] ? d.via : null;
   if(d.dk === "t" && A.edges[d.de]){ S.target = chainFrom(d.de); S.to = S.target.end; }
   else if(Number.isInteger(d.to) && A.nodes[d.to]){ S.target = null; S.to = d.to; }
@@ -1157,7 +1201,8 @@ async function sendPlan(){
   const A = S.area;
   const closed = closedKeys().map(k => A.groupKeys.indexOf(k)).filter(i => i >= 0);
   const plan = {t:"plan", area:A.id, from:S.from, to:S.to, via:S.via, dk:S.target ? "t" : "n", de:S.target ? S.target.e.i : null, closed,
-                label: S.target ? `Skiën: ${S.target.label}` : nodeLabel(S.to)};
+                wps: S.wps.length ? wpsOut() : undefined,
+                label: S.wps.length ? `Getekende route (${S.wps.length} punten)` : S.target ? `Skiën: ${S.target.label}` : nodeLabel(S.to)};
   const ok = await gSend(plan);
   if(ok){ G.planTs = Date.now(); G.plan = {...plan, name:G.name, id:G.id, ts:G.planTs}; S.planBy = null; renderGroup(); update(); toast("Route gestuurd naar de groep."); }
   else toast("Versturen lukte niet. Controleer je verbinding.");
@@ -1242,6 +1287,104 @@ $("gShare").onclick = async () => {
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("group").hidden) $("group").hidden = true; });
 setInterval(() => { if(G.code){ drawMembers(); if(!$("group").hidden) renderGroup(); } }, 30000);
 window.addEventListener("online", () => { if(G.code && G.es?.readyState === 2) gConnect(); });
+
+// ================= route tekenen =================
+const wpsOut = () => S.wps.map(w => w.k === "p" ? ["p", w.ei] : ["n", w.n]);
+const wpsIn = arr => (arr || []).filter(x => Array.isArray(x) && Number.isInteger(x[1])).map(([k, v]) => k === "p" ? {k:"p", ei:v} : {k:"n", n:v})
+  .filter(w => w.k === "p" ? S.area.edges[w.ei]?.t === "r" : !!S.area.nodes[w.n]);
+function addWp(w){
+  const last = S.wps[S.wps.length-1];
+  if(last && last.k === w.k && (w.k === "n" ? last.n === w.n : last.ei === w.ei)){ toast("Dit punt staat er al."); return; }
+  S.wps.push(w); S.planBy = null;
+  if(S.wps.length > 1 || (S.fromMe && S.pos)){
+    if(!computePath()){
+      S.wps.pop();
+      toast("Dit punt is vanaf het vorige niet te bereiken met jouw niveau. Kies een ander punt.", 3500);
+      return;
+    }
+  }
+  update(); renderDrawBar();
+}
+function renderDrawBar(){
+  const n = S.wps.length;
+  $("dbUndo").disabled = $("dbClear").disabled = !n;
+  if(!n){ $("dbTitle").textContent = "Route tekenen"; $("dbSub").textContent = S.fromMe && S.pos ? "Start bij jou. Tik het eerste punt aan." : "Tik je startpunt aan: een liftstation, kruising of piste"; return; }
+  if(!S.path || !S.path.length){ $("dbTitle").textContent = `${n} ${n===1 ? "punt" : "punten"}`; $("dbSub").textContent = "Tik het volgende punt aan"; return; }
+  const tot = S.path.reduce((t, x) => t + x.min, 0), kmp = S.path.filter(x => x.e.t==="r").reduce((t, x) => t + x.e.len, 0);
+  $("dbTitle").textContent = `${n} punten · ${fmt(tot)}`;
+  $("dbSub").textContent = `${(kmp/1000).toFixed(1).replace(".", ",")} km piste · tik verder of kies Klaar`;
+}
+function startDraw(){
+  if(!S.area) return;
+  S.draw = true; S.wps = []; S.target = null; S.via = null; S.planBy = null;
+  if(!(S.fromMe && S.pos)) S.from = null;
+  S.to = null;
+  document.body.classList.add("drawing"); $("drawBtn").classList.add("drawing");
+  $("drawBar").hidden = false; map.closePopup();
+  if(window.innerWidth < 900) setSheet(false);
+  update(); renderDrawBar();
+}
+function stopDraw(){
+  S.draw = false;
+  document.body.classList.remove("drawing"); $("drawBtn").classList.remove("drawing");
+  $("drawBar").hidden = true;
+  if(S.wps.length === 1 && !(S.fromMe && S.pos)) S.wps = [];   // één los punt is nog geen route
+  update();
+  if(S.path?.length){ fitRoute(); if(window.innerWidth < 900) setSheet(true); }
+}
+$("drawBtn").onclick = () => S.draw ? stopDraw() : startDraw();
+$("dbDone").onclick = stopDraw;
+$("dbUndo").onclick = () => { S.wps.pop(); update(); renderDrawBar(); };
+$("dbClear").onclick = () => { S.wps = []; update(); renderDrawBar(); };
+document.addEventListener("keydown", e => {
+  if(!S.draw) return;
+  if(e.key === "Escape") stopDraw();
+  if((e.ctrlKey || e.metaKey) && e.key === "z"){ e.preventDefault(); $("dbUndo").click(); }
+});
+
+// ================= mijn routes =================
+const routesKey = () => `pp-routes:${S.area.id}`;
+function loadRoutes(){ try{ return JSON.parse(localStorage.getItem(routesKey()) || "[]"); }catch(e){ return []; } }
+function saveRoutes(list){ try{ localStorage.setItem(routesKey(), JSON.stringify(list)); }catch(e){ toast("Opslaan lukte niet. Is het geheugen vol?"); } }
+// elke route kan als reeks punten bewaard worden
+function currentWps(){
+  if(S.wps.length) return wpsOut();
+  if(S.from == null || (S.to == null && !S.target)) return [];
+  const out = [["n", S.from]];
+  if(S.via != null) out.push(["n", S.via]);
+  if(S.target) out.push(["p", S.target.e.i]); else if(S.to !== S.from || S.via != null) out.push(["n", S.to]);
+  return out;
+}
+function renderRoutes(){
+  if(!S.area) return;
+  const list = loadRoutes();
+  $("mrCount").textContent = list.length ? list.length : "";
+  $("mrSave").disabled = !S.path?.length;
+  $("mrList").innerHTML = list.map((r, i) => `<li><button type="button" class="mr-open" data-i="${i}"><b>${esc(r.name)}</b><small>${r.n} punten · ${fmt(r.min)} · ${r.km.toFixed(1).replace(".", ",")} km piste</small></button>
+    <button type="button" class="icon-btn" data-del="${i}" title="Verwijderen" aria-label="${esc(r.name)} verwijderen"><svg class="ic"><use href="#i-trash"/></svg></button></li>`).join("")
+    || `<li class="empty" style="display:block;font-size:13px">Nog geen routes bewaard. Teken of plan een route en bewaar hem hier.</li>`;
+  $("mrList").querySelectorAll(".mr-open").forEach(b => b.onclick = () => {
+    const r = loadRoutes()[+b.dataset.i]; if(!r) return;
+    if(S.draw) stopDraw();
+    S.wps = wpsIn(r.wps); S.target = null; S.via = null; S.planBy = null; S.fromMe = false;
+    update(); fitRoute(); toast(`Route "${r.name}" geladen.`);
+    if(window.innerWidth < 900) setSheet(false);
+  });
+  $("mrList").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    const list = loadRoutes(), [r] = list.splice(+b.dataset.del, 1);
+    saveRoutes(list); renderRoutes(); toast(`"${r.name}" verwijderd.`);
+  });
+}
+$("mrSave").onclick = () => {
+  const wps = currentWps();
+  if(!S.path?.length || wps.length < 2){ toast("Teken of plan eerst een route."); return; }
+  const name = $("mrName").value.trim() || `Route ${new Date().toLocaleDateString("nl-NL", {day:"numeric", month:"short"})}`;
+  const list = loadRoutes();
+  list.unshift({name, wps, n:wps.length, ts:Date.now(), min:S.path.reduce((t, x) => t + x.min, 0),
+                km:S.path.filter(x => x.e.t==="r").reduce((t, x) => t + x.e.len, 0)/1000});
+  saveRoutes(list.slice(0, 30)); $("mrName").value = ""; renderRoutes(); toast(`Route "${name}" bewaard.`);
+};
+$("myRoutes").addEventListener("toggle", renderRoutes);
 
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
