@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 </head>
 <body>
 <!-- iconenset -->
@@ -223,6 +223,7 @@
   <button type="button" class="near-btn" id="nearBtn"><svg class="ic"><use href="#i-locate"/></svg>Bij mij in de buurt</button>
   <ul class="areas" id="areas"></ul>
   <p class="count" id="count"></p>
+  <div class="ad-slot" data-ad="app-list"></div>
 </div>
 
 <div id="status" class="picker status" role="dialog" aria-modal="true" aria-labelledby="statusTitle" hidden>
@@ -315,6 +316,7 @@
   <p class="g-note">Je telefoon pauzeert web-apps als het scherm uit gaat. Laat de app open staan, of zet "Scherm aan houden" aan (kost meer batterij). Het spoor blijft alleen op deze telefoon.</p>
   <div id="diarySeason"></div>
   <div id="diaryHistory"></div>
+  <div class="ad-slot" data-ad="app-diary"></div>
 </div>
 
 <div id="menu" class="picker menu" role="dialog" aria-modal="true" aria-labelledby="menuTitle" hidden>
@@ -415,7 +417,10 @@
     <p class="m-hint">Alles wat je in de app doet, blijft op deze telefoon. Alleen als je een groep gebruikt, gaan je naam, route en positie via ntfy.sh naar je groepsgenoten.</p>
     <a class="m-link" href="privacy.html" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Privacyverklaring</a>
     <a class="m-link" href="voorwaarden.html" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Voorwaarden</a>
+    <a class="m-link" href="gebieden/" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Alle skigebieden op de website</a>
   </section>
+
+  <div class="ad-slot" data-ad="app-menu"></div>
 
   <section class="m-sec">
     <h3><svg class="ic"><use href="#i-phone"/></svg>App</h3>
@@ -452,10 +457,11 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=32"></script>
+<script src="config.js?v=33"></script>
+<script src="ads.js?v=33"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=32"></script>
-<script src="app.js?v=32"></script>
+<script src="i18n.js?v=33"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

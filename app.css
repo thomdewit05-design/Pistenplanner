@@ -860,3 +860,8 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .pro-teaser>.ic{width:18px;height:18px;color:#E07A1F}
 .pro-teaser span{flex:1 1 200px}
 .pro-sec #proMore{width:100%}
+/* advertenties (alleen als ze in config.js aan staan) */
+.ad-slot{margin:12px 0}
+.ad-slot:empty{display:none}
+.ad-slot .ad-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.picker .ad-slot,.menu>.ad-slot{margin:8px 16px}

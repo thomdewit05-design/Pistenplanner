@@ -35,7 +35,8 @@ a{color:var(--accent)}
 <div class="card">
 <h2>In het kort</h2>
 <ul>
-  <li>De Pistenplanner heeft geen accounts, geen advertenties en geen trackers of analysediensten.</li>
+  <li class="ads-off">De Pistenplanner heeft geen accounts, geen advertenties en geen trackers of analysediensten.</li>
+  <li class="ads-on" hidden>De Pistenplanner heeft geen accounts en geen analysediensten. De app en de website tonen advertenties van Google; daarvoor vraagt Google eerst om je toestemming voor cookies.</li>
   <li>Je routes, instellingen, skidagboek en bewaarde plekken staan alleen op je eigen telefoon.</li>
   <li>Je locatie wordt op je telefoon gebruikt voor de navigatie. Alleen als je zelf een groep gebruikt, gaat je positie naar je groepsgenoten.</li>
 </ul>
@@ -59,12 +60,19 @@ a{color:var(--accent)}
   <tr><td>Open-Meteo</td><td>Weer en sneeuw</td><td>De ligging van het skigebied (niet je eigen positie)</td></tr>
   <tr><td>Overpass (OpenStreetMap)</td><td>Hutten en restaurants</td><td>Het gebied van het skigebied</td></tr>
   <tr><td>ntfy.sh</td><td>Groepen</td><td>Alleen als je een groep gebruikt: je naam in de groep, de route die je deelt, en als je dat aanzet je positie en dagtotaal (km en hoogtemeters). Berichten gaan via een geheime groepscode en worden door ntfy.sh tijdelijk bewaard (standaard ongeveer 12 uur).</td></tr>
+  <tr class="ads-on" hidden><td>Google AdSense</td><td>Advertenties op de website en in de app (in de skigebiedkiezer, het dagboek en het menu; nooit tijdens het navigeren)</td><td>Gegevens over je apparaat en browser, je IP-adres, de pagina die je bekijkt en, als je toestemming geeft, cookies en vergelijkbare technieken. Zie hieronder.</td></tr>
   <tr><td>Lemon Squeezy</td><td>Kopen en controleren van Pro</td><td>Bij het kopen: wat je zelf invult in de kassa van Lemon Squeezy. In de app: je licentiecode en het soort apparaat (bijvoorbeeld "iPhone"), om de code te activeren en eens per week te controleren.</td></tr>
 </table>
 <p>Lemon Squeezy is bij een aankoop de verkoper (merchant of record) en verwerkt je betaal- en factuurgegevens zelf, volgens <a href="https://www.lemonsqueezy.com/privacy" target="_blank" rel="noopener">hun privacybeleid</a>. De maker van de Pistenplanner ziet daarvan alleen wat nodig is voor de bestelling, zoals je naam, e-mailadres en land.</p>
 
+<div class="ads-on" hidden>
+<h2>Advertenties en cookies</h2>
+<p>Om de Pistenplanner gratis te houden, tonen de website en de app advertenties van Google AdSense (Google Ireland Limited). Bij je eerste bezoek vraagt een melding van Google of je toestemming geeft voor cookies en gepersonaliseerde advertenties. Geef je geen toestemming, dan krijg je advertenties die niet op jou zijn afgestemd; Google gebruikt dan alleen wat nodig is om advertenties te tonen en misbruik tegen te gaan.</p>
+<p>Je kunt je keuze altijd veranderen via de knop of het schildje dat Google onderaan de pagina toont, of door de cookies van deze website in je browser te wissen. Meer over hoe Google gegevens gebruikt: <a href="https://policies.google.com/technologies/partner-sites?hl=nl" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a>.</p>
+</div>
+
 <h2>Waarom mag dit (grondslag)</h2>
-<p>De gegevens worden gebruikt om de app te laten werken zoals jij vraagt (uitvoering van de overeenkomst) en, bij een aankoop, om aan de wettelijke administratieplicht te voldoen. Voor je locatie vraagt je telefoon eerst om toestemming; die kun je altijd intrekken in de instellingen van je telefoon.</p>
+<p>De gegevens worden gebruikt om de app te laten werken zoals jij vraagt (uitvoering van de overeenkomst) en, bij een aankoop, om aan de wettelijke administratieplicht te voldoen.<span class="ads-on" hidden> Voor cookies en gepersonaliseerde advertenties is je toestemming de grondslag.</span> Voor je locatie vraagt je telefoon eerst om toestemming; die kun je altijd intrekken in de instellingen van je telefoon.</p>
 
 <h2>Hoe lang</h2>
 <p>Gegevens op je telefoon blijven staan tot je ze wist. Groepsberichten verdwijnen na korte tijd bij ntfy.sh. Bestelgegevens worden zeven jaar bewaard, omdat de belastingwet dat vraagt.</p>
@@ -79,6 +87,8 @@ a{color:var(--accent)}
 </main>
 <script src="config.js"></script>
 <script>
+// advertentieteksten alleen tonen als advertenties aan staan
+if(((window.PP_CONFIG || {}).ads || {}).client){ document.querySelectorAll(".ads-on").forEach(e => e.hidden = false); document.querySelectorAll(".ads-off").forEach(e => e.hidden = true); }
 // naam en e-mailadres uit config.js invullen
 const c = (window.PP_CONFIG || {}).contact || {};
 document.querySelectorAll("[data-cfg]").forEach(el => {

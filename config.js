@@ -18,6 +18,15 @@ window.PP_CONFIG = {
     osm: null,
     attribution: ""
   },
+  // advertenties via Google AdSense; leeg = geen advertenties
+  ads: {
+    client: "",           // publisher-ID, bijvoorbeeld "ca-pub-1234567890123456"
+    slots: {              // nummers van advertentieblokken (AdSense > Advertenties > Per advertentieblok)
+      default: "",        // gebruikt voor elke plek zonder eigen blok
+      "page-top": "", "page-bottom": "", "list-top": "",   // website-pagina's
+      "app-list": "", "app-diary": "", "app-menu": ""      // in de app (nooit tijdens het navigeren)
+    }
+  },
   // contactgegevens voor de privacyverklaring en de voorwaarden
   contact: {
     name: "",

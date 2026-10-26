@@ -51,3 +51,12 @@ Veiligheid (route, navigatie, weer, laatste lift, SOS) en meedoen met een groep 
 
 Eigen kaarttegels met een sleutel zet je in `config.js` onder `maps` (per laag een `url` en eventueel Leaflet-`options`).
 Naam en e-mailadres voor `privacy.html` en `voorwaarden.html` staan onder `contact`.
+
+## Advertenties en de website
+
+`python tools/make_pages.py [basis-url]` maakt een pagina per skigebied in `gebieden/`, plus een overzicht, `sitemap.xml` en `robots.txt`.
+Draai dit opnieuw na het bijwerken van `data/` of bij een eigen domeinnaam (geef dan de nieuwe basis-url mee).
+
+Advertenties (Google AdSense) staan in `config.js` onder `ads`. Zolang `client` leeg is, verschijnen er geen advertenties.
+Plekken: bovenaan en onderaan elke gebiedspagina, in het overzicht, en in de app in de skigebiedkiezer, het dagboek en het menu (nooit tijdens het navigeren).
+Zet in AdSense onder "Privacy en berichten" de toestemmingsmelding voor Europa aan.

@@ -136,7 +136,9 @@ function renderAreas(){
   $("areas").querySelectorAll(".fav").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderAreas(); });
   markOfflineAreas();
 }
-function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() => $("q").focus(), 50); }
+// advertenties alleen in schermen als de kiezer, het dagboek en het menu; nooit tijdens het navigeren
+const fillAds = id => { if(!S.follow) window.ppAds?.fill($(id)); };
+function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() => $("q").focus(), 50); fillAds("picker"); }
 function closePicker(){ $("picker").hidden = true; }
 
 async function openArea(id, opts={}){
@@ -1949,7 +1951,7 @@ function renderSeason(curKey){
   });
 }
 
-function openDiary(){ $("diary").hidden = false; renderDiary(); drawTrack(); }
+function openDiary(){ $("diary").hidden = false; renderDiary(); drawTrack(); fillAds("diary"); }
 $("diaryOpen").onclick = openDiary;
 $("diaryClose").onclick = () => { $("diary").hidden = true; };
 $("dShow").onchange = e => { D.show = e.target.checked; dSaveSettings(); drawTrack(); };
@@ -2572,7 +2574,7 @@ function renderInstall(){
     : card(`<b>Op je beginscherm zetten</b>Open het browsermenu (⋮) en kies <b style="display:inline">App installeren</b> of <b style="display:inline">Toevoegen aan startscherm</b>.`);
   $("installBtn")?.addEventListener("click", async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); });
 }
-function openMenu(){ $("menu").hidden = false; syncMenu(); }
+function openMenu(){ $("menu").hidden = false; syncMenu(); fillAds("menu"); }
 function closeMenu(){ $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
 $("menuBtn").onclick = openMenu;
 $("menuClose").onclick = closeMenu;
