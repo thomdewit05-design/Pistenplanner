@@ -1,0 +1,571 @@
+<title>Pistenplanner Alpen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: grote pistekaart links (boven op telefoon), planner als bord rechts. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --snow:#F7F9FB; --ink:#14202B; --muted:#5B6B79; --line:#D4DDE5;
+  --green:#22984A; --blue:#1E66CC; --red:#D22E2E; --black:#121417; --free:#C9781A; --unk:#8C99A6;
+  --lift:#2B3640; --route:#FFD000; --route-core:#14202B; --closed:#A8B3BD;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141E28; --snow:#18232E; --ink:#E6EDF3; --muted:#93A3B2; --line:#2A3946;
+  --green:#3DBA67; --blue:#4C8EF0; --red:#F0554F; --black:#E4EAF0; --free:#E59A3C; --unk:#6F7E8B;
+  --lift:#B9C6D2; --route:#FFD000; --route-core:#0D141B; --closed:#4F5D69; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141E28; --snow:#18232E; --ink:#E6EDF3; --muted:#93A3B2; --line:#2A3946;
+  --green:#3DBA67; --blue:#4C8EF0; --red:#F0554F; --black:#E4EAF0; --free:#E59A3C; --unk:#6F7E8B;
+  --lift:#B9C6D2; --route:#FFD000; --route-core:#0D141B; --closed:#4F5D69; color-scheme:dark}
+
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px;max-width:1440px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 24px;margin-bottom:14px}
+h1{font-family:var(--f-display);font-stretch:72%;font-weight:800;font-size:clamp(28px,4vw,40px);line-height:1;margin:0;text-transform:uppercase}
+h1 span{background:var(--route);color:#14202B;padding:0 .12em}
+.meta{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+.map{background:var(--snow);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.map svg{display:block;width:100%;height:min(78vh,780px);min-height:420px;touch-action:none;cursor:grab;user-select:none}
+.map svg.drag{cursor:grabbing}
+@media (max-width:920px){.map svg{height:62vh;min-height:360px}}
+.area-title{position:absolute;left:12px;top:10px;max-width:calc(100% - 80px);pointer-events:none}
+.area-title b{display:block;font-family:var(--f-display);font-stretch:78%;font-weight:800;font-size:20px;line-height:1.1;text-transform:uppercase;text-wrap:balance;paint-order:stroke;-webkit-text-stroke:0}
+.area-title small{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.tools{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.tools button{width:34px;height:34px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 16px var(--f-body);cursor:pointer;display:grid;place-items:center}
+.tools button:hover{border-color:var(--muted)}
+.loading{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--snow) 70%,transparent);font-family:var(--f-display);font-stretch:80%;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:9px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);background:var(--surface)}
+.legend i{display:inline-block;width:16px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.legend .src{margin-left:auto}
+.legend a{color:inherit}
+
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.label{font-family:var(--f-display);font-stretch:80%;font-weight:700;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+input[type=search],input[type=text]{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);box-sizing:border-box}
+input:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{font:inherit;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip .x{color:var(--red);font-weight:700}
+.areas{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:7px}
+.areas li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--line)}
+.areas li:last-child button{border-bottom:0}
+.areas li button:hover,.areas li button:focus-visible{background:color-mix(in srgb,var(--blue) 9%,transparent)}
+.areas li button[aria-current="true"]{background:color-mix(in srgb,var(--route) 28%,transparent)}
+.areas .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.areas .st{font-family:var(--f-mono);font-size:11px;color:var(--muted);white-space:nowrap;text-align:right}
+.areas .rg{font-size:12px;color:var(--muted);grid-column:1/-1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.count{font-size:12px;color:var(--muted);margin:6px 0 0}
+
+.field{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:8px;margin-bottom:8px}
+.dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:11px}
+.dot.a{background:var(--ink);color:var(--surface)} .dot.b{background:var(--route);color:#14202B}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;align-items:center}
+.btn{font:inherit;font-size:13px;padding:6px 11px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg.two{grid-template-columns:repeat(2,1fr)}
+.seg button{font:inherit;font-size:13px;font-weight:500;padding:8px 4px;border:0;background:transparent;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-top:10px;cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--blue)}
+
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:6px}
+.summary b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:800;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.summary small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+ol.steps{list-style:none;margin:0;padding:0}
+ol.steps li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:4px 10px;align-items:start;padding:9px 0;border-bottom:1px dashed var(--line)}
+ol.steps li:last-child{border-bottom:0}
+.badge{min-width:30px;height:24px;padding:0 3px;box-sizing:border-box;border-radius:5px;display:grid;place-items:center;font-family:var(--f-display);font-stretch:75%;font-weight:800;font-size:13px;color:#fff}
+.badge.g{background:var(--green)} .badge.b{background:var(--blue)} .badge.r{background:var(--red)} .badge.s{background:var(--black);color:var(--surface)}
+.badge.f{background:var(--free)} .badge.u{background:var(--unk)}
+.badge.l{background:transparent;border:1.5px solid var(--lift);color:var(--lift)}
+.badge.w{background:transparent;border:1.5px dashed var(--muted);color:var(--muted)}
+.badge svg{width:16px;height:16px}
+.st-title{font-weight:600;font-size:14px;line-height:1.3}
+.st-sub{font-size:12.5px;color:var(--muted)}
+.st-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.st-time{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.close-btn{font:inherit;font-size:11.5px;border:0;background:none;color:var(--muted);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.close-btn:hover{color:var(--red)}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.empty strong{color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.on{opacity:1}
+.route-core{animation:flow 1.1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.route-core{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pistenplanner <span>Alpen</span></h1>
+    <div class="meta" id="meta">SKIGEBIEDEN LADEN…</div>
+  </header>
+
+  <div class="grid">
+    <div class="map">
+      <svg id="map" aria-label="Pistekaart"></svg>
+      <div class="area-title"><b id="areaName">–</b><small id="areaStats"></small></div>
+      <div class="tools">
+        <button type="button" id="zin" title="Inzoomen" aria-label="Inzoomen">+</button>
+        <button type="button" id="zout" title="Uitzoomen" aria-label="Uitzoomen">−</button>
+        <button type="button" id="zfit" title="Heel gebied" aria-label="Heel gebied tonen">⤢</button>
+        <button type="button" id="zroute" title="Zoom naar route" aria-label="Zoom naar route">◎</button>
+      </div>
+      <div class="loading" id="loading">Kaart laden…</div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>Groen</span>
+        <span><i style="background:var(--blue)"></i>Blauw</span>
+        <span><i style="background:var(--red)"></i>Rood</span>
+        <span><i style="background:var(--black)"></i>Zwart</span>
+        <span><i style="background:var(--free)"></i>Skiroute/freeride</span>
+        <span><i style="background:var(--lift);height:2px"></i>Lift</span>
+        <span><i style="background:var(--route)"></i>Route</span>
+        <span class="src">Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> via <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a> · okt 2026</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <p class="label">Skigebied</p>
+        <input type="search" id="q" placeholder="Zoek op naam, dorp of regio…" autocomplete="off" aria-label="Zoek skigebied">
+        <div class="chips" id="countries"></div>
+        <ul class="areas" id="areas"></ul>
+        <p class="count" id="count"></p>
+      </div>
+
+      <div class="card">
+        <p class="label">Route</p>
+        <div class="field"><span class="dot a">A</span><input type="text" id="from" list="places" placeholder="Vertrek, bv. dalstation…" autocomplete="off" aria-label="Vertrekpunt"></div>
+        <div class="field"><span class="dot b">B</span><input type="text" id="to" list="places" placeholder="Bestemming…" autocomplete="off" aria-label="Bestemming"></div>
+        <datalist id="places"></datalist>
+        <div class="row"><button class="btn" id="swap" type="button">⇅ Omdraaien</button></div>
+        <p class="hint" id="pickHint"></p>
+      </div>
+
+      <div class="card">
+        <p class="label">Jouw niveau</p>
+        <div class="seg" id="level">
+          <button type="button" data-v="1"><span class="sw" style="background:var(--blue)"></span>Blauw</button>
+          <button type="button" data-v="2"><span class="sw" style="background:var(--red)"></span>t/m rood</button>
+          <button type="button" data-v="3"><span class="sw" style="background:var(--black)"></span>t/m zwart</button>
+        </div>
+        <label class="check"><input type="checkbox" id="free"> Skiroutes en freeride meenemen</label>
+        <label class="check"><input type="checkbox" id="down" checked> Met gondel of kabelbaan naar beneden mag</label>
+        <p class="label" style="margin-top:14px">Voorkeur</p>
+        <div class="seg two" id="mode">
+          <button type="button" data-v="fast">Snelste route</button>
+          <button type="button" data-v="easy">Rustigste route</button>
+        </div>
+      </div>
+
+      <div class="card" aria-live="polite">
+        <p class="label">Routebeschrijving</p>
+        <div id="result"><p class="empty">Kies een skigebied om te beginnen.</p></div>
+      </div>
+
+      <div class="card">
+        <p class="label">Gesloten door jou</p>
+        <div class="chips" id="closed" style="margin:0"></div>
+        <p class="hint">Sluit een piste of lift met "sluiten" bij een stap; de route zoekt dan een andere weg.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco"};
+const DIFF = {g:{nl:"groen",adj:"groene",lvl:1,spd:200,pen:1}, b:{nl:"blauw",adj:"blauwe",lvl:1,spd:283,pen:1}, r:{nl:"rood",adj:"rode",lvl:2,spd:350,pen:1.8},
+              s:{nl:"zwart",adj:"zwarte",lvl:3,spd:317,pen:3.5}, f:{nl:"skiroute",adj:"skiroute-",lvl:4,spd:250,pen:4}, u:{nl:"onbekend",adj:"ongemarkeerde",lvl:2,spd:300,pen:1.8}};
+const LIFT = {chair_lift:"stoeltjeslift", gondola:"gondel", cable_car:"kabelbaan", "t-bar":"sleeplift", "j-bar":"sleeplift",
+              platter:"schotellift", drag_lift:"sleeplift", rope_tow:"touwlift", magic_carpet:"lopende band", mixed_lift:"combibaan",
+              funicular:"kabeltrein", lift:"lift"};
+const DRAG = new Set(["t-bar","j-bar","platter","drag_lift","rope_tow","magic_carpet"]);
+const LIFT_WAIT = 2, WALK_SPD = 60; // min wachten, m/min lopen
+
+const state = {index:[], cc:"", q:"", area:null, from:null, to:null, level:2, free:false, down:true, mode:"fast",
+               closed:new Set(), pick:"from", vb:null};
+try{ const s = JSON.parse(localStorage.getItem("pistenplanner")||"null"); if(s) Object.assign(state, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", last:s.last}); }catch(e){}
+const save = () => { try{ localStorage.setItem("pistenplanner", JSON.stringify({level:state.level, free:state.free, down:state.down, mode:state.mode, last:state.area?.id})); }catch(e){} };
+let tt; const toast = m => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"),2000); };
+
+// ---------- gebiedenlijst ----------
+const shards = {};
+async function loadShard(n){ if(!shards[n]) shards[n] = fetch(`data/s${String(n).padStart(3,"0")}.json`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }); return shards[n]; }
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+
+function renderCountries(){
+  const counts = {}; state.index.forEach(r => counts[r[2]] = (counts[r[2]]||0)+1);
+  const ccs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  $("countries").innerHTML = [`<button type="button" class="chip" data-cc="" aria-pressed="${!state.cc}">Alle</button>`,
+    ...ccs.map(c => `<button type="button" class="chip" data-cc="${c}" aria-pressed="${state.cc===c}">${COUNTRY[c]||c} <span style="opacity:.6">${counts[c]}</span></button>`)].join("");
+  $("countries").querySelectorAll("button").forEach(b => b.onclick = () => { state.cc = b.dataset.cc; renderCountries(); renderAreas(); });
+}
+function renderAreas(){
+  const q = norm(state.q.trim());
+  let rows = state.index.filter(r => (!state.cc || r[2]===state.cc) && (!q || norm(r[1]+" "+r[3]).includes(q)));
+  rows.sort((a,b) => b[6]-a[6]);
+  const shown = rows.slice(0, 60);
+  $("areas").innerHTML = shown.map(r => `<li><button type="button" data-id="${r[0]}" aria-current="${state.area?.id===r[0]}">
+      <span class="nm">${esc(r[1])}</span><span class="st">${r[6]} km · ${r[7]} liften</span>
+      <span class="rg">${COUNTRY[r[2]]||r[2]}${r[3] ? " · "+esc(r[3]) : ""}${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></button></li>`).join("")
+    || `<li style="padding:10px;color:var(--muted);font-size:13px">Geen skigebied gevonden voor "${esc(state.q)}".</li>`;
+  $("count").textContent = rows.length > shown.length ? `${shown.length} van ${rows.length} getoond, gesorteerd op pistekilometers. Typ om te zoeken.` : `${rows.length} skigebieden`;
+  $("areas").querySelectorAll("button").forEach(b => b.onclick = () => openArea(b.dataset.id));
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- gebied laden ----------
+async function openArea(id, keepRoute){
+  const row = state.index.find(r => r[0]===id); if(!row) return;
+  $("loading").hidden = false; $("loading").textContent = "Kaart laden…";
+  let raw;
+  try{ raw = (await loadShard(row[8]))[id]; }
+  catch(e){ $("loading").textContent = "Kaartdata kon niet laden. Probeer het opnieuw."; return; }
+  const lon0 = row[4], lat0 = row[5], kx = 111320*Math.cos(lat0*Math.PI/180), ky = 110540;
+  const P = (lo, la) => [(lo/1e5 - lon0)*kx, -(la/1e5 - lat0)*ky];
+  const nodes = raw.n.map(n => { const [x,y] = P(n[0], n[1]); return {x, y, ele:n[2]}; });
+  const edges = [];
+  const geo = g => { const pts = []; let lo=0, la=0; for(let i=0;i<g.length;i+=2){ lo+=g[i]; la+=g[i+1]; pts.push(P(lo,la)); } return pts; };
+  for(const e of raw.e){
+    let nm = raw.t[e[3]]||"", ref = e[4] === nm ? "" : e[4];
+    if(!ref && /^\d{1,3}[a-z]?$/i.test(nm)){ ref = nm; nm = ""; }   // naam die eigenlijk een pistenummer is
+    if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8])});
+    else edges.push({t:"l", a:e[1], b:e[2], name:raw.t[e[3]]||"", ref:e[4], kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9]});
+  }
+  for(const w of raw.w) edges.push({t:"w", a:w[0], b:w[1], len:w[2], pts:[[nodes[w[0]].x,nodes[w[0]].y],[nodes[w[1]].x,nodes[w[1]].y]]});
+  edges.forEach((e,i) => e.i = i);
+
+  // namen van punten: liftstations eerst, dan begin/einde van pistes
+  const place = new Array(nodes.length).fill(null), names = new Map();
+  const liftName = e => (e.name || (e.ref ? `${LIFT[e.kind]||"lift"} ${e.ref}` : LIFT[e.kind]||"lift"));
+  const add = (n, s, prio) => { if(!place[n] || prio < place[n].p) place[n] = {s, p:prio}; if(!names.has(s)) names.set(s, n); };
+  edges.filter(e=>e.t==="l").forEach(e => { add(e.a, `Dalstation ${liftName(e)}`, 0); add(e.b, `Bergstation ${liftName(e)}`, 0); });
+  edges.filter(e=>e.t==="r" && (e.name||e.ref)).forEach(e => {
+    const nm = pisteName(e);
+    if(!names.has(`Begin ${nm}`)) add(e.a, `Begin ${nm}`, 1);
+    add(e.b, `Einde ${nm}`, 2);
+  });
+  state.area = {id, row, nodes, edges, place, names};
+  state.closed = new Set();
+  $("places").innerHTML = [...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
+  $("areaName").textContent = row[1];
+  $("areaStats").textContent = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften${row[10] ? ` · ${row[9]}–${row[10]} m` : ""}`;
+
+  if(!keepRoute){ defaultRoute(); state.pick = "from"; }
+  try{ history.replaceState(null, "", "#" + id); }catch(e){}
+  save(); drawMap(); fit(); $("loading").hidden = true; renderAreas(); update();
+}
+const pisteName = e => e.ref && e.name ? `piste ${e.ref} ${e.name}` : e.name || `piste ${e.ref}`;
+
+// ---------- routeplanning ----------
+function graph(){
+  const A = state.area, out = A.nodes.map(() => []);
+  for(const e of A.edges){
+    if(state.closed.has(e.i)) continue;
+    if(e.t==="r"){
+      const lv = DIFF[e.diff].lvl;
+      if(lv===4 ? !state.free : lv > state.level) continue;
+      const m = e.len / DIFF[e.diff].spd;
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost: state.mode==="easy" ? m*DIFF[e.diff].pen : m});
+    } else if(e.t==="l"){
+      const m = e.dur/60 + LIFT_WAIT;
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:m});
+      if(e.down && state.down) out[e.b].push({to:e.a, e, rev:true, min:m, cost:m + 2});
+    } else {
+      const m = e.len / WALK_SPD + .5;
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:m*1.5}); out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5});
+    }
+  }
+  return out;
+}
+function shortest(a, b){
+  if(a==null || b==null || a===b) return a===b ? [] : null;
+  const {dist, prev} = dijkstra(a, b);
+  if(dist[b]===Infinity) return null;
+  const path = []; let v = b; while(v!==a){ const s = prev[v]; path.unshift(s); v = s.from; }
+  return path;
+}
+function dijkstra(a, b, out = graph()){
+  const n = out.length, dist = new Float64Array(n).fill(Infinity), prev = new Array(n);
+  const heap = [[0,a]]; dist[a] = 0;
+  const push = it => { heap.push(it); let i = heap.length-1; while(i>0){ const p=(i-1)>>1; if(heap[p][0]<=heap[i][0]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if(heap.length){ heap[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<heap.length&&heap[l][0]<heap[m][0]) m=l; if(r<heap.length&&heap[r][0]<heap[m][0]) m=r; if(m===i) break; [heap[m],heap[i]]=[heap[i],heap[m]]; i=m; } } return top; };
+  while(heap.length){
+    const [d,u] = pop();
+    if(d > dist[u]) continue;
+    if(u===b) break;
+    for(const s of out[u]){ const nd = d + s.cost; if(nd < dist[s.to]){ dist[s.to] = nd; prev[s.to] = {...s, from:u}; push([nd, s.to]); } }
+  }
+  return {dist, prev};
+}
+// startpunt met het grootste bereikbare deel van het gebied, bestemming = hoogste bereikbare bergstation
+function defaultRoute(){
+  const {nodes, edges} = state.area, out = graph();
+  const lifts = edges.filter(e => e.t==="l");
+  const bottoms = [...new Set(lifts.map(e => e.a))].sort((x,y) => (nodes[x].ele ?? 1e9) - (nodes[y].ele ?? 1e9)).slice(0, 30);
+  let best = null;
+  for(const a of bottoms){
+    const {dist} = dijkstra(a, null, out); let c = 0; for(const d of dist) if(d < Infinity) c++;
+    if(!best || c > best.c) best = {a, c, dist};
+  }
+  if(!best) return;
+  state.from = best.a;
+  state.to = lifts.map(e => e.b).filter(n => best.dist[n] < Infinity && n !== best.a)
+    .reduce((m, n) => m==null || (nodes[n].ele ?? -1) > (nodes[m].ele ?? -1) ? n : m, null);
+}
+
+// ---------- kaart ----------
+const NS = "http://www.w3.org/2000/svg", svg = $("map");
+const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+const pathD = pts => "M" + pts.map(p => p[0].toFixed(1)+","+p[1].toFixed(1)).join("L");
+let layers = {};
+function drawMap(){
+  svg.innerHTML = "";
+  const A = state.area;
+  layers.base = el("g", {}, svg); layers.route = el("g", {}, svg); layers.marks = el("g", {}, svg);
+  const groups = {};
+  const add = (key, d) => (groups[key] = groups[key] || []).push(d);
+  for(const e of A.edges){
+    if(e.t==="w") continue;
+    const d = pathD(e.pts);
+    if(state.closed.has(e.i)) add("closed", d);
+    else if(e.t==="r") add("r_"+e.diff, d);
+    else add(DRAG.has(e.kind) ? "drag" : "lift", d);
+  }
+  const style = {
+    r_g:{stroke:"var(--green)",w:2.6}, r_b:{stroke:"var(--blue)",w:2.6}, r_r:{stroke:"var(--red)",w:2.6}, r_s:{stroke:"var(--black)",w:2.6},
+    r_u:{stroke:"var(--unk)",w:2.2}, r_f:{stroke:"var(--free)",w:2,dash:"6 4"},
+    drag:{stroke:"var(--lift)",w:1.3,dash:"5 3"}, lift:{stroke:"var(--lift)",w:1.8}, closed:{stroke:"var(--closed)",w:2.2,dash:"2 5"}
+  };
+  // casing zodat pistes los van elkaar leesbaar blijven
+  const allRuns = Object.keys(groups).filter(k=>k.startsWith("r_")).flatMap(k=>groups[k]).join("");
+  el("path", {d:allRuns, fill:"none", stroke:"var(--snow)", "stroke-width":5, "vector-effect":"non-scaling-stroke", "stroke-linecap":"round", "stroke-linejoin":"round"}, layers.base);
+  for(const k of ["r_u","r_f","r_g","r_b","r_r","r_s","closed","drag","lift"]){
+    if(!groups[k]) continue; const s = style[k];
+    el("path", {d:groups[k].join(""), fill:"none", stroke:s.stroke, "stroke-width":s.w, "stroke-dasharray":s.dash||"none",
+      "vector-effect":"non-scaling-stroke", "stroke-linecap":"round", "stroke-linejoin":"round"}, layers.base);
+  }
+  // liftstations
+  const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
+  layers.stations = el("g", {fill:"var(--lift)"}, layers.base);
+  layers.stationList = [...st];
+}
+function sizeMarks(){
+  if(!state.vb) return;
+  const k = state.vb.w / (svg.clientWidth || 800);
+  layers.stations.innerHTML = "";
+  if(state.vb.w < 9000) layers.stationList.forEach(n => { const p = state.area.nodes[n]; el("circle", {cx:p.x, cy:p.y, r:2.4*k}, layers.stations); });
+  layers.marks.querySelectorAll("[data-r]").forEach(c => c.setAttribute("r", c.dataset.r * k));
+  layers.marks.querySelectorAll("text").forEach(t => { t.setAttribute("font-size", 11*k); t.setAttribute("dy", 4*k); });
+}
+function setVB(vb){ state.vb = vb; svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); sizeMarks(); }
+function fitTo(xs, ys, pad=.08){
+  const W = svg.clientWidth || 800, H = svg.clientHeight || 600;
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  let w = Math.max(x1-x0, 300), h = Math.max(y1-y0, 300);
+  w *= 1+pad*2; h *= 1+pad*2;
+  if(w/h < W/H) w = h*W/H; else h = w*H/W;
+  setVB({x:(x0+x1)/2 - w/2, y:(y0+y1)/2 - h/2 - h*.03, w, h});
+}
+function fit(){ const N = state.area.nodes; fitTo(N.map(n=>n.x), N.map(n=>n.y)); }
+function fitRoute(){
+  const p = state.path; if(!p || !p.length) return fit();
+  const pts = p.flatMap(s => s.e.pts); fitTo(pts.map(q=>q[0]), pts.map(q=>q[1]), .15);
+}
+function zoom(f, cx, cy){
+  const v = state.vb; if(!v) return;
+  cx ??= v.x + v.w/2; cy ??= v.y + v.h/2;
+  const w = Math.min(Math.max(v.w*f, 150), 400000), k = w / v.w;
+  setVB({x: cx - (cx - v.x)*k, y: cy - (cy - v.y)*k, w, h: v.h*k});
+}
+const toWorld = (cx, cy) => { const r = svg.getBoundingClientRect(), v = state.vb; return [v.x + (cx - r.left)/r.width*v.w, v.y + (cy - r.top)/r.height*v.h]; };
+svg.addEventListener("wheel", ev => { if(!state.vb) return; ev.preventDefault(); const [x,y] = toWorld(ev.clientX, ev.clientY); zoom(Math.exp(ev.deltaY*0.0015), x, y); }, {passive:false});
+const ptrs = new Map(); let dragStart = null, moved = false, pinch = null;
+svg.addEventListener("pointerdown", ev => { svg.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]); moved = false;
+  if(ptrs.size===1) dragStart = {x:ev.clientX, y:ev.clientY, vb:{...state.vb}};
+  if(ptrs.size===2){ const [a,b] = [...ptrs.values()]; pinch = {d:Math.hypot(a[0]-b[0],a[1]-b[1]), vb:{...state.vb}, c:toWorld((a[0]+b[0])/2,(a[1]+b[1])/2)}; } });
+svg.addEventListener("pointermove", ev => {
+  if(!ptrs.has(ev.pointerId) || !state.vb) return;
+  ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]);
+  if(ptrs.size===2 && pinch){ const [a,b] = [...ptrs.values()], d = Math.hypot(a[0]-b[0],a[1]-b[1]); state.vb = {...pinch.vb}; zoom(pinch.d/d, pinch.c[0], pinch.c[1]); moved = true; return; }
+  if(!dragStart) return;
+  const dx = ev.clientX - dragStart.x, dy = ev.clientY - dragStart.y;
+  if(Math.hypot(dx,dy) > 4){ moved = true; svg.classList.add("drag"); }
+  if(moved){ const r = svg.getBoundingClientRect(), v = dragStart.vb; setVB({...v, x: v.x - dx/r.width*v.w, y: v.y - dy/r.height*v.h}); }
+});
+const endPtr = ev => {
+  const wasTap = ptrs.size===1 && !moved && dragStart;
+  ptrs.delete(ev.pointerId); if(ptrs.size<2) pinch = null;
+  if(!ptrs.size){ svg.classList.remove("drag"); dragStart = null; }
+  if(wasTap && ev.type==="pointerup" && state.area) pickAt(ev.clientX, ev.clientY);
+};
+svg.addEventListener("pointerup", endPtr); svg.addEventListener("pointercancel", endPtr);
+
+function pickAt(cx, cy){
+  const [x,y] = toWorld(cx, cy), k = state.vb.w / svg.clientWidth;
+  let best = -1, bd = Infinity;
+  state.area.nodes.forEach((n,i) => { const d = Math.hypot(n.x-x, n.y-y); if(d < bd){ bd = d; best = i; } });
+  if(bd > 40*k){ toast("Tik dichter bij een piste of lift."); return; }
+  if(state.pick==="from"){ state.from = best; state.pick = "to"; } else { state.to = best; state.pick = "from"; }
+  update();
+}
+$("zin").onclick = () => zoom(1/1.6); $("zout").onclick = () => zoom(1.6); $("zfit").onclick = fit; $("zroute").onclick = fitRoute;
+
+// ---------- routebeschrijving ----------
+const ICON_LIFT = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 3 L15 1"/><path d="M8 2 V6"/><rect x="4.5" y="6" width="7" height="7" rx="1.5"/></svg>`;
+const fmt = m => { m = Math.max(1, Math.round(m)); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
+const km = m => m >= 1000 ? (m/1000).toFixed(1).replace(".",",")+" km" : Math.round(m/10)*10+" m";
+const placeOf = n => state.area.place[n]?.s;
+const nodeLabel = n => placeOf(n) || `kruising op ${state.area.nodes[n].ele ?? "?"} m`;
+const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+
+function steps(path){
+  const out = [];
+  for(const s of path){
+    const e = s.e, last = out[out.length-1];
+    const same = last && last.t===e.t && (e.t==="w" || (e.t==="r" && last.e.name===e.name && last.e.ref===e.ref && last.e.diff===e.diff));
+    if(same){ last.items.push(s); last.min += s.min; last.len += e.len; last.end = s.to; }
+    else out.push({t:e.t, e, items:[s], min:s.min, len:e.len, start:s.from, end:s.to, rev:s.rev});
+  }
+  return out;
+}
+function update(){
+  const A = state.area;
+  document.querySelectorAll("#level button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v===state.level)));
+  document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v===state.mode)));
+  $("free").checked = state.free; $("down").checked = state.down;
+  $("pickHint").innerHTML = `Tik op de kaart om het <strong>${state.pick==="from" ? "vertrekpunt (A)" : "bestemming (B)"}</strong> te kiezen, of typ een liftnaam. Slepen = verschuiven, scrollen of knijpen = zoomen.`;
+  save();
+  if(!A) return;
+  if(document.activeElement !== $("from")) $("from").value = state.from!=null ? nodeLabel(state.from) : "";
+  if(document.activeElement !== $("to")) $("to").value = state.to!=null ? nodeLabel(state.to) : "";
+
+  const path = shortest(state.from, state.to);
+  state.path = path;
+  // route tekenen
+  layers.route.innerHTML = ""; layers.marks.innerHTML = "";
+  if(path && path.length){
+    const d = path.map(s => pathD(s.e.pts)).join("");
+    el("path", {d, fill:"none", stroke:"var(--route)", "stroke-width":9, opacity:.9, "vector-effect":"non-scaling-stroke", "stroke-linecap":"round", "stroke-linejoin":"round"}, layers.route);
+    el("path", {d, class:"route-core", fill:"none", stroke:"var(--route-core)", "stroke-width":2, "stroke-dasharray":"1 7", "vector-effect":"non-scaling-stroke", "stroke-linecap":"round"}, layers.route);
+  }
+  for(const [n, t, fill, fg] of [[state.from,"A","var(--ink)","var(--surface)"],[state.to,"B","var(--route)","#14202B"]]){
+    if(n==null) continue; const p = A.nodes[n];
+    el("circle", {cx:p.x, cy:p.y, "data-r":10, fill, stroke:"var(--snow)", "stroke-width":2, "vector-effect":"non-scaling-stroke"}, layers.marks);
+    const tx = el("text", {x:p.x, y:p.y, "text-anchor":"middle", fill:fg, "font-family":"Archivo, sans-serif", "font-weight":800}, layers.marks); tx.textContent = t;
+  }
+  sizeMarks();
+
+  const res = $("result");
+  if(state.from==null || state.to==null){ res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming.</p>`; return renderClosed(); }
+  if(state.from===state.to){ res.innerHTML = `<p class="empty">Vertrek en bestemming zijn hetzelfde punt. Kies een andere bestemming.</p>`; return renderClosed(); }
+  if(!path){
+    const tips = [];
+    if(state.level < 3) tips.push("kies een hoger niveau");
+    if(!state.free) tips.push("neem skiroutes mee");
+    if(state.closed.size) tips.push("open een gesloten piste");
+    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${tips.length ? "Probeer: " + tips.join(", ") + ". " : ""}Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.</p>`;
+    return renderClosed();
+  }
+  const S = steps(path);
+  const tot = path.reduce((s,x)=>s+x.min,0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
+  const nLift = S.filter(s=>s.t==="l").length;
+  const down = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+Math.max(0,x.e.drop||0),0);
+  let html = `<div class="summary">
+    <div><b>${fmt(tot)}</b><small>Totaal</small></div>
+    <div><b>${(pisteM/1000).toFixed(1).replace(".",",")}</b><small>Km piste</small></div>
+    <div><b>${nLift}</b><small>Liften</small></div>
+    <div><b>${Math.round(down)}</b><small>Hm dalen</small></div></div><ol class="steps">`;
+  S.forEach((s, i) => {
+    const e = s.e, endName = nodeLabel(s.end);
+    let badge, title, sub;
+    if(s.t==="l"){
+      const nm = e.name || LIFT[e.kind] || "lift";
+      badge = `<span class="badge l" title="${esc(LIFT[e.kind]||"lift")}">${ICON_LIFT}</span>`;
+      title = `${s.rev ? "Ga met" : "Neem"} de ${LIFT[e.kind]||"lift"} ${esc(e.name || e.ref || "")}${s.rev ? " naar beneden" : ""}`.replace(/ +/g," ");
+      const eleTo = A.nodes[s.end].ele;
+      sub = `${s.rev ? "naar het dalstation" : "naar het bergstation"}${eleTo!=null ? `, ${eleTo} m` : ""} · ${km(e.len)}`;
+    } else if(s.t==="r"){
+      badge = `<span class="badge ${e.diff}">${esc(e.ref || "")||"&nbsp;"}</span>`;
+      title = `Volg ${esc(e.name ? (e.ref ? `piste ${e.ref} ${e.name}` : e.name) : (e.ref ? `piste ${e.ref}` : `een ${DIFF[e.diff].adj} piste`.replace("skiroute- piste","skiroute")))}`;
+      sub = `${DIFF[e.diff].nl}, ${km(s.len)} tot ${esc(lc(endName))}`;
+    } else {
+      badge = `<span class="badge w">⋯</span>`;
+      title = `Loop of skate ${km(s.len)}`;
+      sub = `naar ${esc(lc(endName))}`;
+    }
+    const canClose = s.t!=="w";
+    html += `<li>${badge}<div><div class="st-title">${title}</div><div class="st-sub">${sub}</div></div>
+      <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${canClose ? `<button type="button" class="close-btn" data-step="${i}">sluiten</button>` : ""}</div></li>`;
+  });
+  res.innerHTML = html + `</ol><p class="hint">Tijden zijn schattingen: gemiddelde snelheid per kleur en ${LIFT_WAIT} min wachten per lift.</p>`;
+  res.querySelectorAll(".close-btn").forEach(b => b.onclick = () => {
+    const s = S[+b.dataset.step];
+    s.items.forEach(x => state.closed.add(x.e.i));
+    toast(`${s.t==="l" ? "Lift" : "Piste"} gesloten. Nieuwe route berekend.`);
+    drawMap(); setVB(state.vb); update();
+  });
+  renderClosed();
+}
+function renderClosed(){
+  const A = state.area, c = $("closed");
+  if(!A || !state.closed.size){ c.innerHTML = `<span class="empty" style="font-size:13px">Alles is open.</span>`; return; }
+  const groups = new Map();
+  for(const i of state.closed){ const e = A.edges[i]; const k = e.t==="l" ? `Lift ${e.name||e.ref||LIFT[e.kind]}` : `Piste ${[e.ref,e.name].filter(Boolean).join(" ") || DIFF[e.diff].nl}`; (groups.get(k) || groups.set(k, []).get(k)).push(i); }
+  c.innerHTML = [...groups.keys()].map((k,j) => `<button type="button" class="chip" data-j="${j}" title="Weer openen"><span class="x">✕</span>${esc(k)}</button>`).join("");
+  const vals = [...groups.values()];
+  c.querySelectorAll("button").forEach(b => b.onclick = () => { vals[+b.dataset.j].forEach(i => state.closed.delete(i)); drawMap(); setVB(state.vb); update(); });
+}
+
+// ---------- invoer ----------
+function placeInput(inp, key){
+  inp.addEventListener("change", () => {
+    const A = state.area; if(!A) return;
+    const v = norm(inp.value.trim()); if(!v) return;
+    let hit = null;
+    for(const [s, n] of A.names){ const k = norm(s); if(k===v){ hit = n; break; } if(hit==null && k.includes(v)) hit = n; }
+    if(hit==null){ toast(`Geen punt gevonden voor "${inp.value}".`); return; }
+    state[key] = hit; inp.blur(); update();
+  });
+}
+placeInput($("from"), "from"); placeInput($("to"), "to");
+$("swap").onclick = () => { [state.from, state.to] = [state.to, state.from]; update(); };
+$("q").addEventListener("input", e => { state.q = e.target.value; renderAreas(); });
+document.querySelectorAll("#level button").forEach(b => b.onclick = () => { state.level = +b.dataset.v; update(); });
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { state.mode = b.dataset.v; update(); });
+$("free").onchange = e => { state.free = e.target.checked; update(); };
+$("down").onchange = e => { state.down = e.target.checked; update(); };
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if(state.vb){ const W=svg.clientWidth, H=svg.clientHeight, v=state.vb; setVB({...v, h: v.w*H/W}); } }, 120); });
+
+// ---------- start ----------
+(async () => {
+  update();
+  try{
+    const r = await fetch("data/index.json"); if(!r.ok) throw new Error(r.status);
+    state.index = await r.json();
+  }catch(e){ $("meta").textContent = "LIJST MET SKIGEBIEDEN KON NIET LADEN"; $("loading").textContent = "De lijst met skigebieden kon niet laden. Herlaad de pagina."; return; }
+  const tot = state.index.reduce((s,r)=>s+r[6],0);
+  $("meta").textContent = `${state.index.length} SKIGEBIEDEN · ${tot.toLocaleString("nl-NL")} KM PISTE · ${Object.keys(COUNTRY).filter(c=>state.index.some(r=>r[2]===c)).length} LANDEN`;
+  renderCountries(); renderAreas();
+  const want = location.hash.slice(1), byName = n => state.index.find(r => r[1].startsWith(n))?.[0];
+  const start = [want, state.last, byName("Silvretta Arena")].find(id => id && state.index.some(r => r[0]===id));
+  openArea(start || state.index[0][0]);
+})();
+</script>

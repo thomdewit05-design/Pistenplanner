@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pistenplanner Alpen</title>
+<meta name="description" content="Routeplanner voor 849 skigebieden in de Alpen, met satellietkaart en GPS.">
+<meta name="theme-color" content="#14202B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pistenplanner">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="map" aria-label="Kaart"></div>
+
+<header class="topbar">
+  <button type="button" id="areaBtn" class="area-btn" aria-haspopup="dialog">
+    <span class="area-txt"><b id="areaName">Skigebied kiezen</b><small id="areaStats">849 skigebieden in de Alpen</small></span>
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 1 0 4 11.6l4.4 4.4 1.4-1.4-4.4-4.4A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z" fill="currentColor"/></svg>
+  </button>
+  <button type="button" id="layersBtn" class="round" aria-label="Kaartlagen" aria-haspopup="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-7.2 8.6L12 15.6l7.2-4 1.8 1-9 5-9-5 1.8-1Zm0 4L12 19.6l7.2-4 1.8 1-9 5-9-5 1.8-1Z" fill="currentColor"/></svg>
+  </button>
+</header>
+
+<div id="layerMenu" class="layer-menu" hidden>
+  <p class="label">Ondergrond</p>
+  <label><input type="radio" name="base" value="sat"> Satelliet</label>
+  <label><input type="radio" name="base" value="topo"> Terrein</label>
+  <label><input type="radio" name="base" value="osm"> Kaart</label>
+  <p class="label">Lagen</p>
+  <label><input type="checkbox" id="showPistes" checked> Pistes en liften</label>
+  <label><input type="checkbox" id="showLabels" checked> Plaatsnamen (satelliet)</label>
+</div>
+
+<div id="navBanner" class="nav-banner" hidden aria-live="polite">
+  <div class="nav-now"><span id="navBadge" class="badge"></span><div><small id="navDist"></small><b id="navNow"></b></div></div>
+  <div class="nav-next" id="navNext"></div>
+</div>
+
+<div class="fabs">
+  <button type="button" id="locBtn" class="round" aria-label="Mijn locatie" title="Mijn locatie">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm-1-7h2v3.06A8 8 0 0 1 19.94 11H23v2h-3.06A8 8 0 0 1 13 19.94V23h-2v-3.06A8 8 0 0 1 4.06 13H1v-2h3.06A8 8 0 0 1 11 4.06V1Zm1 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z" fill="currentColor"/></svg>
+  </button>
+  <button type="button" id="fitRouteBtn" class="round" aria-label="Zoom naar route" title="Zoom naar route">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 3a3 3 0 0 1 1 5.83V13a3 3 0 0 0 3 3h4.17a3 3 0 1 1 0 2H10a5 5 0 0 1-5-5V8.83A3 3 0 0 1 6 3Z" fill="currentColor"/></svg>
+  </button>
+  <button type="button" id="fitAreaBtn" class="round" aria-label="Heel skigebied" title="Heel skigebied">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 4h6v2H6v4H4V4Zm10 0h6v6h-2V6h-4V4ZM4 14h2v4h4v2H4v-6Zm14 0h2v6h-6v-2h4v-4Z" fill="currentColor"/></svg>
+  </button>
+</div>
+
+<section id="sheet" class="sheet" aria-label="Route">
+  <button type="button" class="handle" id="handle" aria-label="Paneel openen of sluiten"><span></span></button>
+  <div class="sheet-body">
+    <div class="peek" id="peek"></div>
+
+    <div class="block">
+      <div class="field"><span class="dot a">A</span><input type="text" id="from" list="places" placeholder="Vertrek, bv. dalstation…" autocomplete="off" aria-label="Vertrekpunt">
+        <button type="button" class="mini" id="fromMe" title="Start vanaf mijn locatie" aria-label="Start vanaf mijn locatie">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m3 11 18-8-8 18-2-8-8-2Z" fill="currentColor"/></svg></button></div>
+      <div class="field"><span class="dot b">B</span><input type="text" id="to" list="places" placeholder="Bestemming…" autocomplete="off" aria-label="Bestemming">
+        <button type="button" class="mini" id="swap" title="Omdraaien" aria-label="Vertrek en bestemming omdraaien">⇅</button></div>
+      <div class="chips extra" id="extra" hidden></div>
+      <datalist id="places"></datalist>
+      <p class="hint" id="pickHint"></p>
+    </div>
+
+    <div class="block" aria-live="polite"><div id="result"><p class="empty">Kies een skigebied om te beginnen.</p></div></div>
+
+    <details class="block settings" id="settings">
+      <summary>Niveau en voorkeuren</summary>
+      <p class="label">Jouw niveau</p>
+      <div class="seg" id="level">
+        <button type="button" data-v="1"><span class="sw" style="background:var(--blue)"></span>Blauw</button>
+        <button type="button" data-v="2"><span class="sw" style="background:var(--red)"></span>t/m rood</button>
+        <button type="button" data-v="3"><span class="sw" style="background:var(--black)"></span>t/m zwart</button>
+      </div>
+      <label class="check"><input type="checkbox" id="free"> Skiroutes en freeride meenemen</label>
+      <label class="check"><input type="checkbox" id="down" checked> Met gondel of kabelbaan naar beneden mag</label>
+      <label class="check"><input type="checkbox" id="voice" checked> Gesproken aanwijzingen tijdens navigatie</label>
+      <p class="label">Voorkeur</p>
+      <div class="seg two" id="mode">
+        <button type="button" data-v="fast">Snelste route</button>
+        <button type="button" data-v="easy">Rustigste route</button>
+      </div>
+      <p class="label">Gesloten door jou</p>
+      <div class="chips" id="closed"></div>
+    </details>
+
+    <p class="credits">Pistedata © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-bijdragers via <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a> (okt 2026). Tijden zijn schattingen. Gebruik altijd je eigen oordeel en volg de borden en afsluitingen ter plaatse.</p>
+  </div>
+</section>
+
+<div id="picker" class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle" hidden>
+  <div class="picker-head">
+    <h2 id="pickerTitle">Skigebied</h2>
+    <button type="button" class="round flat" id="pickerClose" aria-label="Sluiten">✕</button>
+  </div>
+  <input type="search" id="q" placeholder="Zoek op naam, dorp of regio…" autocomplete="off" aria-label="Zoek skigebied">
+  <div class="chips" id="countries"></div>
+  <button type="button" class="near-btn" id="nearBtn">📍 Skigebieden bij mij in de buurt</button>
+  <ul class="areas" id="areas"></ul>
+  <p class="count" id="count"></p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
