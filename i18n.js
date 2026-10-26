@@ -153,7 +153,11 @@ en:{
  "Korrelsneeuw":"Snow grains", "Regenbuien":"Rain showers", "Zware buien":"Heavy showers", "Sneeuwbuien":"Snow showers", "Zware sneeuwbuien":"Heavy snow showers",
  "Onweer":"Thunderstorm", "Onweer met hagel":"Thunderstorm with hail", "Onbekend":"Unknown", "Dicht":"Closed", "Open":"Open",
  "Bijgehouden met de Pistenplanner":"Tracked with the Pistenplanner",
- "Menu en instellingen":"Menu and settings", "Skiën":"Skiing", "Jouw tempo":"Your pace", "Rustig":"Relaxed", "Normaal":"Normal", "Sportief":"Sporty",
+ "Menu en instellingen":"Menu and settings",
+ "Sleepliften vermijden":"Avoid T-bars and drag lifts", "Buckelpistes vermijden":"Avoid mogul runs", "Avondskiën: alleen verlichte pistes":"Night skiing: lit runs only", "Avondskiën":"Night skiing",
+ "Sleepliften vermijden is fijn voor beginners en kinderen: de route neemt ze alleen als er geen andere weg is.":"Avoiding drag lifts is handy for beginners and children: the route only uses them when there's no other way.",
+ "Geprepareerd":"Groomed", "Buckelpiste":"Moguls", "Niet geprepareerd":"Ungroomed", "Verlicht":"Floodlit", "Kunstsneeuw":"Snowmaking", "Bospiste":"Glades",
+ "In dit gebied zijn geen verlichte pistes bekend.":"No floodlit runs are known in this area.", "Skiën":"Skiing", "Jouw tempo":"Your pace", "Rustig":"Relaxed", "Normaal":"Normal", "Sportief":"Sporty",
  "Het tempo bepaalt hoe lang een afdaling volgens de app duurt.":"Your pace sets how long the app thinks a run takes.", "Navigatie":"Navigation",
  "Scherm aan tijdens navigatie":"Keep screen on while navigating", "Weergave":"Display", "Thema":"Theme", "Automatisch":"Automatic", "Licht":"Light", "Donker":"Dark",
  "Kaartweergave en lagen":"Map style and layers", "Jouw naam in een groep":"Your name in a group", "Opslag en privacy":"Storage and privacy", "Opslag berekenen…":"Calculating storage…",
@@ -262,7 +266,11 @@ de:{
  "Korrelsneeuw":"Schneegriesel", "Regenbuien":"Regenschauer", "Zware buien":"Starke Schauer", "Sneeuwbuien":"Schneeschauer", "Zware sneeuwbuien":"Starke Schneeschauer",
  "Onweer":"Gewitter", "Onweer met hagel":"Gewitter mit Hagel", "Onbekend":"Unbekannt", "Dicht":"Geschlossen", "Open":"Offen",
  "Bijgehouden met de Pistenplanner":"Aufgezeichnet mit dem Pistenplanner",
- "Menu en instellingen":"Menü und Einstellungen", "Skiën":"Skifahren", "Jouw tempo":"Dein Tempo", "Rustig":"Gemütlich", "Normaal":"Normal", "Sportief":"Sportlich",
+ "Menu en instellingen":"Menü und Einstellungen",
+ "Sleepliften vermijden":"Schlepplifte meiden", "Buckelpistes vermijden":"Buckelpisten meiden", "Avondskiën: alleen verlichte pistes":"Nachtskilauf: nur beleuchtete Pisten", "Avondskiën":"Nachtskilauf",
+ "Sleepliften vermijden is fijn voor beginners en kinderen: de route neemt ze alleen als er geen andere weg is.":"Schlepplifte meiden ist praktisch für Anfänger und Kinder: Die Route nutzt sie nur, wenn es keinen anderen Weg gibt.",
+ "Geprepareerd":"Präpariert", "Buckelpiste":"Buckelpiste", "Niet geprepareerd":"Nicht präpariert", "Verlicht":"Beleuchtet", "Kunstsneeuw":"Beschneit", "Bospiste":"Waldpiste",
+ "In dit gebied zijn geen verlichte pistes bekend.":"In diesem Gebiet sind keine beleuchteten Pisten bekannt.", "Skiën":"Skifahren", "Jouw tempo":"Dein Tempo", "Rustig":"Gemütlich", "Normaal":"Normal", "Sportief":"Sportlich",
  "Het tempo bepaalt hoe lang een afdaling volgens de app duurt.":"Das Tempo bestimmt, wie lange eine Abfahrt laut App dauert.", "Navigatie":"Navigation",
  "Scherm aan tijdens navigatie":"Bildschirm während der Navigation anlassen", "Weergave":"Darstellung", "Thema":"Design", "Automatisch":"Automatisch", "Licht":"Hell", "Donker":"Dunkel",
  "Kaartweergave en lagen":"Kartenansicht und Ebenen", "Jouw naam in een groep":"Dein Name in einer Gruppe", "Opslag en privacy":"Speicher und Datenschutz", "Opslag berekenen…":"Speicher wird berechnet…",
@@ -287,6 +295,7 @@ de:{
 const N = "([\\d.,]+)";
 const P = (rx, en, de) => [new RegExp(rx), en, de];
 const PATTERNS = [
+ P("^Avondskiën: (.+) km verlichte piste\.$", (m) => `Night skiing: ${m[1]} km of floodlit runs.`, (m) => `Nachtskilauf: ${m[1]} km beleuchtete Pisten.`),
  P("^Versie (.+) · (.+) skigebieden · kaartdata (.+)$", (m) => `Version ${m[1]} · ${m[2]} ski areas · map data ${m[3]}`, (m) => `Version ${m[1]} · ${m[2]} Skigebiete · Kartendaten ${m[3]}`),
  P("^(.+) MB in gebruik · (\\d+) bewaarde (route|routes) · (\\d+) (skidag|skidagen) in het dagboek$", (m) => `${m[1]} MB in use · ${m[2]} saved ${m[2] === "1" ? "route" : "routes"} · ${m[4]} ski ${m[4] === "1" ? "day" : "days"} in the diary`, (m) => `${m[1]} MB belegt · ${m[2]} gespeicherte ${m[2] === "1" ? "Route" : "Routen"} · ${m[4]} ${m[4] === "1" ? "Skitag" : "Skitage"} im Tagebuch`),
  P("^(\\d+) bewaarde (route|routes) · (\\d+) (skidag|skidagen) in het dagboek$", (m) => `${m[1]} saved ${m[1] === "1" ? "route" : "routes"} · ${m[3]} ski ${m[3] === "1" ? "day" : "days"} in the diary`, (m) => `${m[1]} gespeicherte ${m[1] === "1" ? "Route" : "Routen"} · ${m[3]} ${m[3] === "1" ? "Skitag" : "Skitage"} im Tagebuch`),
@@ -404,7 +413,7 @@ const WORDS = {
      ["Stoeltjeslift", "Chairlift"], ["Gondel", "Gondola"], ["Kabelbaan", "Cable car"], ["Sleeplift", "T-bar"], ["Schotellift", "Button lift"], ["Touwlift", "Rope tow"], ["Lopende band", "Magic carpet"],
      ["Combibaan", "Combined lift"], ["Kabeltrein", "Funicular"], ["stoeltjeslift", "chairlift"], ["gondel", "gondola"], ["kabelbaan", "cable car"], ["sleeplift", "T-bar"],
      [" hm", " m vert"], ["km/u", "km/h"], [" op ", " at "], ["van je", "from you"], ["vandaag", "today"], ["Piste", "Run"], ["piste", "run"], ["pistes", "runs"], ["liften", "lifts"],
-     ["Hm dalen", "m descent"], ["Op ", "On "], ["bij ", "near "], ["vriespunt", "freezing point"], ["bewaard om", "saved at"], ["uur", "h"], ["temperatuur top/dal", "temperature top/valley"]],
+     ["Hm dalen", "m descent"], ["Op ", "On "], ["buckelpiste", "moguls"], ["niet geprepareerd", "ungroomed"], ["bospiste", "glades"], ["verlicht", "floodlit"], ["kunstsneeuw", "snowmaking"], ["bij ", "near "], ["vriespunt", "freezing point"], ["bewaard om", "saved at"], ["uur", "h"], ["temperatuur top/dal", "temperature top/valley"]],
  de:[["naar het bergstation", "zur Bergstation"], ["naar het dalstation", "zur Talstation"], ["tot einde piste", "bis Ende Piste"], ["tot begin piste", "bis Anfang Piste"],
      ["tot dalstation", "bis Talstation"], ["tot bergstation", "bis Bergstation"], ["tot kruising op", "bis Kreuzung auf"], ["tot einde", "bis Ende"], ["tot begin", "bis Anfang"], ["tot ", "bis "],
      ["einde piste", "Ende Piste"], ["begin piste", "Anfang Piste"], ["dalstation", "Talstation"], ["bergstation", "Bergstation"], ["kruising op", "Kreuzung auf"],
@@ -413,7 +422,7 @@ const WORDS = {
      ["Stoeltjeslift", "Sessellift"], ["Gondel", "Gondelbahn"], ["Kabelbaan", "Seilbahn"], ["Sleeplift", "Schlepplift"], ["Schotellift", "Tellerlift"], ["Touwlift", "Seillift"], ["Lopende band", "Förderband"],
      ["Combibaan", "Kombibahn"], ["Kabeltrein", "Standseilbahn"], ["stoeltjeslift", "Sessellift"], ["gondel", "Gondelbahn"], ["kabelbaan", "Seilbahn"], ["sleeplift", "Schlepplift"],
      [" hm", " Hm"], ["km/u", "km/h"], [" op ", " auf "], ["van je", "von dir"], ["vandaag", "heute"], ["piste", "Piste"], ["pistes", "Pisten"], ["liften", "Lifte"],
-     ["Op ", "Auf "], ["bij ", "bei "], ["vriespunt", "Gefrierpunkt"], ["bewaard om", "gespeichert um"], ["uur", "Uhr"], ["temperatuur top/dal", "Temperatur Gipfel/Tal"], ["top", "Gipfel"]]};
+     ["Op ", "Auf "], ["buckelpiste", "Buckelpiste"], ["niet geprepareerd", "nicht präpariert"], ["bospiste", "Waldpiste"], ["verlicht", "beleuchtet"], ["kunstsneeuw", "beschneit"], ["bij ", "bei "], ["vriespunt", "Gefrierpunkt"], ["bewaard om", "gespeichert um"], ["uur", "Uhr"], ["temperatuur top/dal", "Temperatur Gipfel/Tal"], ["top", "Gipfel"]]};
 const WORD_RX = {};
 for(const l of ["en","de"]) WORD_RX[l] = WORDS[l].map(([a, b]) => [new RegExp("(^|[^\\p{L}])" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/^ | $/g, "") + "(?=$|[^\\p{L}])", "gu"), b.trim(), a.startsWith(" "), a.endsWith(" ")]);
 

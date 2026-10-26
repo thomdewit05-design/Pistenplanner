@@ -10,6 +10,10 @@ const DIFF = {g:{nl:"groen",adj:"groene",lvl:1,spd:200,pen:1,col:"#22984A"}, b:{
               // Noord-Amerika: blauw vierkant is gemiddeld (zoals rood bij ons), dubbel zwart is expert
               B:{nl:"blauw (gemiddeld)",adj:"blauwe",lvl:2,spd:340,pen:1.8,col:"#1E66CC"}, x:{nl:"dubbel zwart",adj:"dubbelzwarte",lvl:3,spd:300,pen:4,col:"#121417"}};
 const isDark = d => d === "s" || d === "x";
+// eigenschappen van een piste: code -> [tekst, icoon]
+const FLAG = {g:["Geprepareerd","check"], m:["Buckelpiste","warn"], b:["Niet geprepareerd","warn"], l:["Verlicht","moon"], s:["Kunstsneeuw","snow"], w:["Bospiste","tree"]};
+const flagsOf = ids => { const f = new Set(); ids.forEach(i => (S.area.edges[i].f || "").split("").forEach(x => f.add(x))); return [...f].filter(x => FLAG[x]).sort((a, b) => "mbwlsg".indexOf(a) - "mbwlsg".indexOf(b)); };
+const flagChips = fl => fl.length ? `<div class="flags">${fl.map(x => `<span class="flag f-${x}">${I(FLAG[x][1])}${FLAG[x][0]}</span>`).join("")}</div>` : "";
 const LIFT = {chair_lift:"stoeltjeslift", gondola:"gondel", cable_car:"kabelbaan", "t-bar":"sleeplift", "j-bar":"sleeplift",
               platter:"schotellift", drag_lift:"sleeplift", rope_tow:"touwlift", magic_carpet:"lopende band", mixed_lift:"combibaan",
               funicular:"kabeltrein", lift:"lift"};
@@ -19,13 +23,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, noDrag:false, noMogul:false, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, noDrag:S.noDrag, noMogul:S.noMogul, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -78,7 +82,7 @@ function applyBase(){
 // ================= gebieden =================
 const shards = {};
 // versie van de kaartdata: verhogen na het opnieuw bouwen van data/, zodat telefoons de nieuwe bestanden ophalen
-const DATA_V = "d3";
+const DATA_V = "d4";
 const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
 
 function renderCountries(){
@@ -140,7 +144,7 @@ async function openArea(id, opts={}){
     let nm = raw.t[e[3]]||"", ref = e[4] === nm ? "" : e[4];
     if(!ref && /^\d{1,3}[a-z]?$/i.test(nm)){ ref = nm; nm = ""; }   // naam die eigenlijk een pistenummer is
     // land per piste/lift (leeg = hetzelfde land als het skigebied)
-    if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8]), cc:e[9] || row[2]});
+    if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8]), cc:e[9] || row[2], f:e[10] || ""});
     else edges.push({t:"l", a:e[1], b:e[2], name:nm, ref, kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9], cc:e[10] || row[2]});
   }
   const huts = (raw.h || []).map(h => ({lat:h[1]/1e5, lon:h[0]/1e5, kind:h[2], name:raw.t[h[3]] || "", node:h[4]})).filter(h => nodes[h.node]);
@@ -175,9 +179,12 @@ async function openArea(id, opts={}){
   edges.forEach(e => { if(e.t!=="r" || !(e.name||e.ref)) return; const k = e.name+"|"+e.ref+"|"+e.diff; if(seen.has(k)) return; seen.add(k);
     skiNames.set(`Skiën: ${pisteLabel(e)} (${DIFF[e.diff].nl})`, e.i); });
   S.area.skiNames = skiNames;
-  Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort(), huts});
+  const litNodes = new Set(); edges.forEach(e => { if(e.t==="r" && e.f.includes("l")){ litNodes.add(e.a); litNodes.add(e.b); } });
+  const nightLifts = new Set(edges.filter(e => e.t==="l" && (litNodes.has(e.a) || litNodes.has(e.b))).map(e => e.i));
+  Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort(), huts, litNodes, nightLifts, litKm:edges.filter(e => e.t==="r" && e.f.includes("l")).reduce((t, e) => t + e.len, 0)/1000});
   huts.forEach(hh => { if(hh.name){ const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!names.has(lab)) names.set(lab, hh.node); } });
   S.risk = null; S.wps = [];
+  if(S.night && !litNodes.size) setTimeout(() => toast("In dit gebied zijn geen verlichte pistes bekend.", 3500), 800);
   if(S.draw){ S.draw = false; document.body.classList.remove("drawing"); $("drawBtn").classList.remove("drawing"); $("drawBar").hidden = true; }
   loadStatus(); applyPendingShare();
   S.target = null; S.via = null;
@@ -243,11 +250,14 @@ function drawPistes(){
   const A = S.area, groups = {};
   for(const e of A.edges){
     if(e.t==="w") continue;
-    const k = S.closed.has(e.i) ? "closed" : e.t==="r" ? "r_"+e.diff : (DRAG.has(e.kind) ? "drag" : "lift");
+    const dark = S.night && (e.t==="r" ? !e.f.includes("l") : !A.nightLifts.has(e.i));
+    const k = S.closed.has(e.i) ? "closed" : dark ? "dim" : e.t==="r" ? "r_"+e.diff : (DRAG.has(e.kind) ? "drag" : "lift");
     (groups[k] ||= []).push(e.pts);
   }
   const runs = Object.keys(groups).filter(k => k.startsWith("r_")).flatMap(k => groups[k]);
   const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", ...o});
+  if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
+  if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
   if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:6, opacity:.55})).addTo(pisteLayer);
   for(const k of ["r_u","r_f","r_g","r_b","r_B","r_r","r_s","r_x"]){
     if(!groups[k]) continue; const d = k.slice(2);
@@ -288,11 +298,15 @@ function graph(bias){
     if(e.t==="r"){
       const lv = DIFF[e.diff].lvl;
       if(k===1 && (lv===4 ? !S.free : lv > S.level)) continue;
+      if(S.night && k===1 && !e.f.includes("l")) continue;          // avondskiën: alleen verlichte pistes
       const m = e.len / (DIFF[e.diff].spd * S.pace);
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * (S.mode==="easy" ? m*DIFF[e.diff].pen : m)});
+      const avoid = S.noMogul && e.f.includes("m") ? 3 : 1;     // buckelpiste vermijden
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" ? m*DIFF[e.diff].pen : m)});
     } else if(e.t==="l"){
+      if(S.night && k===1 && !A.nightLifts.has(e.i)) continue;   // 's avonds alleen liften bij verlichte pistes
       const m = e.dur/60 + LIFT_WAIT;
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m});
+      const avoid = S.noDrag && DRAG.has(e.kind) ? 4 : 1;          // sleeplift vermijden: alleen als het niet anders kan
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)});
       // met de lift naar beneden kan, maar skiën heeft de voorkeur
       if(e.down && S.down) out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5 + 10});
     } else {
@@ -433,7 +447,8 @@ function buildSteps(path){
       const what = pisteLabel(e);
       st.title = st.turn && st.turn !== "rechtdoor" ? `${uc(st.turn)} naar ${what}` : `Volg ${what}`;
       const drop = st.items.reduce((s, x) => s + Math.max(0, x.e.drop||0), 0);
-      st.sub = `${uc(DIFF[e.diff].nl)} · ${km(st.len)}${drop > 20 ? ` · ${Math.round(drop)} hm` : ""} · tot ${lc(nodeLabel(st.end))}`;
+      const fl = flagsOf(st.items.map(x => x.e.i)).filter(x => "mbw".includes(x)).map(x => FLAG[x][0].toLowerCase());
+      st.sub = `${uc(DIFF[e.diff].nl)} · ${km(st.len)}${drop > 20 ? ` · ${Math.round(drop)} hm` : ""}${fl.length ? " · " + fl.join(" · ") : ""} · tot ${lc(nodeLabel(st.end))}`;
       st.say = st.turn ? `${st.turn} naar ${what}` : `volg ${what}`;
     } else {
       st.cls = "walk"; st.node = `<span class="node">${I("walk")}</span>`; st.icon = "walk";
@@ -499,9 +514,11 @@ function renderExtra(){
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
   if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}<span class="x">${I("close")}</span></button>`);
   if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
+  if(S.night) parts.unshift(`<button type="button" class="chip route night-chip" data-k="night" title="Avondskiën uitzetten">${I("moon")}Avondskiën · ${NIGHT_OPEN}–${NIGHT_CLOSE}<span class="x">${I("close")}</span></button>`);
   if(S.planBy) parts.unshift(`<button type="button" class="chip route group-chip" data-k="planby" title="Niet meer tonen">${I("group")}Route van ${esc(S.planBy)}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
   x.querySelectorAll("button").forEach(b => b.onclick = () => {
+    if(b.dataset.k==="night"){ setNight(false); return; }
     if(b.dataset.k==="wps"){ S.wps = []; S.to = null; if(S.draw) renderDrawBar(); }
     else if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
     update();
@@ -619,6 +636,7 @@ function edgePopup(ei, latlng, nearNode){
   const mins = ch.kind==="l" ? e.dur/60 : ch.len / DIFF[e.diff].spd;
   const top = ch.kind==="l" ? A.nodes[ch.end].ele : A.nodes[ch.start].ele;
   div.innerHTML = `<div class="pop-head">${node}<div><b>${esc(uc(ch.label))}</b><small>${ch.kind==="l" ? uc(LIFT[e.kind]||"lift") : e.diff==="f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`}</small></div></div>
+    ${ch.kind==="r" ? flagChips(flagsOf(ch.edges)) : ""}
     <div class="pop-facts"><div><b>${km(ch.len)}</b><span>Lengte</span></div><div><b>${Math.abs(Math.round(drop))} m</b><span>${ch.kind==="l" ? "Stijgen" : "Dalen"}</span></div><div><b>${fmt(mins)}</b><span>${top!=null ? `Top ${top} m` : "Duur"}</span></div></div>
     <div class="pop-btns">
       <button type="button" class="primary" data-a="ski">${I(ch.kind==="l" ? "lift" : "ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
@@ -849,10 +867,11 @@ $("fitRouteBtn").onclick = fitRoute;
 // ================= liftsluiting =================
 const toMin = s => { const [h, m] = String(s || "0:0").split(":").map(Number); return (h||0)*60 + (m||0); };
 const hhmm = m => { m = Math.round(m); return `${String(Math.floor(m/60) % 24).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`; };
+const NIGHT_OPEN = "18:30", NIGHT_CLOSE = "22:00";   // gangbare tijden voor avondskiën
 // wanneer ben je bij elke stap; buiten de openingstijden rekenen we vanaf de opening
 function routeTiming(){
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
-  const open = toMin(S.liftOpen), close = toMin(S.liftClose);
+  const open = toMin(S.night ? NIGHT_OPEN : S.liftOpen), close = toMin(S.night ? NIGHT_CLOSE : S.liftClose);
   const planned = nowM < open || nowM >= close;
   let t = planned ? open : nowM, lastLift = null; const late = [];
   S.steps.forEach((s, i) => {
@@ -1138,7 +1157,8 @@ function renderStatus(){
   $("statusList").innerHTML = list.map(g => {
     const off = g.edges.some(i => S.closed.has(i)), risk = g.t==="l" && g.edges.some(i => R?.lifts.has(i));
     const node = g.t==="l" ? `<span class="node liftnode">${I("lift")}</span>` : `<span class="node${g.isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
-    const meta = g.t==="l" ? `${uc(LIFT[g.e.kind]||"lift")} · ${km(g.len)}${g.top!=null && g.top >= 0 ? ` · tot ${g.top} m` : ""}` : `${uc(DIFF[g.e.diff].nl)} · ${km(g.len)}`;
+    const fl = g.t==="r" ? flagsOf(g.edges).filter(x => x !== "g").map(x => FLAG[x][0].toLowerCase()) : [];
+    const meta = g.t==="l" ? `${uc(LIFT[g.e.kind]||"lift")} · ${km(g.len)}${g.top!=null && g.top >= 0 ? ` · tot ${g.top} m` : ""}` : `${uc(DIFF[g.e.diff].nl)} · ${km(g.len)}${fl.length ? " · " + fl.join(" · ") : ""}`;
     return `<li class="${off ? "off" : ""}" data-k="${esc(g.key)}">${node}<span><span class="st-name">${esc(groupName(g))}</span><span class="st-meta">${meta}</span>${risk && !off ? `<span class="risk-tag">${I("wind")}Mogelijk dicht door wind</span>` : ""}</span>
       <label class="switch" title="${off ? "Dicht" : "Open"}"><input type="checkbox" ${off ? "" : "checked"} aria-label="${esc(groupName(g))} open"><i></i></label></li>`;
   }).join("") || `<li class="empty" style="display:block;padding:14px 6px">Niets gevonden${q ? ` voor "${esc($("statusQ").value)}"` : ""}.</li>`;
@@ -1873,6 +1893,18 @@ LAND_MQ.addEventListener("change", () => {
   setTimeout(() => { map.invalidateSize(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); setPeek(); }, 250);
 });
 
+// ================= avondskiën =================
+function setNight(on){
+  S.night = on;
+  $("nightToggle").checked = on; $("nightToggle2").checked = on;
+  document.body.classList.toggle("night", on);
+  if(!S.area){ return; }
+  if(on && !S.area.litNodes.size) toast("In dit gebied zijn geen verlichte pistes bekend.", 3500);
+  else if(on) toast(`Avondskiën: ${kmTxt(S.area.litKm)} km verlichte piste.`);
+  S.wps = []; S.target = null; S.planBy = null; defaultRoute();
+  drawPistes(); update(); if(S.path?.length) fitRoute();
+}
+
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
 function applyTheme(){
@@ -1884,7 +1916,7 @@ applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
 function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
-  $("navAwake").checked = S.navAwake;
+  $("navAwake").checked = S.navAwake; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("nightToggle").checked = S.night;
   $("setName").value = G.name || "";
   $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden · kaartdata ${DATA_V}`;
   renderStorage(); renderInstall();
@@ -1939,6 +1971,10 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").
 $("menuLayers").onclick = e => { e.stopPropagation(); closeMenu(); $("layerMenu").hidden = false; renderOffline(); };
 document.querySelectorAll("#pace button").forEach(b => b.onclick = () => { S.pace = +b.dataset.v; syncMenu(); update(); });
 $("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake(); };
+$("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
+$("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
+$("nightToggle").onchange = e => setNight(e.target.checked);
+$("nightToggle2").onchange = e => setNight(e.target.checked);
 $("setName").onchange = e => { const v = e.target.value.trim().slice(0, 20); if(!v) return; G.name = v; gSave(); $("gName").value = v; toast(`Je naam is nu ${v}.`); };
 
 // ================= taal =================

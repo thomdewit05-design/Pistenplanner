@@ -39,6 +39,19 @@ for ft in features(os.path.join(SRC, "ski_areas.geojson")):
                           conv=p.get("runConvention") or ("north_america" if reg == "noord-amerika" else "europe"))
 print("areas", len(areas))
 
+def run_flags(p):
+    """Eigenschappen van een piste als korte code: g geprepareerd, m buckelpiste, b niet geprepareerd,
+    l verlicht, s kunstsneeuw, w bospiste."""
+    gr = p.get("grooming") or ""
+    f = ""
+    if gr in ("classic", "classic+skating", "skating"): f += "g"
+    if gr == "mogul": f += "m"
+    if gr == "backcountry": f += "b"
+    if p.get("lit") is True: f += "l"
+    if p.get("snowmaking") is True: f += "s"
+    if p.get("gladed") is True: f += "w"
+    return f
+
 def collect(path, kind):
     n = 0
     for ft in features(path):
@@ -52,7 +65,8 @@ def collect(path, kind):
         rec = dict(coords=ft["geometry"]["coordinates"], name=p.get("name"), ref=p.get("ref"),
                    diff=p.get("difficulty"), lt=p.get("liftType"), dur=p.get("duration"),
                    oneway=p.get("oneway"), grooming=p.get("grooming"),
-                   cc=((p.get("places") or [{}])[0] or {}).get("iso3166_1Alpha2") or "")
+                   cc=((p.get("places") or [{}])[0] or {}).get("iso3166_1Alpha2") or "",
+                   flags=run_flags(p) if kind == "run" else "")
         for i in hit: areas[i]["runs" if kind == "run" else "lifts"].append(rec)
         n += 1
     print(kind, n)
@@ -256,7 +270,7 @@ for a in sorted(areas.values(), key=lambda a: (a["reg"], a["cc"], a["y"], a["x"]
         if e["k"] == "r":
             dmap = DIFF_NA if a["conv"] == "north_america" else DIFF
             out_e.append(["r", e["a"], e["b"], nm(r["name"]), r["ref"] or "", dmap.get(r["diff"], "u"), round(e["len"]), drop, g,
-                          r["cc"] if r["cc"] != a["cc"] else ""])
+                          r["cc"] if r["cc"] != a["cc"] else "", r["flags"]])
         else:
             dur = r["dur"]
             if not dur: dur = e["len"] / LIFT_SPEED.get(r["lt"], 3.5)

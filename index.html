@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=24">
+<link rel="stylesheet" href="app.css?v=25">
 </head>
 <body>
 <!-- iconenset -->
@@ -82,6 +82,8 @@
     <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3.5c0 1.5 1.5 1.5 1.5 3M12 3.5c0 1.5 1.5 1.5 1.5 3"/></symbol>
     <symbol id="i-glass" viewBox="0 0 24 24"><path d="M6 3h12l-1 8a5 5 0 0 1-10 0L6 3Z"/><path d="M12 16v5M8.5 21h7M6.5 7.5h11"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
+    <symbol id="i-tree" viewBox="0 0 24 24"><path d="M12 3 6 11h3l-4 6h14l-4-6h3l-6-8Z"/><path d="M12 17v4"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -119,6 +121,7 @@
   <label class="switch"><span>Pistes en liften</span><input type="checkbox" id="showPistes" checked><i></i></label>
   <label class="switch"><span>Pistenummers</span><input type="checkbox" id="showNums" checked><i></i></label>
   <label class="switch"><span>Hutten en restaurants</span><input type="checkbox" id="showHuts" checked><i></i></label>
+  <label class="switch"><span>Avondskiën</span><input type="checkbox" id="nightToggle2"><i></i></label>
   <label class="switch"><span>Plaatsnamen</span><input type="checkbox" id="showLabels" checked><i></i></label>
   <div id="offlineBox" class="offline-box"></div>
 </div>
@@ -332,7 +335,11 @@
     <div class="m-list">
       <label class="switch"><span>Skiroutes en freeride meenemen</span><input type="checkbox" id="free"><i></i></label>
       <label class="switch"><span>Met gondel naar beneden toestaan</span><input type="checkbox" id="down" checked><i></i></label>
+      <label class="switch"><span>Sleepliften vermijden</span><input type="checkbox" id="noDrag"><i></i></label>
+      <label class="switch"><span>Buckelpistes vermijden</span><input type="checkbox" id="noMogul"><i></i></label>
+      <label class="switch"><span>Avondskiën: alleen verlichte pistes</span><input type="checkbox" id="nightToggle"><i></i></label>
     </div>
+    <p class="m-hint">Sleepliften vermijden is fijn voor beginners en kinderen: de route neemt ze alleen als er geen andere weg is.</p>
   </section>
 
   <section class="m-sec">
@@ -425,7 +432,7 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=24"></script>
-<script src="app.js?v=24"></script>
+<script src="i18n.js?v=25"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

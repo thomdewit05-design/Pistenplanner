@@ -726,3 +726,16 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 
 /* thema: omgezet */
 :root[data-theme=light]{color-scheme:light}
+
+/* ---------- piste-eigenschappen en avondskiën ---------- */
+.flags{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 10px}
+.flag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.flag .ic{width:13px;height:13px}
+.flag.f-g{color:var(--ok)}
+.flag.f-m,.flag.f-b{color:#B45309;border-color:color-mix(in srgb,#B45309 35%,var(--line))}
+.flag.f-l{color:#A16207;background:color-mix(in srgb,#FFE680 35%,var(--bg))}
+.flag.f-s{color:var(--accent)}
+.flag.f-w{color:var(--ok)}
+.chip.route.night-chip{background:color-mix(in srgb,#1C2D42 85%,transparent);color:#FFE680;border-color:#1C2D42}
+.chip.route.night-chip .x{background:rgba(255,255,255,.15)}
+.night #map .leaflet-tile-pane{filter:brightness(.55) saturate(.8)}
