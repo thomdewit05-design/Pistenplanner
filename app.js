@@ -622,13 +622,14 @@ function renderResult(){
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
-                               : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
+                               : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>
       <button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("valleyBtn").onclick = toValley;
   $("clearBtn").onclick = clearRoute;
   $("gSendBtn")?.addEventListener("click", sendPlan);
+  $("goAllBtn")?.addEventListener("click", startAll);
   let warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
     ? `<p class="notice bad">${I("warn")}<span><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</span></p>` : "";
   // liftsluiting
@@ -1347,7 +1348,7 @@ function gConnect(){
   es.onopen = () => { G.conn = ""; renderGroup(); };
   es.onerror = () => { G.conn = navigator.onLine ? "Verbinding met de groep herstellen…" : "Geen internet. Je ziet de groep weer zodra je verbinding hebt."; renderGroup(); };
   es.onmessage = ev => {
-    let m, d; try{ m = JSON.parse(ev.data); if(m.event !== "message") return; d = JSON.parse(m.message); }catch(e){ return; }
+    let m, d; try{ m = JSON.parse(ev.data); if(m.event !== "message") return; d = JSON.parse(m.message); d.srv = m.time * 1000; }catch(e){ return; }
     if(!d || d.v !== 1 || !d.id) return;
     gHandle(d);
   };
@@ -1363,7 +1364,10 @@ function gHandle(d){
   if(d.t === "plan" && d.ts > G.planTs){
     G.planTs = d.ts; G.plan = d;
     // bij het opnieuw verbinden komen oude berichten snel achter elkaar binnen: alleen de laatste toepassen
-    clearTimeout(G.planTimer); G.planTimer = setTimeout(() => adoptPlan(G.plan), 500);
+    clearTimeout(G.planTimer); G.planTimer = setTimeout(async () => {
+      const p = G.plan; await adoptPlan(p);
+      if(p.go && p.id !== G.id && G.follow && Date.now() - (p.srv || p.ts) < 120000) goBanner(p);
+    }, 500);
   }
   drawMembers(); renderGroup();
 }
@@ -1381,19 +1385,51 @@ async function adoptPlan(d){
   if(S.via != null && d.to === d.from && !S.pos) S.to = S.from;
   S.planBy = d.name;
   drawPistes(); update(); fitRoute();
+  if(d.go) return;   // de startbalk vertelt het al
   toast(`${d.name} heeft de route gekozen. Jouw route staat klaar.`, 3500);
   speak(`${d.name} heeft een nieuwe route gekozen.`);
 }
-async function sendPlan(){
-  if(!G.code || !S.area || (S.to == null && !S.target)){ toast("Kies eerst een bestemming of piste."); return; }
+function planMsg(){
   const A = S.area;
   const closed = closedKeys().map(k => A.groupKeys.indexOf(k)).filter(i => i >= 0);
   const plan = {t:"plan", area:A.id, from:S.from, to:S.to, via:S.via, dk:S.target ? "t" : "n", de:S.target ? S.target.e.i : null, closed,
                 wps: S.wps.length ? wpsOut() : undefined,
                 label: S.wps.length ? `Getekende route (${S.wps.length} punten)` : S.target ? `Skiën: ${S.target.label}` : nodeLabel(S.to)};
-  const ok = await gSend(plan);
+  return plan;
+}
+async function sendPlan(){
+  if(!G.code || !S.area || (S.to == null && !S.target)){ toast("Kies eerst een bestemming of piste."); return; }
+  const plan = planMsg(), ok = await gSend(plan);
   if(ok){ G.planTs = Date.now(); G.plan = {...plan, name:G.name, id:G.id, ts:G.planTs}; S.planBy = null; renderGroup(); update(); toast("Route gestuurd naar de groep."); }
   else toast("Versturen lukte niet. Controleer je verbinding.");
+}
+// één persoon start de route voor de hele groep: iedereen krijgt de route en de navigatie gaat tegelijk aan
+async function startAll(){
+  if(!G.code || !S.area || (S.to == null && !S.target)){ toast("Kies eerst een bestemming of piste."); return; }
+  const plan = {...planMsg(), go:true}, ok = await gSend(plan);
+  if(!ok){ toast("Versturen lukte niet. Controleer je verbinding."); return; }
+  G.planTs = Date.now(); G.plan = {...plan, name:G.name, id:G.id, ts:G.planTs}; S.planBy = null;
+  $("group").hidden = true; renderGroup();
+  if(!S.follow) toggleFollow(); else update();
+  toast("Route gestart voor de hele groep.");
+}
+// bij de anderen: balk met aftelling; zonder eerdere tik staat de telefoon spraak en scherm-aan niet toe, dan één tik
+let goTimer = null;
+function goBanner(p){
+  clearInterval(goTimer); $("goBanner")?.remove();
+  if(S.follow){ toast(`${p.name} heeft de route voor iedereen gestart.`, 3500); speak(`${p.name} heeft de route gestart.`); return; }
+  const auto = navigator.userActivation ? navigator.userActivation.hasBeenActive : true;
+  const div = document.createElement("div"); div.id = "goBanner"; div.className = "go-banner"; div.setAttribute("role", "alertdialog");
+  div.innerHTML = `<span class="go-ic">${I("group")}</span><div class="go-txt"><b>${esc(p.name)} start de route</b><span id="goCount">${auto ? "Navigatie start over 5 s" : "Tik om mee te doen."}</span></div>
+    <div class="go-btns"><button type="button" class="btn primary" id="goNow">${I("play")}${auto ? "Nu starten" : "Meedoen"}</button><button type="button" class="btn ghost" id="goSkip">Niet meedoen</button></div>`;
+  document.body.appendChild(div); navigator.vibrate?.([200, 100, 200]);
+  const close =() => { clearInterval(goTimer); div.remove(); };
+  const go = () => { close(); if(!S.follow){ if(!S.wps.length) S.fromMe = true; toggleFollow(); } };
+  $("goNow").onclick = go; $("goSkip").onclick = close;
+  if(auto){
+    speak(`${p.name} start de route. Navigatie start over vijf seconden.`);
+    let n = 5; goTimer = setInterval(() => { n--; if(n <= 0) go(); else $("goCount").textContent = tr(`Navigatie start over ${n} s`); }, 1000);
+  }
 }
 function groupOnPos(){
   if(!G.code || !G.sharePos || !S.pos) return;
@@ -1467,6 +1503,7 @@ $("gCreate").onclick = () => gStart(newCode());
 $("gJoin").onclick = () => { const c = $("gCode").value.trim().replace(/[^A-Za-z0-9]/g, ""); if(c.length < 4){ toast("Vul de groepscode in."); return; } gStart(c); };
 $("gLeave").onclick = gLeave;
 $("gSendPlan").onclick = sendPlan;
+$("gStartAll").onclick = startAll;
 $("gFollow").onchange = e => { G.follow = e.target.checked; gSave(); if(G.follow && G.plan && G.plan.id !== G.id) adoptPlan(G.plan); };
 $("gSharePos").onchange = e => { G.sharePos = e.target.checked; gSave(); if(G.sharePos){ G.lastPos = null; if(S.watch == null) startWatch(); else groupOnPos(); } };
 $("gCopy").onclick = async () => { try{ await navigator.clipboard.writeText(gUrl()); toast("Link gekopieerd."); }catch(e){ toast("Kopiëren lukte niet."); } };

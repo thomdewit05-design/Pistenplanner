@@ -159,6 +159,8 @@ en:{
  "Tik op de kaart op je bestemming, of tik een piste aan.":"Tap your destination on the map, or tap a run.", "Stel een route voor":"Suggest a route",
  "Route gewist. Tik op de kaart voor een nieuwe.":"Route cleared. Tap the map for a new one.",
  "Snelste weg naar het dal":"Fastest way down to the valley",
+ "Start voor iedereen":"Start for everyone", "Nu starten":"Start now", "Niet meedoen":"Skip", "Meedoen":"Join", "Tik om mee te doen.":"Tap to join.",
+ "Route gestart voor de hele groep.":"Route started for the whole group.",
  "Alles staat op":"Everything is set to", "Zet dicht wat vandaag dicht is; de routes houden er rekening mee.":"Mark closed what's closed today; routes take it into account.",
  "Binnen je instellingen kon het niet.":"Not possible within your settings.", "Boven je niveau":"Above your level", "Buiten je instellingen":"Outside your settings",
  "Grijs valt buiten je niveau. Kies je het toch, dan zoekt de app de makkelijkste weg.":"Grey is beyond your level. Pick it anyway and the app finds the easiest way.",
@@ -289,6 +291,8 @@ de:{
  "Tik op de kaart op je bestemming, of tik een piste aan.":"Tippe auf der Karte dein Ziel an oder tippe eine Piste an.", "Stel een route voor":"Route vorschlagen",
  "Route gewist. Tik op de kaart voor een nieuwe.":"Route gelöscht. Tippe auf die Karte für eine neue.",
  "Snelste weg naar het dal":"Schnellster Weg ins Tal",
+ "Start voor iedereen":"Für alle starten", "Nu starten":"Jetzt starten", "Niet meedoen":"Nicht mitmachen", "Meedoen":"Mitmachen", "Tik om mee te doen.":"Tippe, um mitzumachen.",
+ "Route gestart voor de hele groep.":"Route für die ganze Gruppe gestartet.",
  "Alles staat op":"Alles steht auf", "open":"offen", "Zet dicht wat vandaag dicht is; de routes houden er rekening mee.":"Markiere als geschlossen, was heute zu ist; die Routen berücksichtigen das.",
  "Binnen je instellingen kon het niet.":"Mit deinen Einstellungen ging es nicht.", "Boven je niveau":"Über deinem Niveau", "Buiten je instellingen":"Außerhalb deiner Einstellungen",
  "Grijs valt buiten je niveau. Kies je het toch, dan zoekt de app de makkelijkste weg.":"Grau liegt über deinem Niveau. Wählst du es trotzdem, sucht die App den leichtesten Weg.",
@@ -342,6 +346,11 @@ function viaT(s, l){
 }
 const P = (rx, en, de) => [new RegExp(rx), en, de];
 const PATTERNS = [
+ P("^(.+) start de route$", (m) => `${m[1]} is starting the route`, (m) => `${m[1]} startet die Route`),
+ P("^Navigatie start over (\\d+) s$", (m) => `Navigation starts in ${m[1]} s`, (m) => `Navigation startet in ${m[1]} s`),
+ P("^(.+) heeft de route voor iedereen gestart\\.$", (m) => `${m[1]} started the route for everyone.`, (m) => `${m[1]} hat die Route für alle gestartet.`),
+ P("^(.+) start de route\\. Navigatie start over vijf seconden\\.$", (m) => `${m[1]} is starting the route. Navigation starts in five seconds.`, (m) => `${m[1]} startet die Route. Die Navigation startet in fünf Sekunden.`),
+ P("^(.+) heeft de route gestart\\.$", (m) => `${m[1]} started the route.`, (m) => `${m[1]} hat die Route gestartet.`),
  P("^De liften zijn nu dicht\\. Tijden zijn gerekend vanaf de opening om (.+)\\.$", (m) => `The lifts are closed now. Times are calculated from opening at ${m[1]}.`, (m) => `Die Lifte sind jetzt geschlossen. Zeiten ab Öffnung um ${m[1]} berechnet.`),
  P("^Hoogteprofiel van (.+) tot (.+) meter over (.+)$", (m) => `Elevation profile from ${m[1]} to ${m[2]} metres over ${m[3]}`, (m) => `Höhenprofil von ${m[1]} bis ${m[2]} Meter über ${m[3]}`),
  P("^Als favoriet bewaren: (.+)$", (m) => `Save as favourite: ${m[1]}`, (m) => `Als Favorit speichern: ${m[1]}`),

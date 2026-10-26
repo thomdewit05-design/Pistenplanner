@@ -781,3 +781,16 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 #clearBtn .ic{width:16px;height:16px}
 .dim-hint{display:block;margin-top:4px;font-size:12px;color:var(--muted)}
 .stat.off{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}.stat.off .ic{color:var(--danger)}
+
+/* groep: iemand start de route voor iedereen */
+.go-banner{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 12px);z-index:3000;display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;
+  padding:14px;border-radius:var(--r-lg,18px);background:var(--surface);color:var(--ink);box-shadow:0 12px 40px rgba(10,20,35,.35);border:2px solid var(--accent);animation:goIn .25s ease-out}
+.go-banner .go-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff}
+.go-banner .go-ic .ic{width:22px;height:22px}
+.go-banner .go-txt b{display:block;font-size:16px}
+.go-banner .go-txt span{font-size:13.5px;color:var(--muted)}
+.go-banner .go-btns{grid-column:1/-1;display:flex;gap:8px}
+.go-banner .go-btns .btn{flex:1}
+@media (min-width:900px){.go-banner{left:auto;right:16px;width:380px}}
+@keyframes goIn{from{transform:translateY(-20px);opacity:0}to{transform:none;opacity:1}}
+#gStartAll{width:100%}
