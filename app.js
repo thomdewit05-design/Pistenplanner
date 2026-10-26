@@ -13,13 +13,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, voice:s.voice??true, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, voice:s.voice??true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, voice:S.voice, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, voice:S.voice, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -135,7 +135,8 @@ async function openArea(id, opts={}){
   S.area.skiNames = skiNames;
   S.closed = new Set(); S.target = null; S.via = null;
   $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
-  $("areaStats").textContent = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften${row[10] ? ` · ${row[9]}–${row[10]} m` : ""}`;
+  S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
+  $("areaStats").textContent = S.area.statsTxt;
   drawPistes(); buildNumbers();
   if(!opts.keepView) fitArea(!$("splash").classList.contains("out"));
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
@@ -147,6 +148,7 @@ async function openArea(id, opts={}){
   }
   drawNumbers();
   setTimeout(hideSplash, 250);
+  loadWeather();
 }
 
 // pistenummers op de kaart (alleen ingezoomd en binnen beeld, anders wordt het te druk)
@@ -431,20 +433,31 @@ function renderResult(){
   const tot = path.reduce((s,x)=>s+x.min,0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
   const down = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+Math.max(0,x.e.drop||0),0);
   const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
-  const arrive = new Date(Date.now() + tot*60000).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"});
+  const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".",",")} km piste · klaar om ${arrive}</span></div>
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString("nl-NL")} hm dalen</span></div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
-                               : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}</div>`;
+                               : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
+      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button></div>`;
   $("goBtn").onclick = toggleFollow;
-  const warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
-    ? `<p class="warn"><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</p>` : "";
+  $("valleyBtn").onclick = toValley;
+  let warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
+    ? `<p class="notice bad">${I("warn")}<span><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</span></p>` : "";
+  // liftsluiting
+  if(tm.late.length){
+    const s = steps[tm.late[0]];
+    warn += `<div class="notice bad">${I("clock")}<span><strong>Je haalt ${esc(liftLabel(s.e))} niet meer.</strong> Je bent er om ${hhmm(s.eta)}, de laatste lift gaat om ${S.liftClose}. Kies een kortere route of ga <button type="button" class="linkbtn" id="valley2">naar het dal</button>.</span></div>`;
+  } else if(tm.lastLift != null && tm.close - tm.lastLift < 30){
+    warn += `<p class="notice info">${I("clock")}<span>Krap: je neemt de laatste lift om ${hhmm(tm.lastLift)}. De liften sluiten om ${S.liftClose}.</span></p>`;
+  }
+  if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
   const endLabel = S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
   res.innerHTML = warn + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
-      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div></div>
+      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}</div>
       <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
     + `<li class="end"><span class="node">${I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div></div><span></span></li></ol>`;
+  $("valley2")?.addEventListener("click", toValley);
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
     if(ev.target.closest(".close-btn")) return;
     const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
@@ -552,7 +565,7 @@ function stopWatch(){
 let firstFix = true;
 async function onPos(p){
   const first = !S.pos;
-  S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
+  S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, alt:p.coords.altitude};
   const ll = [S.pos.lat, S.pos.lon];
   if(!meMarker){
     meCircle = L.circle(ll, {radius:S.pos.acc, color:"#1A8CFF", weight:1, fillOpacity:.12, interactive:false}).addTo(map);
@@ -617,6 +630,15 @@ function updateNav(){
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
   const arrive = new Date(Date.now() + left*60000).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"});
   $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)} · nog ${fmt(left)} · aankomst ${arrive}</span>`;
+  // liften gaan bijna dicht
+  const nowM = new Date().getHours()*60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
+  const liftAhead = S.steps.slice(ns.i).some(x => x.t==="l");
+  const nw = $("navWarn");
+  if(liftAhead && toGo > 0 && toGo <= 30){
+    nw.hidden = false; nw.innerHTML = `${I("clock")}<span>Liften sluiten om ${S.liftClose}, over ${toGo} min</span>`;
+    const key = new Date().toDateString();
+    if(S.closeWarned !== key){ S.closeWarned = key; toast(`De liften sluiten over ${toGo} minuten.`, 4000); speak(`Let op: de liften sluiten over ${toGo} minuten.`); }
+  } else nw.hidden = true;
   document.querySelector(`ol.steps li[data-i="${ns.i}"]`)?.classList.add("current");
   // gesproken aanwijzingen
   if(S.spoken.step !== ns.i){ S.spoken.step = ns.i; speak(`${uc(s.say)}${s.t!=="w" ? ", " + km(s.len).replace("km","kilometer").replace(" m"," meter") : ""}.`); }
@@ -711,6 +733,177 @@ $("down").onchange = e => { S.down = e.target.checked; update(); };
 $("voice").onchange = e => { S.voice = e.target.checked; if(!S.voice) speechSynthesis?.cancel?.(); save(); };
 $("fitAreaBtn").onclick = () => fitArea();
 $("fitRouteBtn").onclick = fitRoute;
+
+// ================= liftsluiting =================
+const toMin = s => { const [h, m] = String(s || "0:0").split(":").map(Number); return (h||0)*60 + (m||0); };
+const hhmm = m => { m = Math.round(m); return `${String(Math.floor(m/60) % 24).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`; };
+// wanneer ben je bij elke stap; buiten de openingstijden rekenen we vanaf de opening
+function routeTiming(){
+  const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
+  const open = toMin(S.liftOpen), close = toMin(S.liftClose);
+  const planned = nowM < open || nowM >= close;
+  let t = planned ? open : nowM, lastLift = null; const late = [];
+  S.steps.forEach((s, i) => {
+    s.eta = t; s.late = s.t==="l" && t > close;
+    if(s.late) late.push(i);
+    if(s.t==="l" && !s.late) lastLift = t;
+    t += s.min;
+  });
+  return {end:t, planned, late, lastLift, close};
+}
+// snelste weg naar het laagste bereikbare punt (het dorp of het dal)
+function toValley(){
+  const A = S.area; if(!A) return;
+  let from = S.from;
+  if(S.pos && (S.fromMe || S.follow)) from = nearestNode(S.pos.lat, S.pos.lon).n;
+  if(from==null){ toast("Kies eerst waar je nu bent (A)."); return; }
+  const {dist} = dijkstra(from, null, graph());
+  let best = null;
+  dist.forEach((d, n) => {
+    if(d===Infinity || n===from) return;
+    const e = A.nodes[n].ele ?? 9999;
+    if(!best || e < best.e - 30 || (Math.abs(e - best.e) <= 30 && d < best.d)) best = {n, e, d};
+  });
+  if(!best){ toast("Vanaf hier is geen weg naar beneden gevonden."); return; }
+  S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from";
+  update(); fitRoute();
+  toast(`Naar het dal: ${lc(nodeLabel(best.n))}${best.e < 9999 ? `, ${best.e} m` : ""}`);
+}
+
+// ================= weer en sneeuw =================
+const WX = {0:["Helder","sun"],1:["Overwegend helder","sun"],2:["Half bewolkt","pcloud"],3:["Bewolkt","cloud"],45:["Mist","fog"],48:["Mist met rijp","fog"],
+  51:["Lichte motregen","rain"],53:["Motregen","rain"],55:["Motregen","rain"],56:["IJzel","rain"],57:["IJzel","rain"],61:["Lichte regen","rain"],63:["Regen","rain"],
+  65:["Zware regen","rain"],66:["IJzel","rain"],67:["IJzel","rain"],71:["Lichte sneeuw","snow"],73:["Sneeuw","snow"],75:["Zware sneeuw","snow"],77:["Korrelsneeuw","snow"],
+  80:["Regenbuien","rain"],81:["Regenbuien","rain"],82:["Zware buien","rain"],85:["Sneeuwbuien","snow"],86:["Zware sneeuwbuien","snow"],95:["Onweer","storm"],96:["Onweer met hagel","storm"],99:["Onweer met hagel","storm"]};
+const wxInfo = c => WX[c] || ["Onbekend","cloud"];
+const AVALANCHE = {AT:["https://lawinen.at","Lawinenwarndienste Österreich"], CH:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"],
+  FR:["https://meteofrance.com/meteo-montagne","Météo-France bergweer"], IT:["https://bollettini.aineva.it/","AINEVA lawinebulletin"],
+  DE:["https://www.lawinenwarndienst.bayern.de/","Lawinenwarndienst Bayern"], SI:["https://meteo.arso.gov.si/met/sl/avalanche/","ARSO lawinebulletin"],
+  LI:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"]};
+const wxCache = {};
+const deg = t => `${Math.round(t)}°`;
+async function loadWeather(){
+  const A = S.area; if(!A) return;
+  const id = A.id, r = A.row, hi = r[10] ?? 2400, lo = r[9] ?? 1200;
+  const c = wxCache[id];
+  if(c && Date.now() - c.t < 30*60e3) return renderWeather(c.d);
+  $("wxSum").innerHTML = `<span class="wx-loading">Weer en sneeuw laden…</span>`; $("wxBody").innerHTML = "";
+  try{
+    const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
+      latitude:`${r[5]},${r[5]}`, longitude:`${r[4]},${r[4]}`, elevation:`${hi},${lo}`, timezone:"auto", forecast_days:"4", past_days:"1",
+      current:"temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,visibility,snow_depth,freezing_level_height",
+      hourly:"snowfall", daily:"weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,wind_speed_10m_max"});
+    const res = await fetch(url); if(!res.ok) throw new Error(res.status);
+    const d = await res.json(); if(!Array.isArray(d) || d.length < 2) throw new Error("data");
+    wxCache[id] = {t:Date.now(), d};
+    if(S.area?.id === id) renderWeather(d);
+  }catch(e){
+    if(S.area?.id === id) $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span>`;
+  }
+}
+function renderWeather(d){
+  const A = S.area, r = A.row, top = d[0], dal = d[1], c = top.current, cd = dal.current;
+  const [txt, ic] = wxInfo(c.weather_code);
+  const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
+  const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
+  const depth = Math.round((c.snow_depth || 0) * 100);
+  $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
+    <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
+    <small>${txt} · wind ${Math.round(c.wind_speed_10m)} km/u${fresh >= 1 ? ` · ${Math.round(fresh)} cm vers` : ""}</small></span>
+    <svg class="ic chev"><use href="#i-chev"/></svg>`;
+  const notes = [];
+  if(c.wind_gusts_10m >= 60) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (stoten tot ${Math.round(c.wind_gusts_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
+  if(c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Slecht zicht op de top</strong> (${c.visibility < 200 ? "minder dan 200 m" : Math.round(c.visibility/100)*100 + " m"}). Blijf op gemarkeerde pistes.</span></p>`);
+  const D = top.daily, today = c.time.slice(0, 10), start = Math.max(0, D.time.indexOf(today));
+  const days = D.time.slice(start, start + 4).map((t, k) => {
+    const i = start + k, [dt, di] = wxInfo(D.weather_code[i]);
+    const name = k===0 ? "Vandaag" : k===1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString("nl-NL", {weekday:"short"});
+    const sn = D.snowfall_sum[i] || 0;
+    return `<div class="wx-day" title="${dt}"><b>${name}</b><svg class="ic"><use href="#i-${di}"/></svg>
+      <span class="t">${deg(D.temperature_2m_max[i])} <i>${deg(D.temperature_2m_min[i])}</i></span><span class="sn">${sn >= 0.5 ? `${Math.round(sn)} cm` : ""}</span></div>`;
+  }).join("");
+  const av = AVALANCHE[r[2]];
+  const vis = c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".",",")} km` : `${Math.round(c.visibility/10)*10} m`;
+  $("wxBody").innerHTML = (notes.length ? `<div style="padding:0 14px">${notes.join("")}</div>` : "") + `
+    <div class="wx-grid">
+      <div class="wx-cell"><span>${I("wind")}Wind</span><b>${Math.round(c.wind_speed_10m)}<small> km/u</small></b><small>stoten ${Math.round(c.wind_gusts_10m)}</small></div>
+      <div class="wx-cell"><span>${I("thermo")}Gevoel</span><b>${deg(c.apparent_temperature)}</b><small>op ${r[10] ?? "?"} m</small></div>
+      <div class="wx-cell"><span>${I("eye")}Zicht</span><b>${vis}</b><small>op de top</small></div>
+      <div class="wx-cell"><span>${I("snow")}Sneeuw</span><b>${depth}<small> cm</small></b><small>op de top (model)</small></div>
+      <div class="wx-cell"><span>${I("snow")}Vers</span><b>${Math.round(fresh)}<small> cm</small></b><small>laatste 24 uur</small></div>
+      <div class="wx-cell"><span>${I("thermo")}0°-grens</span><b>${Math.round(c.freezing_level_height/50)*50}<small> m</small></b><small>vriespunt</small></div>
+    </div>
+    <div class="wx-days">${days}</div>
+    <div class="wx-foot"><span>Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
+      ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>`;
+  $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top`;
+}
+
+// ================= SOS =================
+const RESCUE = {AT:["140","Alpine noodlijn (Bergrettung Österreich)"], CH:["1414","Rega, luchtreddingsdienst Zwitserland"],
+                LI:["1414","Rega, ook voor Liechtenstein"], IT:["118","Medische noodhulp Italië"]};
+let sosTimer = null;
+const dms = (v, pos, neg) => { const a = Math.abs(v), d = Math.floor(a), mf = (a - d)*60, m = Math.floor(mf), s = ((mf - m)*60).toFixed(1);
+  return `${d}°${String(m).padStart(2,"0")}′${s.padStart(4,"0")}″ ${v >= 0 ? pos : neg}`; };
+function nearestPlace(){
+  const A = S.area; if(!A || !S.pos) return null;
+  const p = [S.pos.lat, S.pos.lon]; let best = null;
+  for(const e of A.edges){
+    if(e.t==="w") continue;
+    for(let k = 0; k < e.pts.length-1; k++){ const r = segDist(p, e.pts[k], e.pts[k+1]); if(!best || r.d < best.d) best = {d:r.d, e}; }
+  }
+  if(!best || best.d > 2000) return null;
+  const e = best.e, name = e.t==="l" ? liftLabel(e).replace(/^de /, "") : `${pisteLabel(e).replace(/^de /, "")} (${DIFF[e.diff].nl})`;
+  return {txt: best.d < 40 ? `Op ${name}` : `${Math.round(best.d/10)*10} m van ${name}`, d:best.d};
+}
+function sosText(){
+  const {lat, lon, acc} = S.pos, pl = nearestPlace(), alt = sosAlt();
+  return `NOODGEVAL – mijn locatie: ${lat.toFixed(5)}, ${lon.toFixed(5)} (± ${Math.round(acc)} m)` + (alt ? `, hoogte ca. ${alt} m` : "")
+    + (pl ? `, ${lc(pl.txt)}` : "") + (S.area ? `, skigebied ${S.area.row[1]}` : "") + `. Kaart: https://maps.google.com/?q=${lat.toFixed(5)},${lon.toFixed(5)}`;
+}
+function sosAlt(){
+  if(S.pos?.alt != null) return Math.round(S.pos.alt);
+  if(S.area && S.pos){ const n = nearestNode(S.pos.lat, S.pos.lon); if(n.d < 300) return S.area.nodes[n.n].ele; }
+  return null;
+}
+function renderSos(){
+  const cc = S.area?.row[2], loc = RESCUE[cc];
+  $("sosLocal").hidden = !loc;
+  if(loc){ $("sosLocal").href = `tel:${loc[0]}`; $("sosLocalNum").textContent = `Bel ${loc[0]}`; $("sosLocalTxt").textContent = loc[1]; }
+  if(!S.pos){
+    $("sosLoc").innerHTML = `<p class="empty">${S.watch==null ? "<strong>Locatie staat uit.</strong> Sta locatie toe voor deze app, of geef de naam van de piste of lift door." : "Locatie zoeken… Ga zo mogelijk naar een open plek."}</p>`;
+    $("sosCopy").disabled = $("sosShare").disabled = true; return;
+  }
+  const {lat, lon, acc} = S.pos, pl = nearestPlace(), alt = sosAlt();
+  $("sosCopy").disabled = $("sosShare").disabled = false;
+  $("sosLoc").innerHTML = `<div class="sos-coord">${lat.toFixed(5)}, ${lon.toFixed(5)}</div>
+    <div class="sos-dms">${dms(lat, "N", "Z")} · ${dms(lon, "O", "W")}</div>
+    <div class="sos-facts">
+      <div><span>Nauwkeurig</span><b>± ${Math.round(acc)} m</b></div>
+      <div><span>Hoogte</span><b>${alt != null ? `ca. ${alt} m` : "onbekend"}</b></div>
+      <div style="grid-column:1/-1"><span>Waar</span><b>${pl ? esc(pl.txt) : "Niet bij een piste of lift"}${S.area ? ` · ${esc(S.area.row[1])}` : ""}</b></div>
+    </div>`;
+}
+function openSos(){ $("sos").hidden = false; if(S.watch==null) startWatch(); renderSos(); clearInterval(sosTimer); sosTimer = setInterval(renderSos, 3000); }
+function closeSos(){ $("sos").hidden = true; clearInterval(sosTimer); }
+$("sosBtn").onclick = openSos;
+$("sosClose").onclick = closeSos;
+$("sosCopy").onclick = async () => {
+  if(!S.pos) return;
+  try{ await navigator.clipboard.writeText(sosText()); toast("Locatie gekopieerd. Plak hem in een bericht."); }
+  catch(e){ toast("Kopiëren lukte niet. Lees de coördinaten voor."); }
+};
+$("sosShare").onclick = async () => {
+  if(!S.pos) return;
+  if(navigator.share){ try{ await navigator.share({title:"Mijn locatie (noodgeval)", text:sosText()}); }catch(e){} }
+  else $("sosCopy").click();
+};
+document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("sos").hidden) closeSos(); });
+
+// ================= openingstijden =================
+$("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
+$("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
+$("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.value; save(); update(); } };
 
 // ================= start =================
 if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
