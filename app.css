@@ -829,3 +829,34 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 @media (min-width:900px){.home-pop{left:16px;right:auto;width:380px}}
 body.picking-home .leaflet-container{cursor:crosshair}
 .cta .home-set{flex:1 1 100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:4px;font-size:13.5px;font-weight:600;color:var(--accent);background:none;border:0;cursor:pointer}.home-set .ic{width:16px;height:16px}
+
+/* Pistenplanner Pro */
+.pro-dlg{position:fixed;inset:0;z-index:3500;background:rgba(8,16,26,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px;animation:goIn .2s ease-out}
+.pro-card{width:100%;max-width:440px;max-height:calc(100dvh - 24px);overflow:auto;background:var(--surface);color:var(--ink);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+@media (min-width:600px){.pro-dlg{align-items:center}}
+.pro-head{display:flex;align-items:center;gap:12px}
+.pro-head>div{flex:1}
+.pro-head .label{margin:0}
+.pro-head h2{margin:0;font:800 30px/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;background:linear-gradient(90deg,#F0A040,#E25C2A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pro-why,.pro-on{display:flex;gap:10px;align-items:flex-start;margin:0;padding:10px 12px;border-radius:var(--r-md);font-size:14px}
+.pro-why{background:color-mix(in srgb,#F0A040 14%,transparent)}
+.pro-on{background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.pro-why .ic,.pro-on .ic{width:20px;height:20px;flex:0 0 auto}
+.pro-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.pro-list li{display:flex;gap:10px;align-items:center;font-size:14.5px;font-weight:600}
+.pro-list .ic{width:20px;height:20px;color:#E07A1F;flex:0 0 auto}
+.pro-buy{display:flex;align-items:center;gap:12px}
+.pro-price{display:flex;flex-direction:column}
+.pro-price b{font:800 24px/1 var(--f-display)}
+.pro-price span{font-size:12px;color:var(--muted)}
+.pro-buy .btn{flex:1;text-decoration:none;justify-content:center}
+.pro-key{display:flex;gap:8px}
+.pro-key input{flex:1;min-width:0;font:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);color:var(--ink);letter-spacing:.02em}
+.pro-card .label{margin:0}
+.pro-card .m-hint{margin:0}
+.pro-links{margin:0;font-size:12.5px;color:var(--muted);text-align:center}
+.pro-links a{color:var(--muted)}
+.pro-teaser{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px;border-radius:var(--r-md);background:color-mix(in srgb,#F0A040 12%,transparent);font-size:13.5px}
+.pro-teaser>.ic{width:18px;height:18px;color:#E07A1F}
+.pro-teaser span{flex:1 1 200px}
+.pro-sec #proMore{width:100%}

@@ -36,3 +36,18 @@ Verhoog bij elke update het versienummer op drie plekken, zodat telefoons de nie
 `app.css?v=…` en `app.js?v=…` in `index.html`, en `VERSION` plus dezelfde bestandsnamen in `sw.js`.
 
 Na het opnieuw bouwen van `data/` ook `DATA_V` in `app.js` en `data/index.json?…` in `sw.js` verhogen.
+
+## Pistenplanner Pro en kaartsleutels
+
+Alles staat in `config.js`. Zolang `pro.enforce` op `false` staat, kan iedereen alles gebruiken.
+Met `?pro=preview` achter het adres zie je de app zoals hij met Pro aan werkt.
+
+1. Maak bij Lemon Squeezy een product "Pistenplanner Pro" met licentiecodes aan.
+2. Vul in `config.js` de betaallink (`checkout`), het winkelnummer (`storeId`) en het productnummer (`productId`) in.
+3. Zet `enforce` op `true` en verhoog het versienummer.
+
+Pro-functies: een groep maken en "Start voor iedereen", lunchstop, zon en schaduw, hotel of auto, seizoensoverzicht en GPX-export.
+Veiligheid (route, navigatie, weer, laatste lift, SOS) en meedoen met een groep blijven gratis.
+
+Eigen kaarttegels met een sleutel zet je in `config.js` onder `maps` (per laag een `url` en eventueel Leaflet-`options`).
+Naam en e-mailadres voor `privacy.html` en `voorwaarden.html` staan onder `contact`.

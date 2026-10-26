@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=31">
+<link rel="stylesheet" href="app.css?v=32">
 </head>
 <body>
 <!-- iconenset -->
@@ -324,6 +324,12 @@
     <button type="button" class="icon-btn" id="menuClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
   </div>
 
+  <section class="m-sec pro-sec" id="proSec" hidden>
+    <h3><svg class="ic"><use href="#i-star"/></svg>Pistenplanner Pro</h3>
+    <p class="m-hint" id="proState"></p>
+    <button type="button" class="btn primary" id="proMore">Bekijk Pro</button>
+  </section>
+
   <section class="m-sec">
     <h3><svg class="ic"><use href="#i-ski"/></svg>Skiën</h3>
     <p class="label">Jouw niveau</p>
@@ -407,6 +413,8 @@
       <button type="button" class="btn ghost danger-btn" data-clear="all">Alles wissen</button>
     </div>
     <p class="m-hint">Alles wat je in de app doet, blijft op deze telefoon. Alleen als je een groep gebruikt, gaan je naam, route en positie via ntfy.sh naar je groepsgenoten.</p>
+    <a class="m-link" href="privacy.html" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Privacyverklaring</a>
+    <a class="m-link" href="voorwaarden.html" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Voorwaarden</a>
   </section>
 
   <section class="m-sec">
@@ -444,9 +452,10 @@
 
 <div class="toast" id="toast" role="status"></div>
 
+<script src="config.js?v=32"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=31"></script>
-<script src="app.js?v=31"></script>
+<script src="i18n.js?v=32"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

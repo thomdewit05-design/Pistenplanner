@@ -51,15 +51,20 @@ L.control.zoom({position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);
 map.createPane("labels"); map.getPane("labels").style.zIndex = 350; map.getPane("labels").style.pointerEvents = "none";
 const ESRI = "Satelliet © Esri, Maxar, Earthstar Geographics, GIS User Community";
+// in config.js kun je eigen tegels met een sleutel instellen (nodig voor commercieel gebruik); anders de gratis tegels
+const MAPCFG = window.PP_CONFIG?.maps || {};
+const tiles = (k, url, opts) => MAPCFG[k]?.url
+  ? L.tileLayer(MAPCFG[k].url, {...opts, ...(MAPCFG[k].options || {}), attribution:k === "labels" ? undefined : MAPCFG.attribution || opts.attribution})
+  : L.tileLayer(url, opts);
 const baseLayers = {
-  sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  sat: tiles("sat", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, attribution:ESRI}),
-  topo: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+  topo: tiles("topo", "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
         {maxZoom:19, maxNativeZoom:17, subdomains:"abc", crossOrigin:true, attribution:"Kaart © OpenTopoMap (CC-BY-SA), © OpenStreetMap"}),
-  osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  osm: tiles("osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         {maxZoom:19, crossOrigin:true, attribution:"© OpenStreetMap-bijdragers"})
 };
-const labelLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+const labelLayer = tiles("labels", "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.95});
 const canvas = L.canvas({padding:.4, tolerance:6});
 const svgR = L.svg({padding:.4});
@@ -1463,6 +1468,7 @@ async function sendPlan(){
 }
 // één persoon start de route voor de hele groep: iedereen krijgt de route en de navigatie gaat tegelijk aan
 async function startAll(){
+  if(!requirePro("group")) return;
   if(!G.code || !S.area || (S.to == null && !S.target)){ toast("Kies eerst een bestemming of piste."); return; }
   const plan = {...planMsg(), go:true}, ok = await gSend(plan);
   if(!ok){ toast("Versturen lukte niet. Controleer je verbinding."); return; }
@@ -1557,7 +1563,7 @@ function gLeave(){
 function openGroup(){ $("group").hidden = false; renderGroup(); if(G.code) gDrawQr(); }
 $("groupBtn").onclick = openGroup;
 $("groupClose").onclick = () => $("group").hidden = true;
-$("gCreate").onclick = () => gStart(newCode());
+$("gCreate").onclick = () => { if(requirePro("group")) gStart(newCode()); };   // meedoen met een groep is gratis, een groep maken is Pro
 $("gJoin").onclick = () => { const c = $("gCode").value.trim().replace(/[^A-Za-z0-9]/g, ""); if(c.length < 4){ toast("Vul de groepscode in."); return; } gStart(c); };
 $("gLeave").onclick = gLeave;
 $("gSendPlan").onclick = sendPlan;
@@ -1864,6 +1870,7 @@ function dayGpx(day){
 `;
 }
 async function exportGpx(day){
+  if(!requirePro("gpx")) return;
   if(!day || day.pts.length < 2){ toast("Deze dag heeft nog te weinig punten."); return; }
   const fname = `pistenplanner-${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}${day.areaName ? "-" + norm(day.areaName).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) : ""}.gpx`;
   const blob = new Blob([dayGpx(day)], {type:"application/gpx+xml"});
@@ -1907,6 +1914,7 @@ function allDays(){
 function renderSeason(curKey){
   const days = allDays(), box = $("diarySeason");
   if(!days.length){ box.innerHTML = ""; return; }
+  if(!isPro()){ box.innerHTML = proTeaser("season"); return; }
   const seasons = [...new Set(days.map(x => seasonOf(x.d)))].sort().reverse();
   const sel = seasonPick && seasons.includes(seasonPick) ? seasonPick : seasons[0];
   const sd = days.filter(x => seasonOf(x.d) === sel);
@@ -2298,6 +2306,7 @@ setInterval(() => { if(S.area && (S.sunOn || S.sunny)){ drawSun(); if(S.sunny) u
 
 // ================= lunchstop =================
 function lunchForm(){
+  if(!requirePro("lunch")) return;
   const box = $("lunchBox"); if(!box) return;
   box.innerHTML = `<div class="lunch-form"><p class="label">Lunchstop</p>
     <div class="lf-row"><label>Lunchen rond<input type="time" id="lfAt" value="${S.lunchPref?.at || "12:30"}" step="300"></label>
@@ -2366,6 +2375,7 @@ function drawHome(){
 }
 function homeMenu(){
   $("homePop")?.remove();
+  if(!requirePro("home")) return;
   if(!S.area) return;
   const h = getHome(), div = document.createElement("div"); div.id = "homePop"; div.className = "home-pop"; div.setAttribute("role", "dialog");
   let kind = h?.kind || "hotel";
@@ -2390,6 +2400,7 @@ function homeMenu(){
   $("hpDel")?.addEventListener("click", () => { close(); clearHome(); });
 }
 function goHome(){
+  if(!requirePro("home")) return;
   const h = getHome(); if(!h){ homeMenu(); return; }
   let from = S.from;
   if(S.pos && (S.fromMe || S.follow || from == null)){ from = nearestNode(S.pos.lat, S.pos.lon).n; S.fromMe = true; }
@@ -2399,6 +2410,97 @@ function goHome(){
   S.from = from; S.to = to; S.via = null; S.target = null; S.wps = []; S.lunch = null; S.planBy = null; S.pick = "from";
   update(); fitRoute();
 }
+
+// ================= Pistenplanner Pro =================
+// Betalen loopt via Lemon Squeezy (zij zijn de verkoper en regelen btw en terugbetaling).
+// Na de aankoop krijg je een licentiecode; die wordt hier één keer geactiveerd en daarna eens per week gecontroleerd.
+// Zolang Pro in config.js niet aan staat, kan iedereen alles gebruiken.
+const PRO_CFG = window.PP_CONFIG?.pro || {};
+const proLive = () => !!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search);
+const PRO_FEATURES = [
+  ["group", "group", "Een groep maken en de route voor iedereen starten"],
+  ["lunch", "food", "Lunchstop bij een hut op het juiste moment"],
+  ["sun", "sun", "Zon en schaduw, en routes door de zon"],
+  ["home", "bed", "Terug naar je hotel of auto"],
+  ["season", "calendar", "Seizoensoverzicht en persoonlijke records"],
+  ["gpx", "share", "Je skidagen als GPX-bestand"]
+];
+let PRO = (() => { try{ return JSON.parse(localStorage.getItem("pp-pro") || "null"); }catch(e){ return null; } })();
+const proSave = () => { try{ PRO ? localStorage.setItem("pp-pro", JSON.stringify(PRO)) : localStorage.removeItem("pp-pro"); }catch(e){} };
+const proActive = () => !!(PRO?.key && !["expired", "disabled"].includes(PRO.status) && !(PRO.expires && Date.parse(PRO.expires) < Date.now()));
+const isPro = () => !proLive() || proActive();
+function requirePro(f){ if(isPro()) return true; openPro(f); return false; }
+const proTeaser = f => `<div class="pro-teaser">${I("star")}<span><b>${esc(PRO_FEATURES.find(x => x[0] === f)?.[2] || "Deze functie")}</b> hoort bij Pistenplanner Pro.</span><button type="button" class="btn ghost" onclick="openPro('${f}')">Bekijk Pro</button></div>`;
+const LS_API = "https://api.lemonsqueezy.com/v1/licenses/";
+async function lsCall(action, params){
+  const r = await fetch(LS_API + action, {method:"POST", headers:{Accept:"application/json", "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams(params)});
+  return r.json();
+}
+// alleen codes van onze eigen winkel en ons eigen product tellen
+const proMatches = m => (!PRO_CFG.storeId || m?.store_id === PRO_CFG.storeId) && (!PRO_CFG.productId || m?.product_id === PRO_CFG.productId);
+async function proActivate(key){
+  key = (key || "").trim();
+  if(!key){ toast("Vul je licentiecode in."); return; }
+  try{
+    const d = await lsCall("activate", {license_key:key, instance_name:"Pistenplanner op " + (/iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android" : "computer")});
+    if(!d.activated){ toast(/limit/i.test(d.error || "") ? "Deze code is al op het maximale aantal apparaten gebruikt. Zet Pro eerst uit op een ander apparaat." : "Deze code werkt niet. Controleer of je hem goed hebt overgenomen.", 4500); return; }
+    if(!proMatches(d.meta)){ toast("Deze code hoort niet bij de Pistenplanner."); return; }
+    PRO = {key, instance:d.instance?.id || null, status:d.license_key?.status || "active", expires:d.license_key?.expires_at || null, checked:Date.now(), email:d.meta?.customer_email || ""};
+    proSave(); renderPro(); openPro(); update();
+    toast("Pro staat aan. Veel skiplezier!", 3500);
+  }catch(e){ toast("Geen verbinding met de licentieserver. Probeer het later opnieuw."); }
+}
+// eens per week kijken of de code nog geldig is; zonder internet blijft Pro gewoon werken
+async function proCheck(){
+  if(!proLive() || !PRO?.key || !navigator.onLine || Date.now() - (PRO.checked || 0) < 7*864e5) return;
+  try{
+    const d = await lsCall("validate", {license_key:PRO.key, ...(PRO.instance ? {instance_id:PRO.instance} : {})});
+    if(d.license_key){ if(!proMatches(d.meta)) PRO = null; else Object.assign(PRO, {status:d.license_key.status, expires:d.license_key.expires_at, checked:Date.now()}); }
+    else if(/not found/i.test(d.error || "")) PRO = null;
+    proSave(); renderPro();
+  }catch(e){}
+}
+async function proDeactivate(){
+  if(PRO?.instance){ try{ await lsCall("deactivate", {license_key:PRO.key, instance_id:PRO.instance}); }catch(e){} }
+  PRO = null; proSave(); renderPro(); openPro(); update();
+  toast("Pro staat uit op dit apparaat. Je kunt je code nu op een ander apparaat gebruiken.", 4000);
+}
+function openPro(f){
+  $("proDlg")?.remove();
+  const feat = PRO_FEATURES.find(x => x[0] === f), on = proActive();
+  const div = document.createElement("div"); div.id = "proDlg"; div.className = "pro-dlg"; div.setAttribute("role", "dialog"); div.setAttribute("aria-modal", "true");
+  div.innerHTML = `<div class="pro-card">
+    <div class="pro-head"><img src="icons/logo.svg" alt="" width="44" height="44"><div><p class="label">Pistenplanner</p><h2>Pro</h2></div><button type="button" class="icon-btn" id="proClose" aria-label="Sluiten">${I("close")}</button></div>
+    ${feat && !on ? `<p class="pro-why">${I(feat[1])}<span><b>${esc(feat[2])}</b> hoort bij Pro.</span></p>` : ""}
+    ${on ? `<p class="pro-on">${I("check")}<span><b>Pro staat aan op dit apparaat.</b>${PRO.email ? ` Gekocht met ${esc(PRO.email)}.` : ""}</span></p>` : ""}
+    <ul class="pro-list">${PRO_FEATURES.map(([, ic, t]) => `<li>${I(ic)}<span>${esc(t)}</span></li>`).join("")}</ul>
+    <p class="m-hint">Alles voor je veiligheid blijft gratis: route plannen, navigatie, weer, de laatste-liftwaarschuwing en SOS. Meedoen met een groep is ook gratis.</p>
+    ${on ? `<button type="button" class="btn ghost" id="proOff">Pro op dit apparaat uitzetten</button>` : `
+      <div class="pro-buy"><div class="pro-price"><b>${esc(PRO_CFG.price || "")}</b><span>${esc(PRO_CFG.period || "")}</span></div>
+      ${PRO_CFG.checkout ? `<a class="btn primary" id="proBuy" href="${esc(PRO_CFG.checkout)}" target="_blank" rel="noopener">${I("star")}Koop Pro</a>` : `<button type="button" class="btn primary" disabled>Binnenkort te koop</button>`}</div>
+      <p class="label">Heb je al een licentiecode?</p>
+      <div class="pro-key"><input type="text" id="proKey" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="button" class="btn ghost" id="proAct">Activeren</button></div>
+      <p class="m-hint">Na het betalen krijg je de code per e-mail. Je kunt hem op meerdere eigen apparaten gebruiken.</p>`}
+    <p class="pro-links"><a href="privacy.html" target="_blank" rel="noopener">Privacyverklaring</a> · <a href="voorwaarden.html" target="_blank" rel="noopener">Voorwaarden</a></p>
+  </div>`;
+  document.body.appendChild(div);
+  const close = () => div.remove();
+  $("proClose").onclick = close;
+  div.addEventListener("click", e => { if(e.target === div) close(); });
+  $("proAct")?.addEventListener("click", () => proActivate($("proKey").value));
+  $("proKey")?.addEventListener("keydown", e => { if(e.key === "Enter") proActivate(e.target.value); });
+  $("proOff")?.addEventListener("click", proDeactivate);
+}
+function renderPro(){
+  const sec = $("proSec"); if(!sec) return;
+  sec.hidden = !proLive();
+  $("proState").textContent = proActive() ? "Pro staat aan op dit apparaat." : "Groepen, lunchstop, zon en schaduw, je hotel of auto, en je seizoensrecords.";
+  $("proMore").textContent = tr(proActive() ? "Beheer Pro" : "Bekijk Pro");
+  // zonder Pro staan de Pro-instellingen uit, ook als ze eerder aan stonden
+  if(!isPro() && (S.sunOn || S.sunny)){ S.sunOn = S.sunny = false; save(); if(S.area){ drawSun(); } }
+}
+$("proMore").onclick = () => openPro();
+renderPro(); setTimeout(proCheck, 5000);
 
 // navigatie stoppen en alles van de route van het scherm halen; daarna direct een nieuwe kiezen
 function clearRoute(){
@@ -2481,8 +2583,8 @@ $("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake
 $("speedoToggle").onchange = e => { S.speedo = e.target.checked; save(); renderSpeedo(); };
 $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
-$("sunny").onchange = e => { S.sunny = e.target.checked; save(); update(); };
-$("sunToggle").onchange = e => { S.sunOn = e.target.checked; save(); drawSun(); };
+$("sunny").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunny = e.target.checked; save(); update(); };
+$("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save(); drawSun(); };
 $("sunToggle").checked = S.sunOn;
 $("nightToggle").onchange = e => setNight(e.target.checked);
 $("nightToggle2").onchange = e => setNight(e.target.checked);

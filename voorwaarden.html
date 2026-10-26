@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voorwaarden · Pistenplanner</title>
+<link rel="icon" href="icons/logo.svg">
+<style>
+:root{--bg:#F3F6F9;--card:#fff;--ink:#0F1B2A;--muted:#5E6E80;--line:#E1E7EE;--accent:#2A6FDB;--warn:#FCE8E6;--warn-ink:#7A1E14}
+@media (prefers-color-scheme:dark){:root{--bg:#0B1520;--card:#121E2C;--ink:#E8EEF5;--muted:#9AAABB;--line:#26364A;--accent:#6EA2F0;--warn:#3A1712;--warn-ink:#F6C9C2}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+header img{width:44px;height:44px}
+h1{font-size:28px;line-height:1.15;margin:0}
+h2{font-size:19px;margin:28px 0 6px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 20px}
+.safety{background:var(--warn);color:var(--warn-ink);border-radius:14px;padding:12px 16px}
+.safety p{margin:6px 0;color:inherit}
+a{color:var(--accent)}
+.todo{background:#FFF1C2;color:#5A4300;padding:0 4px;border-radius:4px}
+@media (prefers-color-scheme:dark){.todo{background:#5A4300;color:#FFF1C2}}
+.back{display:inline-block;margin-top:28px}
+</style>
+</head>
+<body>
+<main>
+<header><img src="icons/logo.svg" alt=""><h1>Voorwaarden</h1></header>
+<p class="meta">Pistenplanner · laatst bijgewerkt op 26 oktober 2026</p>
+
+<div class="safety">
+<p><b>Veiligheid eerst.</b> De Pistenplanner is een hulpmiddel. De pistedata komt van vrijwilligers (OpenStreetMap) en kan fouten bevatten of verouderd zijn. De app weet niet welke pistes en liften echt open zijn, kent geen lawinegevaar en tijden zijn schattingen.</p>
+<p>Volg altijd de borden, de afzettingen en de aanwijzingen van de pistedienst. Ski alleen pistes die bij je niveau passen. Bel bij een ongeluk het noodnummer.</p>
+</div>
+
+<h2>1. Wie</h2>
+<p>De Pistenplanner wordt gemaakt door <span data-cfg="name" class="todo">[naam]</span> (<span data-cfg="email" class="todo">[e-mailadres]</span>). Door de app te gebruiken ga je akkoord met deze voorwaarden.</p>
+
+<h2>2. Gratis en Pro</h2>
+<p>De app is gratis te gebruiken. Pistenplanner Pro voegt extra functies toe, zoals groepen maken, de lunchstop, zon en schaduw, terug naar je hotel of auto en het seizoensoverzicht. Wat bij Pro hoort, staat in de app. Functies voor je veiligheid (route plannen, navigatie, weer, de laatste-liftwaarschuwing en SOS) blijven altijd gratis.</p>
+
+<h2>3. Kopen</h2>
+<p>Pro koop je via Lemon Squeezy. Lemon Squeezy is daarbij de verkoper (merchant of record): zij regelen de betaling, de btw, de factuur en eventuele terugbetaling. Hun <a href="https://www.lemonsqueezy.com/buyer-terms" target="_blank" rel="noopener">voorwaarden voor kopers</a> gelden ook. Na de betaling krijg je een licentiecode per e-mail.</p>
+<p>Pro is direct na het activeren beschikbaar. Ben je niet tevreden, mail dan binnen 14 dagen na de aankoop naar <span data-cfg="email" class="todo">[e-mailadres]</span>; dan wordt het bedrag terugbetaald.</p>
+
+<h2>4. Je licentie</h2>
+<p>De licentie is persoonlijk. Je mag hem gebruiken op je eigen apparaten, tot het aantal dat bij de aankoop staat. Je mag de code niet delen of doorverkopen. Op een nieuw apparaat zet je Pro aan met dezelfde code; op een oud apparaat kun je Pro uitzetten om ruimte te maken.</p>
+
+<h2>5. Beschikbaarheid</h2>
+<p>De app hangt af van diensten van anderen, zoals kaarttegels, weerdata en de groepsdienst. Er wordt gestreefd naar een app die goed werkt, maar storingen, fouten of het verdwijnen van een functie zijn mogelijk. Functies kunnen worden verbeterd of veranderd.</p>
+
+<h2>6. Aansprakelijkheid</h2>
+<p>Gebruik van de app is voor eigen risico. Voor schade door het volgen van een route, door fouten in de data of door het niet werken van de app is de maker niet aansprakelijk, voor zover de wet dat toestaat. Als er toch aansprakelijkheid is, is die beperkt tot het bedrag dat je voor Pro hebt betaald.</p>
+
+<h2>7. Bronnen</h2>
+<p>Pistedata en hutten © OpenStreetMap-bijdragers (ODbL), via OpenSkiMap. Kaarten en satellietbeelden van de aanbieders die in de app staan vermeld. Weer van Open-Meteo.</p>
+
+<h2>8. Recht</h2>
+<p>Op deze voorwaarden is Nederlands recht van toepassing. Woon je in een ander land van de EU, dan behoud je de bescherming die het recht van jouw land je als consument geeft.</p>
+
+<p>Lees ook de <a href="privacy.html">privacyverklaring</a>.</p>
+<a class="back" href="./">← Terug naar de Pistenplanner</a>
+</main>
+<script src="config.js"></script>
+<script>
+const c = (window.PP_CONFIG || {}).contact || {};
+document.querySelectorAll("[data-cfg]").forEach(el => {
+  const v = c[el.dataset.cfg]; if(!v) return;
+  if(el.dataset.cfg === "email"){ const a = document.createElement("a"); a.href = "mailto:" + v; a.textContent = v; el.replaceWith(a); }
+  else { el.textContent = v; el.classList.remove("todo"); }
+});
+</script>
+</body>
+</html>
