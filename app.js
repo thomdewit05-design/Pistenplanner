@@ -19,13 +19,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -288,7 +288,7 @@ function graph(bias){
     if(e.t==="r"){
       const lv = DIFF[e.diff].lvl;
       if(k===1 && (lv===4 ? !S.free : lv > S.level)) continue;
-      const m = e.len / DIFF[e.diff].spd;
+      const m = e.len / (DIFF[e.diff].spd * S.pace);
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * (S.mode==="easy" ? m*DIFF[e.diff].pen : m)});
     } else if(e.t==="l"){
       const m = e.dur/60 + LIFT_WAIT;
@@ -641,7 +641,7 @@ function edgePopup(ei, latlng, nearNode){
 // ================= GPS en navigatie =================
 let wakeLock = null;
 async function keepAwake(){
-  const on = S.follow || (typeof D !== "undefined" && D.rec && D.awake);
+  const on = (S.follow && S.navAwake) || (typeof D !== "undefined" && D.rec && D.awake);
   try{ if(on && "wakeLock" in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => wakeLock = null); }
        if(!on && wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(e){}
 }
@@ -1872,6 +1872,74 @@ function showAt(ll, zoom){
 LAND_MQ.addEventListener("change", () => {
   setTimeout(() => { map.invalidateSize(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); setPeek(); }, 250);
 });
+
+// ================= menu en instellingen =================
+const APP_VERSION = "2.0";
+function applyTheme(){
+  let t = "auto"; try{ t = localStorage.getItem("pp-theme") || "auto"; }catch(e){}
+  if(t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  document.querySelectorAll("#themeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === t)));
+}
+applyTheme();
+document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
+function syncMenu(){
+  document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
+  $("navAwake").checked = S.navAwake;
+  $("setName").value = G.name || "";
+  $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden · kaartdata ${DATA_V}`;
+  renderStorage(); renderInstall();
+}
+async function renderStorage(){
+  let routes = 0, days = 0;
+  try{ for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i) || "";
+    if(k.startsWith("pp-routes:")) routes += (JSON.parse(localStorage.getItem(k) || "[]")).length;
+    if(k.startsWith("pp-day:")) days++; } }catch(e){}
+  let used = "";
+  try{ const est = await navigator.storage?.estimate?.(); if(est?.usage) used = `${(est.usage/1048576).toFixed(0)} MB in gebruik · `; }catch(e){}
+  $("storageInfo").textContent = `${used}${routes} bewaarde ${routes === 1 ? "route" : "routes"} · ${days} ${days === 1 ? "skidag" : "skidagen"} in het dagboek`;
+}
+// wissen gaat in twee tikken: eerst vragen, dan doen
+document.querySelectorAll("[data-clear]").forEach(b => b.onclick = async () => {
+  if(!b.classList.contains("sure")){
+    document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; });
+    b.dataset.label = b.textContent; b.classList.add("sure"); b.textContent = "Tik nogmaals om te wissen"; return;
+  }
+  const what = b.dataset.clear;
+  const drop = pre => { try{ for(let i = localStorage.length - 1; i >= 0; i--){ const k = localStorage.key(i); if(k?.startsWith(pre)) localStorage.removeItem(k); } }catch(e){} };
+  if(what === "routes"){ drop("pp-routes:"); toast("Je bewaarde routes zijn gewist."); }
+  if(what === "diary"){ if(D.rec) stopRec(); drop("pp-day:"); D.day = null; D.view = null; drawTrack(); diaryLive(); toast("Je skidagboek is gewist."); }
+  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts:"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
+  if(what === "all"){
+    try{ localStorage.clear(); }catch(e){}
+    try{ for(const k of await caches.keys()) await caches.delete(k); }catch(e){}
+    try{ for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); }catch(e){}
+    location.replace(location.pathname); return;
+  }
+  b.classList.remove("sure"); b.textContent = b.dataset.label; renderStorage();
+});
+// installeren als app
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if(!$("menu").hidden) renderInstall(); });
+window.addEventListener("appinstalled", () => { installEvt = null; toast("De Pistenplanner staat nu tussen je apps."); renderInstall(); });
+function renderInstall(){
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const card = (txt, btn) => `<div class="install-card"><img src="icons/logo.svg" alt="" width="44" height="44"><div>${txt}</div>${btn || ""}</div>`;
+  $("installBox").innerHTML = standalone ? card(`<b>Geïnstalleerd</b>Je gebruikt de Pistenplanner als app.`)
+    : installEvt ? card(`<b>Installeer als app</b>Met een eigen icoon, schermvullend en offline.`, `<button type="button" class="btn primary" id="installBtn">Installeren</button>`)
+    : ios ? card(`<b>Op je beginscherm zetten</b>Tik in Safari op het deel-icoon en kies <b style="display:inline">Zet op beginscherm</b>.`)
+    : card(`<b>Op je beginscherm zetten</b>Open het browsermenu (⋮) en kies <b style="display:inline">App installeren</b> of <b style="display:inline">Toevoegen aan startscherm</b>.`);
+  $("installBtn")?.addEventListener("click", async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); });
+}
+function openMenu(){ $("menu").hidden = false; syncMenu(); }
+function closeMenu(){ $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
+$("menuBtn").onclick = openMenu;
+$("menuClose").onclick = closeMenu;
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").hidden) closeMenu(); });
+$("menuLayers").onclick = e => { e.stopPropagation(); closeMenu(); $("layerMenu").hidden = false; renderOffline(); };
+document.querySelectorAll("#pace button").forEach(b => b.onclick = () => { S.pace = +b.dataset.v; syncMenu(); update(); });
+$("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake(); };
+$("setName").onchange = e => { const v = e.target.value.trim().slice(0, 20); if(!v) return; G.name = v; gSave(); $("gName").value = v; toast(`Je naam is nu ${v}.`); };
 
 // ================= taal =================
 i18nStart();

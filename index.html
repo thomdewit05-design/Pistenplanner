@@ -11,13 +11,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pistenplanner">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="icons/logo.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="vendor/fonts/Barlow-500-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="app.css?v=24">
 </head>
 <body>
 <!-- iconenset -->
@@ -86,7 +87,7 @@
 </svg>
 
 <div id="splash" class="splash" aria-hidden="true">
-  <img src="icons/icon-192.png" alt="" width="84" height="84">
+  <img src="icons/logo.svg" alt="" width="96" height="96">
   <div class="splash-name">Pistenplanner</div>
   <div class="splash-tag" id="splashTag">Skigebieden laden…</div>
   <div class="splash-bar"><span></span></div>
@@ -95,8 +96,10 @@
 <div id="map" aria-label="Kaart"></div>
 
 <header class="topbar">
+  <button type="button" id="menuBtn" class="menu-btn glass" aria-haspopup="dialog" aria-label="Menu en instellingen" title="Menu en instellingen">
+    <img src="icons/logo.svg" alt="" width="34" height="34"><span class="menu-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+  </button>
   <button type="button" id="areaBtn" class="area-btn glass" aria-haspopup="dialog">
-    <img class="area-logo" src="icons/icon-192.png" alt="" width="34" height="34">
     <span class="area-txt"><small>Skigebied</small><b id="areaName">Kiezen…</b><span id="areaStats" class="area-stats"></span></span>
     <svg class="ic"><use href="#i-search"/></svg>
   </button>
@@ -148,7 +151,7 @@
 <section id="sheet" class="sheet" aria-label="Route">
   <button type="button" class="handle" id="handle" aria-label="Paneel openen of sluiten"><span></span></button>
   <div class="sheet-body">
-    <div class="brandline"><img src="icons/icon-192.png" alt="" width="22" height="22"><span>Pistenplanner</span><small id="brandRegion">Alpen</small></div>
+    <div class="brandline"><img src="icons/logo.svg" alt="" width="22" height="22"><span>Pistenplanner</span><small id="brandRegion">Alpen</small></div>
     <div class="peek" id="peek"></div>
 
     <div class="od">
@@ -191,47 +194,6 @@
       </div>
     </details>
 
-    <details class="settings" id="settings">
-      <summary><svg class="ic"><use href="#i-sliders"/></svg><span>Niveau en voorkeuren</span><svg class="ic chev"><use href="#i-chev"/></svg></summary>
-      <div class="set-group">
-        <p class="label">Jouw niveau</p>
-        <div class="seg" id="level">
-          <button type="button" data-v="1"><span class="sw" style="background:var(--p-blue)"></span>Makkelijk</button>
-          <button type="button" data-v="2"><span class="sw" style="background:var(--p-red)"></span>Gemiddeld</button>
-          <button type="button" data-v="3"><span class="sw" style="background:var(--p-black)"></span>Moeilijk</button>
-        </div>
-        <p class="label">Voorkeur</p>
-        <div class="seg two" id="mode">
-          <button type="button" data-v="fast">Snelste route</button>
-          <button type="button" data-v="easy">Rustigste route</button>
-        </div>
-      </div>
-      <div class="set-group">
-        <p class="label">Taal</p>
-        <div class="seg" id="langSeg" data-notr>
-          <button type="button" data-v="nl" lang="nl">Nederlands</button>
-          <button type="button" data-v="en" lang="en">English</button>
-          <button type="button" data-v="de" lang="de">Deutsch</button>
-        </div>
-      </div>
-      <div class="set-group">
-        <p class="label">Openingstijden liften</p>
-        <div class="times">
-          <label>Open vanaf<input type="time" id="liftOpen" value="08:30"></label>
-          <label>Laatste lift<input type="time" id="liftClose" value="16:30"></label>
-        </div>
-        <p class="hint" style="margin:6px 0 0">Kijk op de website van het skigebied; veel liften sluiten tussen 16:00 en 17:00, in het voorjaar later.</p>
-      </div>
-      <div class="set-group list">
-        <label class="switch"><span>Skiroutes en freeride meenemen</span><input type="checkbox" id="free"><i></i></label>
-        <label class="switch"><span>Met gondel naar beneden toestaan</span><input type="checkbox" id="down" checked><i></i></label>
-        <label class="switch"><span>Gesproken aanwijzingen</span><input type="checkbox" id="voice" checked><i></i></label>
-      </div>
-      <div class="set-group">
-        <p class="label">Door jou afgesloten</p>
-        <div class="chips" id="closed"></div>
-      </div>
-    </details>
 
     <p class="credits">Pistedata © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-bijdragers via <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a> · okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.</p>
   </div>
@@ -340,6 +302,102 @@
   <div id="diaryHistory"></div>
 </div>
 
+<div id="menu" class="picker menu" role="dialog" aria-modal="true" aria-labelledby="menuTitle" hidden>
+  <div class="menu-head">
+    <img src="icons/logo.svg" alt="" width="52" height="52">
+    <div><h2 id="menuTitle">Pistenplanner</h2><p class="menu-ver" id="menuVer"></p></div>
+    <button type="button" class="icon-btn" id="menuClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
+  </div>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-ski"/></svg>Skiën</h3>
+    <p class="label">Jouw niveau</p>
+    <div class="seg" id="level">
+      <button type="button" data-v="1"><span class="sw" style="background:var(--p-blue)"></span>Makkelijk</button>
+      <button type="button" data-v="2"><span class="sw" style="background:var(--p-red)"></span>Gemiddeld</button>
+      <button type="button" data-v="3"><span class="sw" style="background:var(--p-black)"></span>Moeilijk</button>
+    </div>
+    <p class="label">Voorkeur</p>
+    <div class="seg two" id="mode">
+      <button type="button" data-v="fast">Snelste route</button>
+      <button type="button" data-v="easy">Rustigste route</button>
+    </div>
+    <p class="label">Jouw tempo</p>
+    <div class="seg" id="pace">
+      <button type="button" data-v="0.75">Rustig</button>
+      <button type="button" data-v="1">Normaal</button>
+      <button type="button" data-v="1.3">Sportief</button>
+    </div>
+    <p class="m-hint">Het tempo bepaalt hoe lang een afdaling volgens de app duurt.</p>
+    <div class="m-list">
+      <label class="switch"><span>Skiroutes en freeride meenemen</span><input type="checkbox" id="free"><i></i></label>
+      <label class="switch"><span>Met gondel naar beneden toestaan</span><input type="checkbox" id="down" checked><i></i></label>
+    </div>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-nav"/></svg>Navigatie</h3>
+    <div class="m-list">
+      <label class="switch"><span>Gesproken aanwijzingen</span><input type="checkbox" id="voice" checked><i></i></label>
+      <label class="switch"><span>Scherm aan tijdens navigatie</span><input type="checkbox" id="navAwake" checked><i></i></label>
+    </div>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-clock"/></svg>Openingstijden liften</h3>
+    <div class="times">
+      <label>Open vanaf<input type="time" id="liftOpen" value="08:30"></label>
+      <label>Laatste lift<input type="time" id="liftClose" value="16:30"></label>
+    </div>
+    <p class="m-hint">Kijk op de website van het skigebied; veel liften sluiten tussen 16:00 en 17:00, in het voorjaar later.</p>
+    <p class="label">Door jou afgesloten</p>
+    <div class="chips" id="closed"></div>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-sun"/></svg>Weergave</h3>
+    <p class="label">Thema</p>
+    <div class="seg" id="themeSeg">
+      <button type="button" data-v="auto">Automatisch</button>
+      <button type="button" data-v="light">Licht</button>
+      <button type="button" data-v="dark">Donker</button>
+    </div>
+    <p class="label">Taal</p>
+    <div class="seg" id="langSeg" data-notr>
+      <button type="button" data-v="nl" lang="nl">Nederlands</button>
+      <button type="button" data-v="en" lang="en">English</button>
+      <button type="button" data-v="de" lang="de">Deutsch</button>
+    </div>
+    <button type="button" class="m-link" id="menuLayers"><svg class="ic"><use href="#i-layers"/></svg>Kaartweergave en lagen</button>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-group"/></svg>Groep</h3>
+    <label class="g-field">Jouw naam in een groep<input type="text" id="setName" maxlength="20" placeholder="Bijvoorbeeld Thom" autocomplete="nickname"></label>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-trash"/></svg>Opslag en privacy</h3>
+    <p class="m-hint" id="storageInfo">Opslag berekenen…</p>
+    <div class="m-btns">
+      <button type="button" class="btn ghost" data-clear="routes">Wis mijn routes</button>
+      <button type="button" class="btn ghost" data-clear="diary">Wis skidagboek</button>
+      <button type="button" class="btn ghost" data-clear="offline">Wis offline kaart</button>
+      <button type="button" class="btn ghost danger-btn" data-clear="all">Alles wissen</button>
+    </div>
+    <p class="m-hint">Alles wat je in de app doet, blijft op deze telefoon. Alleen als je een groep gebruikt, gaan je naam, route en positie via ntfy.sh naar je groepsgenoten.</p>
+  </section>
+
+  <section class="m-sec">
+    <h3><svg class="ic"><use href="#i-phone"/></svg>App</h3>
+    <div id="installBox"></div>
+    <p class="label">Over</p>
+    <p class="m-about">Pistedata en hutten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-bijdragers (ODbL), via <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a>. Satellietbeelden © Esri, Maxar, Earthstar Geographics. Terreinkaart © OpenTopoMap (CC-BY-SA). Weer van <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. Kaart met <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>, lettertype Barlow.</p>
+    <p class="m-about">Tijden zijn schattingen en de app kent geen echte afsluitingen of lawinegevaar. Volg altijd de borden en de pistedienst ter plaatse.</p>
+    <a class="m-link" href="https://github.com/thomdewit05-design/Pistenplanner" target="_blank" rel="noopener"><svg class="ic"><use href="#i-link"/></svg>Broncode op GitHub</a>
+  </section>
+</div>
+
 <div id="sos" class="sos" role="dialog" aria-modal="true" aria-labelledby="sosTitle" hidden>
   <div class="sos-head">
     <div><p class="label">Noodgeval</p><h2 id="sosTitle">Hulp nodig?</h2></div>
@@ -367,7 +425,7 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=23"></script>
-<script src="app.js?v=23"></script>
+<script src="i18n.js?v=24"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>
