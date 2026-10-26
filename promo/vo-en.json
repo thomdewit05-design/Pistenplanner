@@ -3,7 +3,7 @@
   "file": "vo/en/00.wav",
   "at": 0.4,
   "dur": 3.59,
-  "text": "Meet Skipiloot. Your pilot on the slopes.",
+  "text": "Meet Skipilot. Your pilot on the slopes.",
   "lead": 0.1,
   "speech": 2.83
  },
@@ -19,7 +19,7 @@
   "file": "vo/en/02.wav",
   "at": 6.7,
   "dur": 4.75,
-  "text": "Pick where you want to go. Skipiloot finds the runs that match your level.",
+  "text": "Pick where you want to go. Skipilot finds the runs that match your level.",
   "lead": 0.1,
   "speech": 3.99
  },
@@ -59,7 +59,7 @@
   "file": "vo/en/07.wav",
   "at": 26.8,
   "dur": 2.9,
-  "text": "Skipiloot. Coming soon.",
+  "text": "Skipilot. Coming soon.",
   "lead": 0.1,
   "speech": 2.13
  },

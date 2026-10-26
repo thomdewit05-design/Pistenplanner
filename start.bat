@@ -1,5 +1,5 @@
 @echo off
-rem Start Skipiloot op deze computer en open hem in de browser.
+rem Start Skipilot op deze computer en open hem in de browser.
 cd /d "%~dp0"
 start "" http://localhost:8766/
 python -m http.server 8766

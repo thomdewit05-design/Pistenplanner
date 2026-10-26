@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<title>Skipiloot teaser</title>
+<title>Skipilot teaser</title>
 <link rel="stylesheet" href="../vendor/fonts.css">
 <style>html,body{margin:0;background:#000}canvas{display:block;width:540px;height:960px}</style>
 </head>
@@ -16,12 +16,12 @@ const W = 1080, H = 1920, DUR = VO ? 33 : 30, FPS = 30;
 const TXT = {
   nl:{tag:"Jouw piloot op de piste", q1:"Verdwaald op", q2:"de piste?", never:"NOOIT MEER.", soon:"BINNENKORT BESCHIKBAAR", more:"En nog veel meer",
       notOut:"De app is nog niet uit.", follow:"Volg ons en ski als eerste mee!", regions:"Alpen · Pyreneeën · Scandinavië · Noord-Amerika",
-      scenes:[["Kies waar je heen wilt", "Skipiloot kiest pistes die bij jouw niveau passen"], ["Navigeer met je stem", "Welke piste, welke lift: Skipiloot zegt het je"],
+      scenes:[["Kies waar je heen wilt", "Skipilot kiest pistes die bij jouw niveau passen"], ["Navigeer met je stem", "Welke piste, welke lift: Skipilot zegt het je"],
               ["Ski je met vrienden?", "Eén tik en iedereen krijgt dezelfde route"], ["Waar schijnt de zon?", "Zie welke pistes nu in de zon liggen"]],
       features:["Zonnige pistes opzoeken", "Lunchstop bij een hut", "Terug naar je hotel of auto", "Waarschuwing voor de laatste lift", "SOS met je exacte plek", "Meer dan 1.800 skigebieden"]},
   en:{tag:"Your pilot on the slopes", q1:"Lost on", q2:"the mountain?", never:"NEVER AGAIN.", soon:"COMING SOON", more:"And much more",
       notOut:"The app isn't out yet.", follow:"Follow us and be first on the slopes!", regions:"Alps · Pyrenees · Scandinavia · North America",
-      scenes:[["Pick where you want to go", "Skipiloot finds runs that match your level"], ["Navigate by voice", "Which run, which lift: Skipiloot tells you"],
+      scenes:[["Pick where you want to go", "Skipilot finds runs that match your level"], ["Navigate by voice", "Which run, which lift: Skipilot tells you"],
               ["Skiing with friends?", "One tap and everyone gets the same route"], ["Where's the sun?", "See which slopes are sunny right now"]],
       features:["Find the sunny slopes", "Lunch stop at a mountain hut", "Back to your hotel or car", "Last-lift warning", "SOS with your exact location", "More than 1,800 ski areas"]}
 }[LANG];
@@ -132,7 +132,7 @@ function renderAt(t){
     const p = easeOut(prog(t, .7, 1.5));
     g.save(); g.globalAlpha = out * p; g.font = F(800, 190, "Barlow Condensed"); g.textAlign = "center"; g.fillStyle = "#fff";
     if("letterSpacing" in g) g.letterSpacing = `${(1 - p) * 40 + 6}px`;
-    g.fillText("SKIPILOOT", W/2, 1150 + (1 - p)*40); if("letterSpacing" in g) g.letterSpacing = "0px"; g.restore();
+    g.fillText("SKIPILOT", W/2, 1150 + (1 - p)*40); if("letterSpacing" in g) g.letterSpacing = "0px"; g.restore();
     text(TXT.tag, W/2, 1250, F(600, 56), YEL, "center", out * easeOut(prog(t, 1.4, 2.1)));
   }
 
@@ -182,7 +182,7 @@ function renderAt(t){
     const p = easeOut(prog(t, 26, 26.8));
     g.save(); g.globalAlpha = p; g.translate(W/2, 600); const s = .8 + .2*p; g.scale(s, s);
     g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 50; g.shadowOffsetY = 16; g.drawImage(A.logo, -150, -150, 300, 300); g.restore();
-    text("SKIPILOOT", W/2, 900, F(800, 170, "Barlow Condensed"), "#fff", "center", p);
+    text("SKIPILOT", W/2, 900, F(800, 170, "Barlow Condensed"), "#fff", "center", p);
     const pb = back(prog(t, 26.6, 27.2)), pulse = 1 + .03*Math.sin(t*5);
     g.save(); g.globalAlpha = clamp(pb); g.translate(W/2, 1060); g.scale(pb*pulse, pb*pulse);
     pill(TXT.soon, 0, 0, F(800, 76, "Barlow Condensed"), YEL, INK, 1, 50, 128); g.restore();

@@ -8,7 +8,7 @@ const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function launch(port = 9333){
-  const dir = join(tmpdir(), "skipiloot-chrome-" + Date.now()); mkdirSync(dir, {recursive:true});
+  const dir = join(tmpdir(), "skipilot-chrome-" + Date.now()); mkdirSync(dir, {recursive:true});
   const proc = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, "--no-first-run",
     "--autoplay-policy=no-user-gesture-required", "--hide-scrollbars", "--disable-background-timer-throttling",
     "--disable-renderer-backgrounding", "--window-size=1080,1920", "about:blank"], {stdio:"ignore"});

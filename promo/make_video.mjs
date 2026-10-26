@@ -5,7 +5,7 @@ import { launch } from "./cdp.mjs";
 
 const stills = process.argv.includes("--stills");
 const LANG = (process.argv.find(a => a.startsWith("--lang=")) || "--lang=nl").slice(7), VO = process.argv.includes("--vo");
-const NAME = `skipiloot-teaser${LANG === "nl" ? "" : "-" + LANG}${VO ? "-voiceover" : ""}`;
+const NAME = `skipilot-teaser${LANG === "nl" ? "" : "-" + LANG}${VO ? "-voiceover" : ""}`;
 const c = await launch(9334);
 await c.send("Emulation.setDeviceMetricsOverride", {width:540, height:960, deviceScaleFactor:1, mobile:false});
 await c.navigate(`http://localhost:8766/promo/video.html?lang=${LANG}${VO ? "&vo=1" : ""}&t=${Date.now()}`);

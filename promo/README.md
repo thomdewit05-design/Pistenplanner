@@ -1,4 +1,4 @@
-# Promotievideo Skipiloot
+# Promotievideo Skipilot
 
 Teaser van 30 seconden (33 met voice-over), staand (1080 x 1920), voor Reels, TikTok en Shorts. In het Nederlands en Engels.
 

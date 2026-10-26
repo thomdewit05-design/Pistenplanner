@@ -4,7 +4,7 @@ import { launch } from "./cdp.mjs";
 const c = await launch(9335);
 await c.navigate("http://localhost:8766/promo/video.html");
 const info = await c.evaluate(`(async () => {
-  const v = document.createElement("video"); v.muted = true; v.src = "skipiloot-teaser.mp4?" + Date.now(); document.body.appendChild(v);
+  const v = document.createElement("video"); v.muted = true; v.src = "skipilot-teaser.mp4?" + Date.now(); document.body.appendChild(v);
   await new Promise(r => v.onloadedmetadata = r);
   // beeldjes tellen tijdens afspelen (eerste 6 seconden)
   let frames = 0, last = null, gaps = [];

@@ -1367,7 +1367,7 @@ $("shareCopy").onclick = async () => {
 };
 $("shareSend").onclick = async () => {
   const url = shareUrl(), n = closedKeys().length;
-  const text = `Liftstatus ${S.area.row[1]} vandaag: ${n ? `${n} ${n===1 ? "lift of piste" : "liften en pistes"} dicht` : "alles open"}. Open in Skipiloot:`;
+  const text = `Liftstatus ${S.area.row[1]} vandaag: ${n ? `${n} ${n===1 ? "lift of piste" : "liften en pistes"} dicht` : "alles open"}. Open in Skipilot:`;
   if(navigator.share){ try{ await navigator.share({title:tr("Liftstatus vandaag"), text:tr(text), url}); }catch(e){} }
   else $("shareCopy").click();
 };
@@ -1574,7 +1574,7 @@ $("gFollow").onchange = e => { G.follow = e.target.checked; gSave(); if(G.follow
 $("gSharePos").onchange = e => { G.sharePos = e.target.checked; gSave(); if(G.sharePos){ G.lastPos = null; if(S.watch == null) startWatch(); else groupOnPos(); } };
 $("gCopy").onclick = async () => { try{ await navigator.clipboard.writeText(gUrl()); toast("Link gekopieerd."); }catch(e){ toast("Kopiëren lukte niet."); } };
 $("gShare").onclick = async () => {
-  if(navigator.share){ try{ await navigator.share({title:tr("Skiën in een groep"), text:tr(`Doe mee met mijn groep in Skipiloot (code ${G.code}):`), url:gUrl()}); }catch(e){} }
+  if(navigator.share){ try{ await navigator.share({title:tr("Skiën in een groep"), text:tr(`Doe mee met mijn groep in Skipilot (code ${G.code}):`), url:gUrl()}); }catch(e){} }
   else $("gCopy").click();
 };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("group").hidden) $("group").hidden = true; });
@@ -1859,7 +1859,7 @@ function dayGpx(day){
   const name = `${day.areaName || "Skidag"} ${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}`;
   const pts = day.pts.map(p => `<trkpt lat="${(p[1]/1e5).toFixed(5)}" lon="${(p[2]/1e5).toFixed(5)}">${p[3] != null ? `<ele>${p[3]}</ele>` : ""}<time>${new Date(day.start + p[0]*1000).toISOString()}</time></trkpt>`).join("\n      ");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Skipiloot" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="Skipilot" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata><name>${esc(name)}</name><time>${new Date(day.start).toISOString()}</time></metadata>
   <trk>
     <name>${esc(name)}</name>
@@ -1874,7 +1874,7 @@ function dayGpx(day){
 async function exportGpx(day){
   if(!requirePro("gpx")) return;
   if(!day || day.pts.length < 2){ toast("Deze dag heeft nog te weinig punten."); return; }
-  const fname = `skipiloot-${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}${day.areaName ? "-" + norm(day.areaName).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) : ""}.gpx`;
+  const fname = `skipilot-${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}${day.areaName ? "-" + norm(day.areaName).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) : ""}.gpx`;
   const blob = new Blob([dayGpx(day)], {type:"application/gpx+xml"});
   // op de telefoon via het deelmenu (direct naar Strava e.d.), anders als download
   try{
@@ -1891,7 +1891,7 @@ async function shareDay(day, sum){
     `${kmTxt(sum.km)} km geskied · ${hmTxt(sum.hm)} hoogtemeters omlaag · topsnelheid ${Math.round(sum.vmax)} km/u`,
     `${sum.runs} afdalingen · ${sum.lifts} liften`];
   if(sum.pisteList.length) lines.push("Pistes: " + sum.pisteList.slice(0, 12).map(x => x.ref || x.name).join(", "));
-  const text = lines.map(tr).join("\n") + "\n\n" + tr("Bijgehouden met Skipiloot");
+  const text = lines.map(tr).join("\n") + "\n\n" + tr("Bijgehouden met Skipilot");
   if(navigator.share){ try{ await navigator.share({title:"Mijn skidag", text}); return; }catch(e){ return; } }
   try{ await navigator.clipboard.writeText(text); toast("Samenvatting gekopieerd."); }catch(e){ toast("Delen lukte niet."); }
 }
@@ -2413,7 +2413,7 @@ function goHome(){
   update(); fitRoute();
 }
 
-// ================= Skipiloot Pro =================
+// ================= Skipilot Pro =================
 // Betalen loopt via Lemon Squeezy (zij zijn de verkoper en regelen btw en terugbetaling).
 // Na de aankoop krijg je een licentiecode; die wordt hier één keer geactiveerd en daarna eens per week gecontroleerd.
 // Zolang Pro in config.js niet aan staat, kan iedereen alles gebruiken.
@@ -2432,7 +2432,7 @@ const proSave = () => { try{ PRO ? localStorage.setItem("pp-pro", JSON.stringify
 const proActive = () => !!(PRO?.key && !["expired", "disabled"].includes(PRO.status) && !(PRO.expires && Date.parse(PRO.expires) < Date.now()));
 const isPro = () => !proLive() || proActive();
 function requirePro(f){ if(isPro()) return true; openPro(f); return false; }
-const proTeaser = f => `<div class="pro-teaser">${I("star")}<span><b>${esc(PRO_FEATURES.find(x => x[0] === f)?.[2] || "Deze functie")}</b> hoort bij Skipiloot Pro.</span><button type="button" class="btn ghost" onclick="openPro('${f}')">Bekijk Pro</button></div>`;
+const proTeaser = f => `<div class="pro-teaser">${I("star")}<span><b>${esc(PRO_FEATURES.find(x => x[0] === f)?.[2] || "Deze functie")}</b> hoort bij Skipilot Pro.</span><button type="button" class="btn ghost" onclick="openPro('${f}')">Bekijk Pro</button></div>`;
 const LS_API = "https://api.lemonsqueezy.com/v1/licenses/";
 async function lsCall(action, params){
   const r = await fetch(LS_API + action, {method:"POST", headers:{Accept:"application/json", "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams(params)});
@@ -2444,9 +2444,9 @@ async function proActivate(key){
   key = (key || "").trim();
   if(!key){ toast("Vul je licentiecode in."); return; }
   try{
-    const d = await lsCall("activate", {license_key:key, instance_name:"Skipiloot op " + (/iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android" : "computer")});
+    const d = await lsCall("activate", {license_key:key, instance_name:"Skipilot op " + (/iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android" : "computer")});
     if(!d.activated){ toast(/limit/i.test(d.error || "") ? "Deze code is al op het maximale aantal apparaten gebruikt. Zet Pro eerst uit op een ander apparaat." : "Deze code werkt niet. Controleer of je hem goed hebt overgenomen.", 4500); return; }
-    if(!proMatches(d.meta)){ toast("Deze code hoort niet bij Skipiloot."); return; }
+    if(!proMatches(d.meta)){ toast("Deze code hoort niet bij Skipilot."); return; }
     PRO = {key, instance:d.instance?.id || null, status:d.license_key?.status || "active", expires:d.license_key?.expires_at || null, checked:Date.now(), email:d.meta?.customer_email || ""};
     proSave(); renderPro(); openPro(); update();
     toast("Pro staat aan. Veel skiplezier!", 3500);
@@ -2472,7 +2472,7 @@ function openPro(f){
   const feat = PRO_FEATURES.find(x => x[0] === f), on = proActive();
   const div = document.createElement("div"); div.id = "proDlg"; div.className = "pro-dlg"; div.setAttribute("role", "dialog"); div.setAttribute("aria-modal", "true");
   div.innerHTML = `<div class="pro-card">
-    <div class="pro-head"><img src="icons/logo.svg" alt="" width="44" height="44"><div><p class="label">Skipiloot</p><h2>Pro</h2></div><button type="button" class="icon-btn" id="proClose" aria-label="Sluiten">${I("close")}</button></div>
+    <div class="pro-head"><img src="icons/logo.svg" alt="" width="44" height="44"><div><p class="label">Skipilot</p><h2>Pro</h2></div><button type="button" class="icon-btn" id="proClose" aria-label="Sluiten">${I("close")}</button></div>
     ${feat && !on ? `<p class="pro-why">${I(feat[1])}<span><b>${esc(feat[2])}</b> hoort bij Pro.</span></p>` : ""}
     ${on ? `<p class="pro-on">${I("check")}<span><b>Pro staat aan op dit apparaat.</b>${PRO.email ? ` Gekocht met ${esc(PRO.email)}.` : ""}</span></p>` : ""}
     <ul class="pro-list">${PRO_FEATURES.map(([, ic, t]) => `<li>${I(ic)}<span>${esc(t)}</span></li>`).join("")}</ul>
@@ -2563,12 +2563,12 @@ document.querySelectorAll("[data-clear]").forEach(b => b.onclick = async () => {
 // installeren als app
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if(!$("menu").hidden) renderInstall(); });
-window.addEventListener("appinstalled", () => { installEvt = null; toast("Skipiloot staat nu tussen je apps."); renderInstall(); });
+window.addEventListener("appinstalled", () => { installEvt = null; toast("Skipilot staat nu tussen je apps."); renderInstall(); });
 function renderInstall(){
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const card = (txt, btn) => `<div class="install-card"><img src="icons/logo.svg" alt="" width="44" height="44"><div>${txt}</div>${btn || ""}</div>`;
-  $("installBox").innerHTML = standalone ? card(`<b>Geïnstalleerd</b>Je gebruikt Skipiloot als app.`)
+  $("installBox").innerHTML = standalone ? card(`<b>Geïnstalleerd</b>Je gebruikt Skipilot als app.`)
     : installEvt ? card(`<b>Installeer als app</b>Met een eigen icoon, schermvullend en offline.`, `<button type="button" class="btn primary" id="installBtn">Installeren</button>`)
     : ios ? card(`<b>Op je beginscherm zetten</b>Tik in Safari op het deel-icoon en kies <b style="display:inline">Zet op beginscherm</b>.`)
     : card(`<b>Op je beginscherm zetten</b>Open het browsermenu (⋮) en kies <b style="display:inline">App installeren</b> of <b style="display:inline">Toevoegen aan startscherm</b>.`);
