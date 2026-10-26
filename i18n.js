@@ -350,6 +350,7 @@ function viaT(s, l){
 }
 const P = (rx, en, de) => [new RegExp(rx), en, de];
 const PATTERNS = [
+ P("^(.+) · nog (.+) · aankomst (\\d\\d:\\d\\d)$", (m) => `${tr(m[1])} · ${tr(m[2])} left · arriving ${m[3]}`, (m) => `${tr(m[1])} · noch ${tr(m[2])} · Ankunft ${m[3]}`),
  P("^Gekocht met (.+)\\.$", (m) => `Bought with ${m[1]}.`, (m) => `Gekauft mit ${m[1]}.`),
  P("^Lunch bij (.+) rond (\\d\\d:\\d\\d)\\. Dichter bij (\\d\\d:\\d\\d) lukt niet met deze route\\.$", (m) => `Lunch at ${m[1]} around ${m[2]}. Closer to ${m[3]} isn't possible with this route.`, (m) => `Mittagessen bei ${m[1]} gegen ${m[2]}. Näher an ${m[3]} geht mit dieser Route nicht.`),
  P("^Lunch bij (.+) rond (\\d\\d:\\d\\d)\\.$", (m) => `Lunch at ${m[1]} around ${m[2]}.`, (m) => `Mittagessen bei ${m[1]} gegen ${m[2]}.`),
@@ -373,11 +374,11 @@ const PATTERNS = [
  P("^Als favoriet bewaren: (.+)$", (m) => `Save as favourite: ${m[1]}`, (m) => `Als Favorit speichern: ${m[1]}`),
  P("^Uit favorieten halen: (.+)$", (m) => `Remove from favourites: ${m[1]}`, (m) => `Aus Favoriten entfernen: ${m[1]}`),
  P("^Naar het dichtstbijzijnde punt · (.+) van je bestemming$", (m) => `To the nearest point · ${m[1]} from your destination`, (m) => `Zum nächsten Punkt · ${m[1]} von deinem Ziel`),
- P("^Deze route gaat via (.+)\.$", (m) => `This route uses ${viaT(m[1], 0)}.`, (m) => `Diese Route führt über ${viaT(m[1], 1)}.`),
+ P("^Deze route gaat via (.+)\\.$", (m) => `This route uses ${viaT(m[1], 0)}.`, (m) => `Diese Route führt über ${viaT(m[1], 1)}.`),
  P("^\\((\\d+) (dag|dagen)\\)$", (m) => `(${m[1]} ${m[1] === "1" ? "day" : "days"})`, (m) => `(${m[1]} ${m[1] === "1" ? "Tag" : "Tage"})`),
  P("^(\\d+) km/u$", (m) => `${m[1]} km/h`, (m) => `${m[1]} km/h`),
  P("^(.+) hm$", (m) => `${m[1]} m`, (m) => `${m[1]} Hm`),
- P("^Avondskiën: (.+) km verlichte piste\.$", (m) => `Night skiing: ${m[1]} km of floodlit runs.`, (m) => `Nachtskilauf: ${m[1]} km beleuchtete Pisten.`),
+ P("^Avondskiën: (.+) km verlichte piste\\.$", (m) => `Night skiing: ${m[1]} km of floodlit runs.`, (m) => `Nachtskilauf: ${m[1]} km beleuchtete Pisten.`),
  P("^Versie (.+) · (.+) skigebieden · kaartdata (.+)$", (m) => `Version ${m[1]} · ${m[2]} ski areas · map data ${m[3]}`, (m) => `Version ${m[1]} · ${m[2]} Skigebiete · Kartendaten ${m[3]}`),
  P("^(.+) MB in gebruik · (\\d+) bewaarde (route|routes) · (\\d+) (skidag|skidagen) in het dagboek$", (m) => `${m[1]} MB in use · ${m[2]} saved ${m[2] === "1" ? "route" : "routes"} · ${m[4]} ski ${m[4] === "1" ? "day" : "days"} in the diary`, (m) => `${m[1]} MB belegt · ${m[2]} gespeicherte ${m[2] === "1" ? "Route" : "Routen"} · ${m[4]} ${m[4] === "1" ? "Skitag" : "Skitage"} im Tagebuch`),
  P("^(\\d+) bewaarde (route|routes) · (\\d+) (skidag|skidagen) in het dagboek$", (m) => `${m[1]} saved ${m[1] === "1" ? "route" : "routes"} · ${m[3]} ski ${m[3] === "1" ? "day" : "days"} in the diary`, (m) => `${m[1]} gespeicherte ${m[1] === "1" ? "Route" : "Routen"} · ${m[3]} ${m[3] === "1" ? "Skitag" : "Skitage"} im Tagebuch`),

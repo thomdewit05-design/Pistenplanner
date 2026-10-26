@@ -1,0 +1,10 @@
+﻿# starttijd in seconden | tekst  (de scènes: 0 logo, 3.2 vraag, 6.2 route, 11 navigatie, 15 groep, 19 zon, 22.4 meer, 26 slot)
+0.4 | Meet Skipiloot. Your pilot on the slopes.
+3.5 | Lost on the mountain? Never again.
+6.7 | Pick where you want to go. Skipiloot finds the runs that match your level.
+11.4 | Then just follow the voice: which run, which lift.
+15.1 | Skiing with friends? One tap, and everyone gets the same route.
+19.5 | See which slopes are in the sun.
+22.4 | Plus lunch stops, S O S, and eighteen hundred ski areas.
+26.8 | Skipiloot. Coming soon.
+29.3 | Follow us, and be the first on the slopes.

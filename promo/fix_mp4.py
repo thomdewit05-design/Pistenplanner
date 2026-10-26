@@ -1,7 +1,7 @@
 """Zet de MP4 van Chrome (gefragmenteerd, met een verkeerde lengte in de kop) om naar een gewone MP4.
 
-De beelden zelf blijven ongewijzigd: alleen de verpakking wordt opnieuw gemaakt, met de index vooraan
-(zodat de video op social media en in elke speler meteen goed start).
+Beeld en geluid blijven ongewijzigd: alleen de verpakking wordt opnieuw gemaakt, met de index vooraan
+en beeld en geluid per seconde om en om (zodat de video op social media en in elke speler goed start).
 Gebruik: python promo/fix_mp4.py in.mp4 uit.mp4
 """
 import struct, sys
@@ -24,95 +24,119 @@ def find(b, off, end, typ):
 
 def box(typ, payload): return struct.pack(">I4s", 8 + len(payload), typ.encode()) + payload
 def full(typ, ver, flags, payload): return box(typ, struct.pack(">I", (ver << 24) | flags) + payload)
+u32 = lambda b, o: struct.unpack(">I", b[o:o + 4])[0]
 
 
 def main(src, dst):
     f = open(src, "rb").read()
     mo, ms, mh = find(f, 0, len(f), "moov")
-    to, ts_, th = find(f, mo + mh, mo + ms, "trak")
-    mdo, mds, mdh = find(f, to + th, to + ts_, "mdia")
-    mdhd_o, _, _ = find(f, mdo + mdh, mdo + mds, "mdhd")
-    v = f[mdhd_o + 8]
-    timescale = struct.unpack(">I", f[mdhd_o + 20:mdhd_o + 24] if v == 0 else f[mdhd_o + 28:mdhd_o + 32])[0]
-    hdlr_o, hdlr_s, _ = find(f, mdo + mdh, mdo + mds, "hdlr")
-    mi_o, mi_s, mi_h = find(f, mdo + mdh, mdo + mds, "minf")
-    vmhd_o, vmhd_s, _ = find(f, mi_o + mi_h, mi_o + mi_s, "vmhd")
-    dinf_o, dinf_s, _ = find(f, mi_o + mi_h, mi_o + mi_s, "dinf")
-    st_o, st_s, st_h = find(f, mi_o + mi_h, mi_o + mi_s, "stbl")
-    stsd_o, stsd_s, _ = find(f, st_o + st_h, st_o + st_s, "stsd")
-    # standaardwaarden uit trex
-    trex_dur = trex_size = trex_flags = 0
-    try:
-        mv_o, mv_s, mv_h = find(f, mo + mh, mo + ms, "mvex")
-        tr_o, _, _ = find(f, mv_o + mv_h, mv_o + mv_s, "trex")
-        _, _, trex_dur, trex_size, trex_flags = struct.unpack(">IIIII", f[tr_o + 12:tr_o + 32])
-    except KeyError: pass
+    if not any(t == "moof" for t, *_ in boxes(f, 0, len(f))):
+        raise SystemExit("Dit bestand is al een gewone MP4.")
+    tracks, trex = {}, {}
+    for t, o, s, h in boxes(f, mo + mh, mo + ms):
+        if t == "mvex":
+            for t2, o2, s2, h2 in boxes(f, o + h, o + s):
+                if t2 == "trex":
+                    tid, _, dd, ds, df = struct.unpack(">IIIII", f[o2 + 12:o2 + 32]); trex[tid] = (dd, ds, df)
+        if t != "trak": continue
+        tk_o, _, _ = find(f, o + h, o + s, "tkhd")
+        tid = u32(f, tk_o + 12 + (8 if f[tk_o + 8] == 0 else 16))
+        md_o, md_s, md_h = find(f, o + h, o + s, "mdia")
+        mdhd_o, _, _ = find(f, md_o + md_h, md_o + md_s, "mdhd")
+        ts = u32(f, mdhd_o + 20) if f[mdhd_o + 8] == 0 else u32(f, mdhd_o + 28)
+        hd_o, hd_s, _ = find(f, md_o + md_h, md_o + md_s, "hdlr")
+        kind = f[hd_o + 16:hd_o + 20].decode()
+        mi_o, mi_s, mi_h = find(f, md_o + md_h, md_o + md_s, "minf")
+        head = b"".join(f[o2:o2 + s2] for t2, o2, s2, h2 in boxes(f, mi_o + mi_h, mi_o + mi_s) if t2 in ("vmhd", "smhd", "dinf"))
+        st_o, st_s, st_h = find(f, mi_o + mi_h, mi_o + mi_s, "stbl")
+        sd_o, sd_s, _ = find(f, st_o + st_h, st_o + st_s, "stsd")
+        tracks[tid] = {"kind":kind, "ts":ts, "hdlr":f[hd_o:hd_o + hd_s], "head":head, "stsd":f[sd_o:sd_o + sd_s], "samples":[]}
 
-    samples = []   # (data, duur, sync)
     for t, o, s, h in boxes(f, 0, len(f)):
         if t != "moof": continue
-        tf_o, tf_s, tf_h = find(f, o + h, o + s, "traf")
-        fo, fs, fh = find(f, tf_o + tf_h, tf_o + tf_s, "tfhd")
-        tflags = struct.unpack(">I", f[fo + 8:fo + 12])[0] & 0xFFFFFF
-        p = fo + 16; base = o
-        d_dur, d_size, d_flags = trex_dur, trex_size, trex_flags
-        if tflags & 0x1: base = struct.unpack(">Q", f[p:p + 8])[0]; p += 8
-        if tflags & 0x2: p += 4
-        if tflags & 0x8: d_dur = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-        if tflags & 0x10: d_size = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-        if tflags & 0x20: d_flags = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-        for t3, o3, s3, h3 in boxes(f, tf_o + tf_h, tf_o + tf_s):
-            if t3 != "trun": continue
-            vf = struct.unpack(">I", f[o3 + 8:o3 + 12])[0]; rflags = vf & 0xFFFFFF
-            n = struct.unpack(">I", f[o3 + 12:o3 + 16])[0]; p = o3 + 16
-            data_off = 0; first_flags = None
-            if rflags & 0x1: data_off = struct.unpack(">i", f[p:p + 4])[0]; p += 4
-            if rflags & 0x4: first_flags = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-            if rflags & 0x800: raise SystemExit("B-frames (composition offsets) worden niet ondersteund")
-            pos = base + data_off
-            for i in range(n):
-                dur, size, fl = d_dur, d_size, d_flags
-                if rflags & 0x100: dur = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-                if rflags & 0x200: size = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-                if rflags & 0x400: fl = struct.unpack(">I", f[p:p + 4])[0]; p += 4
-                if i == 0 and first_flags is not None: fl = first_flags
-                samples.append((f[pos:pos + size], dur, not (fl & 0x10000)))
-                pos += size
+        for t1, o1, s1, h1 in boxes(f, o + h, o + s):
+            if t1 != "traf": continue
+            fo, _, _ = find(f, o1 + h1, o1 + s1, "tfhd")
+            tflags = u32(f, fo + 8) & 0xFFFFFF; tid = u32(f, fo + 12); p = fo + 16; base = o
+            dd, ds, df = trex.get(tid, (0, 0, 0))
+            if tflags & 0x1: base = struct.unpack(">Q", f[p:p + 8])[0]; p += 8
+            if tflags & 0x2: p += 4
+            if tflags & 0x8: dd = u32(f, p); p += 4
+            if tflags & 0x10: ds = u32(f, p); p += 4
+            if tflags & 0x20: df = u32(f, p); p += 4
+            for t3, o3, s3, h3 in boxes(f, o1 + h1, o1 + s1):
+                if t3 != "trun": continue
+                rflags = u32(f, o3 + 8) & 0xFFFFFF; n = u32(f, o3 + 12); p = o3 + 16
+                data_off, first = 0, None
+                if rflags & 0x1: data_off = struct.unpack(">i", f[p:p + 4])[0]; p += 4
+                if rflags & 0x4: first = u32(f, p); p += 4
+                if rflags & 0x800: raise SystemExit("B-frames (composition offsets) worden niet ondersteund")
+                pos = base + data_off
+                for i in range(n):
+                    dur, size, fl = dd, ds, df
+                    if rflags & 0x100: dur = u32(f, p); p += 4
+                    if rflags & 0x200: size = u32(f, p); p += 4
+                    if rflags & 0x400: fl = u32(f, p); p += 4
+                    if i == 0 and first is not None: fl = first
+                    tracks[tid]["samples"].append((pos, size, dur, not (fl & 0x10000)))
+                    pos += size
 
-    total = sum(s[1] for s in samples); ms_dur = round(total * 1000 / timescale)
-    stsd = f[stsd_o:stsd_o + stsd_s]
-    avc = stsd[16:]   # eerste sample entry: breedte en hoogte staan op vaste plekken
-    width, height = struct.unpack(">HH", avc[8 + 24:8 + 28])
-
-    stts_e = []
-    for _, d, _ in samples:
-        if stts_e and stts_e[-1][1] == d: stts_e[-1][0] += 1
-        else: stts_e.append([1, d])
-    stts = full("stts", 0, 0, struct.pack(">I", len(stts_e)) + b"".join(struct.pack(">II", c, d) for c, d in stts_e))
-    sync = [i + 1 for i, s in enumerate(samples) if s[2]]
-    stss = full("stss", 0, 0, struct.pack(">I", len(sync)) + b"".join(struct.pack(">I", i) for i in sync))
-    stsz = full("stsz", 0, 0, struct.pack(">II", 0, len(samples)) + b"".join(struct.pack(">I", len(s[0])) for s in samples))
-    stsc = full("stsc", 0, 0, struct.pack(">IIII", 1, 1, len(samples), 1))
+    # om en om per seconde: lijst van (tijd, track, [samples])
+    chunks = []
+    for tid, tr in tracks.items():
+        t = 0; cur = []; start = 0
+        for smp in tr["samples"]:
+            if cur and t - start >= tr["ts"]:
+                chunks.append((start / tr["ts"], tid, cur)); cur = []; start = t
+            cur.append(smp); t += smp[2]
+        if cur: chunks.append((start / tr["ts"], tid, cur))
+        tr["dur"] = t
+    chunks.sort(key=lambda c: (c[0], c[1]))
+    movie_ms = max(round(tr["dur"] * 1000 / tr["ts"]) for tr in tracks.values())
     matrix = struct.pack(">9I", 0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000)
 
-    def build(chunk_off):
-        stco = full("stco", 0, 0, struct.pack(">II", 1, chunk_off))
-        stbl = box("stbl", stsd + stts + stss + stsc + stsz + stco)
-        minf = box("minf", f[vmhd_o:vmhd_o + vmhd_s] + f[dinf_o:dinf_o + dinf_s] + stbl)
-        mdhd = full("mdhd", 0, 0, struct.pack(">IIIIHH", 0, 0, timescale, total, 0x55C4, 0))
-        mdia = box("mdia", mdhd + f[hdlr_o:hdlr_o + hdlr_s] + minf)
-        tkhd = full("tkhd", 0, 3, struct.pack(">IIIII", 0, 0, 1, 0, ms_dur) + b"\0" * 8 + struct.pack(">hhhH", 0, 0, 0, 0) + matrix + struct.pack(">II", width << 16, height << 16))
-        trak = box("trak", tkhd + mdia)
-        mvhd = full("mvhd", 0, 0, struct.pack(">IIII", 0, 0, 1000, ms_dur) + struct.pack(">IH", 0x10000, 0x100) + b"\0" * 10 + matrix + b"\0" * 24 + struct.pack(">I", 2))
-        return box("moov", mvhd + trak)
+    def build(data_start):
+        off = data_start; offs = {tid: [] for tid in tracks}
+        for _, tid, smps in chunks:
+            offs[tid].append((off, len(smps))); off += sum(s[1] for s in smps)
+        traks = b""
+        for tid, tr in tracks.items():
+            sm = tr["samples"]; stts_e = []
+            for s in sm:
+                if stts_e and stts_e[-1][1] == s[2]: stts_e[-1][0] += 1
+                else: stts_e.append([1, s[2]])
+            stts = full("stts", 0, 0, struct.pack(">I", len(stts_e)) + b"".join(struct.pack(">II", c, d) for c, d in stts_e))
+            stsz = full("stsz", 0, 0, struct.pack(">II", 0, len(sm)) + b"".join(struct.pack(">I", s[1]) for s in sm))
+            sc = []
+            for i, (_, n) in enumerate(offs[tid]):
+                if not sc or sc[-1][1] != n: sc.append((i + 1, n))
+            stsc = full("stsc", 0, 0, struct.pack(">I", len(sc)) + b"".join(struct.pack(">III", a, n, 1) for a, n in sc))
+            stco = full("stco", 0, 0, struct.pack(">I", len(offs[tid])) + b"".join(struct.pack(">I", o) for o, _ in offs[tid]))
+            stss = b""
+            if tr["kind"] == "vide":
+                sync = [i + 1 for i, s in enumerate(sm) if s[3]]
+                stss = full("stss", 0, 0, struct.pack(">I", len(sync)) + b"".join(struct.pack(">I", i) for i in sync))
+            stbl = box("stbl", tr["stsd"] + stts + stss + stsc + stsz + stco)
+            mdhd = full("mdhd", 0, 0, struct.pack(">IIIIHH", 0, 0, tr["ts"], tr["dur"], 0x55C4, 0))
+            mdia = box("mdia", mdhd + tr["hdlr"] + box("minf", tr["head"] + stbl))
+            ms_ = round(tr["dur"] * 1000 / tr["ts"])
+            if tr["kind"] == "vide":
+                w, h = struct.unpack(">HH", tr["stsd"][16 + 32:16 + 36]); vol = 0
+            else:
+                w = h = 0; vol = 0x100
+            tkhd = full("tkhd", 0, 3, struct.pack(">IIIII", 0, 0, tid, 0, ms_) + b"\0" * 8 + struct.pack(">hhHH", 0, 0, vol, 0) + matrix + struct.pack(">II", w << 16, h << 16))
+            traks += box("trak", tkhd + mdia)
+        mvhd = full("mvhd", 0, 0, struct.pack(">IIII", 0, 0, 1000, movie_ms) + struct.pack(">IH", 0x10000, 0x100) + b"\0" * 10 + matrix + b"\0" * 24 + struct.pack(">I", max(tracks) + 1))
+        return box("moov", mvhd + traks)
 
     ftyp = box("ftyp", b"isom" + struct.pack(">I", 0x200) + b"isomiso2avc1mp41")
-    moov = build(0)
-    data = b"".join(s[0] for s in samples)
+    data = b"".join(f[s[0]:s[0] + s[1]] for _, _, smps in chunks for s in smps)
     mdat_hdr = struct.pack(">I4s", 8 + len(data), b"mdat")
-    moov = build(len(ftyp) + len(moov) + len(mdat_hdr))
+    moov = build(0); moov = build(len(ftyp) + len(moov) + len(mdat_hdr))
     open(dst, "wb").write(ftyp + moov + mdat_hdr + data)
-    print(f"{len(samples)} beelden, {total / timescale:.2f} s, {width}x{height}, {len(sync)} sleutelbeelden -> {dst}")
+    for tid, tr in tracks.items():
+        print(f"spoor {tid} ({'beeld' if tr['kind'] == 'vide' else 'geluid'}): {len(tr['samples'])} stukjes, {tr['dur'] / tr['ts']:.2f} s")
+    print(f"-> {dst} ({(len(ftyp) + len(moov) + len(mdat_hdr) + len(data)) / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

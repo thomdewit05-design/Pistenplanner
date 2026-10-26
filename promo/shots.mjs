@@ -1,16 +1,17 @@
 // Maakt scherpe schermafbeeldingen van de app (telefoonformaat, 3x) voor de promotievideo.
-// Gebruik: node promo/shots.mjs   (met de lokale server op poort 8766)
+// Gebruik: node promo/shots.mjs [nl|en|de]   (met de lokale server op poort 8766)
 import { writeFileSync, mkdirSync } from "node:fs";
 import { launch } from "./cdp.mjs";
 
-const OUT = new URL("./shots/", import.meta.url); mkdirSync(OUT, {recursive:true});
+const LANG = process.argv[2] || "nl";
+const OUT = new URL(LANG === "nl" ? "./shots/" : `./shots/${LANG}/`, import.meta.url); mkdirSync(OUT, {recursive:true});
 const c = await launch();
 await c.send("Emulation.setDeviceMetricsOverride", {width:390, height:844, deviceScaleFactor:3, mobile:true});
 await c.send("Emulation.setTouchEmulationEnabled", {enabled:true});
 // klok op 10:20 's ochtends, zodat tijden in beeld kloppen met een skidag
 await c.send("Page.addScriptToEvaluateOnNewDocument", {source:`(() => { const R = Date, t = new R(); t.setHours(10, 20, 0, 0); const off = t - R.now();
   class D extends R { constructor(...a){ a.length ? super(...a) : super(R.now() + off); } static now(){ return R.now() + off; } }
-  window.Date = D; })();`});
+  window.Date = D; try{ localStorage.setItem("pp-lang", "${LANG}"); }catch(e){} })();`});
 await c.navigate("http://localhost:8766/?promo=1");
 await c.sleep(4000);
 

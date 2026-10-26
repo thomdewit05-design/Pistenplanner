@@ -1,0 +1,74 @@
+[
+ {
+  "file": "vo/en/00.wav",
+  "at": 0.4,
+  "dur": 3.59,
+  "text": "Meet Skipiloot. Your pilot on the slopes.",
+  "lead": 0.1,
+  "speech": 2.83
+ },
+ {
+  "file": "vo/en/01.wav",
+  "at": 3.5,
+  "dur": 3.08,
+  "text": "Lost on the mountain? Never again.",
+  "lead": 0.09,
+  "speech": 2.32
+ },
+ {
+  "file": "vo/en/02.wav",
+  "at": 6.7,
+  "dur": 4.75,
+  "text": "Pick where you want to go. Skipiloot finds the runs that match your level.",
+  "lead": 0.1,
+  "speech": 3.99
+ },
+ {
+  "file": "vo/en/03.wav",
+  "at": 11.4,
+  "dur": 3.74,
+  "text": "Then just follow the voice: which run, which lift.",
+  "lead": 0.1,
+  "speech": 2.96
+ },
+ {
+  "file": "vo/en/04.wav",
+  "at": 15.1,
+  "dur": 4.79,
+  "text": "Skiing with friends? One tap, and everyone gets the same route.",
+  "lead": 0.1,
+  "speech": 4.01
+ },
+ {
+  "file": "vo/en/05.wav",
+  "at": 19.5,
+  "dur": 2.18,
+  "text": "See which slopes are in the sun.",
+  "lead": 0.1,
+  "speech": 1.42
+ },
+ {
+  "file": "vo/en/06.wav",
+  "at": 22.4,
+  "dur": 4.69,
+  "text": "Plus lunch stops, S O S, and eighteen hundred ski areas.",
+  "lead": 0.1,
+  "speech": 3.92
+ },
+ {
+  "file": "vo/en/07.wav",
+  "at": 26.8,
+  "dur": 2.9,
+  "text": "Skipiloot. Coming soon.",
+  "lead": 0.1,
+  "speech": 2.13
+ },
+ {
+  "file": "vo/en/08.wav",
+  "at": 29.3,
+  "dur": 3.11,
+  "text": "Follow us, and be the first on the slopes.",
+  "lead": 0.12,
+  "speech": 2.32
+ }
+]

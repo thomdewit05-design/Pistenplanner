@@ -9,9 +9,22 @@
 <body>
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
-// Teaser van 30 seconden, staand (1080 x 1920), voor Instagram Reels, TikTok en Shorts.
-// renderAt(t) tekent één moment; record() neemt de hele video op als MP4 en geeft hem terug als base64.
-const W = 1080, H = 1920, DUR = 30, FPS = 30;
+// Teaser, staand (1080 x 1920), voor Instagram Reels, TikTok en Shorts.
+// ?lang=en voor Engels, &vo=1 met voice-over (vo-<taal>.json). renderAt(t) tekent één moment; record() neemt de video op.
+const Q = new URLSearchParams(location.search), LANG = Q.get("lang") || "nl", VO = Q.get("vo") === "1";
+const W = 1080, H = 1920, DUR = VO ? 33 : 30, FPS = 30;
+const TXT = {
+  nl:{tag:"Jouw piloot op de piste", q1:"Verdwaald op", q2:"de piste?", never:"NOOIT MEER.", soon:"BINNENKORT BESCHIKBAAR", more:"En nog veel meer",
+      notOut:"De app is nog niet uit.", follow:"Volg ons en ski als eerste mee!", regions:"Alpen · Pyreneeën · Scandinavië · Noord-Amerika",
+      scenes:[["Kies waar je heen wilt", "Skipiloot kiest pistes die bij jouw niveau passen"], ["Navigeer met je stem", "Welke piste, welke lift: Skipiloot zegt het je"],
+              ["Ski je met vrienden?", "Eén tik en iedereen krijgt dezelfde route"], ["Waar schijnt de zon?", "Zie welke pistes nu in de zon liggen"]],
+      features:["Zonnige pistes opzoeken", "Lunchstop bij een hut", "Terug naar je hotel of auto", "Waarschuwing voor de laatste lift", "SOS met je exacte plek", "Meer dan 1.800 skigebieden"]},
+  en:{tag:"Your pilot on the slopes", q1:"Lost on", q2:"the mountain?", never:"NEVER AGAIN.", soon:"COMING SOON", more:"And much more",
+      notOut:"The app isn't out yet.", follow:"Follow us and be first on the slopes!", regions:"Alps · Pyrenees · Scandinavia · North America",
+      scenes:[["Pick where you want to go", "Skipiloot finds runs that match your level"], ["Navigate by voice", "Which run, which lift: Skipiloot tells you"],
+              ["Skiing with friends?", "One tap and everyone gets the same route"], ["Where's the sun?", "See which slopes are sunny right now"]],
+      features:["Find the sunny slopes", "Lunch stop at a mountain hut", "Back to your hotel or car", "Last-lift warning", "SOS with your exact location", "More than 1,800 ski areas"]}
+}[LANG];
 const cv = document.getElementById("c"), g = cv.getContext("2d");
 const NAVY = "#0F1B2A", NAVY2 = "#22395A", YEL = "#FFC400", INK = "#1A1300";
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
@@ -25,7 +38,7 @@ const F = (w, s, fam = "Barlow") => `${w} ${s}px "${fam}"`;
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
 let A = {};
 async function loadAll(){
-  const [logo, s1, s2, s3, s4] = await Promise.all(["../icons/icon-512.png", "shots/1-route.png", "shots/2-nav.png", "shots/3-group.png", "shots/4-sun.png"].map(img));
+  const [logo, s1, s2, s3, s4] = await Promise.all(["../icons/icon-512.png", ...["1-route", "2-nav", "3-group", "4-sun"].map(n => `shots/${LANG === "nl" ? "" : LANG + "/"}${n}.png`)].map(img));
   // iconen uit de app zelf
   const doc = new DOMParser().parseFromString(await (await fetch("../index.html")).text(), "text/html");
   const icon = (id, color) => img("data:image/svg+xml;charset=utf-8," + encodeURIComponent(
@@ -102,13 +115,9 @@ function phone(cx, cy, scale, shotA, shotB, mix, zoom, alpha = 1){
 
 // ---------- scènes ----------
 const SCENES = [
-  {a:6.2, b:11, shot:0, title:"Kies waar je heen wilt", sub:"Skipiloot kiest pistes die bij jouw niveau passen"},
-  {a:11, b:15, shot:1, title:"Navigeer met je stem", sub:"Welke piste, welke lift: Skipiloot zegt het je"},
-  {a:15, b:19, shot:2, title:"Ski je met vrienden?", sub:"Eén tik en iedereen krijgt dezelfde route"},
-  {a:19, b:22.6, shot:3, title:"Waar schijnt de zon?", sub:"Zie welke pistes nu in de zon liggen"},
-];
-const FEATURES = [["sun", "Zonnige pistes opzoeken"], ["food", "Lunchstop bij een hut"], ["bed", "Terug naar je hotel of auto"],
-                  ["clock", "Waarschuwing voor de laatste lift"], ["alert", "SOS met je exacte plek"], ["ski", "Meer dan 1.800 skigebieden"]];
+  {a:6.2, b:11, shot:0}, {a:11, b:15, shot:1}, {a:15, b:19, shot:2}, {a:19, b:22.6, shot:3}
+].map((x, i) => ({...x, title:TXT.scenes[i][0], sub:TXT.scenes[i][1]}));
+const FEATURES = ["sun", "food", "bed", "clock", "alert", "ski"].map((ic, i) => [ic, TXT.features[i]]);
 
 function renderAt(t){
   background(t);
@@ -124,17 +133,17 @@ function renderAt(t){
     g.save(); g.globalAlpha = out * p; g.font = F(800, 190, "Barlow Condensed"); g.textAlign = "center"; g.fillStyle = "#fff";
     if("letterSpacing" in g) g.letterSpacing = `${(1 - p) * 40 + 6}px`;
     g.fillText("SKIPILOOT", W/2, 1150 + (1 - p)*40); if("letterSpacing" in g) g.letterSpacing = "0px"; g.restore();
-    text("Jouw piloot op de piste", W/2, 1250, F(600, 56), YEL, "center", out * easeOut(prog(t, 1.4, 2.1)));
+    text(TXT.tag, W/2, 1250, F(600, 56), YEL, "center", out * easeOut(prog(t, 1.4, 2.1)));
   }
 
   // 2. de vraag
   if(t >= 3.2 && t < 6.6){
     const out = 1 - prog(t, 6.1, 6.6);
     const p1 = easeOut(prog(t, 3.3, 3.9)), p2 = back(prog(t, 4.5, 5.0));
-    text("Verdwaald op", W/2 - (1 - p1)*300, 820, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
-    text("de piste?", W/2 + (1 - p1)*300, 970, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
+    text(TXT.q1, W/2 - (1 - p1)*300, 820, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
+    text(TXT.q2, W/2 + (1 - p1)*300, 970, F(800, 150, "Barlow Condensed"), "#fff", "center", out * p1);
     g.save(); g.globalAlpha = out * clamp(p2); g.translate(W/2, 1190); g.scale(p2, p2);
-    pill("NOOIT MEER.", 0, 0, F(800, 120, "Barlow Condensed"), YEL, INK, 1, 56, 170); g.restore();
+    pill(TXT.never, 0, 0, F(800, 120, "Barlow Condensed"), YEL, INK, 1, 56, 170); g.restore();
   }
 
   // 3. de app in een telefoon
@@ -156,7 +165,7 @@ function renderAt(t){
   // 4. en nog meer
   if(t >= 22.4 && t < 26.3){
     const out = 1 - prog(t, 25.9, 26.3);
-    text("En nog veel meer", W/2, 520, F(800, 112, "Barlow Condensed"), "#fff", "center", out * easeOut(prog(t, 22.5, 23.1)));
+    text(TXT.more, W/2, 520, F(800, 112, "Barlow Condensed"), "#fff", "center", out * easeOut(prog(t, 22.5, 23.1)));
     FEATURES.forEach(([ic, label], i) => {
       const p = easeOut(prog(t, 22.9 + i*.28, 23.5 + i*.28)), y = 680 + i*150;
       g.save(); g.globalAlpha = out * p; g.translate((1 - p) * -120, 0);
@@ -176,24 +185,35 @@ function renderAt(t){
     text("SKIPILOOT", W/2, 900, F(800, 170, "Barlow Condensed"), "#fff", "center", p);
     const pb = back(prog(t, 26.6, 27.2)), pulse = 1 + .03*Math.sin(t*5);
     g.save(); g.globalAlpha = clamp(pb); g.translate(W/2, 1060); g.scale(pb*pulse, pb*pulse);
-    pill("BINNENKORT BESCHIKBAAR", 0, 0, F(800, 76, "Barlow Condensed"), YEL, INK, 1, 50, 128); g.restore();
+    pill(TXT.soon, 0, 0, F(800, 76, "Barlow Condensed"), YEL, INK, 1, 50, 128); g.restore();
     const pt = easeOut(prog(t, 27.3, 28));
-    text("De app is nog niet uit.", W/2, 1250, F(700, 56), "#fff", "center", pt);
-    text("Volg ons en ski als eerste mee!", W/2, 1325, F(500, 50), "#D6E2EF", "center", pt);
-    text("Alpen · Pyreneeën · Scandinavië · Noord-Amerika", W/2, 1470, F(500, 38), "#AFC3DA", "center", easeOut(prog(t, 27.8, 28.5)));
+    text(TXT.notOut, W/2, 1250, F(700, 56), "#fff", "center", pt);
+    text(TXT.follow, W/2, 1325, F(500, 50), "#D6E2EF", "center", pt);
+    text(TXT.regions, W/2, 1470, F(500, 38), "#AFC3DA", "center", easeOut(prog(t, 27.8, 28.5)));
   }
 
   // altijd zichtbaar (behalve op het slotbeeld): nog niet uit
   if(t > .9 && t < 26){
     const a = easeOut(prog(t, .9, 1.4)) * (1 - prog(t, 25.6, 26));
-    pill("BINNENKORT BESCHIKBAAR", W/2, 215, F(700, 34, "Barlow"), YEL, INK, a, 30, 66);
+    pill(TXT.soon, W/2, 215, F(700, 34, "Barlow"), YEL, INK, a, 30, 66);
   }
 }
 
 // ---------- opnemen ----------
 async function record(){
   const stream = cv.captureStream(FPS);
-  const type = ["video/mp4;codecs=avc1.640028", "video/mp4", "video/webm;codecs=vp9"].find(m => MediaRecorder.isTypeSupported(m));
+  let ac = null, lines = [];
+  if(VO){
+    ac = new AudioContext({sampleRate:48000});
+    const dest = ac.createMediaStreamDestination();
+    const list = await (await fetch(`vo-${LANG}.json?` + Date.now())).json();
+    lines = await Promise.all(list.map(async x => ({at:x.at, buf:await ac.decodeAudioData(await (await fetch(x.file)).arrayBuffer())})));
+    const gain = ac.createGain(); gain.gain.value = 1; gain.connect(dest);
+    window.voOut = gain;
+    stream.addTrack(dest.stream.getAudioTracks()[0]);
+  }
+  const type = (VO ? ["video/mp4;codecs=avc1.640028,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2"] : ["video/mp4;codecs=avc1.640028", "video/mp4", "video/webm;codecs=vp9"])
+    .find(m => MediaRecorder.isTypeSupported(m));
   const rec = new MediaRecorder(stream, {mimeType:type, videoBitsPerSecond:14e6});
   const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
   const done = new Promise(r => rec.onstop = r);
@@ -201,15 +221,16 @@ async function record(){
   for(let t = 0; t <= DUR; t += .5) renderAt(t);
   renderAt(0); await new Promise(r => setTimeout(r, 300));
   rec.start();
-  const t0 = performance.now(); let frames = 0, maxT = 0;
+  if(ac){ await ac.resume(); const a0 = ac.currentTime + .05; for(const l of lines){ const src = ac.createBufferSource(); src.buffer = l.buf; src.connect(window.voOut); src.start(a0 + l.at); } }
+  const t0 = performance.now() + 50; let frames = 0, maxT = 0;
   await new Promise(res => {
-    const step = () => { const t = (performance.now() - t0) / 1000; renderAt(Math.min(t, DUR)); frames++; maxT = t; if(t < DUR + .25) requestAnimationFrame(step); else res(); };
+    const step = () => { const t = Math.max(0, (performance.now() - t0) / 1000); renderAt(Math.min(t, DUR)); frames++; maxT = t; if(t < DUR + .25) requestAnimationFrame(step); else res(); };
     requestAnimationFrame(step);
   });
   window.recStats = {frames, maxT};
   rec.stop(); await done;
   const blob = new Blob(chunks, {type});
-  const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(",")[1]); fr.readAsDataURL(blob); });
+  const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.slice(fr.result.indexOf("base64,") + 7)); fr.readAsDataURL(blob); });
   return {type, size:blob.size, b64, stats:window.recStats};
 }
 window.ready = loadAll().then(() => { renderAt(0); return true; });
