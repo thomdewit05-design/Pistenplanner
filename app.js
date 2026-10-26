@@ -799,11 +799,12 @@ async function onPos(p){
       toast(`Je bent bij ${near.r[1]}. Kaart geladen.`); await openArea(near.r[0], {keepView:true});
     }
   }
-  if(S.area && S.fromMe){
+  if(S.area && (S.fromMe || S.follow)){
     const nn = nearestNode(S.pos.lat, S.pos.lon);
-    if(first || S.from == null){ S.from = nn.n; update(); }
-    else if(S.follow && S.path && distToRoute() > OFF_ROUTE){
-      if(++S.offCount >= 2){ S.from = nn.n; S.offCount = 0; toast("Je bent van de route af. Nieuwe route berekend."); speak("Je bent van de route af. Nieuwe route berekend."); update(); }
+    if(S.fromMe && (first || S.from == null)){ S.from = nn.n; update(); }
+    // van de route af (en wel in het skigebied): opnieuw plannen vanaf waar je nu bent
+    else if(S.follow && S.path && nn.d < 400 && distToRoute() > OFF_ROUTE){
+      if(++S.offCount >= 2){ dropPassed(); S.fromMe = true; S.from = nn.n; S.offCount = 0; toast("Je bent van de route af. Nieuwe route berekend."); speak("Je bent van de route af. Nieuwe route berekend."); update(); }
     } else S.offCount = 0;
   }
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
@@ -812,6 +813,13 @@ async function onPos(p){
   groupOnPos();
   diaryAdd(S.pos.lat, S.pos.lon, S.pos.acc, S.pos.alt);
   if(!$("group").hidden) renderGroup();
+}
+// bij opnieuw plannen: wat je al gehad hebt (de top van je rondje, de gekozen piste, getekende punten) niet nog eens
+function dropPassed(){
+  const seen = new Set(S.steps.slice(0, S.navIdx).flatMap(s => s.items.map(x => x.to)));
+  if(S.via != null && seen.has(S.via)) S.via = null;
+  if(S.target && seen.has(S.target.start)){ S.to = S.target.end; S.target = null; }
+  while(S.wps.length > 1 && seen.has(wpEnd(S.wps[0]))) S.wps.shift();
 }
 function distToRoute(){
   if(!S.pos || !S.steps.length) return Infinity;
@@ -983,12 +991,22 @@ function toValley(){
   let from = S.from;
   if(S.pos && (S.fromMe || S.follow)) from = nearestNode(S.pos.lat, S.pos.lon).n;
   if(from==null){ toast("Kies eerst waar je nu bent (A)."); return; }
-  const {dist} = dijkstra(from, null, graph());
+  // net als bij gewone routes: lukt het niet binnen je niveau, dan ruimer zoeken
+  // hoe laag kom je überhaupt; binnen je niveau moet je in de buurt van zo'n dal komen, anders ruimer zoeken
+  const ele = n => A.nodes[n].ele ?? 9999, low = d => { let m = 9999; d.forEach((x, n) => { if(x < Infinity && n !== from) m = Math.min(m, ele(n)); }); return m; };
+  addLongWalks(); RELAX = 3; let dist; try{ dist = reachFrom(from); } finally{ RELAX = 0; }
+  const lowAll = low(dist);
+  for(let r = 0; r < 3; r++){
+    RELAX = r; let d; try{ d = reachFrom(from); } finally{ RELAX = 0; }
+    if(low(d) <= lowAll + 300){ dist = d; break; }
+  }
+  // laag en dichtbij: elke 100 m hoger telt als 6 minuten extra, zo kies je het eigen dorp en niet het dal aan de andere kant
+  const bottom = low(dist);
   let best = null;
   dist.forEach((d, n) => {
-    if(d===Infinity || n===from) return;
-    const e = A.nodes[n].ele ?? 9999;
-    if(!best || e < best.e - 30 || (Math.abs(e - best.e) <= 30 && d < best.d)) best = {n, e, d};
+    if(d===Infinity || n===from || ele(n) > bottom + 300) return;
+    const score = d + (ele(n) - bottom) * .06;
+    if(!best || score < best.score) best = {n, e:ele(n), d, score};
   });
   if(!best){ toast("Vanaf hier is geen weg naar beneden gevonden."); return; }
   S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from"; S.planBy = null; S.wps = [];
@@ -1225,7 +1243,7 @@ function statusSummary(){
   const A = S.area, keys = closedKeys(), nl = keys.filter(k => A.groups.get(k).t==="l").length, np = keys.length - nl;
   $("statusSummary").innerHTML = keys.length
     ? `Volgens jou dicht: <b>${nl} ${nl===1 ? "lift" : "liften"}</b> en <b>${np} ${np===1 ? "piste" : "pistes"}</b>. Routes gaan hier omheen.`
-    : `Alles staat op <b>open</b>. Zet dicht wat vandaag dicht is; de routes houden er rekening mee.`;
+    : `<span>Alles staat op <b>open</b>.</span> Zet dicht wat vandaag dicht is; de routes houden er rekening mee.`;
 }
 function renderStatus(){
   const A = S.area; if(!A) return;
