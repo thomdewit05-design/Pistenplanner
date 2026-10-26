@@ -33,7 +33,7 @@ function segDist(p, a, b){
 const bearing = (p, q) => Math.atan2((q[1]-p[1])*Math.cos(p[0]*Math.PI/180), q[0]-p[0]) * 180/Math.PI;
 const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 const TURN_ICON = {"rechtdoor":"straight", "houd rechts aan":"sright", "ga rechtsaf":"right", "houd links aan":"sleft", "ga linksaf":"left"};
-const hideSplash = () => $("splash").classList.add("out");
+const hideSplash = () => { const sp = $("splash"); if(!sp || sp.classList.contains("out")) return; sp.classList.add("out"); setTimeout(() => sp.remove(), 600); };
 
 // ================= kaart =================
 const map = L.map("map", {zoomControl:false, preferCanvas:true, worldCopyJump:false, minZoom:6}).setView([46.4, 10.5], 7);
@@ -150,7 +150,7 @@ async function openArea(id, opts={}){
   S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
   $("areaStats").textContent = S.area.statsTxt;
   drawPistes(); buildNumbers();
-  if(!opts.keepView) fitArea(!$("splash").classList.contains("out"));
+  if(!opts.keepView) fitArea(!!$("splash") && !$("splash").classList.contains("out"));
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
   else { defaultRoute(); S.pick = "from"; }
   try{ history.replaceState(null, "", "#" + id); }catch(e){}
@@ -426,9 +426,10 @@ function renderExtra(){
   const x = $("extra"), parts = [];
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
   if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}<span class="x">${I("close")}</span></button>`);
+  if(S.planBy) parts.unshift(`<button type="button" class="chip route group-chip" data-k="planby" title="Niet meer tonen">${I("group")}Route van ${esc(S.planBy)}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
   x.querySelectorAll("button").forEach(b => b.onclick = () => {
-    if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
+    if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
     update();
   });
 }
@@ -442,8 +443,10 @@ function renderResult(){
     if(S.level < 3) tips.push("kies een hoger niveau");
     if(!S.free) tips.push("neem skiroutes mee");
     if(S.closed.size) tips.push("open een gesloten piste");
-    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${tips.length ? "Probeer: " + tips.join(", ") + ". " : ""}Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.</p>`;
-    peek.innerHTML = `<p class="empty"><strong>Geen route gevonden</strong> met deze instellingen.</p>`; return setPeek();
+    const who = S.planBy ? `De route van ${esc(S.planBy)} is met jouw instellingen niet te halen. ` : "";
+    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${who}${tips.length ? "Probeer: " + tips.join(", ") + ". " : ""}Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.</p>`;
+    peek.innerHTML = S.planBy ? `<p class="empty"><strong>Je kunt de route van ${esc(S.planBy)} niet volgen</strong> met jouw niveau of instellingen. Kies een hoger niveau, of vraag om een makkelijkere bestemming.</p>`
+                              : `<p class="empty"><strong>Geen route gevonden</strong> met deze instellingen.</p>`; return setPeek();
   }
   const path = S.path, steps = S.steps;
   const tot = path.reduce((s,x)=>s+x.min,0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
@@ -454,9 +457,10 @@ function renderResult(){
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString("nl-NL")} hm dalen</span></div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
-      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button></div>`;
+      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("valleyBtn").onclick = toValley;
+  $("gSendBtn")?.addEventListener("click", sendPlan);
   let warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
     ? `<p class="notice bad">${I("warn")}<span><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</span></p>` : "";
   // liftsluiting
@@ -520,7 +524,7 @@ map.on("click", ev => {
   }
   if(be >= 0 && bed < 16 && bd > 14) return edgePopup(be, ev.latlng, bn);
   if(bd > 36){ toast("Tik op een piste, een lift of een liftstation."); return; }
-  if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; }
+  if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; }
   update();
 });
 function edgePopup(ei, latlng, nearNode){
@@ -542,7 +546,7 @@ function edgePopup(ei, latlng, nearNode){
   const pop = L.popup({closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"}).setLatLng(latlng).setContent(div).openOn(map);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     const a = b.dataset.a;
-    if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; if(S.from==null) S.from = ch.start; }
+    if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; if(S.from==null) S.from = ch.start; }
     else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; }
     else if(a==="from"){ S.from = nearNode; S.fromMe = false; S.pick = "to"; }
     else { setClosed(ch.edges, true); if(S.target?.edges.some(i => ch.edges.includes(i))) S.target = null; drawPistes(); toast(`${uc(ch.label)} gesloten.`); }
@@ -609,6 +613,8 @@ async function onPos(p){
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
   if(S.follow) map.panTo(ll, {animate:true});
   updateNav();
+  groupOnPos();
+  if(!$("group").hidden) renderGroup();
 }
 function distToRoute(){
   if(!S.pos || !S.steps.length) return Infinity;
@@ -717,7 +723,7 @@ function placeInput(inp, key){
     for(const [s, n] of A.names){ const k = norm(s); if(k===v){ hit = n; break; } if(hit==null && k.includes(v)) hit = n; }
     if(hit==null && key==="to") for(const [s, ei] of A.skiNames) if(norm(s).includes(v)){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
     if(hit==null){ toast(`Geen punt gevonden voor "${raw}".`); return; }
-    S[key] = hit;
+    S[key] = hit; if(key==="to") S.planBy = null;
     if(key==="from") S.fromMe = false; else { S.target = null; S.via = null; }
     inp.blur(); update();
   });
@@ -784,7 +790,7 @@ function toValley(){
     if(!best || e < best.e - 30 || (Math.abs(e - best.e) <= 30 && d < best.d)) best = {n, e, d};
   });
   if(!best){ toast("Vanaf hier is geen weg naar beneden gevonden."); return; }
-  S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from";
+  S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from"; S.planBy = null;
   update(); fitRoute();
   toast(`Naar het dal: ${lc(nodeLabel(best.n))}${best.e < 9999 ? `, ${best.e} m` : ""}`);
 }
@@ -953,6 +959,7 @@ let pendingShare = null;
 function parseShareHash(){
   const [id, tag, date, list] = location.hash.slice(1).split("/");
   if(tag === "s" && id) pendingShare = {id, date, list:list || ""};
+  if(tag === "g" && date) G.pending = date.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 function applyPendingShare(){
   if(!pendingShare || pendingShare.id !== S.area.id) return;
@@ -972,6 +979,12 @@ function shareUrl(){
 }
 window.addEventListener("hashchange", () => {
   const before = pendingShare; parseShareHash();
+  if(G.pending){
+    const code = G.pending; G.pending = null;
+    if(code !== G.code){ if(G.code) gLeave(); openGroup(); $("gCode").value = code; if(G.name){ $("gName").value = G.name; gStart(code); } }
+    try{ history.replaceState(null, "", "#" + (S.area?.id || "")); }catch(e){}
+    return;
+  }
   if(!pendingShare || pendingShare === before) return;
   if(S.area && pendingShare.id === S.area.id){ applyPendingShare(); drawPistes(); update(); if(!$("status").hidden) renderStatus(); }
   else openArea(pendingShare.id);
@@ -1062,6 +1075,174 @@ $("shareSend").onclick = async () => {
   else $("shareCopy").click();
 };
 
+// ================= groep =================
+// Telefoons in een groep praten via ntfy.sh: elk bericht is een klein JSON-pakket op een geheim kanaal.
+const NTFY = "https://ntfy.sh/";
+const POS_MIN_MOVE = 60, POS_MIN_SEC = 60, POS_MAX_SEC = 300, POS_DAILY_SOFT = 180;   // zuinig met de gratis daglimiet
+const G = {code:null, name:"", id:null, follow:true, sharePos:true, es:null, members:new Map(), planTs:0, plan:null,
+           lastPos:null, conn:"", pending:null, planTimer:null};
+try{ const g = JSON.parse(localStorage.getItem("pp-group") || "null");
+  if(g) Object.assign(G, {code:g.code||null, name:g.name||"", id:g.id||null, follow:g.follow ?? true, sharePos:g.sharePos ?? true}); }catch(e){}
+if(!G.id) G.id = Math.random().toString(36).slice(2, 10);
+const gSave = () => { try{ localStorage.setItem("pp-group", JSON.stringify({code:G.code, name:G.name, id:G.id, follow:G.follow, sharePos:G.sharePos})); }catch(e){} };
+const gTopic = () => "pistenplanner-" + G.code.toLowerCase();
+const COLORS = ["#7C3AED","#DB2777","#0891B2","#EA580C","#16A34A","#4F46E5","#CA8A04","#DC2626"];
+const gColor = id => COLORS[[...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORS.length];
+const newCode = () => { const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let s = ""; const r = crypto.getRandomValues(new Uint8Array(8)); r.forEach(x => s += a[x % a.length]); return s; };
+const memberLayer = L.layerGroup().addTo(map);
+
+function sentToday(add){
+  const k = "pp-sent:" + todayKey(); let n = 0;
+  try{ n = +(localStorage.getItem(k) || 0) + (add || 0); if(add) localStorage.setItem(k, n); }catch(e){}
+  return n;
+}
+async function gSend(obj){
+  if(!G.code) return false;
+  const msg = JSON.stringify({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj});
+  try{
+    const r = await fetch(NTFY + gTopic(), {method:"POST", body:msg});
+    if(r.status === 429){ G.conn = "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw."; renderGroup(); return false; }
+    if(r.ok) sentToday(1);
+    return r.ok;
+  }catch(e){ return false; }
+}
+function gConnect(){
+  if(!G.code) return;
+  G.es?.close();
+  G.members = new Map();
+  G.conn = "Verbinden…"; renderGroup();
+  const es = new EventSource(`${NTFY}${gTopic()}/sse?since=3h`);
+  G.es = es;
+  es.onopen = () => { G.conn = ""; renderGroup(); };
+  es.onerror = () => { G.conn = navigator.onLine ? "Verbinding met de groep herstellen…" : "Geen internet. Je ziet de groep weer zodra je verbinding hebt."; renderGroup(); };
+  es.onmessage = ev => {
+    let m, d; try{ m = JSON.parse(ev.data); if(m.event !== "message") return; d = JSON.parse(m.message); }catch(e){ return; }
+    if(!d || d.v !== 1 || !d.id) return;
+    gHandle(d);
+  };
+}
+function gHandle(d){
+  if(d.t === "bye"){ G.members.delete(d.id); drawMembers(); renderGroup(); return; }
+  if(d.id !== G.id){
+    const m = G.members.get(d.id) || {id:d.id};
+    m.name = String(d.name || "?").slice(0, 20); m.seen = Math.max(m.seen || 0, d.ts || 0);
+    if(d.t === "pos" && (!m.posTs || d.ts > m.posTs)){ m.lat = +d.lat; m.lon = +d.lon; m.posTs = d.ts; }
+    G.members.set(d.id, m);
+  }
+  if(d.t === "plan" && d.ts > G.planTs){
+    G.planTs = d.ts; G.plan = d;
+    // bij het opnieuw verbinden komen oude berichten snel achter elkaar binnen: alleen de laatste toepassen
+    clearTimeout(G.planTimer); G.planTimer = setTimeout(() => adoptPlan(G.plan), 500);
+  }
+  drawMembers(); renderGroup();
+}
+async function adoptPlan(d){
+  if(!d || !G.follow || d.id === G.id) { renderGroup(); return; }
+  if(!S.area || S.area.id !== d.area){ if(!S.index.some(r => r[0] === d.area)) return; await openArea(d.area, {keepView:false}); }
+  const A = S.area;
+  applyKeys((d.closed || []).map(i => A.groupKeys[i]).filter(Boolean));
+  S.via = Number.isInteger(d.via) && A.nodes[d.via] ? d.via : null;
+  if(d.dk === "t" && A.edges[d.de]){ S.target = chainFrom(d.de); S.to = S.target.end; }
+  else if(Number.isInteger(d.to) && A.nodes[d.to]){ S.target = null; S.to = d.to; }
+  if(S.pos){ S.fromMe = true; S.from = nearestNode(S.pos.lat, S.pos.lon).n; }
+  else if(S.from == null || (S.via != null && d.to === d.from)) S.from = d.from;
+  if(S.via != null && d.to === d.from && !S.pos) S.to = S.from;
+  S.planBy = d.name;
+  drawPistes(); update(); fitRoute();
+  toast(`${d.name} heeft de route gekozen. Jouw route staat klaar.`, 3500);
+  speak(`${d.name} heeft een nieuwe route gekozen.`);
+}
+async function sendPlan(){
+  if(!G.code || !S.area || (S.to == null && !S.target)){ toast("Kies eerst een bestemming of piste."); return; }
+  const A = S.area;
+  const closed = closedKeys().map(k => A.groupKeys.indexOf(k)).filter(i => i >= 0);
+  const plan = {t:"plan", area:A.id, from:S.from, to:S.to, via:S.via, dk:S.target ? "t" : "n", de:S.target ? S.target.e.i : null, closed,
+                label: S.target ? `Skiën: ${S.target.label}` : nodeLabel(S.to)};
+  const ok = await gSend(plan);
+  if(ok){ G.planTs = Date.now(); G.plan = {...plan, name:G.name, id:G.id, ts:G.planTs}; S.planBy = null; renderGroup(); update(); toast("Route gestuurd naar de groep."); }
+  else toast("Versturen lukte niet. Controleer je verbinding.");
+}
+function groupOnPos(){
+  if(!G.code || !G.sharePos || !S.pos) return;
+  const now = Date.now(), last = G.lastPos;
+  const moved = last ? meters(last.lat, last.lon, S.pos.lat, S.pos.lon) : Infinity, dt = last ? (now - last.t)/1000 : Infinity;
+  const minSec = sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC;
+  if(dt >= POS_MAX_SEC || (moved >= POS_MIN_MOVE && dt >= minSec)){
+    G.lastPos = {lat:S.pos.lat, lon:S.pos.lon, t:now};
+    gSend({t:"pos", lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5)});
+  }
+}
+const ago = ts => { const m = Math.round((Date.now() - ts)/60000); return m < 1 ? "nu" : m < 60 ? `${m} min geleden` : `${Math.floor(m/60)} u geleden`; };
+function placeOf(lat, lon){
+  const A = S.area; if(!A) return null;
+  const p = [lat, lon]; let best = null;
+  for(const e of A.edges){ if(e.t==="w") continue; for(let k = 0; k < e.pts.length-1; k++){ const r = segDist(p, e.pts[k], e.pts[k+1]); if(!best || r.d < best.d) best = {d:r.d, e}; } }
+  if(!best || best.d > 400) return null;
+  const e = best.e; return (best.d < 50 ? "op " : "bij ") + (e.t==="l" ? liftLabel(e).replace(/^de /, "") : pisteLabel(e).replace(/^de /, ""));
+}
+function drawMembers(){
+  memberLayer.clearLayers();
+  for(const m of G.members.values()){
+    if(m.lat == null) continue;
+    const stale = Date.now() - m.posTs > 10*60000;
+    L.marker([m.lat, m.lon], {interactive:false, keyboard:false, zIndexOffset:900, icon:L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15],
+      html:`<div class="mem-wrap${stale ? " stale" : ""}"><div class="mem" style="--c:${gColor(m.id)}">${esc(m.name.charAt(0).toUpperCase())}</div><span class="mem-name">${esc(m.name)}</span></div>`})}).addTo(memberLayer);
+  }
+  const n = G.members.size;
+  $("groupCount").hidden = !G.code; $("groupCount").textContent = n + 1;
+}
+function renderGroup(){
+  const inG = !!G.code;
+  $("groupOut").hidden = inG; $("groupIn").hidden = !inG;
+  $("groupLabel").textContent = inG ? "Jouw groep" : "Samen skiën";
+  $("groupTitle").textContent = inG ? `Groep ${G.code}` : "Groep";
+  $("gName").value = $("gName").value || G.name;
+  if(!inG) return;
+  $("gCodeShow").textContent = G.code;
+  $("gFollow").checked = G.follow; $("gSharePos").checked = G.sharePos;
+  $("gConn").textContent = G.conn; $("gConn").hidden = !G.conn;
+  const p = G.plan;
+  $("gPlan").innerHTML = p ? `${p.id === G.id ? "<b>Jij</b> hebt" : `<b>${esc(p.name)}</b> heeft`} de route gekozen: <b>${esc(p.label || "bestemming")}</b> · ${ago(p.ts)}` : "";
+  const me = `<li><div class="mem" style="--c:${gColor(G.id)}">${esc((G.name || "?").charAt(0).toUpperCase())}</div><span><b>${esc(G.name || "Jij")} (jij)</b><small>${S.pos ? esc(placeOf(S.pos.lat, S.pos.lon) || "positie gedeeld") : G.sharePos ? "positie nog onbekend" : "positie niet gedeeld"}</small></span><span class="ago"></span></li>`;
+  const others = [...G.members.values()].sort((a, b) => a.name.localeCompare(b.name, "nl")).map(m => {
+    const where = m.lat != null ? (placeOf(m.lat, m.lon) || "in de buurt") : "positie niet gedeeld";
+    const dist = m.lat != null && S.pos ? ` · ${km(meters(S.pos.lat, S.pos.lon, m.lat, m.lon))} van je` : "";
+    return `<li><div class="mem" style="--c:${gColor(m.id)}">${esc(m.name.charAt(0).toUpperCase())}</div><span><b>${esc(m.name)}</b><small>${esc(where)}${dist}</small></span><span class="ago">${ago(m.posTs || m.seen)}</span></li>`;
+  }).join("");
+  $("gMembers").innerHTML = me + (others || `<li class="empty" style="display:block">Nog niemand anders. Laat ze de code scannen.</li>`);
+}
+function gUrl(){ return `${location.origin}${location.pathname}#${S.area?.id || ""}/g/${G.code}`; }
+function gDrawQr(){ try{ const qr = qrcode(0, "M"); qr.addData(gUrl()); qr.make(); $("gQr").innerHTML = qr.createSvgTag({cellSize:4, margin:0, scalable:true}); }catch(e){ $("gQr").innerHTML = ""; } }
+function gStart(code){
+  const name = $("gName").value.trim();
+  if(!name){ toast("Vul eerst je naam in."); $("gName").focus(); return; }
+  G.name = name; G.code = code.toUpperCase(); G.plan = null; G.planTs = 0; G.lastPos = null; gSave();
+  gConnect(); gSend({t:"hello"}); renderGroup(); gDrawQr(); drawMembers();
+  if(G.sharePos && S.watch == null) startWatch();
+}
+function gLeave(){
+  gSend({t:"bye"}); G.es?.close(); G.es = null;
+  G.code = null; G.members = new Map(); G.plan = null; S.planBy = null; gSave();
+  drawMembers(); renderGroup(); update(); toast("Je hebt de groep verlaten.");
+}
+function openGroup(){ $("group").hidden = false; renderGroup(); if(G.code) gDrawQr(); }
+$("groupBtn").onclick = openGroup;
+$("groupClose").onclick = () => $("group").hidden = true;
+$("gCreate").onclick = () => gStart(newCode());
+$("gJoin").onclick = () => { const c = $("gCode").value.trim().replace(/[^A-Za-z0-9]/g, ""); if(c.length < 4){ toast("Vul de groepscode in."); return; } gStart(c); };
+$("gLeave").onclick = gLeave;
+$("gSendPlan").onclick = sendPlan;
+$("gFollow").onchange = e => { G.follow = e.target.checked; gSave(); if(G.follow && G.plan && G.plan.id !== G.id) adoptPlan(G.plan); };
+$("gSharePos").onchange = e => { G.sharePos = e.target.checked; gSave(); if(G.sharePos){ G.lastPos = null; if(S.watch == null) startWatch(); else groupOnPos(); } };
+$("gCopy").onclick = async () => { try{ await navigator.clipboard.writeText(gUrl()); toast("Link gekopieerd."); }catch(e){ toast("Kopiëren lukte niet."); } };
+$("gShare").onclick = async () => {
+  if(navigator.share){ try{ await navigator.share({title:"Skiën in een groep", text:`Doe mee met mijn groep in de Pistenplanner (code ${G.code}):`, url:gUrl()}); }catch(e){} }
+  else $("gCopy").click();
+};
+document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("group").hidden) $("group").hidden = true; });
+setInterval(() => { if(G.code){ drawMembers(); if(!$("group").hidden) renderGroup(); } }, 30000);
+window.addEventListener("online", () => { if(G.code && G.es?.readyState === 2) gConnect(); });
+
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
 $("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
@@ -1077,5 +1258,13 @@ applyBase(); update(); setPeek();
   parseShareHash();
   const want = location.hash.slice(1).split("/")[0], byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
   const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
-  openArea(start || S.index[0][0]);
+  await openArea(start || S.index[0][0]);
+  if(G.pending && G.pending !== G.code){
+    const code = G.pending; G.pending = null;
+    if(G.code) gLeave();
+    openGroup(); $("gCode").value = code;
+    if(G.name){ $("gName").value = G.name; gStart(code); toast(`Je doet mee met groep ${code}.`); }
+    else toast("Vul je naam in en tik op Meedoen.", 3500);
+  } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
+  try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
 })();

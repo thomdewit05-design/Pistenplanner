@@ -17,7 +17,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 </head>
 <body>
 <!-- iconenset -->
@@ -66,6 +66,8 @@
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L12 5.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 19.5h1.5M19.5 14v2"/></symbol>
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></symbol>
+    <symbol id="i-group" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.3"/><path d="M2.8 19.5a6.2 6.2 0 0 1 12.4 0"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.1a5 5 0 0 1 5.3 5.4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5"/><path d="M21 3 14.5 21l-4-7.5L3 9.5 21 3Z"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -86,6 +88,7 @@
     <svg class="ic"><use href="#i-search"/></svg>
   </button>
   <button type="button" id="statusBtn" class="fab glass" aria-label="Open en dicht vandaag" title="Open en dicht vandaag" aria-haspopup="dialog"><svg class="ic"><use href="#i-status"/></svg><span class="count-dot" id="statusCount" hidden></span></button>
+  <button type="button" id="groupBtn" class="fab glass" aria-label="Groep" title="Groep" aria-haspopup="dialog"><svg class="ic"><use href="#i-group"/></svg><span class="count-dot group-dot" id="groupCount" hidden></span></button>
   <button type="button" id="layersBtn" class="fab glass" aria-label="Kaartlagen" aria-haspopup="true"><svg class="ic"><use href="#i-layers"/></svg></button>
 </header>
 
@@ -230,6 +233,47 @@
   <ul class="st-list" id="statusList"></ul>
 </div>
 
+<div id="group" class="picker group" role="dialog" aria-modal="true" aria-labelledby="groupTitle" hidden>
+  <div class="picker-head">
+    <div><p class="label" id="groupLabel">Samen skiën</p><h2 id="groupTitle">Groep</h2></div>
+    <button type="button" class="icon-btn" id="groupClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
+  </div>
+
+  <div id="groupOut">
+    <p class="g-intro">Eén persoon kiest de bestemming, iedereen krijgt meteen de route ernaartoe vanaf zijn eigen plek. En je ziet elkaar op de kaart.</p>
+    <label class="g-field">Jouw naam<input type="text" id="gName" maxlength="20" placeholder="Bijvoorbeeld Thom" autocomplete="nickname"></label>
+    <button type="button" class="btn primary" id="gCreate"><svg class="ic"><use href="#i-group"/></svg>Nieuwe groep maken</button>
+    <div class="g-or"><span>of doe mee met een code</span></div>
+    <div class="g-join"><input type="text" id="gCode" maxlength="12" placeholder="Groepscode" autocomplete="off" autocapitalize="characters" aria-label="Groepscode"><button type="button" class="btn ghost" id="gJoin">Meedoen</button></div>
+  </div>
+
+  <div id="groupIn" hidden>
+    <div class="g-code-row">
+      <div class="qr" id="gQr"></div>
+      <div class="share-txt">
+        <span class="label">Groepscode</span>
+        <b class="g-code" id="gCodeShow"></b>
+        <small>Laat de anderen deze code scannen of stuur de link.</small>
+        <div class="share-btns">
+          <button type="button" class="btn ghost" id="gShare"><svg class="ic"><use href="#i-share"/></svg>Stuur link</button>
+          <button type="button" class="btn ghost" id="gCopy"><svg class="ic"><use href="#i-copy"/></svg>Kopieer</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn primary" id="gSendPlan"><svg class="ic"><use href="#i-send"/></svg>Stuur mijn route naar de groep</button>
+    <div class="g-plan" id="gPlan"></div>
+    <p class="label" style="margin:4px 0 0">Leden</p>
+    <ul class="g-members" id="gMembers"></ul>
+    <div class="set-group list g-set">
+      <label class="switch"><span>Route van de groep automatisch volgen</span><input type="checkbox" id="gFollow" checked><i></i></label>
+      <label class="switch"><span>Mijn positie delen met de groep</span><input type="checkbox" id="gSharePos" checked><i></i></label>
+    </div>
+    <p class="g-note" id="gConn"></p>
+    <p class="g-note">Berichten gaan via ntfy.sh, een gratis openbare dienst. Alleen wie de groepscode heeft kan meekijken, en berichten verdwijnen daar na 12 uur.</p>
+    <button type="button" class="btn ghost g-leave" id="gLeave">Groep verlaten</button>
+  </div>
+</div>
+
 <div id="sos" class="sos" role="dialog" aria-modal="true" aria-labelledby="sosTitle" hidden>
   <div class="sos-head">
     <div><p class="label">Noodgeval</p><h2 id="sosTitle">Hulp nodig?</h2></div>
@@ -257,6 +301,6 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
