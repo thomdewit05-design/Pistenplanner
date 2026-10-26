@@ -365,7 +365,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 /* ---------- open en dicht ---------- */
 .fab{position:relative}
 .count-dot{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--danger);color:#fff;font:800 12px/20px var(--f-ui);text-align:center;border:2px solid var(--surface)}
-@media (min-width:900px){.topbar #statusBtn{position:fixed;right:calc(66px + var(--safe-r));top:calc(12px + var(--safe-t))}}
+@media (min-width:900px){.topbar #statusBtn{position:fixed;right:calc(120px + var(--safe-r));top:calc(12px + var(--safe-t))}}
 .status{gap:10px}
 .st-summary{margin:-4px 0 0;font-size:14px;color:var(--muted)}
 .st-summary b{color:var(--ink)}
@@ -404,7 +404,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .risk-chip .ic{width:14px;height:14px}
 
 /* ---------- groep ---------- */
-@media (min-width:900px){.topbar #groupBtn{position:fixed;right:calc(120px + var(--safe-r));top:calc(12px + var(--safe-t))}}
+@media (min-width:900px){.topbar #groupBtn{position:fixed;right:calc(66px + var(--safe-r));top:calc(12px + var(--safe-t))}}
 .group-dot{background:var(--ok)}
 .group{gap:12px}
 .g-intro{margin:0;font-size:14.5px;color:var(--muted)}
@@ -546,3 +546,29 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
   .search input{padding:9px 0;font-size:15px}
   .near-btn{padding:8px}
 }
+
+/* groepsscherm: onderdelen netjes onder elkaar, knoppen over de volle breedte */
+.group{overflow:auto}
+#groupOut,#groupIn{display:flex;flex-direction:column;gap:14px}
+#groupOut>.btn,#groupIn>.btn{width:100%}
+.g-intro{line-height:1.5}
+.g-field{gap:6px}
+.g-or{margin:2px 0}
+.g-join .btn{padding:0 18px}
+.g-code-row .share-txt{flex:1}
+.g-code-row .share-btns .btn{flex:1;min-width:0}
+.g-members{margin-top:-6px}
+.g-set{padding:2px 14px}
+.g-leave{margin-top:2px}
+.g-code-row .share-btns{flex-direction:column;align-items:stretch}
+.share-btns .btn{white-space:nowrap}
+
+/* knoppen rechtsboven vrijhouden van de navigatie- en tekenbalk (desktop) */
+@media (min-width:900px){
+  .nav-banner,.draw-bar{right:calc(180px + var(--safe-r))}
+}
+/* knoppen onder de routesamenvatting: hoofdknop op een eigen regel */
+.cta{flex-wrap:wrap}
+.cta .btn.primary,.cta .btn.stop{flex:1 1 100%}
+.cta .btn.ghost{flex:1 1 auto}
+.cta #gSendBtn{flex:0 0 auto;padding-left:14px;padding-right:14px}
