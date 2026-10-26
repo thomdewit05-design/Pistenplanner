@@ -1,0 +1,460 @@
+"use strict";
+// Vertalingen. De app is in het Nederlands geschreven; deze laag vertaalt alles wat op het scherm komt
+// (en wat wordt voorgelezen) naar Engels of Duits. Losse teksten via EXACT, zinnen met namen via PATTERNS,
+// en losse woorden die in samengestelde regels staan via WORDS.
+const I18N_LANGS = {nl:"Nederlands", en:"English", de:"Deutsch"};
+let LANG = (() => {
+  try{ const s = localStorage.getItem("pp-lang"); if(s && I18N_LANGS[s]) return s; }catch(e){}
+  const n = (navigator.language || "nl").slice(0, 2).toLowerCase();
+  return n === "nl" ? "nl" : n === "de" ? "de" : n === "en" ? "en" : "nl";
+})();
+let LOCALE = {nl:"nl-NL", en:"en-GB", de:"de-DE"}[LANG];
+let DEC = LANG === "en" ? "." : ",";
+const SPEECH_LANG = () => ({nl:"nl-NL", en:"en-GB", de:"de-DE"}[LANG]);
+
+// ---------- liftsoorten en moeilijkheden ----------
+const LIFT_T = {
+  en:{stoeltjeslift:"chairlift", gondel:"gondola", kabelbaan:"cable car", sleeplift:"T-bar", schotellift:"button lift", touwlift:"rope tow",
+      "lopende band":"magic carpet", combibaan:"combined lift", kabeltrein:"funicular", lift:"lift"},
+  de:{stoeltjeslift:"Sessellift", gondel:"Gondelbahn", kabelbaan:"Seilbahn", sleeplift:"Schlepplift", schotellift:"Tellerlift", touwlift:"Seillift",
+      "lopende band":"Förderband", combibaan:"Kombibahn", kabeltrein:"Standseilbahn", lift:"Lift"}};
+// Duitse lidwoorden: [nominatief, accusatief, datief]
+const LIFT_DE_ART = {stoeltjeslift:["der","den","dem"], gondel:["die","die","der"], kabelbaan:["die","die","der"], sleeplift:["der","den","dem"],
+  schotellift:["der","den","dem"], touwlift:["der","den","dem"], "lopende band":["das","das","dem"], combibaan:["die","die","der"], kabeltrein:["die","die","der"], lift:["der","den","dem"]};
+const LIFT_RX = "(stoeltjeslift|gondel|kabelbaan|sleeplift|schotellift|touwlift|lopende band|combibaan|kabeltrein|lift)";
+const COLOR_T = {
+  en:{groen:"green", blauw:"blue", rood:"red", zwart:"black", skiroute:"ski route", onbekend:"unmarked", "blauw (gemiddeld)":"blue (intermediate)", "dubbel zwart":"double black"},
+  de:{groen:"grün", blauw:"blau", rood:"rot", zwart:"schwarz", skiroute:"Skiroute", onbekend:"unmarkiert", "blauw (gemiddeld)":"blau (mittel)", "dubbel zwart":"doppelschwarz"}};
+const ADJ = {groene:["green","grünen"], blauwe:["blue","blauen"], rode:["red","roten"], zwarte:["black","schwarzen"], ongemarkeerde:["unmarked","unmarkierten"], dubbelzwarte:["double black","doppelschwarzen"]};
+const uc1 = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+// "piste 6 Velill", "de blauwe piste", "de skiroute", of een naam
+function pisteT(x, kase){   // kase: "nom" | "dat" (Duits)
+  let m;
+  if((m = /^de (groene|blauwe|rode|zwarte|ongemarkeerde|dubbelzwarte) piste$/i.exec(x)))
+    return LANG === "en" ? `the ${ADJ[m[1].toLowerCase()][0]} run` : `${kase === "dat" ? "der" : "die"} ${ADJ[m[1].toLowerCase()][1]} Piste`;
+  if(/^de skiroute$/i.test(x)) return LANG === "en" ? "the ski route" : (kase === "dat" ? "der Skiroute" : "die Skiroute");
+  if((m = /^piste (.+)$/i.exec(x))) return LANG === "en" ? `run ${m[1]}` : `Piste ${m[1]}`;
+  return x;
+}
+function liftT(kind, rest, kase){  // kase: acc | dat | none
+  const k = kind.toLowerCase();
+  if(LANG === "en") return `the ${LIFT_T.en[k]}${rest || ""}`;
+  const a = LIFT_DE_ART[k] || ["der","den","dem"];
+  return `${kase === "dat" ? a[2] : a[1]} ${LIFT_T.de[k]}${rest || ""}`;
+}
+const TURN = {
+  en:{"houd links aan":"keep left onto", "houd rechts aan":"keep right onto", "ga linksaf":"turn left onto", "ga rechtsaf":"turn right onto", "rechtdoor":"continue onto"},
+  de:{"houd links aan":"links halten zu", "houd rechts aan":"rechts halten zu", "ga linksaf":"links abbiegen zu", "ga rechtsaf":"rechts abbiegen zu", "rechtdoor":"geradeaus zu"}};
+// "naar de blauwe piste" -> Duits "zur blauen Piste"
+const deZu = x => { const t = pisteT(x, "dat"); return t.startsWith("der ") ? "zur " + t.slice(4) : "zu " + t; };
+
+// ---------- plaatsen ----------
+function placeT(x){
+  let m;
+  if((m = /^(Dalstation|dalstation) (.+)$/.exec(x))) return LANG === "en" ? `${m[1][0] === "D" ? "B" : "b"}ottom station ${placeLift(m[2])}` : `Talstation ${placeLift(m[2])}`;
+  if((m = /^(Bergstation|bergstation) (.+)$/.exec(x))) return LANG === "en" ? `${m[1][0] === "B" ? "T" : "t"}op station ${placeLift(m[2])}` : `Bergstation ${placeLift(m[2])}`;
+  if((m = /^(Begin|begin) (.+)$/.exec(x))) return LANG === "en" ? `${m[1][0] === "B" ? "S" : "s"}tart of ${pisteT(m[2])}` : `Anfang ${pisteT(m[2])}`;
+  if((m = /^(Einde|einde) (.+)$/.exec(x))) return LANG === "en" ? `${m[1][0] === "E" ? "E" : "e"}nd of ${pisteT(m[2])}` : `Ende ${pisteT(m[2])}`;
+  if((m = /^(kruising|Kruising) op (.+)$/.exec(x))) return LANG === "en" ? `junction at ${m[2]}` : `Kreuzung auf ${m[2]}`;
+  return null;
+}
+const placeLift = s => { const m = new RegExp("^" + LIFT_RX + "( .+)?$", "i").exec(s); return m ? (LANG === "en" ? LIFT_T.en[m[1].toLowerCase()] : LIFT_T.de[m[1].toLowerCase()]) + (m[2] || "") : s; };
+const placeOrSelf = s => placeT(s) || pisteT(s);
+
+// ---------- losse teksten ----------
+const EXACT = {
+en:{
+ "Skigebied":"Ski area", "Kiezen…":"Choose…", "Kaartweergave":"Map style", "Satelliet":"Satellite", "Terrein":"Terrain", "Kaart":"Map", "Lagen":"Layers",
+ "Pistes en liften":"Runs and lifts", "Pistenummers":"Run numbers", "Hutten en restaurants":"Huts and restaurants", "Plaatsnamen":"Place names",
+ "Vertrekpunt":"Start", "Bestemming of piste":"Destination or run", "Bestemming":"Destination", "Start vanaf mijn locatie":"Start from my location",
+ "Omdraaien":"Swap", "Vertrek en bestemming omdraaien":"Swap start and destination", "Kies een skigebied om te beginnen.":"Choose a ski area to begin.",
+ "Niveau en voorkeuren":"Level and preferences", "Jouw niveau":"Your level", "Makkelijk":"Easy", "Gemiddeld":"Intermediate", "Moeilijk":"Difficult",
+ "Voorkeur":"Preference", "Snelste route":"Fastest route", "Rustigste route":"Easiest route", "Openingstijden liften":"Lift opening hours",
+ "Open vanaf":"Opens", "Laatste lift":"Last lift", "Kijk op de website van het skigebied; veel liften sluiten tussen 16:00 en 17:00, in het voorjaar later.":"Check the ski area's website; many lifts close between 4 and 5 pm, later in spring.",
+ "Skiroutes en freeride meenemen":"Include ski routes and freeride", "Met gondel naar beneden toestaan":"Allow riding gondolas down", "Gesproken aanwijzingen":"Spoken directions",
+ "Door jou afgesloten":"Closed by you", "Alles is open.":"Everything is open.", "Mijn routes":"My routes", "Bewaar":"Save", "Naam van de route":"Route name",
+ "Naam, bijv. Ochtendrondje":"Name, e.g. Morning loop", "Nog geen routes bewaard. Teken of plan een route en bewaar hem hier.":"No saved routes yet. Draw or plan a route and save it here.",
+ "Kies een skigebied":"Choose a ski area", "Zoek op naam, dorp of regio":"Search by name, village or region", "Zoek skigebied":"Search ski area", "Bij mij in de buurt":"Near me",
+ "Overal":"Everywhere", "Alle landen":"All countries", "Favorieten":"Favourites", "Alle skigebieden":"All ski areas", "Skigebieden":"Ski areas", "Skigebieden laden…":"Loading ski areas…",
+ "Mijn locatie":"My location", "Zoom naar route":"Zoom to route", "Heel skigebied":"Whole ski area", "Kaartlagen":"Map layers", "Route tekenen":"Draw route",
+ "Noodgeval (SOS)":"Emergency (SOS)", "Noodgeval":"Emergency", "Groep":"Group", "Open en dicht vandaag":"Open and closed today", "Paneel openen of sluiten":"Open or close panel",
+ "Sluiten":"Close", "Klaar":"Done", "Laatste punt weghalen":"Remove last point", "Alle punten wissen":"Clear all points", "Alles wissen":"Clear all",
+ "Tik je startpunt aan: een liftstation, kruising of piste":"Tap your starting point: a lift station, junction or run", "Tik op liftstations, kruisingen of pistes":"Tap lift stations, junctions or runs",
+ "Tik het volgende punt aan":"Tap the next point", "Start bij jou. Tik het eerste punt aan.":"Starts at you. Tap the first point.",
+ "Tik het volgende punt aan om de route verder te tekenen.":"Tap the next point to continue drawing.",
+ "Start navigatie":"Start navigation", "Navigatie stoppen":"Stop navigation", "Naar het dal":"To the valley", "Routebeschrijving":"Directions", "Hoogteprofiel":"Elevation profile",
+ "Terug naar het vertrekpunt":"Back to the start", "Terug bij je vertrekpunt":"Back at your start", "Je bent er bijna":"Almost there", "Je bent op je bestemming.":"You have arrived.",
+ "Kies een vertrekpunt en een bestemming, of tik op een piste.":"Choose a start and a destination, or tap a run.",
+ "Je bent al op je bestemming. Kies een andere bestemming.":"You are already at your destination. Choose another one.",
+ "Geen route gevonden.":"No route found.", "Geen route gevonden":"No route found", "Probeer:":"Try:", "kies een hoger niveau":"choose a higher level", "neem skiroutes mee":"include ski routes",
+ "open een gesloten piste":"open a closed run", "Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.":"Some parts of a ski area can only be reached by ski bus; those are not on the map.",
+ "met deze instellingen.":"with these settings.", "Ski deze piste":"Ski this run", "Neem deze lift":"Take this lift", "Hierheen":"Go here", "Vertrek hier":"Start here",
+ "Piste afsluiten":"Close run", "Lift afsluiten":"Close lift", "Lengte":"Length", "Dalen":"Descent", "Stijgen":"Ascent", "Duur":"Duration", "Als tussenstop in mijn route":"Add as a stop on my route",
+ "Weer en sneeuw laden…":"Loading weather and snow…", "Weer niet beschikbaar. Geen verbinding?":"Weather unavailable. No connection?", "Wind":"Wind", "Gevoel":"Feels like", "Zicht":"Visibility",
+ "Sneeuw":"Snow", "Vers":"Fresh", "0°-grens":"Freezing level", "op de top":"at the top", "op de top (model)":"at the top (model)", "laatste 24 uur":"last 24 hours", "vriespunt":"freezing point",
+ "Vandaag":"Today", "Morgen":"Tomorrow", "Lawinebericht":"Avalanche report", "Offline":"Offline",
+ "Open en dicht":"Open and closed", "Officiële liftstatus":"Official lift status", "Zoek liftstatus":"Find lift status", "Delen met groep":"Share with group",
+ "Laat je groep deze code scannen":"Let your group scan this code", "Of stuur de link. Wie hem opent, krijgt dezelfde liften en pistes op dicht, alleen voor vandaag.":"Or send the link. Whoever opens it gets the same closed lifts and runs, for today only.",
+ "Stuur link":"Send link", "Kopieer":"Copy", "Zoek lift of piste, naam of nummer":"Search lift or run, name or number", "Zoek lift of piste":"Search lift or run",
+ "Liften":"Lifts", "Pistes":"Runs", "Alles weer open":"Reopen all", "Zet ze op dicht":"Mark them closed", "Mogelijk dicht door wind":"Possibly closed due to wind",
+ "Samen skiën":"Ski together", "Jouw groep":"Your group", "Jouw naam":"Your name", "Bijvoorbeeld Thom":"For example Thom", "Nieuwe groep maken":"Create new group",
+ "of doe mee met een code":"or join with a code", "Groepscode":"Group code", "Meedoen":"Join", "Laat de anderen deze code scannen of stuur de link.":"Let the others scan this code or send the link.",
+ "Stuur mijn route naar de groep":"Send my route to the group", "Stuur deze route naar je groep":"Send this route to your group", "Leden":"Members",
+ "Route van de groep automatisch volgen":"Follow the group's route automatically", "Mijn positie delen met de groep":"Share my position with the group", "Groep verlaten":"Leave group",
+ "Berichten gaan via ntfy.sh, een gratis openbare dienst. Alleen wie de groepscode heeft kan meekijken, en berichten verdwijnen daar na 12 uur.":"Messages go through ntfy.sh, a free public service. Only people with the group code can follow along, and messages disappear there after 12 hours.",
+ "Eén persoon kiest de bestemming, iedereen krijgt meteen de route ernaartoe vanaf zijn eigen plek. En je ziet elkaar op de kaart.":"One person picks the destination; everyone instantly gets the route there from where they are. And you see each other on the map.",
+ "Nog niemand anders. Laat ze de code scannen.":"Nobody else yet. Let them scan the code.", "positie niet gedeeld":"position not shared", "positie nog onbekend":"position not known yet", "in de buurt":"nearby",
+ "Hulp nodig?":"Need help?", "Jouw locatie, lees dit voor aan de hulpdienst":"Your location, read this to the emergency services", "Kopiëren":"Copy", "Delen":"Share",
+ "Europees alarmnummer, werkt in heel Europa":"European emergency number, works all over Europe", "Nauwkeurig":"Accuracy", "Hoogte":"Altitude", "Waar":"Where", "onbekend":"unknown",
+ "Niet bij een piste of lift":"Not near a run or lift", "Zorg voor je eigen veiligheid":"Keep yourself safe", "en die van het slachtoffer.":"and the injured person.",
+ "Markeer de plek":"Mark the spot", "boven het slachtoffer met gekruiste ski's, zodat anderen afremmen.":"above the injured person with crossed skis, so others slow down.",
+ "Houd het slachtoffer warm":"Keep the injured person warm", "en blijf erbij tot de hulp er is.":"and stay with them until help arrives.", "Geen bereik?":"No signal?",
+ "Stuur iemand naar de dichtstbijzijnde lift of hut en waarschuw het personeel.":"Send someone to the nearest lift or hut and alert the staff.",
+ "Skidagboek":"Ski diary", "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid":"Track your ski day: distance, vertical and top speed", "Opname":"Recording",
+ "Begin met opnemen":"Start recording", "Verder opnemen":"Resume recording", "Opname stoppen":"Stop recording", "Terug naar vandaag":"Back to today", "Eerdere dag":"Earlier day",
+ "geskied":"skied", "Omlaag":"Down", "Top":"Top", "Afdalingen":"Runs", "Op de berg":"On the mountain", "In de lift":"On lifts", "Deel mijn dag":"Share my day",
+ "Mijn spoor op de kaart tonen":"Show my track on the map", "Scherm aan houden tijdens opnemen":"Keep screen on while recording", "Mijn skidagen":"My ski days",
+ "Je telefoon pauzeert web-apps als het scherm uit gaat. Laat de app open staan, of zet \"Scherm aan houden\" aan (kost meer batterij). Het spoor blijft alleen op deze telefoon.":"Your phone pauses web apps when the screen turns off. Keep the app open, or turn on \"Keep screen on\" (uses more battery). The track stays on this phone only.",
+ "Opname loopt. Ga skiën!":"Recording. Go skiing!", "wacht op GPS…":"waiting for GPS…", "Taal":"Language",
+ "Locatie zoeken…":"Finding location…", "Locatie zoeken… Ga zo mogelijk naar een open plek.":"Finding location… Move to an open spot if you can.",
+ "Weer laden…":"Loading weather…", "Kaart laden…":"Loading map…", "Lijst kon niet laden. Herlaad de app.":"The list could not load. Reload the app.",
+ "Laden mislukt. Controleer je verbinding.":"Loading failed. Check your connection.", "Kaartdata kon niet laden.":"Map data could not load.",
+ "Tik op een piste, een lift of een liftstation.":"Tap a run, a lift or a lift station.", "Dit apparaat geeft geen locatie door.":"This device does not provide a location.",
+ "Locatie geweigerd. Sta locatie toe in je browserinstellingen.":"Location denied. Allow location in your browser settings.", "Locatie niet gevonden. Probeer het buiten opnieuw.":"Location not found. Try again outside.",
+ "Je bent van de route af. Nieuwe route berekend.":"You left the route. New route calculated.", "Je hebt de groep verlaten.":"You left the group.", "Vul eerst je naam in.":"Enter your name first.",
+ "Vul de groepscode in.":"Enter the group code.", "Vul je naam in en tik op Meedoen.":"Enter your name and tap Join.", "Route gestuurd naar de groep.":"Route sent to the group.",
+ "Versturen lukte niet. Controleer je verbinding.":"Sending failed. Check your connection.", "Kies eerst een bestemming of piste.":"Choose a destination or run first.",
+ "Link gekopieerd.":"Link copied.", "Kopiëren lukte niet.":"Copying failed.", "Link gekopieerd. Plak hem in de groepsapp.":"Link copied. Paste it in your group chat.",
+ "Kopiëren lukte niet. Lees de coördinaten voor.":"Copying failed. Read out the coordinates.", "Locatie gekopieerd. Plak hem in een bericht.":"Location copied. Paste it in a message.",
+ "Teken of plan eerst een route.":"Draw or plan a route first.", "Dit punt staat er al.":"This point is already there.",
+ "Dit punt is vanaf het vorige niet te bereiken met jouw niveau. Kies een ander punt.":"This point can't be reached from the previous one at your level. Choose another point.",
+ "Kies eerst een route, dan kun je er een stop aan toevoegen.":"Choose a route first, then you can add a stop.", "Deze plek is niet in je route te passen met jouw niveau.":"This place can't be fitted into your route at your level.",
+ "Kies eerst waar je nu bent (A).":"First choose where you are now (A).", "Vanaf hier is geen weg naar beneden gevonden.":"No way down was found from here.",
+ "Het dagboek neemt op. Veel skiplezier!":"The diary is recording. Have fun skiing!", "Opname gestopt. Je dag is bewaard.":"Recording stopped. Your day is saved.",
+ "Het skidagboek neemt weer op.":"The ski diary is recording again.", "Stop eerst de opname van vandaag.":"Stop today's recording first.",
+ "Tik nog een keer om deze dag te verwijderen.":"Tap again to delete this day.", "Dag verwijderd.":"Day deleted.", "Het dagboek is vol. Verwijder een paar oude dagen.":"The diary is full. Delete a few old days.",
+ "Opslaan lukte niet. Is het geheugen vol?":"Saving failed. Is storage full?", "Samenvatting gekopieerd.":"Summary copied.", "Delen lukte niet.":"Sharing failed.",
+ "Alles staat weer op open.":"Everything is open again.", "Liften met windrisico op dicht gezet.":"Lifts at wind risk marked closed.", "QR-code lukte niet. Stuur de link.":"QR code failed. Send the link.",
+ "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw.":"The free service is busy. Try again in a few minutes.",
+ "Verbinden…":"Connecting…", "Verbinding met de groep herstellen…":"Reconnecting to the group…", "Geen internet. Je ziet de groep weer zodra je verbinding hebt.":"No internet. You'll see the group again once you're online.",
+ "Status van je groep geladen: alles open.":"Your group's status loaded: everything open.", "Liftstatus vandaag":"Lift status today", "Mijn skidag":"My ski day",
+ "Gondel":"Gondola", "Stoeltjeslift":"Chairlift", "Sleeplift":"T-bar", "Kabelbaan":"Cable car", "Schotellift":"Button lift", "Touwlift":"Rope tow", "Lopende band":"Magic carpet",
+ "Berghut":"Mountain hut", "Restaurant":"Restaurant", "Café":"Café", "Bar":"Bar", "Snackbar":"Snack bar", "Skiroute":"Ski route",
+ "Pistedata ©":"Run data ©", "-bijdragers via":" contributors via", "Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"Times are estimates. Always follow the signs and closures on site.",
+ "Nog geen weerbericht bewaard.":"No weather report saved yet.", "Nog niet offline.":"Not offline yet.",
+ "Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.":"Only the parts of the background map you have viewed are saved. Zoom around the area on wifi at home.",
+ "Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.":"Open this area once with internet; after that it works without signal too.",
+ "Alpen":"Alps", "Pyreneeën":"Pyrenees", "Scandinavië":"Scandinavia", "Noord-Amerika":"North America",
+ "Oostenrijk":"Austria", "Zwitserland":"Switzerland", "Frankrijk":"France", "Italië":"Italy", "Duitsland":"Germany", "Slovenië":"Slovenia", "Spanje":"Spain",
+ "Noorwegen":"Norway", "Zweden":"Sweden", "Verenigde Staten":"United States", "Canada":"Canada", "Andorra":"Andorra", "Finland":"Finland", "Liechtenstein":"Liechtenstein",
+ "Helder":"Clear", "Overwegend helder":"Mostly clear", "Half bewolkt":"Partly cloudy", "Bewolkt":"Cloudy", "Mist":"Fog", "Mist met rijp":"Freezing fog", "Lichte motregen":"Light drizzle",
+ "Motregen":"Drizzle", "IJzel":"Freezing rain", "Lichte regen":"Light rain", "Regen":"Rain", "Zware regen":"Heavy rain", "Lichte sneeuw":"Light snow", "Zware sneeuw":"Heavy snow",
+ "Korrelsneeuw":"Snow grains", "Regenbuien":"Rain showers", "Zware buien":"Heavy showers", "Sneeuwbuien":"Snow showers", "Zware sneeuwbuien":"Heavy snow showers",
+ "Onweer":"Thunderstorm", "Onweer met hagel":"Thunderstorm with hail", "Onbekend":"Unknown", "Dicht":"Closed", "Open":"Open",
+ "Bijgehouden met de Pistenplanner":"Tracked with the Pistenplanner",
+ "Tik op een":"Tap a", "om hem te skiën, of op een punt om het":"to ski it, or a point to choose the", "om hem te skiën, of op een punt om de":"to ski it, or a point to choose the",
+ "vertrekpunt (A)":"start (A)", "bestemming (B)":"destination (B)", "te kiezen.":".",
+ "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Oct 2026. Times are estimates. Always follow the signs and closures on site.", "Liftstatus vandaag":"Lift status today", "Skiën in een groep":"Skiing as a group", "Mijn locatie (noodgeval)":"My location (emergency)",
+},
+de:{
+ "Skigebied":"Skigebiet", "Kiezen…":"Auswählen…", "Kaartweergave":"Kartenansicht", "Satelliet":"Satellit", "Terrein":"Gelände", "Kaart":"Karte", "Lagen":"Ebenen",
+ "Pistes en liften":"Pisten und Lifte", "Pistenummers":"Pistennummern", "Hutten en restaurants":"Hütten und Restaurants", "Plaatsnamen":"Ortsnamen",
+ "Vertrekpunt":"Start", "Bestemming of piste":"Ziel oder Piste", "Bestemming":"Ziel", "Start vanaf mijn locatie":"Von meinem Standort starten",
+ "Omdraaien":"Tauschen", "Vertrek en bestemming omdraaien":"Start und Ziel tauschen", "Kies een skigebied om te beginnen.":"Wähle ein Skigebiet, um zu beginnen.",
+ "Niveau en voorkeuren":"Niveau und Einstellungen", "Jouw niveau":"Dein Niveau", "Makkelijk":"Leicht", "Gemiddeld":"Mittel", "Moeilijk":"Schwer",
+ "Voorkeur":"Vorliebe", "Snelste route":"Schnellste Route", "Rustigste route":"Leichteste Route", "Openingstijden liften":"Liftöffnungszeiten",
+ "Open vanaf":"Öffnet um", "Laatste lift":"Letzter Lift", "Kijk op de website van het skigebied; veel liften sluiten tussen 16:00 en 17:00, in het voorjaar later.":"Sieh auf der Website des Skigebiets nach; viele Lifte schließen zwischen 16 und 17 Uhr, im Frühling später.",
+ "Skiroutes en freeride meenemen":"Skirouten und Freeride einbeziehen", "Met gondel naar beneden toestaan":"Talfahrt mit der Gondel erlauben", "Gesproken aanwijzingen":"Sprachansagen",
+ "Door jou afgesloten":"Von dir gesperrt", "Alles is open.":"Alles ist offen.", "Mijn routes":"Meine Routen", "Bewaar":"Speichern", "Naam van de route":"Name der Route",
+ "Naam, bijv. Ochtendrondje":"Name, z. B. Morgenrunde", "Nog geen routes bewaard. Teken of plan een route en bewaar hem hier.":"Noch keine Routen gespeichert. Zeichne oder plane eine Route und speichere sie hier.",
+ "Kies een skigebied":"Skigebiet wählen", "Zoek op naam, dorp of regio":"Nach Name, Ort oder Region suchen", "Zoek skigebied":"Skigebiet suchen", "Bij mij in de buurt":"In meiner Nähe",
+ "Overal":"Überall", "Alle landen":"Alle Länder", "Favorieten":"Favoriten", "Alle skigebieden":"Alle Skigebiete", "Skigebieden":"Skigebiete", "Skigebieden laden…":"Skigebiete werden geladen…",
+ "Mijn locatie":"Mein Standort", "Zoom naar route":"Zur Route zoomen", "Heel skigebied":"Ganzes Skigebiet", "Kaartlagen":"Kartenebenen", "Route tekenen":"Route zeichnen",
+ "Noodgeval (SOS)":"Notfall (SOS)", "Noodgeval":"Notfall", "Groep":"Gruppe", "Open en dicht vandaag":"Heute offen und geschlossen", "Paneel openen of sluiten":"Bereich öffnen oder schließen",
+ "Sluiten":"Schließen", "Klaar":"Fertig", "Laatste punt weghalen":"Letzten Punkt entfernen", "Alle punten wissen":"Alle Punkte löschen", "Alles wissen":"Alles löschen",
+ "Tik je startpunt aan: een liftstation, kruising of piste":"Tippe deinen Startpunkt an: eine Liftstation, Kreuzung oder Piste", "Tik op liftstations, kruisingen of pistes":"Tippe auf Liftstationen, Kreuzungen oder Pisten",
+ "Tik het volgende punt aan":"Tippe den nächsten Punkt an", "Start bij jou. Tik het eerste punt aan.":"Start bei dir. Tippe den ersten Punkt an.",
+ "Tik het volgende punt aan om de route verder te tekenen.":"Tippe den nächsten Punkt an, um weiterzuzeichnen.",
+ "Start navigatie":"Navigation starten", "Navigatie stoppen":"Navigation beenden", "Naar het dal":"Ins Tal", "Routebeschrijving":"Wegbeschreibung", "Hoogteprofiel":"Höhenprofil",
+ "Terug naar het vertrekpunt":"Zurück zum Start", "Terug bij je vertrekpunt":"Zurück am Start", "Je bent er bijna":"Fast da", "Je bent op je bestemming.":"Du bist am Ziel.",
+ "Kies een vertrekpunt en een bestemming, of tik op een piste.":"Wähle Start und Ziel oder tippe auf eine Piste.",
+ "Je bent al op je bestemming. Kies een andere bestemming.":"Du bist schon am Ziel. Wähle ein anderes Ziel.",
+ "Geen route gevonden.":"Keine Route gefunden.", "Geen route gevonden":"Keine Route gefunden", "Probeer:":"Versuche:", "kies een hoger niveau":"wähle ein höheres Niveau", "neem skiroutes mee":"beziehe Skirouten ein",
+ "open een gesloten piste":"öffne eine gesperrte Piste", "Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.":"Manche Teile eines Skigebiets erreicht man nur mit dem Skibus; die sind nicht auf der Karte.",
+ "met deze instellingen.":"mit diesen Einstellungen.", "Ski deze piste":"Diese Piste fahren", "Neem deze lift":"Diesen Lift nehmen", "Hierheen":"Hierhin", "Vertrek hier":"Hier starten",
+ "Piste afsluiten":"Piste sperren", "Lift afsluiten":"Lift sperren", "Lengte":"Länge", "Dalen":"Abfahrt", "Stijgen":"Aufstieg", "Duur":"Dauer", "Als tussenstop in mijn route":"Als Zwischenstopp in meine Route",
+ "Weer en sneeuw laden…":"Wetter und Schnee werden geladen…", "Weer niet beschikbaar. Geen verbinding?":"Wetter nicht verfügbar. Keine Verbindung?", "Wind":"Wind", "Gevoel":"Gefühlt", "Zicht":"Sicht",
+ "Sneeuw":"Schnee", "Vers":"Neuschnee", "0°-grens":"Nullgradgrenze", "op de top":"am Gipfel", "op de top (model)":"am Gipfel (Modell)", "laatste 24 uur":"letzte 24 Stunden", "vriespunt":"Gefrierpunkt",
+ "Vandaag":"Heute", "Morgen":"Morgen", "Lawinebericht":"Lawinenbericht", "Offline":"Offline",
+ "Open en dicht":"Offen und geschlossen", "Officiële liftstatus":"Offizieller Liftstatus", "Zoek liftstatus":"Liftstatus suchen", "Delen met groep":"Mit Gruppe teilen",
+ "Laat je groep deze code scannen":"Lass deine Gruppe diesen Code scannen", "Of stuur de link. Wie hem opent, krijgt dezelfde liften en pistes op dicht, alleen voor vandaag.":"Oder schick den Link. Wer ihn öffnet, bekommt dieselben gesperrten Lifte und Pisten, nur für heute.",
+ "Stuur link":"Link senden", "Kopieer":"Kopieren", "Zoek lift of piste, naam of nummer":"Lift oder Piste suchen, Name oder Nummer", "Zoek lift of piste":"Lift oder Piste suchen",
+ "Liften":"Lifte", "Pistes":"Pisten", "Alles weer open":"Alles wieder öffnen", "Zet ze op dicht":"Als geschlossen markieren", "Mogelijk dicht door wind":"Wegen Wind evtl. geschlossen",
+ "Samen skiën":"Gemeinsam Ski fahren", "Jouw groep":"Deine Gruppe", "Jouw naam":"Dein Name", "Bijvoorbeeld Thom":"Zum Beispiel Thom", "Nieuwe groep maken":"Neue Gruppe erstellen",
+ "of doe mee met een code":"oder mit Code beitreten", "Groepscode":"Gruppencode", "Meedoen":"Beitreten", "Laat de anderen deze code scannen of stuur de link.":"Lass die anderen diesen Code scannen oder schick den Link.",
+ "Stuur mijn route naar de groep":"Meine Route an die Gruppe senden", "Stuur deze route naar je groep":"Diese Route an deine Gruppe senden", "Leden":"Mitglieder",
+ "Route van de groep automatisch volgen":"Route der Gruppe automatisch folgen", "Mijn positie delen met de groep":"Meine Position mit der Gruppe teilen", "Groep verlaten":"Gruppe verlassen",
+ "Berichten gaan via ntfy.sh, een gratis openbare dienst. Alleen wie de groepscode heeft kan meekijken, en berichten verdwijnen daar na 12 uur.":"Nachrichten laufen über ntfy.sh, einen kostenlosen öffentlichen Dienst. Nur wer den Gruppencode hat, kann mitlesen, und Nachrichten verschwinden dort nach 12 Stunden.",
+ "Eén persoon kiest de bestemming, iedereen krijgt meteen de route ernaartoe vanaf zijn eigen plek. En je ziet elkaar op de kaart.":"Eine Person wählt das Ziel, alle bekommen sofort die Route dorthin von ihrem eigenen Standort. Und ihr seht euch auf der Karte.",
+ "Nog niemand anders. Laat ze de code scannen.":"Noch niemand sonst. Lass sie den Code scannen.", "positie niet gedeeld":"Position nicht geteilt", "positie nog onbekend":"Position noch unbekannt", "in de buurt":"in der Nähe",
+ "Hulp nodig?":"Brauchst du Hilfe?", "Jouw locatie, lees dit voor aan de hulpdienst":"Dein Standort, lies ihn der Rettung vor", "Kopiëren":"Kopieren", "Delen":"Teilen",
+ "Europees alarmnummer, werkt in heel Europa":"Europäischer Notruf, funktioniert in ganz Europa", "Nauwkeurig":"Genauigkeit", "Hoogte":"Höhe", "Waar":"Wo", "onbekend":"unbekannt",
+ "Niet bij een piste of lift":"Nicht bei einer Piste oder einem Lift", "Zorg voor je eigen veiligheid":"Achte auf deine eigene Sicherheit", "en die van het slachtoffer.":"und die der verletzten Person.",
+ "Markeer de plek":"Markiere die Stelle", "boven het slachtoffer met gekruiste ski's, zodat anderen afremmen.":"oberhalb der verletzten Person mit gekreuzten Skiern, damit andere bremsen.",
+ "Houd het slachtoffer warm":"Halte die verletzte Person warm", "en blijf erbij tot de hulp er is.":"und bleib bei ihr, bis Hilfe da ist.", "Geen bereik?":"Kein Empfang?",
+ "Stuur iemand naar de dichtstbijzijnde lift of hut en waarschuw het personeel.":"Schick jemanden zum nächsten Lift oder zur nächsten Hütte und alarmiere das Personal.",
+ "Skidagboek":"Skitagebuch", "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid":"Zeichne deinen Skitag auf: Kilometer, Höhenmeter und Höchstgeschwindigkeit", "Opname":"Aufnahme",
+ "Begin met opnemen":"Aufnahme starten", "Verder opnemen":"Aufnahme fortsetzen", "Opname stoppen":"Aufnahme beenden", "Terug naar vandaag":"Zurück zu heute", "Eerdere dag":"Früherer Tag",
+ "geskied":"gefahren", "Omlaag":"Abwärts", "Top":"Spitze", "Afdalingen":"Abfahrten", "Op de berg":"Am Berg", "In de lift":"Im Lift", "Deel mijn dag":"Meinen Tag teilen",
+ "Mijn spoor op de kaart tonen":"Meine Spur auf der Karte zeigen", "Scherm aan houden tijdens opnemen":"Bildschirm während der Aufnahme anlassen", "Mijn skidagen":"Meine Skitage",
+ "Je telefoon pauzeert web-apps als het scherm uit gaat. Laat de app open staan, of zet \"Scherm aan houden\" aan (kost meer batterij). Het spoor blijft alleen op deze telefoon.":"Dein Handy pausiert Web-Apps, wenn der Bildschirm ausgeht. Lass die App offen oder schalte \"Bildschirm anlassen\" ein (braucht mehr Akku). Die Spur bleibt nur auf diesem Handy.",
+ "Opname loopt. Ga skiën!":"Aufnahme läuft. Ab auf die Piste!", "wacht op GPS…":"warte auf GPS…", "Taal":"Sprache",
+ "Locatie zoeken…":"Standort wird gesucht…", "Locatie zoeken… Ga zo mogelijk naar een open plek.":"Standort wird gesucht… Geh möglichst an eine offene Stelle.",
+ "Weer laden…":"Wetter wird geladen…", "Kaart laden…":"Karte wird geladen…", "Lijst kon niet laden. Herlaad de app.":"Die Liste konnte nicht laden. Lade die App neu.",
+ "Laden mislukt. Controleer je verbinding.":"Laden fehlgeschlagen. Prüfe deine Verbindung.", "Kaartdata kon niet laden.":"Kartendaten konnten nicht laden.",
+ "Tik op een piste, een lift of een liftstation.":"Tippe auf eine Piste, einen Lift oder eine Liftstation.", "Dit apparaat geeft geen locatie door.":"Dieses Gerät liefert keinen Standort.",
+ "Locatie geweigerd. Sta locatie toe in je browserinstellingen.":"Standort verweigert. Erlaube den Standort in den Browsereinstellungen.", "Locatie niet gevonden. Probeer het buiten opnieuw.":"Standort nicht gefunden. Versuch es draußen noch einmal.",
+ "Je bent van de route af. Nieuwe route berekend.":"Du hast die Route verlassen. Neue Route berechnet.", "Je hebt de groep verlaten.":"Du hast die Gruppe verlassen.", "Vul eerst je naam in.":"Gib zuerst deinen Namen ein.",
+ "Vul de groepscode in.":"Gib den Gruppencode ein.", "Vul je naam in en tik op Meedoen.":"Gib deinen Namen ein und tippe auf Beitreten.", "Route gestuurd naar de groep.":"Route an die Gruppe gesendet.",
+ "Versturen lukte niet. Controleer je verbinding.":"Senden fehlgeschlagen. Prüfe deine Verbindung.", "Kies eerst een bestemming of piste.":"Wähle zuerst ein Ziel oder eine Piste.",
+ "Link gekopieerd.":"Link kopiert.", "Kopiëren lukte niet.":"Kopieren fehlgeschlagen.", "Link gekopieerd. Plak hem in de groepsapp.":"Link kopiert. Füge ihn in den Gruppenchat ein.",
+ "Kopiëren lukte niet. Lees de coördinaten voor.":"Kopieren fehlgeschlagen. Lies die Koordinaten vor.", "Locatie gekopieerd. Plak hem in een bericht.":"Standort kopiert. Füge ihn in eine Nachricht ein.",
+ "Teken of plan eerst een route.":"Zeichne oder plane zuerst eine Route.", "Dit punt staat er al.":"Dieser Punkt ist schon da.",
+ "Dit punt is vanaf het vorige niet te bereiken met jouw niveau. Kies een ander punt.":"Dieser Punkt ist vom vorigen mit deinem Niveau nicht erreichbar. Wähle einen anderen Punkt.",
+ "Kies eerst een route, dan kun je er een stop aan toevoegen.":"Wähle zuerst eine Route, dann kannst du einen Stopp hinzufügen.", "Deze plek is niet in je route te passen met jouw niveau.":"Dieser Ort passt mit deinem Niveau nicht in deine Route.",
+ "Kies eerst waar je nu bent (A).":"Wähle zuerst, wo du gerade bist (A).", "Vanaf hier is geen weg naar beneden gevonden.":"Von hier wurde kein Weg nach unten gefunden.",
+ "Het dagboek neemt op. Veel skiplezier!":"Das Tagebuch zeichnet auf. Viel Spaß beim Skifahren!", "Opname gestopt. Je dag is bewaard.":"Aufnahme beendet. Dein Tag ist gespeichert.",
+ "Het skidagboek neemt weer op.":"Das Skitagebuch zeichnet wieder auf.", "Stop eerst de opname van vandaag.":"Beende zuerst die heutige Aufnahme.",
+ "Tik nog een keer om deze dag te verwijderen.":"Tippe noch einmal, um diesen Tag zu löschen.", "Dag verwijderd.":"Tag gelöscht.", "Het dagboek is vol. Verwijder een paar oude dagen.":"Das Tagebuch ist voll. Lösche ein paar alte Tage.",
+ "Opslaan lukte niet. Is het geheugen vol?":"Speichern fehlgeschlagen. Ist der Speicher voll?", "Samenvatting gekopieerd.":"Zusammenfassung kopiert.", "Delen lukte niet.":"Teilen fehlgeschlagen.",
+ "Alles staat weer op open.":"Alles ist wieder offen.", "Liften met windrisico op dicht gezet.":"Lifte mit Windrisiko als geschlossen markiert.", "QR-code lukte niet. Stuur de link.":"QR-Code fehlgeschlagen. Schick den Link.",
+ "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw.":"Der kostenlose Dienst ist gerade überlastet. Versuch es in ein paar Minuten noch einmal.",
+ "Verbinden…":"Verbinden…", "Verbinding met de groep herstellen…":"Verbindung zur Gruppe wird wiederhergestellt…", "Geen internet. Je ziet de groep weer zodra je verbinding hebt.":"Kein Internet. Du siehst die Gruppe wieder, sobald du online bist.",
+ "Status van je groep geladen: alles open.":"Status deiner Gruppe geladen: alles offen.", "Liftstatus vandaag":"Liftstatus heute", "Mijn skidag":"Mein Skitag",
+ "Gondel":"Gondelbahn", "Stoeltjeslift":"Sessellift", "Sleeplift":"Schlepplift", "Kabelbaan":"Seilbahn", "Schotellift":"Tellerlift", "Touwlift":"Seillift", "Lopende band":"Förderband",
+ "Berghut":"Berghütte", "Restaurant":"Restaurant", "Café":"Café", "Bar":"Bar", "Snackbar":"Imbiss", "Skiroute":"Skiroute",
+ "Pistedata ©":"Pistendaten ©", "-bijdragers via":"-Mitwirkende via", "Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"Zeiten sind Schätzungen. Beachte immer die Schilder und Sperrungen vor Ort.",
+ "Nog geen weerbericht bewaard.":"Noch kein Wetterbericht gespeichert.", "Nog niet offline.":"Noch nicht offline.",
+ "Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.":"Von der Hintergrundkarte werden nur die Teile gespeichert, die du angesehen hast. Zoom zu Hause im WLAN kurz durch das Gebiet.",
+ "Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.":"Öffne dieses Gebiet einmal mit Internet; danach funktioniert es auch ohne Empfang.",
+ "Alpen":"Alpen", "Pyreneeën":"Pyrenäen", "Scandinavië":"Skandinavien", "Noord-Amerika":"Nordamerika",
+ "Oostenrijk":"Österreich", "Zwitserland":"Schweiz", "Frankrijk":"Frankreich", "Italië":"Italien", "Duitsland":"Deutschland", "Slovenië":"Slowenien", "Spanje":"Spanien",
+ "Noorwegen":"Norwegen", "Zweden":"Schweden", "Verenigde Staten":"Vereinigte Staaten", "Canada":"Kanada", "Andorra":"Andorra", "Finland":"Finnland", "Liechtenstein":"Liechtenstein",
+ "Helder":"Klar", "Overwegend helder":"Überwiegend klar", "Half bewolkt":"Teilweise bewölkt", "Bewolkt":"Bewölkt", "Mist":"Nebel", "Mist met rijp":"Gefrierender Nebel", "Lichte motregen":"Leichter Nieselregen",
+ "Motregen":"Nieselregen", "IJzel":"Glatteis", "Lichte regen":"Leichter Regen", "Regen":"Regen", "Zware regen":"Starker Regen", "Lichte sneeuw":"Leichter Schneefall", "Zware sneeuw":"Starker Schneefall",
+ "Korrelsneeuw":"Schneegriesel", "Regenbuien":"Regenschauer", "Zware buien":"Starke Schauer", "Sneeuwbuien":"Schneeschauer", "Zware sneeuwbuien":"Starke Schneeschauer",
+ "Onweer":"Gewitter", "Onweer met hagel":"Gewitter mit Hagel", "Onbekend":"Unbekannt", "Dicht":"Geschlossen", "Open":"Offen",
+ "Bijgehouden met de Pistenplanner":"Aufgezeichnet mit dem Pistenplanner",
+ "Tik op een":"Tippe auf eine", "om hem te skiën, of op een punt om het":", um sie zu fahren, oder auf einen Punkt, um den", "om hem te skiën, of op een punt om de":", um sie zu fahren, oder auf einen Punkt, um das",
+ "vertrekpunt (A)":"Start (A)", "bestemming (B)":"Ziel (B)", "te kiezen.":"zu wählen.",
+ "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Okt. 2026. Zeiten sind Schätzungen. Beachte immer die Schilder und Sperrungen vor Ort.", "Liftstatus vandaag":"Liftstatus heute", "Skiën in een groep":"Gemeinsam Skifahren", "Mijn locatie (noodgeval)":"Mein Standort (Notfall)",
+}};
+
+// ---------- zinnen met namen of getallen ----------
+const N = "([\\d.,]+)";
+const P = (rx, en, de) => [new RegExp(rx), en, de];
+const PATTERNS = [
+ P("^(\\d+)u (\\d\\d)$", (m) => `${m[1]} h ${m[2]}`, (m) => `${m[1]} Std. ${m[2]}`),
+ // gesproken: "Volg piste 6, 1,2 kilometer." (eerst, anders pakt "Volg ..." de hele zin)
+ P("^(.+), " + N + " (kilometer|meter)\\.$", (m) => `${tr(m[1])}, ${m[2]} ${m[3] === "kilometer" ? "kilometres" : "metres"}.`, (m) => `${tr(m[1])}, ${m[2]} ${m[3] === "kilometer" ? "Kilometer" : "Meter"}.`),
+ // routestappen
+ P("^(Neem) de " + LIFT_RX + "( .*)?$", (m) => `Take ${liftT(m[2], m[3])}`, (m) => `Nimm ${liftT(m[2], m[3], "acc")}`),
+ P("^Ga met de " + LIFT_RX + "( .*)? naar beneden$", (m) => `Ride ${liftT(m[1], m[2])} down`, (m) => `Fahre mit ${liftT(m[1], m[2], "dat")} hinunter`),
+ P("^(stap|Stap) in bij de " + LIFT_RX + "( .*)?$", (m) => `${m[1][0] === "S" ? "B" : "b"}oard ${liftT(m[2], m[3])}`, (m) => `${m[1][0] === "S" ? "S" : "s"}teig in ${liftT(m[2], m[3], "acc")} ein`),
+ P("^(Volg|volg) (.+)$", (m) => `${m[1][0] === "V" ? "F" : "f"}ollow ${pisteT(m[2])}`, (m) => `${m[1][0] === "V" ? "F" : "f"}olge ${pisteT(m[2], "dat")}`),
+ P("^(Houd links aan|Houd rechts aan|Ga linksaf|Ga rechtsaf|Rechtdoor|houd links aan|houd rechts aan|ga linksaf|ga rechtsaf|rechtdoor) naar (.+)$",
+   (m) => { const t = TURN.en[m[1].toLowerCase()]; return `${m[1][0] === m[1][0].toUpperCase() ? uc1(t) : t} ${pisteT(m[2])}`; },
+   (m) => { const t = TURN.de[m[1].toLowerCase()].replace(/ zu$/, ""); return `${m[1][0] === m[1][0].toUpperCase() ? uc1(t) : t} ${deZu(m[2])}`; }),
+ P("^(Loop|loop) of skate (.+)$", (m) => `${m[1][0] === "L" ? "W" : "w"}alk or skate ${m[2]}`, (m) => `${m[1][0] === "L" ? "G" : "g"}ehen oder skaten ${m[2]}`),
+ P("^Over " + N + " meter: (.+)\\.$", (m) => `In ${m[1]} metres: ${tr(m[2])}.`, (m) => `In ${m[1]} Metern: ${tr(m[2])}.`),
+ P("^Skiën: (.+)$", (m) => `Ski: ${pisteT(m[1])}`, (m) => `Fahren: ${pisteT(m[1])}`),
+ P("^Getekende route · (\\d+) (punt|punten)$", (m) => `Drawn route · ${m[1]} ${m[1] === "1" ? "point" : "points"}`, (m) => `Gezeichnete Route · ${m[1]} ${m[1] === "1" ? "Punkt" : "Punkte"}`),
+ P("^Getekende route \\((\\d+) punten\\)$", (m) => `Drawn route (${m[1]} points)`, (m) => `Gezeichnete Route (${m[1]} Punkte)`),
+ P("^Mijn locatie \\((.+)\\)$", (m) => `My location (${placeOrSelf(m[1])})`, (m) => `Mein Standort (${placeOrSelf(m[1])})`),
+ P("^Rondje via (.+)$", (m) => `Loop via ${placeOrSelf(m[1])}`, (m) => `Runde über ${placeOrSelf(m[1])}`),
+ P("^Via (.+)$", (m) => `Via ${placeOrSelf(m[1])}`, (m) => `Über ${placeOrSelf(m[1])}`),
+ P("^Route van (.+)$", (m) => `Route from ${m[1]}`, (m) => `Route von ${m[1]}`),
+ P("^Einde (.+)$", (m) => placeT("Einde " + m[1]), (m) => placeT("Einde " + m[1])),
+ // regels onder de stappen
+ P("^Naar (.+)$", (m) => `To ${placeOrSelf(m[1])}`, (m) => `Zu ${placeOrSelf(m[1])}`),
+ // samenvatting
+ P("^" + N + " km piste · klaar om (.+)$", (m) => `${m[1]} km of runs · done at ${m[2]}`, (m) => `${m[1]} km Piste · fertig um ${m[2]}`),
+ P("^Aankomst rond (.+)$", (m) => `Arrival around ${m[1]}`, (m) => `Ankunft gegen ${m[1]}`),
+ P("^(\\d+) pistes$", (m) => `${m[1]} runs`, (m) => `${m[1]} Pisten`),
+ P("^(\\d+) liften$", (m) => `${m[1]} lifts`, (m) => `${m[1]} Lifte`),
+ P("^" + N + " hm dalen$", (m) => `${m[1]} m descent`, (m) => `${m[1]} Hm Abfahrt`),
+ P("^(\\d+) stappen$", (m) => `${m[1]} steps`, (m) => `${m[1]} Schritte`),
+ P("^↑ (.+) m · ↓ (.+) m · hoogste (.+) m$", (m) => `↑ ${m[1]} m · ↓ ${m[2]} m · highest ${m[3]} m`, (m) => `↑ ${m[1]} m · ↓ ${m[2]} m · höchster Punkt ${m[3]} m`),
+ // gebied
+ P("^(.+) · " + N + " km piste · (\\d+) liften(.*)$", (m) => `${tr(m[1])} · ${m[2]} km of runs · ${m[3]} lifts${m[4] ? " · " + words(m[4].replace(/^ · /, "")) : ""}`, (m) => `${tr(m[1])} · ${m[2]} km Pisten · ${m[3]} Lifte${m[4] ? " · " + words(m[4].replace(/^ · /, "")) : ""}`),
+ P("^" + N + " skigebieden$", (m) => `${m[1]} ski areas`, (m) => `${m[1]} Skigebiete`),
+ P("^(\\d+) van (\\d+) getoond\\. Typ om te zoeken\\.$", (m) => `${m[1]} of ${m[2]} shown. Type to search.`, (m) => `${m[1]} von ${m[2]} angezeigt. Tippe, um zu suchen.`),
+ P("^Geen skigebied gevonden voor \"(.+)\"\\.$", (m) => `No ski area found for "${m[1]}".`, (m) => `Kein Skigebiet gefunden für "${m[1]}".`),
+ P("^Geen skigebied gevonden\\.$", () => "No ski area found.", () => "Kein Skigebiet gefunden."),
+ P("^(\\d+) liften · (.+)$", (m) => `${m[1]} lifts · ${m[2]}`, (m) => `${m[1]} Lifte · ${m[2]}`),
+ P("^km piste$", () => "km of runs", () => "km Pisten"),
+ // weer
+ P("^(.+) · wind (\\d+) km/u(?: · (\\d+) cm vers)?$", (m) => `${tr(m[1])} · wind ${m[2]} km/h${m[3] ? ` · ${m[3]} cm fresh` : ""}`, (m) => `${tr(m[1])} · Wind ${m[2]} km/h${m[3] ? ` · ${m[3]} cm Neuschnee` : ""}`),
+ P("^top · (.+) dal$", (m) => `top · ${m[1]} valley`, (m) => `Gipfel · ${m[1]} Tal`),
+ P("^stoten (\\d+)$", (m) => `gusts ${m[1]}`, (m) => `Böen ${m[1]}`),
+ P("^op (\\d+) m$", (m) => `at ${m[1]} m`, (m) => `auf ${m[1]} m`),
+ // stappen-subregels en losse woorden: zie WORDS
+ // groep
+ P("^Groep (.+)$", (m) => `Group ${m[1]}`, (m) => `Gruppe ${m[1]}`),
+ P("^(.+) heeft de route gekozen\\. Jouw route staat klaar\\.$", (m) => `${m[1]} picked the route. Your route is ready.`, (m) => `${m[1]} hat die Route gewählt. Deine Route ist bereit.`),
+ P("^(.+) heeft een nieuwe route gekozen\\.$", (m) => `${m[1]} picked a new route.`, (m) => `${m[1]} hat eine neue Route gewählt.`),
+ P("^Je doet mee met groep (.+)\\.$", (m) => `You joined group ${m[1]}.`, (m) => `Du bist Gruppe ${m[1]} beigetreten.`),
+ P("^(\\d+) min geleden$", (m) => `${m[1]} min ago`, (m) => `vor ${m[1]} Min.`),
+ P("^(\\d+) u geleden$", (m) => `${m[1]} h ago`, (m) => `vor ${m[1]} Std.`),
+ P("^nu$", () => "now", () => "jetzt"),
+ P("^(.+) \\(jij\\)$", (m) => `${m[1]} (you)`, (m) => `${m[1]} (du)`),
+ P("^Jij$", () => "You", () => "Du"),
+ // status
+ P("^Volgens jou dicht: $", () => "Closed according to you: ", () => "Laut dir geschlossen: "),
+ P("^(\\d+) (lift|liften)$", (m) => `${m[1]} ${m[1] === "1" ? "lift" : "lifts"}`, (m) => `${m[1]} ${m[1] === "1" ? "Lift" : "Lifte"}`),
+ P("^(\\d+) (piste|pistes)$", (m) => `${m[1]} ${m[1] === "1" ? "run" : "runs"}`, (m) => `${m[1]} ${m[1] === "1" ? "Piste" : "Pisten"}`),
+ P("^Status van je groep geladen: (\\d+) (lift of piste|liften en pistes) dicht\\.$", (m) => `Your group's status loaded: ${m[1]} closed.`, (m) => `Status deiner Gruppe geladen: ${m[1]} geschlossen.`),
+ P("^(Lift|Piste) gesloten\\. Nieuwe route berekend\\.$", (m) => `${m[1] === "Lift" ? "Lift" : "Run"} closed. New route calculated.`, (m) => `${m[1]} gesperrt. Neue Route berechnet.`),
+ P("^(.+) gesloten\\.$", (m) => `${tr(m[1])} closed.`, (m) => `${tr(m[1])} gesperrt.`),
+ // dagboek
+ P("^Vandaag: " + N + " km · " + N + " hm · (\\d+) km/u$", (m) => `Today: ${m[1]} km · ${m[2]} m vert · ${m[3]} km/h`, (m) => `Heute: ${m[1]} km · ${m[2]} Hm · ${m[3]} km/h`),
+ P("^Pistes \\((\\d+)\\)$", (m) => `Runs (${m[1]})`, (m) => `Pisten (${m[1]})`),
+ P("^Liften \\((\\d+)\\)$", (m) => `Lifts (${m[1]})`, (m) => `Lifte (${m[1]})`),
+ P("^sinds (.+) · (\\d+) punten$", (m) => `since ${m[1]} · ${m[2]} points`, (m) => `seit ${m[1]} · ${m[2]} Punkte`),
+ P("^(\\d+) punten$", (m) => `${m[1]} points`, (m) => `${m[1]} Punkte`),
+ P("^(\\d+) punten · (.+)$", (m) => `${m[1]} points · ${m[2]}`, (m) => `${m[1]} Punkte · ${m[2]}`),
+ P("^Vandaag · (.+)$", (m) => `Today · ${m[1]}`, (m) => `Heute · ${m[1]}`),
+ // diversen
+ P("^Route \"(.+)\" geladen\\.$", (m) => `Route "${m[1]}" loaded.`, (m) => `Route "${m[1]}" geladen.`),
+ P("^Route \"(.+)\" bewaard\\.$", (m) => `Route "${m[1]}" saved.`, (m) => `Route "${m[1]}" gespeichert.`),
+ P("^\"(.+)\" verwijderd\\.$", (m) => `"${m[1]}" deleted.`, (m) => `"${m[1]}" gelöscht.`),
+ P("^Naar het dal: (.+)$", (m) => `To the valley: ${placeOrSelf(m[1].replace(/, .*$/, ""))}${/, (.+)$/.test(m[1]) ? ", " + /, (.+)$/.exec(m[1])[1] : ""}`, (m) => `Ins Tal: ${placeOrSelf(m[1].replace(/, .*$/, ""))}${/, (.+)$/.test(m[1]) ? ", " + /, (.+)$/.exec(m[1])[1] : ""}`),
+ P("^Je bent bij (.+)\\. Kaart geladen\\.$", (m) => `You are at ${m[1]}. Map loaded.`, (m) => `Du bist bei ${m[1]}. Karte geladen.`),
+ P("^Geen punt gevonden voor \"(.+)\"\\.$", (m) => `No place found for "${m[1]}".`, (m) => `Kein Ort gefunden für "${m[1]}".`),
+ P("^(.+) staat bij je favorieten\\.$", (m) => `${m[1]} added to your favourites.`, (m) => `${m[1]} ist jetzt ein Favorit.`),
+ P("^(.+) is geen favoriet meer\\.$", (m) => `${m[1]} removed from favourites.`, (m) => `${m[1]} ist kein Favorit mehr.`),
+ P("^De liften sluiten over (\\d+) minuten\\.$", (m) => `The lifts close in ${m[1]} minutes.`, (m) => `Die Lifte schließen in ${m[1]} Minuten.`),
+ P("^Let op: de liften sluiten over (\\d+) minuten\\.$", (m) => `Note: the lifts close in ${m[1]} minutes.`, (m) => `Achtung: Die Lifte schließen in ${m[1]} Minuten.`),
+ P("^Liften sluiten om (.+), over (\\d+) min$", (m) => `Lifts close at ${m[1]}, in ${m[2]} min`, (m) => `Lifte schließen um ${m[1]}, in ${m[2]} Min.`),
+ P("^Om (.+), na sluitingstijd$", (m) => `At ${m[1]}, after closing time`, (m) => `Um ${m[1]}, nach Betriebsschluss`),
+ P("^Route naar (.+)\\.$", (m) => `Route to ${m[1]}.`, (m) => `Route zu ${m[1]}.`),
+ P("^(.+) toegevoegd als tussenstop\\.$", (m) => `${m[1]} added as a stop.`, (m) => `${m[1]} als Zwischenstopp hinzugefügt.`),
+ P("^Bel (\\d+)$", (m) => `Call ${m[1]}`, (m) => `${m[1]} anrufen`),
+ P("^Alarmnummer (.+)$", (m) => `Emergency number ${tr(m[1])}`, (m) => `Notruf ${tr(m[1])}`),
+ P("^ca\\. (\\d+) m$", (m) => `approx. ${m[1]} m`, (m) => `ca. ${m[1]} m`),
+ P("^± (\\d+) m$", (m) => `± ${m[1]} m`, (m) => `± ${m[1]} m`),
+ P("^(Op|op) ([^·]+)$", (m) => `${m[1] === "Op" ? "On" : "on"} ${words(placeOrSelf(m[2]))}`, (m) => `${m[1] === "Op" ? "Auf" : "auf"} ${words(placeOrSelf(m[2]))}`),
+ P("^(\\d+) m van ([^·]+)$", (m) => `${m[1]} m from ${words(placeOrSelf(m[2]))}`, (m) => `${m[1]} m von ${words(placeOrSelf(m[2]))}`),
+ P("^Over (.+)$", (m) => `In ${m[1]}`, (m) => `In ${m[1]}`),
+ P("^Mijn skidag in (.+) \\((.+)\\):$", (m) => `My ski day in ${m[1]} (${m[2]}):`, (m) => `Mein Skitag in ${m[1]} (${m[2]}):`),
+ P("^" + N + " km geskied · " + N + " hoogtemeters omlaag · topsnelheid (\\d+) km/u$", (m) => `${m[1]} km skied · ${m[2]} m vertical down · top speed ${m[3]} km/h`, (m) => `${m[1]} km gefahren · ${m[2]} Höhenmeter abwärts · Höchstgeschwindigkeit ${m[3]} km/h`),
+ P("^(\\d+) afdalingen · (\\d+) liften$", (m) => `${m[1]} runs · ${m[2]} lifts`, (m) => `${m[1]} Abfahrten · ${m[2]} Lifte`),
+ P("^Pistes: (.+)$", (m) => `Runs: ${m[1]}`, (m) => `Pisten: ${m[1]}`),
+ P("^Liftstatus (.+) vandaag: (.+)\\. Open in de Pistenplanner:$", (m) => `Lift status ${m[1]} today: ${m[2].replace(/(\\d+) (lift of piste|liften en pistes) dicht/, "$1 closed").replace("alles open", "everything open")}. Open in the Pistenplanner:`,
+   (m) => `Liftstatus ${m[1]} heute: ${m[2].replace(/(\\d+) (lift of piste|liften en pistes) dicht/, "$1 geschlossen").replace("alles open", "alles offen")}. In der Pistenplanner öffnen:`),
+ P("^Doe mee met mijn groep in de Pistenplanner \\(code (.+)\\):$", (m) => `Join my group in the Pistenplanner (code ${m[1]}):`, (m) => `Tritt meiner Gruppe in der Pistenplanner bei (Code ${m[1]}):`),
+ P("^NOODGEVAL – mijn locatie: (.+)$", (m) => "EMERGENCY – my location: " + m[1].replace(", hoogte ca. ", ", altitude approx. ").replace(", op ", ", on ").replace(" m van ", " m from ").replace(", skigebied ", ", ski area ").replace(". Kaart: ", ". Map: "),
+   (m) => "NOTFALL – mein Standort: " + m[1].replace(", hoogte ca. ", ", Höhe ca. ").replace(", op ", ", auf ").replace(" m van ", " m von ").replace(", skigebied ", ", Skigebiet ").replace(". Kaart: ", ". Karte: ")),
+];
+
+// losse woorden en zinsdelen in samengestelde regels (alleen hele woorden)
+const WORDS = {
+ en:[["naar het bergstation", "to the top station"], ["naar het dalstation", "to the bottom station"], ["tot het einde van", "to the end of"], ["tot einde piste", "to end of run"],
+     ["tot begin piste", "to start of run"], ["tot dalstation", "to bottom station"], ["tot bergstation", "to top station"], ["tot kruising op", "to junction at"],
+     ["tot einde", "to end of"], ["tot begin", "to start of"], ["tot ", "to "], ["einde piste", "end of run"], ["begin piste", "start of run"], ["dalstation", "bottom station"], ["bergstation", "top station"],
+     ["kruising op", "junction at"], ["Blauw (gemiddeld)", "Blue (intermediate)"], ["Dubbel zwart", "Double black"], ["Blauw", "Blue"], ["Rood", "Red"], ["Zwart", "Black"], ["Groen", "Green"],
+     ["Skiroute", "Ski route"], ["Onbekend", "Unmarked"], ["blauw", "blue"], ["rood", "red"], ["zwart", "black"], ["groen", "green"],
+     ["Stoeltjeslift", "Chairlift"], ["Gondel", "Gondola"], ["Kabelbaan", "Cable car"], ["Sleeplift", "T-bar"], ["Schotellift", "Button lift"], ["Touwlift", "Rope tow"], ["Lopende band", "Magic carpet"],
+     ["Combibaan", "Combined lift"], ["Kabeltrein", "Funicular"], ["stoeltjeslift", "chairlift"], ["gondel", "gondola"], ["kabelbaan", "cable car"], ["sleeplift", "T-bar"],
+     [" hm", " m vert"], ["km/u", "km/h"], [" op ", " at "], ["van je", "from you"], ["vandaag", "today"], ["Piste", "Run"], ["piste", "run"], ["pistes", "runs"], ["liften", "lifts"],
+     ["Hm dalen", "m descent"], ["Op ", "On "], ["bij ", "near "], ["vriespunt", "freezing point"], ["bewaard om", "saved at"], ["uur", "h"], ["temperatuur top/dal", "temperature top/valley"]],
+ de:[["naar het bergstation", "zur Bergstation"], ["naar het dalstation", "zur Talstation"], ["tot einde piste", "bis Ende Piste"], ["tot begin piste", "bis Anfang Piste"],
+     ["tot dalstation", "bis Talstation"], ["tot bergstation", "bis Bergstation"], ["tot kruising op", "bis Kreuzung auf"], ["tot einde", "bis Ende"], ["tot begin", "bis Anfang"], ["tot ", "bis "],
+     ["einde piste", "Ende Piste"], ["begin piste", "Anfang Piste"], ["dalstation", "Talstation"], ["bergstation", "Bergstation"], ["kruising op", "Kreuzung auf"],
+     ["Blauw (gemiddeld)", "Blau (mittel)"], ["Dubbel zwart", "Doppelschwarz"], ["Blauw", "Blau"], ["Rood", "Rot"], ["Zwart", "Schwarz"], ["Groen", "Grün"], ["Onbekend", "Unmarkiert"],
+     ["blauw", "blau"], ["rood", "rot"], ["zwart", "schwarz"], ["groen", "grün"],
+     ["Stoeltjeslift", "Sessellift"], ["Gondel", "Gondelbahn"], ["Kabelbaan", "Seilbahn"], ["Sleeplift", "Schlepplift"], ["Schotellift", "Tellerlift"], ["Touwlift", "Seillift"], ["Lopende band", "Förderband"],
+     ["Combibaan", "Kombibahn"], ["Kabeltrein", "Standseilbahn"], ["stoeltjeslift", "Sessellift"], ["gondel", "Gondelbahn"], ["kabelbaan", "Seilbahn"], ["sleeplift", "Schlepplift"],
+     [" hm", " Hm"], ["km/u", "km/h"], [" op ", " auf "], ["van je", "von dir"], ["vandaag", "heute"], ["piste", "Piste"], ["pistes", "Pisten"], ["liften", "Lifte"],
+     ["Op ", "Auf "], ["bij ", "bei "], ["vriespunt", "Gefrierpunkt"], ["bewaard om", "gespeichert um"], ["uur", "Uhr"], ["temperatuur top/dal", "Temperatur Gipfel/Tal"], ["top", "Gipfel"]]};
+const WORD_RX = {};
+for(const l of ["en","de"]) WORD_RX[l] = WORDS[l].map(([a, b]) => [new RegExp("(^|[^\\p{L}])" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/^ | $/g, "") + "(?=$|[^\\p{L}])", "gu"), b.trim(), a.startsWith(" "), a.endsWith(" ")]);
+
+const words = t => { for(const [rx, b] of WORD_RX[LANG]) t = t.replace(rx, (m0, pre) => pre + b); return t; };
+const trCache = new Map();
+function tr(text){
+  if(LANG === "nl" || text == null) return text;
+  const raw = String(text), key = LANG + "|" + raw;
+  if(trCache.has(key)) return trCache.get(key);
+  const lead = raw.match(/^\s*/)[0], trail = raw.match(/\s*$/)[0], core = raw.trim();
+  let out = null;
+  if(!core || !/[A-Za-zÀ-ÿ]/.test(core)) out = raw;
+  // begint de vertaling met een leesteken, dan geen spatie ervoor
+  if(out == null && EXACT[LANG][core] != null){ const v = EXACT[LANG][core]; out = (/^[,.]/.test(v) ? "" : lead) + v + trail; }
+  if(out == null){
+    const p = placeT(core); if(p) out = lead + p + trail;
+  }
+  if(out == null){
+    for(const [rx, en, de] of PATTERNS){
+      const m = rx.exec(core);
+      if(m){ const r = (LANG === "en" ? en : de)(m); if(r != null){ out = lead + r + trail; break; } }
+    }
+  }
+  // regels met " · ": elk deel apart
+  if(out == null && core.includes(" · ")) out = lead + core.split(" · ").map(tr).join(" · ") + trail;
+  if(out == null) out = lead + words(core) + trail;   // losse woorden en zinsdelen
+  if(trCache.size > 5000) trCache.clear();
+  trCache.set(key, out);
+  return out;
+}
+
+// ---------- vertalen van alles wat op het scherm komt ----------
+const ORIG = new WeakMap(), ORIG_ATTR = new WeakMap();
+const ATTRS = ["placeholder", "aria-label", "title"];
+const SKIP = new Set(["SCRIPT", "STYLE", "svg", "use", "symbol", "path", "TEXTAREA"]);
+function trNode(node){
+  if(node.nodeType === 3){
+    const p = node.parentNode; if(!p || SKIP.has(p.nodeName) || p.closest?.("[data-notr]")) return;
+    if(!/[A-Za-zÀ-ÿ]/.test(node.nodeValue)) return;
+    let o = ORIG.get(node);
+    // tekst is door de app veranderd: dat is de nieuwe bron
+    if(o == null || (node.nodeValue !== o.t && node.nodeValue !== o.out)){ o = {t:node.nodeValue}; ORIG.set(node, o); }
+    const out = LANG === "nl" ? o.t : tr(o.t); o.out = out;
+    if(node.nodeValue !== out) node.nodeValue = out;
+  } else if(node.nodeType === 1){
+    if(SKIP.has(node.nodeName) || node.hasAttribute?.("data-notr")) return;
+    let oa = ORIG_ATTR.get(node);
+    for(const a of ATTRS){
+      if(!node.hasAttribute(a)) continue;
+      const v = node.getAttribute(a);
+      if(!oa) ORIG_ATTR.set(node, oa = {});
+      if(oa[a] == null || (v !== oa[a].t && v !== oa[a].out)) oa[a] = {t:v};
+      const out = LANG === "nl" ? oa[a].t : tr(oa[a].t); oa[a].out = out;
+      if(v !== out) node.setAttribute(a, out);
+    }
+    for(const c of node.childNodes) trNode(c);
+  }
+}
+let i18nBusy = false;
+const i18nObs = new MutationObserver(muts => {
+  if(i18nBusy) return; i18nBusy = true;
+  try{
+    for(const m of muts){
+      if(m.type === "childList") m.addedNodes.forEach(trNode);
+      else if(m.type === "characterData") trNode(m.target);
+      else if(m.type === "attributes") trNode(m.target);
+    }
+  } finally { i18nBusy = false; }
+});
+function i18nStart(){
+  document.documentElement.lang = LANG;
+  trNode(document.body);
+  i18nObs.observe(document.body, {subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:ATTRS});
+}
+function setLang(l){
+  if(!I18N_LANGS[l]) return;
+  LANG = l; LOCALE = {nl:"nl-NL", en:"en-GB", de:"de-DE"}[l]; DEC = l === "en" ? "." : ",";
+  try{ localStorage.setItem("pp-lang", l); }catch(e){}
+  location.reload();   // alles opnieuw opbouwen in de nieuwe taal (getallen, datums, stem)
+}

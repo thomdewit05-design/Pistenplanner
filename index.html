@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Pistenplanner Alpen</title>
-<meta name="description" content="Routeplanner en pistenavigatie voor 849 skigebieden in de Alpen, met satellietkaart en GPS.">
+<title>Pistenplanner</title>
+<meta name="description" content="Routeplanner en pistenavigatie voor skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika.">
 <meta name="theme-color" content="#0F1B2A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=23">
 </head>
 <body>
 <!-- iconenset -->
@@ -75,6 +75,12 @@
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8.5 7.5h7M8.5 11h5"/></symbol>
     <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" class="fill"/></symbol>
     <symbol id="i-speed" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="m12 17 4-5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></symbol>
+    <symbol id="i-hut" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="i-food" viewBox="0 0 24 24"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10"/><path d="M17 21V3c-2.2 1.2-3.5 3.8-3.5 7v3H17"/></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3.5c0 1.5 1.5 1.5 1.5 3M12 3.5c0 1.5 1.5 1.5 1.5 3"/></symbol>
+    <symbol id="i-glass" viewBox="0 0 24 24"><path d="M6 3h12l-1 8a5 5 0 0 1-10 0L6 3Z"/><path d="M12 16v5M8.5 21h7M6.5 7.5h11"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -82,7 +88,7 @@
 <div id="splash" class="splash" aria-hidden="true">
   <img src="icons/icon-192.png" alt="" width="84" height="84">
   <div class="splash-name">Pistenplanner</div>
-  <div class="splash-tag">849 skigebieden · Alpen</div>
+  <div class="splash-tag" id="splashTag">Skigebieden laden…</div>
   <div class="splash-bar"><span></span></div>
 </div>
 
@@ -109,7 +115,9 @@
   <p class="label">Lagen</p>
   <label class="switch"><span>Pistes en liften</span><input type="checkbox" id="showPistes" checked><i></i></label>
   <label class="switch"><span>Pistenummers</span><input type="checkbox" id="showNums" checked><i></i></label>
+  <label class="switch"><span>Hutten en restaurants</span><input type="checkbox" id="showHuts" checked><i></i></label>
   <label class="switch"><span>Plaatsnamen</span><input type="checkbox" id="showLabels" checked><i></i></label>
+  <div id="offlineBox" class="offline-box"></div>
 </div>
 
 <div id="navBanner" class="nav-banner" hidden aria-live="polite">
@@ -140,7 +148,7 @@
 <section id="sheet" class="sheet" aria-label="Route">
   <button type="button" class="handle" id="handle" aria-label="Paneel openen of sluiten"><span></span></button>
   <div class="sheet-body">
-    <div class="brandline"><img src="icons/icon-192.png" alt="" width="22" height="22"><span>Pistenplanner</span><small>Alpen</small></div>
+    <div class="brandline"><img src="icons/icon-192.png" alt="" width="22" height="22"><span>Pistenplanner</span><small id="brandRegion">Alpen</small></div>
     <div class="peek" id="peek"></div>
 
     <div class="od">
@@ -188,14 +196,22 @@
       <div class="set-group">
         <p class="label">Jouw niveau</p>
         <div class="seg" id="level">
-          <button type="button" data-v="1"><span class="sw" style="background:var(--p-blue)"></span>Blauw</button>
-          <button type="button" data-v="2"><span class="sw" style="background:var(--p-red)"></span>t/m rood</button>
-          <button type="button" data-v="3"><span class="sw" style="background:var(--p-black)"></span>t/m zwart</button>
+          <button type="button" data-v="1"><span class="sw" style="background:var(--p-blue)"></span>Makkelijk</button>
+          <button type="button" data-v="2"><span class="sw" style="background:var(--p-red)"></span>Gemiddeld</button>
+          <button type="button" data-v="3"><span class="sw" style="background:var(--p-black)"></span>Moeilijk</button>
         </div>
         <p class="label">Voorkeur</p>
         <div class="seg two" id="mode">
           <button type="button" data-v="fast">Snelste route</button>
           <button type="button" data-v="easy">Rustigste route</button>
+        </div>
+      </div>
+      <div class="set-group">
+        <p class="label">Taal</p>
+        <div class="seg" id="langSeg" data-notr>
+          <button type="button" data-v="nl" lang="nl">Nederlands</button>
+          <button type="button" data-v="en" lang="en">English</button>
+          <button type="button" data-v="de" lang="de">Deutsch</button>
         </div>
       </div>
       <div class="set-group">
@@ -223,10 +239,11 @@
 
 <div id="picker" class="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle" hidden>
   <div class="picker-head">
-    <div><p class="label">849 skigebieden</p><h2 id="pickerTitle">Kies een skigebied</h2></div>
+    <div><p class="label" id="pickerCount">Skigebieden</p><h2 id="pickerTitle">Kies een skigebied</h2></div>
     <button type="button" class="icon-btn" id="pickerClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
   </div>
   <div class="search"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="q" placeholder="Zoek op naam, dorp of regio" autocomplete="off" aria-label="Zoek skigebied"></div>
+  <div class="chips scroll" id="regions"></div>
   <div class="chips scroll" id="countries"></div>
   <button type="button" class="near-btn" id="nearBtn"><svg class="ic"><use href="#i-locate"/></svg>Bij mij in de buurt</button>
   <ul class="areas" id="areas"></ul>
@@ -328,7 +345,7 @@
     <div><p class="label">Noodgeval</p><h2 id="sosTitle">Hulp nodig?</h2></div>
     <button type="button" class="icon-btn" id="sosClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
   </div>
-  <a class="call" href="tel:112"><svg class="ic"><use href="#i-phone"/></svg><span><b>Bel 112</b><small>Europees alarmnummer, werkt overal in de Alpen</small></span></a>
+  <a class="call" id="sosMain" href="tel:112"><svg class="ic"><use href="#i-phone"/></svg><span><b id="sosMainNum">Bel 112</b><small id="sosMainTxt">Europees alarmnummer, werkt in heel Europa</small></span></a>
   <a class="call alt" id="sosLocal" href="tel:140" hidden><svg class="ic"><use href="#i-phone"/></svg><span><b id="sosLocalNum"></b><small id="sosLocalTxt"></small></span></a>
   <div class="sos-loc">
     <p class="label">Jouw locatie, lees dit voor aan de hulpdienst</p>
@@ -350,6 +367,7 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="app.js?v=17"></script>
+<script src="i18n.js?v=23"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

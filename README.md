@@ -1,6 +1,6 @@
-# Pistenplanner Alpen
+# Pistenplanner
 
-Routeplanner voor 849 skigebieden in de Alpen, met satellietkaart en GPS-navigatie. Te installeren als app op je telefoon of computer.
+Routekaart en pistenavigatie voor 1.883 skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika, met satellietkaart en GPS. In het Nederlands, Engels en Duits. Te installeren als app op je telefoon of computer.
 
 - Kies een skigebied, tik A en B aan op de kaart en zie welke liften en pistes je moet nemen.
 - Stel je niveau in (blauw, rood, zwart) en kies de snelste of de rustigste route.
@@ -13,7 +13,7 @@ Dubbelklik `start.bat` (Windows) of draai `python -m http.server 8766` in deze m
 
 ## Data bijwerken
 
-`tools/build.py` maakt de bestanden in `data/` opnieuw uit de exports van [OpenSkiMap](https://openskimap.org):
+`tools/build.py` maakt de bestanden in `data/` opnieuw uit de exports van [OpenSkiMap](https://openskimap.org). Welke gebieden meegaan staat in `tools/regions.py`. Hutten en restaurants haalt de app zelf op uit OpenStreetMap (Overpass) als je een gebied opent.
 
 ```
 python tools/build.py <map-met-ski_areas-lifts-runs.geojson> .

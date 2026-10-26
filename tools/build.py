@@ -1,25 +1,12 @@
-"""Bouwt per Alpen-skigebied een routeerbaar netwerk uit OpenSkiMap-data.
-Gebruik: python -I build.py <osm-dir> <out-dir>"""
+"""Bouwt per skigebied een routeerbaar netwerk uit OpenSkiMap-data, plus hutten en restaurants uit OpenStreetMap.
+Gebruik: python tools/build.py <osm-dir> <out-dir>   (eerst tools/fetch_huts.py voor de hutten)"""
 import json, math, sys, os
 from collections import defaultdict
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from regions import region_of
 
 SRC, OUT = ("\\\\?\\" + os.path.abspath(p) for p in sys.argv[1:3])  # lange Windows-paden
 os.makedirs(os.path.join(OUT, "data"), exist_ok=True)
-
-ALPS = [(5.0,43.65),(6.6,43.6),(7.7,43.85),(8.25,44.1),(7.95,44.45),(7.35,44.9),(7.45,45.35),(8.4,45.75),
-        (9.4,45.8),(10.4,45.65),(11.2,45.72),(12.3,45.9),(13.3,46.05),(14.3,46.15),(15.0,46.25),(15.7,46.35),
-        (16.25,47.0),(16.2,47.75),(15.4,47.95),(13.6,47.92),(12.4,47.82),(11.0,47.72),(10.0,47.62),(9.7,47.48),
-        (9.0,47.3),(8.3,47.12),(7.7,46.92),(7.0,46.7),(6.75,46.45),(6.45,46.2),(6.0,45.95),(5.75,45.6),
-        (5.35,45.1),(5.2,44.5)]
-COUNTRIES = {"FR","CH","IT","AT","DE","SI","LI","MC"}
-
-def in_poly(x, y, poly=ALPS):
-    inside = False; j = len(poly) - 1
-    for i in range(len(poly)):
-        xi, yi = poly[i]; xj, yj = poly[j]
-        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi: inside = not inside
-        j = i
-    return inside
 
 def features(path):
     with open(path, encoding="utf-8") as f:
@@ -41,14 +28,15 @@ for ft in features(os.path.join(SRC, "ski_areas.geojson")):
         c = (p.get("viewportHint") or {}).get("center")
         if not c: continue
         x, y = c
-    if not in_poly(x, y): continue
-    pl = (p.get("places") or [{}])[0]
+    pl = (p.get("places") or [{}])[0] or {}
     cc = pl.get("iso3166_1Alpha2")
-    if cc not in COUNTRIES: continue
+    reg = region_of(x, y, cc)
+    if not reg: continue
     loc = (pl.get("localized") or {}).get("en") or {}
     areas[p["id"]] = dict(id=p["id"], name=p["name"], cc=cc, region=loc.get("region") or "",
                           locality=loc.get("locality") or "", x=x, y=y, runs=[], lifts=[],
-                          website=(p.get("websites") or [""])[0])
+                          website=(p.get("websites") or [""])[0], reg=reg,
+                          conv=p.get("runConvention") or ("north_america" if reg == "noord-amerika" else "europe"))
 print("areas", len(areas))
 
 def collect(path, kind):
@@ -200,6 +188,45 @@ def simplify(pts, eps=6):
     return simplify(pts[:i_max+1], eps)[:-1] + simplify(pts[i_max:], eps)
 
 DIFF = {"novice":"g","easy":"b","intermediate":"r","advanced":"s","expert":"s","freeride":"f","extreme":"f"}
+DIFF_NA = {"novice":"g","easy":"g","intermediate":"B","advanced":"s","expert":"x","freeride":"f","extreme":"f"}
+
+# ---- hutten en restaurants (uit fetch_huts.py) ----
+HUTS = defaultdict(list)   # (lon*20, lat*20) -> [lon, lat, soort, naam, hoogte]
+hp = os.path.join(SRC, "amenities.json")
+if os.path.exists(hp):
+    seen = set()
+    for tile in json.load(open(hp, encoding="utf-8")).values():
+        for h in tile:
+            k = (h[0], h[1])
+            if k in seen: continue
+            seen.add(k); HUTS[(int(h[0]*20), int(h[1]*20))].append(h)
+print("hutten/restaurants", sum(len(v) for v in HUTS.values()))
+
+def huts_for(nodes, edges, lon0, lat0):
+    """Plekken op hooguit 120 m van een piste of lift, gekoppeld aan het dichtstbijzijnde knooppunt."""
+    kx = 111320 * math.cos(math.radians(lat0)); ky = 110540
+    lons = [n[3] for n in nodes]; lats = [n[4] for n in nodes]
+    out = []
+    for gx in range(int(min(lons)*20)-1, int(max(lons)*20)+2):
+        for gy in range(int(min(lats)*20)-1, int(max(lats)*20)+2):
+            for h in HUTS.get((gx, gy), []):
+                x, y = (h[0]-lon0)*kx, (h[1]-lat0)*ky
+                best = 1e9
+                for e in edges:
+                    sg = e["seg"]
+                    for i in range(len(sg)-1):
+                        p, q = sg[i], sg[i+1]
+                        dx, dy = q[0]-p[0], q[1]-p[1]; d2 = dx*dx+dy*dy
+                        t = 0 if d2 == 0 else max(0, min(1, ((x-p[0])*dx + (y-p[1])*dy)/d2))
+                        d = math.hypot(x-p[0]-t*dx, y-p[1]-t*dy)
+                        if d < best: best = d
+                    if best < 30: break
+                if best > 120: continue
+                ni = min(range(len(nodes)), key=lambda i: (nodes[i][0]-x)**2 + (nodes[i][1]-y)**2)
+                if math.hypot(nodes[ni][0]-x, nodes[ni][1]-y) > 400: continue
+                out.append((h, ni))
+    return out
+
 index = []; shard = []; shard_size = 0; shard_no = 0
 def flush():
     global shard, shard_size, shard_no
@@ -208,7 +235,7 @@ def flush():
         json.dump({a["id"]: a for a in shard}, f, separators=(",",":"), ensure_ascii=False)
     shard_no += 1; shard = []; shard_size = 0
 
-for a in sorted(areas.values(), key=lambda a: (a["cc"], a["y"], a["x"])):
+for a in sorted(areas.values(), key=lambda a: (a["reg"], a["cc"], a["y"], a["x"])):
     res = build(a)
     if not res: continue
     nodes, edges, walk, (lon0, lat0) = res
@@ -227,7 +254,8 @@ for a in sorted(areas.values(), key=lambda a: (a["cc"], a["y"], a["x"])):
         ea, eb = nodes[e["a"]][2], nodes[e["b"]][2]
         drop = round(ea - eb) if ea is not None and eb is not None else 0
         if e["k"] == "r":
-            out_e.append(["r", e["a"], e["b"], nm(r["name"]), r["ref"] or "", DIFF.get(r["diff"], "u"), round(e["len"]), drop, g,
+            dmap = DIFF_NA if a["conv"] == "north_america" else DIFF
+            out_e.append(["r", e["a"], e["b"], nm(r["name"]), r["ref"] or "", dmap.get(r["diff"], "u"), round(e["len"]), drop, g,
                           r["cc"] if r["cc"] != a["cc"] else ""])
         else:
             dur = r["dur"]
@@ -237,14 +265,15 @@ for a in sorted(areas.values(), key=lambda a: (a["cc"], a["y"], a["x"])):
     out_w = [[i, j, round(d)] for i, j, d in walk]
     out_n = [[round(n[3]*1e5), round(n[4]*1e5), round(n[2]) if n[2] is not None else None] for n in nodes]
     nr = sum(1 for e in edges if e["k"]=="r"); nl = len({id(e["rec"]) for e in edges if e["k"]=="l"})
-    rec = dict(id=a["id"], name=a["name"], n=out_n, e=out_e, w=out_w, t=names)
+    out_h = [[round(h[0]*1e5), round(h[1]*1e5), h[2], nm(h[3]), ni] for h, ni in huts_for(nodes, edges, lon0, lat0)][:150]
+    rec = dict(id=a["id"], name=a["name"], n=out_n, e=out_e, w=out_w, t=names, h=out_h)
     s = len(json.dumps(rec, separators=(",",":")))
     if shard_size + s > 1_000_000: flush()
     shard.append(rec); shard_size += s
     km = sum(e["len"] for e in edges if e["k"]=="r")/1000
     eles = [n[2] for n in nodes if n[2] is not None]
     index.append([a["id"], a["name"], a["cc"], a["region"], round(a["x"],4), round(a["y"],4),
-                  round(km), nl, shard_no, round(min(eles)) if eles else None, round(max(eles)) if eles else None, a["website"]])
+                  round(km), nl, shard_no, round(min(eles)) if eles else None, round(max(eles)) if eles else None, a["website"], a["reg"]])
 flush()
 with open(os.path.join(OUT, "data", "index.json"), "w", encoding="utf-8") as f:
     json.dump(index, f, separators=(",",":"), ensure_ascii=False)

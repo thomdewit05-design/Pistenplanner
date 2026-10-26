@@ -631,3 +631,49 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .area-btn{position:relative}
 .recording .area-btn::after{content:"";position:absolute;top:6px;left:34px;width:11px;height:11px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);animation:blink 1.4s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.recording .area-btn::after{animation:none}}
+
+/* ---------- hoogteprofiel ---------- */
+.profile{margin:2px 0 14px}
+.prof-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.prof-head .label{margin:0}
+.prof-head span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prof-box{position:relative}
+.profile svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
+.profile svg text{font:600 10.5px var(--f-ui);fill:var(--faint);font-variant-numeric:tabular-nums}
+.profile svg .grid{stroke:var(--line);stroke-width:1}
+.profile svg .prof-area{fill:color-mix(in srgb,var(--accent) 12%,transparent)}
+.profile svg .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3}
+.profile svg .dot{fill:var(--surface);stroke:var(--ink);stroke-width:2.5}
+.prof-tip{position:absolute;top:-6px;width:150px;padding:6px 9px;border-radius:9px;background:var(--navy);color:#fff;font-size:12.5px;line-height:1.3;pointer-events:none;box-shadow:var(--sh-1)}
+.prof-tip b{font-size:14px}
+.prof-tip span{color:#AFC0D3;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- favorieten ---------- */
+.areas li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.areas li.empty,.areas li.area-sep{display:block}
+.area-sep{font:700 11.5px/1 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:14px 6px 6px}
+.fav{width:40px;height:40px;border:0;background:none;border-radius:10px;cursor:pointer;display:grid;place-items:center;color:var(--line)}
+.fav .ic{width:21px;height:21px;stroke-width:1.8}
+.fav:hover{color:var(--faint)}
+.fav.on{color:#F5B400}
+.fav.on .ic{fill:#F5B400}
+
+/* ---------- regio's, Noord-Amerikaanse kleuren, hutten ---------- */
+@media (prefers-color-scheme:dark){ol.steps li.d-x::before{background:#C9D4DE}.pnum.x{border-color:#C9D4DE}}
+.hut{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#8A4B12;border:2px solid #8A4B12;box-shadow:0 1px 5px rgba(0,0,0,.35);cursor:pointer}
+.hut .ic{width:14px;height:14px;stroke-width:2.2}
+.hut-h{color:#7A2E0E;border-color:#7A2E0E}
+.hut-c,.hut-b{color:#6B3FA0;border-color:#6B3FA0}
+.hut.big{width:36px;height:36px;flex:none}
+.hut.big .ic{width:19px;height:19px}
+
+/* ---------- offline ---------- */
+.offline-box{border-top:1px solid var(--line-2);margin-top:6px;padding-top:4px;display:flex;flex-direction:column;gap:6px}
+.offline-box .label{margin:6px 0 0}
+.off-line{display:flex;gap:8px;align-items:flex-start;margin:0;font-size:13px;line-height:1.4;color:var(--muted)}
+.off-line .ic{width:17px;height:17px;flex:none;margin-top:1px}
+.off-line b{color:var(--ink)}
+.off-line.ok .ic{color:var(--ok)}
+.off-mark{display:inline-grid;place-items:center;vertical-align:-2px;color:var(--ok)}
+.off-mark .ic{width:15px;height:15px;stroke-width:2.6}
+.offline-tag{color:var(--p-free);font-weight:800}

@@ -1,7 +1,7 @@
 {
-  "name": "Pistenplanner Alpen",
+  "name": "Pistenplanner",
   "short_name": "Pistenplanner",
-  "description": "Routeplanner voor 849 skigebieden in de Alpen, met satellietkaart en GPS-navigatie.",
+  "description": "Routeplanner en pistenavigatie voor skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika.",
   "lang": "nl",
   "start_url": "./",
   "scope": "./",

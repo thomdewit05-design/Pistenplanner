@@ -1,9 +1,15 @@
 "use strict";
 const $ = id => document.getElementById(id);
-const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco"};
+const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco",
+                 ES:"Spanje", AD:"Andorra", NO:"Noorwegen", SE:"Zweden", FI:"Finland", US:"Verenigde Staten", CA:"Canada"};
+const REGIONS = [["alpen","Alpen"], ["pyreneeen","Pyreneeën"], ["scandinavie","Scandinavië"], ["noord-amerika","Noord-Amerika"]];
+const regionName = r => (REGIONS.find(x => x[0] === r) || [, "Alpen"])[1];
 const DIFF = {g:{nl:"groen",adj:"groene",lvl:1,spd:200,pen:1,col:"#22984A"}, b:{nl:"blauw",adj:"blauwe",lvl:1,spd:283,pen:1,col:"#1E66CC"},
               r:{nl:"rood",adj:"rode",lvl:2,spd:350,pen:1.8,col:"#D22E2E"}, s:{nl:"zwart",adj:"zwarte",lvl:3,spd:317,pen:3.5,col:"#121417"},
-              f:{nl:"skiroute",adj:"skiroute",lvl:4,spd:250,pen:4,col:"#E08A1E"}, u:{nl:"onbekend",adj:"ongemarkeerde",lvl:2,spd:300,pen:1.8,col:"#8C99A6"}};
+              f:{nl:"skiroute",adj:"skiroute",lvl:4,spd:250,pen:4,col:"#E08A1E"}, u:{nl:"onbekend",adj:"ongemarkeerde",lvl:2,spd:300,pen:1.8,col:"#8C99A6"},
+              // Noord-Amerika: blauw vierkant is gemiddeld (zoals rood bij ons), dubbel zwart is expert
+              B:{nl:"blauw (gemiddeld)",adj:"blauwe",lvl:2,spd:340,pen:1.8,col:"#1E66CC"}, x:{nl:"dubbel zwart",adj:"dubbelzwarte",lvl:3,spd:300,pen:4,col:"#121417"}};
+const isDark = d => d === "s" || d === "x";
 const LIFT = {chair_lift:"stoeltjeslift", gondola:"gondel", cable_car:"kabelbaan", "t-bar":"sleeplift", "j-bar":"sleeplift",
               platter:"schotellift", drag_lift:"sleeplift", rope_tow:"touwlift", magic_carpet:"lopende band", mixed_lift:"combibaan",
               funicular:"kabeltrein", lift:"lift"};
@@ -13,13 +19,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, voice:s.voice??true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, voice:S.voice, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -72,29 +78,51 @@ function applyBase(){
 // ================= gebieden =================
 const shards = {};
 // versie van de kaartdata: verhogen na het opnieuw bouwen van data/, zodat telefoons de nieuwe bestanden ophalen
-const DATA_V = "d2";
+const DATA_V = "d3";
 const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
 
 function renderCountries(){
-  const counts = {}; S.index.forEach(r => counts[r[2]] = (counts[r[2]]||0)+1);
+  const rc = {}; S.index.forEach(r => { const g = r[12] || "alpen"; rc[g] = (rc[g]||0)+1; });
+  $("regions").innerHTML = [`<button type="button" class="chip" data-r="" aria-pressed="${!S.region}">Overal</button>`,
+    ...REGIONS.filter(([k]) => rc[k]).map(([k, n]) => `<button type="button" class="chip" data-r="${k}" aria-pressed="${S.region===k}">${n} <span class="n">${rc[k]}</span></button>`)].join("");
+  $("regions").querySelectorAll("button").forEach(b => b.onclick = () => { S.region = b.dataset.r; S.cc = ""; renderCountries(); renderAreas(); });
+  const counts = {}; S.index.filter(r => !S.region || (r[12] || "alpen") === S.region).forEach(r => counts[r[2]] = (counts[r[2]]||0)+1);
   const ccs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
   $("countries").innerHTML = [`<button type="button" class="chip" data-cc="" aria-pressed="${!S.cc}">Alle landen</button>`,
     ...ccs.map(c => `<button type="button" class="chip" data-cc="${c}" aria-pressed="${S.cc===c}">${COUNTRY[c]||c} <span class="n">${counts[c]}</span></button>`)].join("");
   $("countries").querySelectorAll("button").forEach(b => b.onclick = () => { S.cc = b.dataset.cc; renderCountries(); renderAreas(); });
 }
+// favoriete gebieden: bovenaan de lijst, met een ster
+let FAVS = []; try{ FAVS = JSON.parse(localStorage.getItem("pp-favs") || "[]"); }catch(e){}
+const isFav = id => FAVS.includes(id);
+function toggleFav(id){
+  FAVS = isFav(id) ? FAVS.filter(x => x !== id) : [id, ...FAVS];
+  try{ localStorage.setItem("pp-favs", JSON.stringify(FAVS)); }catch(e){}
+  const r = S.index.find(x => x[0] === id);
+  toast(isFav(id) ? `${r?.[1] || "Gebied"} staat bij je favorieten.` : `${r?.[1] || "Gebied"} is geen favoriet meer.`);
+}
+function areaRow(r, dist){
+  return `<li><button type="button" class="area-main" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
+      <span class="cc">${r[2]}</span>
+      <span><span class="nm">${esc(r[1])}</span><span class="rg">${dist != null ? `${(dist/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
+      <span class="km">${r[6]}<small>km piste</small></span></button>
+    <button type="button" class="fav${isFav(r[0]) ? " on" : ""}" data-fav="${r[0]}" aria-pressed="${isFav(r[0])}" aria-label="${isFav(r[0]) ? "Uit favorieten halen" : "Als favoriet bewaren"}: ${esc(r[1])}"><svg class="ic"><use href="#i-star"/></svg></button></li>`;
+}
 function renderAreas(){
   const q = norm(S.q.trim());
-  let rows = S.index.filter(r => (!S.cc || r[2]===S.cc) && (!q || norm(r[1]+" "+r[3]).includes(q)));
-  const dist = r => S.pos ? meters(S.pos.lat, S.pos.lon, r[5], r[4]) : 0;
+  let rows = S.index.filter(r => (!S.cc || r[2]===S.cc) && (!S.region || (r[12] || "alpen") === S.region) && (!q || norm(r[1]+" "+r[3]).includes(q)));
+  const dist = r => S.pos ? meters(S.pos.lat, S.pos.lon, r[5], r[4]) : null;
   rows.sort(S.nearSort && S.pos ? (a,b) => dist(a)-dist(b) : (a,b) => b[6]-a[6]);
+  const favRows = !q && !S.nearSort ? FAVS.map(id => S.index.find(r => r[0] === id)).filter(Boolean) : [];
+  if(favRows.length) rows = rows.filter(r => !isFav(r[0]));
   const shown = rows.slice(0, 80);
-  $("areas").innerHTML = shown.map(r => `<li><button type="button" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
-      <span class="cc">${r[2]}</span>
-      <span><span class="nm">${esc(r[1])}</span><span class="rg">${S.nearSort && S.pos ? `${(dist(r)/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
-      <span class="km">${r[6]}<small>km piste</small></span></button></li>`).join("")
-    || `<li class="empty" style="padding:16px 6px">Geen skigebied gevonden voor "${esc(S.q)}".</li>`;
-  $("count").textContent = rows.length > shown.length ? `${shown.length} van ${rows.length} getoond. Typ om te zoeken.` : `${rows.length} skigebieden`;
-  $("areas").querySelectorAll("button").forEach(b => b.onclick = () => { closePicker(); openArea(b.dataset.id); });
+  $("areas").innerHTML = (favRows.length ? `<li class="area-sep">Favorieten</li>` + favRows.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") + `<li class="area-sep">Alle skigebieden</li>` : "")
+    + (shown.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") || `<li class="empty" style="padding:16px 6px">Geen skigebied gevonden${S.q ? ` voor "${esc(S.q)}"` : ""}.</li>`);
+  const total = rows.length + favRows.length;
+  $("count").textContent = rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
+  $("areas").querySelectorAll(".area-main").forEach(b => b.onclick = () => { closePicker(); openArea(b.dataset.id); });
+  $("areas").querySelectorAll(".fav").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderAreas(); });
+  markOfflineAreas();
 }
 function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() => $("q").focus(), 50); }
 function closePicker(){ $("picker").hidden = true; }
@@ -115,6 +143,7 @@ async function openArea(id, opts={}){
     if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8]), cc:e[9] || row[2]});
     else edges.push({t:"l", a:e[1], b:e[2], name:nm, ref, kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9], cc:e[10] || row[2]});
   }
+  const huts = (raw.h || []).map(h => ({lat:h[1]/1e5, lon:h[0]/1e5, kind:h[2], name:raw.t[h[3]] || "", node:h[4]})).filter(h => nodes[h.node]);
   for(const w of raw.w) edges.push({t:"w", a:w[0], b:w[1], len:w[2], pts:[[nodes[w[0]].lat,nodes[w[0]].lon],[nodes[w[1]].lat,nodes[w[1]].lon]]});
   edges.forEach((e,i) => e.i = i);
   // groepen: een hele lift of een hele piste (alle stukken met dezelfde naam, nummer en kleur) gaat samen open of dicht
@@ -146,15 +175,17 @@ async function openArea(id, opts={}){
   edges.forEach(e => { if(e.t!=="r" || !(e.name||e.ref)) return; const k = e.name+"|"+e.ref+"|"+e.diff; if(seen.has(k)) return; seen.add(k);
     skiNames.set(`Skiën: ${pisteLabel(e)} (${DIFF[e.diff].nl})`, e.i); });
   S.area.skiNames = skiNames;
-  Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort()});
+  Object.assign(S.area, {groups, groupKeys:[...groups.keys()].sort(), huts});
+  huts.forEach(hh => { if(hh.name){ const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!names.has(lab)) names.set(lab, hh.node); } });
   S.risk = null; S.wps = [];
   if(S.draw){ S.draw = false; document.body.classList.remove("drawing"); $("drawBtn").classList.remove("drawing"); $("drawBar").hidden = true; }
   loadStatus(); applyPendingShare();
   S.target = null; S.via = null;
-  $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
+  $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(tr(s))}"></option>`).join("");
   S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
+  $("brandRegion").textContent = regionName(row[12]);
   $("areaStats").textContent = S.area.statsTxt;
-  drawPistes(); buildNumbers();
+  drawPistes(); buildNumbers(); drawHuts(); loadHuts();
   if(!opts.keepView) fitArea(!!$("splash") && !$("splash").classList.contains("out"));
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
   else { defaultRoute(); S.pick = "from"; }
@@ -218,9 +249,9 @@ function drawPistes(){
   const runs = Object.keys(groups).filter(k => k.startsWith("r_")).flatMap(k => groups[k]);
   const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", ...o});
   if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:6, opacity:.55})).addTo(pisteLayer);
-  for(const k of ["r_u","r_f","r_g","r_b","r_r","r_s"]){
+  for(const k of ["r_u","r_f","r_g","r_b","r_B","r_r","r_s","r_x"]){
     if(!groups[k]) continue; const d = k.slice(2);
-    L.polyline(groups[k], opt({color:DIFF[d].col, weight:d==="u"?2.5:3.2, opacity:.95, dashArray:d==="f"?"7 5":null})).addTo(pisteLayer);
+    L.polyline(groups[k], opt({color:DIFF[d].col, weight:d==="u"?2.5:d==="x"?4.2:3.2, opacity:.95, dashArray:d==="f"?"7 5":null})).addTo(pisteLayer);
   }
   const lifts = [...(groups.lift||[]), ...(groups.drag||[])];
   if(lifts.length) L.polyline(lifts, opt({color:"#ffffff", weight:4.5, opacity:.8})).addTo(pisteLayer);
@@ -361,7 +392,7 @@ function nearestNode(lat, lon){
 
 // ================= routebeschrijving =================
 const fmt = m => { m = Math.max(1, Math.round(m)); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
-const km = m => m >= 1000 ? (m/1000).toFixed(1).replace(".",",")+" km" : Math.round(m/10)*10+" m";
+const km = m => m >= 1000 ? (m/1000).toFixed(1).replace(".", DEC)+" km" : Math.round(m/10)*10+" m";
 const nodeLabel = n => S.area.place[n]?.s || `kruising op ${S.area.nodes[n].ele ?? "?"} m`;
 const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
 const uc = s => s.charAt(0).toUpperCase() + s.slice(1);
@@ -396,7 +427,7 @@ function buildSteps(path){
       st.say = `stap in bij ${liftLabel(e)}`;
     } else if(st.t==="r"){
       st.cls = "run d-" + e.diff; st.color = DIFF[e.diff].col;
-      st.node = `<span class="node${e.diff==="s" ? " dark" : ""}">${esc(e.ref) || I("ski")}</span>`;
+      st.node = `<span class="node${isDark(e.diff) ? " dark" : ""}">${esc(e.ref) || I("ski")}</span>`;
       st.turn = prev && prev.t!=="l" ? turnBetween(prev, st) : null;
       st.icon = st.turn ? TURN_ICON[st.turn] : "straight";
       const what = pisteLabel(e);
@@ -427,9 +458,9 @@ function update(){
     if(!(S.fromMe && S.pos)) S.from = wpStart(S.wps[0]);
     S.to = wpEnd(S.wps[S.wps.length-1]);
   } else if(S.target) S.to = S.target.end;
-  if(document.activeElement !== $("from")) $("from").value = S.from!=null ? (S.fromMe ? "Mijn locatie (" + lc(nodeLabel(S.from)) + ")" : nodeLabel(S.from)) : "";
-  if(document.activeElement !== $("to")) $("to").value = S.wps.length ? `Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}` : S.target ? `Skiën: ${S.target.label}`
-    : S.to!=null && S.to===S.from && S.via!=null ? "Terug naar het vertrekpunt" : S.to!=null ? nodeLabel(S.to) : "";
+  if(document.activeElement !== $("from")) $("from").value = tr(S.from!=null ? (S.fromMe ? "Mijn locatie (" + lc(nodeLabel(S.from)) + ")" : nodeLabel(S.from)) : "");
+  if(document.activeElement !== $("to")) $("to").value = tr(S.wps.length ? `Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}` : S.target ? `Skiën: ${S.target.label}`
+    : S.to!=null && S.to===S.from && S.via!=null ? "Terug naar het vertrekpunt" : S.to!=null ? nodeLabel(S.to) : "");
   renderExtra();
 
   const path = computePath();
@@ -497,8 +528,8 @@ function renderResult(){
   const down = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+Math.max(0,x.e.drop||0),0);
   const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
-  peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".",",")} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString("nl-NL")} hm dalen</span></div>
+  peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span></div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
       <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
@@ -519,12 +550,13 @@ function renderResult(){
   if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
   const lastWp = S.wps[S.wps.length-1];
   const endLabel = lastWp ? (lastWp.k === "p" ? `Einde ${lastWp.ch.label}` : nodeLabel(S.to)) : S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
-  res.innerHTML = warn + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
+  res.innerHTML = warn + profileHtml() + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
       <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}</div>
       <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
     + `<li class="end"><span class="node">${I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div></div><span></span></li></ol>`;
   $("valley2")?.addEventListener("click", toValley);
+  bindProfile();
   $("openStatus2")?.addEventListener("click", openStatus);
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
     if(ev.target.closest(".close-btn")) return;
@@ -583,7 +615,7 @@ function edgePopup(ei, latlng, nearNode){
   const drop = ch.kind==="r" ? (A.nodes[ch.start].ele ?? 0) - (A.nodes[ch.end].ele ?? 0) : (A.nodes[ch.end].ele ?? 0) - (A.nodes[ch.start].ele ?? 0);
   const div = document.createElement("div"); div.className = "pop";
   const node = ch.kind==="l" ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${I("lift")}</span>`
-                             : `<span class="node${e.diff==="s" ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
+                             : `<span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
   const mins = ch.kind==="l" ? e.dur/60 : ch.len / DIFF[e.diff].spd;
   const top = ch.kind==="l" ? A.nodes[ch.end].ele : A.nodes[ch.start].ele;
   div.innerHTML = `<div class="pop-head">${node}<div><b>${esc(uc(ch.label))}</b><small>${ch.kind==="l" ? uc(LIFT[e.kind]||"lift") : e.diff==="f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`}</small></div></div>
@@ -616,8 +648,8 @@ async function keepAwake(){
 document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") keepAwake(); });
 function speak(text){
   if(!S.voice || !S.follow || !("speechSynthesis" in window)) return;
-  try{ const u = new SpeechSynthesisUtterance(text); u.lang = "nl-NL"; u.rate = 1.02;
-       const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith("nl")); if(v) u.voice = v;
+  try{ const u = new SpeechSynthesisUtterance(tr(text)); u.lang = SPEECH_LANG(); u.rate = 1.02;
+       const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(LANG)); if(v) u.voice = v;
        speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
 }
 function startWatch(){
@@ -706,7 +738,7 @@ function updateNav(){
   $("navDist").textContent = km(ns.rem);
   $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
-  const arrive = new Date(Date.now() + left*60000).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"});
+  const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
   $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)} · nog ${fmt(left)} · aankomst ${arrive}</span>`;
   // liften gaan bijna dicht
   const nowM = new Date().getHours()*60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
@@ -770,11 +802,11 @@ function placeInput(inp, key){
     const A = S.area; if(!A) return;
     const raw = inp.value.trim(), v = norm(raw); if(!v) return;
     if(key==="to"){
-      for(const [s, ei] of A.skiNames) if(norm(s)===v){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
+      for(const [s, ei] of A.skiNames) if(norm(s)===v || norm(tr(s))===v){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
     }
     let hit = null;
-    for(const [s, n] of A.names){ const k = norm(s); if(k===v){ hit = n; break; } if(hit==null && k.includes(v)) hit = n; }
-    if(hit==null && key==="to") for(const [s, ei] of A.skiNames) if(norm(s).includes(v)){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
+    for(const [s, n] of A.names){ const k = norm(s), kt = norm(tr(s)); if(k===v || kt===v){ hit = n; break; } if(hit==null && (k.includes(v) || kt.includes(v))) hit = n; }
+    if(hit==null && key==="to") for(const [s, ei] of A.skiNames) if(norm(s).includes(v) || norm(tr(s)).includes(v)){ S.target = chainFrom(ei); S.via = null; inp.blur(); update(); fitRoute(); return; }
     if(hit==null){ toast(`Geen punt gevonden voor "${raw}".`); return; }
     S[key] = hit; if(key==="to"){ S.planBy = null; S.wps = []; }
     if(key==="from") S.fromMe = false; else { S.target = null; S.via = null; }
@@ -804,6 +836,8 @@ document.querySelectorAll("input[name=base]").forEach(r => r.onchange = () => { 
 $("showPistes").onchange = e => { S.pistes = e.target.checked; applyBase(); };
 $("showLabels").onchange = e => { S.labels = e.target.checked; applyBase(); };
 $("showNums").onchange = e => { S.nums = e.target.checked; applyBase(); };
+$("showHuts").onchange = e => { S.hutsOn = e.target.checked; save(); drawHuts(); };
+$("showHuts").checked = S.hutsOn;
 document.querySelectorAll("#level button").forEach(b => b.onclick = () => { S.level = +b.dataset.v; update(); });
 document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.v; update(); });
 $("free").onchange = e => { S.free = e.target.checked; update(); };
@@ -854,11 +888,13 @@ const WX = {0:["Helder","sun"],1:["Overwegend helder","sun"],2:["Half bewolkt","
   65:["Zware regen","rain"],66:["IJzel","rain"],67:["IJzel","rain"],71:["Lichte sneeuw","snow"],73:["Sneeuw","snow"],75:["Zware sneeuw","snow"],77:["Korrelsneeuw","snow"],
   80:["Regenbuien","rain"],81:["Regenbuien","rain"],82:["Zware buien","rain"],85:["Sneeuwbuien","snow"],86:["Zware sneeuwbuien","snow"],95:["Onweer","storm"],96:["Onweer met hagel","storm"],99:["Onweer met hagel","storm"]};
 const wxInfo = c => WX[c] || ["Onbekend","cloud"];
-const AVALANCHE = {AT:["https://lawinen.at","Lawinenwarndienste Österreich"], CH:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"],
+const AVALANCHE = {NO:["https://varsom.no/en/avalanche-bulletins/","Varsom lawinebericht"], SE:["https://lavinprognoser.se","Lavinprognoser"],
+  US:["https://avalanche.org","avalanche.org"], CA:["https://avalanche.ca","Avalanche Canada"], AT:["https://lawinen.at","Lawinenwarndienste Österreich"], CH:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"],
   FR:["https://meteofrance.com/meteo-montagne","Météo-France bergweer"], IT:["https://bollettini.aineva.it/","AINEVA lawinebulletin"],
   DE:["https://www.lawinenwarndienst.bayern.de/","Lawinenwarndienst Bayern"], SI:["https://meteo.arso.gov.si/met/sl/avalanche/","ARSO lawinebulletin"],
   LI:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"]};
 const wxCache = {};
+const wxStore = id => { try{ return JSON.parse(localStorage.getItem("pp-wx:" + id) || "null"); }catch(e){ return null; } };
 const deg = t => `${Math.round(t)}°`;
 async function loadWeather(){
   const A = S.area; if(!A) return;
@@ -874,12 +910,16 @@ async function loadWeather(){
     const res = await fetch(url); if(!res.ok) throw new Error(res.status);
     const d = await res.json(); if(!Array.isArray(d) || d.length < 2) throw new Error("data");
     wxCache[id] = {t:Date.now(), d};
+    try{ localStorage.setItem("pp-wx:" + id, JSON.stringify({t:Date.now(), d})); }catch(e){}
     if(S.area?.id === id) renderWeather(d);
   }catch(e){
-    if(S.area?.id === id) $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span>`;
+    const old = wxStore(id);
+    if(S.area?.id !== id) return;
+    if(old && Date.now() - old.t < 36*3600e3){ wxCache[id] = {t:0, d:old.d}; renderWeather(old.d, old.t); }
+    else $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span>`;
   }
 }
-function renderWeather(d){
+function renderWeather(d, savedAt){
   const A = S.area, r = A.row, top = d[0], dal = d[1], c = top.current, cd = dal.current;
   const [txt, ic] = wxInfo(c.weather_code);
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
@@ -895,13 +935,13 @@ function renderWeather(d){
   const D = top.daily, today = c.time.slice(0, 10), start = Math.max(0, D.time.indexOf(today));
   const days = D.time.slice(start, start + 4).map((t, k) => {
     const i = start + k, [dt, di] = wxInfo(D.weather_code[i]);
-    const name = k===0 ? "Vandaag" : k===1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString("nl-NL", {weekday:"short"});
+    const name = k===0 ? "Vandaag" : k===1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"});
     const sn = D.snowfall_sum[i] || 0;
     return `<div class="wx-day" title="${dt}"><b>${name}</b><svg class="ic"><use href="#i-${di}"/></svg>
       <span class="t">${deg(D.temperature_2m_max[i])} <i>${deg(D.temperature_2m_min[i])}</i></span><span class="sn">${sn >= 0.5 ? `${Math.round(sn)} cm` : ""}</span></div>`;
   }).join("");
   const av = AVALANCHE[r[2]];
-  const vis = c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".",",")} km` : `${Math.round(c.visibility/10)*10} m`;
+  const vis = c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".", DEC)} km` : `${Math.round(c.visibility/10)*10} m`;
   $("wxBody").innerHTML = (notes.length ? `<div style="padding:0 14px">${notes.join("")}</div>` : "") + `
     <div class="wx-grid">
       <div class="wx-cell"><span>${I("wind")}Wind</span><b>${Math.round(c.wind_speed_10m)}<small> km/u</small></b><small>stoten ${Math.round(c.wind_gusts_10m)}</small></div>
@@ -912,13 +952,14 @@ function renderWeather(d){
       <div class="wx-cell"><span>${I("thermo")}0°-grens</span><b>${Math.round(c.freezing_level_height/50)*50}<small> m</small></b><small>vriespunt</small></div>
     </div>
     <div class="wx-days">${days}</div>
-    <div class="wx-foot"><span>Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
+    <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
       ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>`;
   $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top`;
   computeRisk(c, fresh);
 }
 
 // ================= SOS =================
+const EMERGENCY = {US:"911", CA:"911"};   // anders 112
 const RESCUE = {AT:["140","Alpine noodlijn (Bergrettung Österreich)"], CH:["1414","Rega, luchtreddingsdienst Zwitserland"],
                 LI:["1414","Rega, ook voor Liechtenstein"], IT:["118","Medische noodhulp Italië"]};
 let sosTimer = null;
@@ -948,7 +989,9 @@ function sosAlt(){
 function renderSos(){
   // land van de piste of lift waar je bent; anders het land van het skigebied
   const near = S.pos ? nearestPlace() : null;
-  const cc = near && near.d < 1000 ? near.cc : S.area?.row[2], loc = RESCUE[cc];
+  const cc = near && near.d < 1000 ? near.cc : S.area?.row[2], loc = RESCUE[cc], em = EMERGENCY[cc] || "112";
+  $("sosMain").href = `tel:${em}`; $("sosMainNum").textContent = `Bel ${em}`;
+  $("sosMainTxt").textContent = em === "112" ? "Europees alarmnummer, werkt in heel Europa" : `Alarmnummer ${COUNTRY[cc] || ""}`.trim();
   $("sosLocal").hidden = !loc;
   if(loc){ $("sosLocal").href = `tel:${loc[0]}`; $("sosLocalNum").textContent = `Bel ${loc[0]}`; $("sosLocalTxt").textContent = loc[1]; }
   if(!S.pos){
@@ -971,12 +1014,12 @@ $("sosBtn").onclick = openSos;
 $("sosClose").onclick = closeSos;
 $("sosCopy").onclick = async () => {
   if(!S.pos) return;
-  try{ await navigator.clipboard.writeText(sosText()); toast("Locatie gekopieerd. Plak hem in een bericht."); }
+  try{ await navigator.clipboard.writeText(tr(sosText())); toast("Locatie gekopieerd. Plak hem in een bericht."); }
   catch(e){ toast("Kopiëren lukte niet. Lees de coördinaten voor."); }
 };
 $("sosShare").onclick = async () => {
   if(!S.pos) return;
-  if(navigator.share){ try{ await navigator.share({title:"Mijn locatie (noodgeval)", text:sosText()}); }catch(e){} }
+  if(navigator.share){ try{ await navigator.share({title:tr("Mijn locatie (noodgeval)"), text:tr(sosText())}); }catch(e){} }
   else $("sosCopy").click();
 };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("sos").hidden) closeSos(); });
@@ -1073,7 +1116,7 @@ function statusSummary(){
 function renderStatus(){
   const A = S.area; if(!A) return;
   const d = new Date();
-  $("statusDate").textContent = `${A.row[1]} · ${d.toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"})}`;
+  $("statusDate").textContent = `${A.row[1]} · ${d.toLocaleDateString(LOCALE, {weekday:"long", day:"numeric", month:"long"})}`;
   const site = A.row[11];
   $("officialLink").href = site || `https://www.google.com/search?q=${encodeURIComponent(A.row[1] + " liftstatus")}`;
   $("officialTxt").textContent = site ? "Officiële liftstatus" : "Zoek liftstatus";
@@ -1094,7 +1137,7 @@ function renderStatus(){
   list.sort(stTab==="l" ? (a, b) => groupName(a).localeCompare(groupName(b), "nl") : (a, b) => num(a) - num(b) || groupName(a).localeCompare(groupName(b), "nl"));
   $("statusList").innerHTML = list.map(g => {
     const off = g.edges.some(i => S.closed.has(i)), risk = g.t==="l" && g.edges.some(i => R?.lifts.has(i));
-    const node = g.t==="l" ? `<span class="node liftnode">${I("lift")}</span>` : `<span class="node${g.e.diff==="s" ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
+    const node = g.t==="l" ? `<span class="node liftnode">${I("lift")}</span>` : `<span class="node${g.isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
     const meta = g.t==="l" ? `${uc(LIFT[g.e.kind]||"lift")} · ${km(g.len)}${g.top!=null && g.top >= 0 ? ` · tot ${g.top} m` : ""}` : `${uc(DIFF[g.e.diff].nl)} · ${km(g.len)}`;
     return `<li class="${off ? "off" : ""}" data-k="${esc(g.key)}">${node}<span><span class="st-name">${esc(groupName(g))}</span><span class="st-meta">${meta}</span>${risk && !off ? `<span class="risk-tag">${I("wind")}Mogelijk dicht door wind</span>` : ""}</span>
       <label class="switch" title="${off ? "Dicht" : "Open"}"><input type="checkbox" ${off ? "" : "checked"} aria-label="${esc(groupName(g))} open"><i></i></label></li>`;
@@ -1126,7 +1169,7 @@ $("shareCopy").onclick = async () => {
 $("shareSend").onclick = async () => {
   const url = shareUrl(), n = closedKeys().length;
   const text = `Liftstatus ${S.area.row[1]} vandaag: ${n ? `${n} ${n===1 ? "lift of piste" : "liften en pistes"} dicht` : "alles open"}. Open in de Pistenplanner:`;
-  if(navigator.share){ try{ await navigator.share({title:"Liftstatus vandaag", text, url}); }catch(e){} }
+  if(navigator.share){ try{ await navigator.share({title:tr("Liftstatus vandaag"), text:tr(text), url}); }catch(e){} }
   else $("shareCopy").click();
 };
 
@@ -1295,7 +1338,7 @@ $("gFollow").onchange = e => { G.follow = e.target.checked; gSave(); if(G.follow
 $("gSharePos").onchange = e => { G.sharePos = e.target.checked; gSave(); if(G.sharePos){ G.lastPos = null; if(S.watch == null) startWatch(); else groupOnPos(); } };
 $("gCopy").onclick = async () => { try{ await navigator.clipboard.writeText(gUrl()); toast("Link gekopieerd."); }catch(e){ toast("Kopiëren lukte niet."); } };
 $("gShare").onclick = async () => {
-  if(navigator.share){ try{ await navigator.share({title:"Skiën in een groep", text:`Doe mee met mijn groep in de Pistenplanner (code ${G.code}):`, url:gUrl()}); }catch(e){} }
+  if(navigator.share){ try{ await navigator.share({title:tr("Skiën in een groep"), text:tr(`Doe mee met mijn groep in de Pistenplanner (code ${G.code}):`), url:gUrl()}); }catch(e){} }
   else $("gCopy").click();
 };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("group").hidden) $("group").hidden = true; });
@@ -1326,7 +1369,7 @@ function renderDrawBar(){
   if(!S.path || !S.path.length){ $("dbTitle").textContent = `${n} ${n===1 ? "punt" : "punten"}`; $("dbSub").textContent = "Tik het volgende punt aan"; return; }
   const tot = S.path.reduce((t, x) => t + x.min, 0), kmp = S.path.filter(x => x.e.t==="r").reduce((t, x) => t + x.e.len, 0);
   $("dbTitle").textContent = `${n} punten · ${fmt(tot)}`;
-  $("dbSub").textContent = `${(kmp/1000).toFixed(1).replace(".", ",")} km piste · tik verder of kies Klaar`;
+  $("dbSub").textContent = `${(kmp/1000).toFixed(1).replace(".", DEC)} km piste · tik verder of kies Klaar`;
 }
 function startDraw(){
   if(!S.area) return;
@@ -1374,7 +1417,7 @@ function renderRoutes(){
   const list = loadRoutes();
   $("mrCount").textContent = list.length ? list.length : "";
   $("mrSave").disabled = !S.path?.length;
-  $("mrList").innerHTML = list.map((r, i) => `<li><button type="button" class="mr-open" data-i="${i}"><b>${esc(r.name)}</b><small>${r.n} punten · ${fmt(r.min)} · ${r.km.toFixed(1).replace(".", ",")} km piste</small></button>
+  $("mrList").innerHTML = list.map((r, i) => `<li><button type="button" class="mr-open" data-i="${i}"><b>${esc(r.name)}</b><small>${r.n} punten · ${fmt(r.min)} · ${r.km.toFixed(1).replace(".", DEC)} km piste</small></button>
     <button type="button" class="icon-btn" data-del="${i}" title="Verwijderen" aria-label="${esc(r.name)} verwijderen"><svg class="ic"><use href="#i-trash"/></svg></button></li>`).join("")
     || `<li class="empty" style="display:block;font-size:13px">Nog geen routes bewaard. Teken of plan een route en bewaar hem hier.</li>`;
   $("mrList").querySelectorAll(".mr-open").forEach(b => b.onclick = () => {
@@ -1392,7 +1435,7 @@ function renderRoutes(){
 $("mrSave").onclick = () => {
   const wps = currentWps();
   if(!S.path?.length || wps.length < 2){ toast("Teken of plan eerst een route."); return; }
-  const name = $("mrName").value.trim() || `Route ${new Date().toLocaleDateString("nl-NL", {day:"numeric", month:"short"})}`;
+  const name = $("mrName").value.trim() || `Route ${new Date().toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}`;
   const list = loadRoutes();
   list.unshift({name, wps, n:wps.length, ts:Date.now(), min:S.path.reduce((t, x) => t + x.min, 0),
                 km:S.path.filter(x => x.e.t==="r").reduce((t, x) => t + x.e.len, 0)/1000});
@@ -1407,7 +1450,7 @@ try{ const d = JSON.parse(localStorage.getItem("pp-diary") || "null");
   if(d) Object.assign(D, {rec:!!d.rec && d.date === todayKey(), show:d.show ?? true, awake:!!d.awake}); }catch(e){}
 const dSaveSettings = () => { try{ localStorage.setItem("pp-diary", JSON.stringify({rec:D.rec, date:todayKey(), show:D.show, awake:D.awake})); }catch(e){} };
 const dayKey = k => "pp-day:" + k;
-const niceDate = k => new Date(+k.slice(0,4), +k.slice(4,6)-1, +k.slice(6,8)).toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"});
+const niceDate = k => new Date(+k.slice(0,4), +k.slice(4,6)-1, +k.slice(6,8)).toLocaleDateString(LOCALE, {weekday:"long", day:"numeric", month:"long"});
 const trackLayer = L.layerGroup().addTo(map);
 function loadDay(k){ try{ return JSON.parse(localStorage.getItem(dayKey(k)) || "null"); }catch(e){ return null; } }
 function saveDay(day){
@@ -1500,8 +1543,8 @@ function daySummary(day){
   } else if(day.sum){ s.pisteList = day.sum.pisteList || []; s.liftList = day.sum.liftList || []; }
   return s;
 }
-const hmTxt = x => Math.round(x).toLocaleString("nl-NL");
-const kmTxt = x => x.toFixed(1).replace(".", ",");
+const hmTxt = x => Math.round(x).toLocaleString(LOCALE);
+const kmTxt = x => x.toFixed(1).replace(".", DEC);
 const durTxt = sec => { const m = Math.round(sec/60); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
 function diaryLive(){
   const day = D.day && D.day.date === todayKey() ? D.day : loadDay(todayKey());
@@ -1528,7 +1571,7 @@ function renderDiary(){
   $("diaryTitle").textContent = isToday ? "Skidagboek" : "Eerdere dag";
   // bediening
   if(!isToday) $("diaryCtrl").innerHTML = `<button type="button" class="btn ghost" id="dBack">${I("book")}Terug naar vandaag</button>`;
-  else if(D.rec) $("diaryCtrl").innerHTML = `<div class="rec-line"><span class="rec-pill">${I("rec")}Opname</span><span>${sum?.from ? `sinds ${new Date(sum.from).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"})} · ` : ""}${day?.pts.length || 0} punten${S.pos ? "" : " · <b>wacht op GPS…</b>"}</span></div>
+  else if(D.rec) $("diaryCtrl").innerHTML = `<div class="rec-line"><span class="rec-pill">${I("rec")}Opname</span><span>${sum?.from ? `sinds ${new Date(sum.from).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}${day?.pts.length || 0} punten${S.pos ? "" : " · <b>wacht op GPS…</b>"}</span></div>
       <button type="button" class="btn stop" id="dStop">${I("stop")}Opname stoppen</button>`;
   else $("diaryCtrl").innerHTML = `<button type="button" class="btn primary" id="dStart">${I("rec")}${day?.pts.length ? "Verder opnemen" : "Begin met opnemen"}</button>`;
   $("dStart")?.addEventListener("click", startRec);
@@ -1547,7 +1590,7 @@ function renderDiary(){
   // pistes en liften
   const pl = sum?.pisteList || [], ll = sum?.liftList || [];
   $("diaryLists").innerHTML = (pl.length ? `<div class="d-list"><p class="label">Pistes (${pl.length})</p><div class="d-chips">${pl.map(x =>
-      `<span class="d-chip"><span class="node${x.diff==="s" ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
+      `<span class="d-chip"><span class="node${isDark(x.diff) ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (ll.length ? `<div class="d-list"><p class="label">Liften (${ll.length})</p><div class="d-chips">${ll.map(x =>
       `<span class="d-chip"><span class="node" style="background:var(--surface);color:var(--p-lift);border:1.5px solid var(--p-lift)">${I("lift")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (sum && sum.n > 1 ? `<button type="button" class="btn ghost" id="dShare" style="width:100%">${I("share")}Deel mijn dag</button>` : "");
@@ -1574,11 +1617,11 @@ function renderDiary(){
   });
 }
 async function shareDay(day, sum){
-  const lines = [`Mijn skidag in ${day.areaName || "de Alpen"} (${niceDate(day.date)}):`,
+  const lines = [`Mijn skidag in ${day.areaName || "de bergen"} (${niceDate(day.date)}):`,
     `${kmTxt(sum.km)} km geskied · ${hmTxt(sum.hm)} hoogtemeters omlaag · topsnelheid ${Math.round(sum.vmax)} km/u`,
     `${sum.runs} afdalingen · ${sum.lifts} liften`];
   if(sum.pisteList.length) lines.push("Pistes: " + sum.pisteList.slice(0, 12).map(x => x.ref || x.name).join(", "));
-  const text = lines.join("\n") + "\n\nBijgehouden met de Pistenplanner";
+  const text = lines.map(tr).join("\n") + "\n\n" + tr("Bijgehouden met de Pistenplanner");
   if(navigator.share){ try{ await navigator.share({title:"Mijn skidag", text}); return; }catch(e){ return; } }
   try{ await navigator.clipboard.writeText(text); toast("Samenvatting gekopieerd."); }catch(e){ toast("Delen lukte niet."); }
 }
@@ -1602,6 +1645,214 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("diary")
 // oude dagen opruimen: hooguit 60 dagen bewaren
 (() => { const days = listDays(); days.slice(60).forEach(d => { try{ localStorage.removeItem(dayKey(d)); }catch(e){} }); })();
 
+// ================= hoogteprofiel =================
+// hoogte per knooppunt langs de route; tussen knooppunten lineair (de kaart kent alleen hoogtes op kruisingen en stations)
+function profileData(){
+  const A = S.area, P = S.path; if(!A || !P || !P.length) return null;
+  const pts = []; let d = 0;
+  const e0 = A.nodes[P[0].from].ele; if(e0 != null) pts.push({d:0, ele:e0, i:0});
+  P.forEach((s, k) => {
+    d += s.e.len;
+    const ele = A.nodes[s.to].ele;
+    if(ele != null) pts.push({d, ele, k});
+  });
+  if(pts.length < 2) return null;
+  // stap-index per stuk, voor kleur en tooltip
+  const stepOf = new Map(); let n = 0;
+  S.steps.forEach((st, i) => st.items.forEach(() => stepOf.set(n++, i)));
+  return {pts, total:d, stepOf};
+}
+let PROF = null;
+function profileHtml(){
+  const pd = profileData(); PROF = pd;
+  if(!pd) return "";
+  const W = Math.max(260, ($("result").clientWidth || 360)), H = 120, padL = 40, padR = 8, padT = 10, padB = 20;
+  const eles = pd.pts.map(p => p.ele), lo = Math.min(...eles), hi = Math.max(...eles);
+  const span = Math.max(50, hi - lo), y0 = lo - span*0.08, y1 = hi + span*0.08;
+  const X = d => padL + (W - padL - padR) * d / pd.total, Y = e => padT + (H - padT - padB) * (1 - (e - y0)/(y1 - y0));
+  Object.assign(pd, {W, H, padL, padR, padT, padB, X, Y, lo, hi});
+  let up = 0, down = 0;
+  for(let i = 1; i < pd.pts.length; i++){ const de = pd.pts[i].ele - pd.pts[i-1].ele; if(de > 0) up += de; else down -= de; }
+  const area = `M${X(0)},${Y(y0)} ` + pd.pts.map(p => `L${X(p.d).toFixed(1)},${Y(p.ele).toFixed(1)}`).join(" ") + ` L${X(pd.total)},${Y(y0)} Z`;
+  // lijnstukken in de kleur van de stap
+  let segs = "", prev = pd.pts[0];
+  for(let i = 1; i < pd.pts.length; i++){
+    const p = pd.pts[i], st = S.steps[pd.stepOf.get(p.k)] || {};
+    const lift = st.t === "l", col = lift ? "var(--p-lift)" : st.t === "w" ? "var(--faint)" : (st.color || "var(--accent)");
+    segs += `<line x1="${X(prev.d).toFixed(1)}" y1="${Y(prev.ele).toFixed(1)}" x2="${X(p.d).toFixed(1)}" y2="${Y(p.ele).toFixed(1)}" stroke="${col}" stroke-width="2" stroke-linecap="round"${lift || st.t === "w" ? ' stroke-dasharray="3 4"' : ""}/>`;
+    prev = p;
+  }
+  const yl = v => `<text x="${padL - 6}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${hmTxt(v)}</text><line x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="grid"/>`;
+  return `<div class="profile" id="profile">
+    <div class="prof-head"><p class="label">Hoogteprofiel</p><span>↑ ${hmTxt(up)} m · ↓ ${hmTxt(down)} m · hoogste ${hmTxt(hi)} m</span></div>
+    <div class="prof-box">
+      <svg id="profSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Hoogteprofiel van ${hmTxt(lo)} tot ${hmTxt(hi)} meter over ${km(pd.total)}">
+        ${yl(hi)}${yl(lo)}
+        <path d="${area}" class="prof-area"/>
+        ${segs}
+        <text x="${padL}" y="${H - 5}" text-anchor="start">0 km</text>
+        <text x="${W - padR}" y="${H - 5}" text-anchor="end">${km(pd.total)}</text>
+        <line id="profCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" class="cross" visibility="hidden"/>
+        <circle id="profDot" r="4.5" class="dot" visibility="hidden"/>
+        <rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent" id="profHit"/>
+      </svg>
+      <div class="prof-tip" id="profTip" hidden></div>
+    </div>
+  </div>`;
+}
+let profMarker = null;
+function bindProfile(){
+  const hit = $("profHit"); if(!hit || !PROF) return;
+  const pd = PROF, svg = $("profSvg");
+  const at = d => { // hoogte en stap op afstand d
+    let i = pd.pts.findIndex(p => p.d >= d); if(i <= 0) i = 1;
+    const a = pd.pts[i-1], b = pd.pts[i], f = b.d > a.d ? (d - a.d)/(b.d - a.d) : 0;
+    return {ele:a.ele + (b.ele - a.ele)*f, k:b.k, f, a, b};
+  };
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * pd.W / r.width;
+    const d = Math.max(0, Math.min(pd.total, (x - pd.padL) / (pd.W - pd.padL - pd.padR) * pd.total));
+    const q = at(d), st = S.steps[pd.stepOf.get(q.k)];
+    $("profCross").setAttribute("x1", pd.X(d)); $("profCross").setAttribute("x2", pd.X(d)); $("profCross").setAttribute("visibility", "visible");
+    $("profDot").setAttribute("cx", pd.X(d)); $("profDot").setAttribute("cy", pd.Y(q.ele)); $("profDot").setAttribute("visibility", "visible");
+    const tip = $("profTip"); tip.hidden = false;
+    tip.innerHTML = `<b>${hmTxt(q.ele)} m</b> · ${km(d)}<span>${esc(st?.title || "")}</span>`;
+    const left = Math.min(Math.max(pd.X(d) * r.width / pd.W - 70, 0), r.width - 150); tip.style.left = left + "px";
+    // dezelfde plek op de kaart
+    const item = S.path[q.k]; if(item){
+      const line = item.rev ? [...item.e.pts].reverse() : item.e.pts;
+      let tot = 0; const seg = []; for(let j = 0; j < line.length-1; j++){ const l = meters(...line[j], ...line[j+1]); seg.push(l); tot += l; }
+      let want = q.f * tot, j = 0; while(j < seg.length-1 && want > seg[j]){ want -= seg[j]; j++; }
+      const g = seg[j] ? want/seg[j] : 0, A_ = line[j], B_ = line[j+1] || line[j];
+      const ll = [A_[0] + (B_[0]-A_[0])*g, A_[1] + (B_[1]-A_[1])*g];
+      if(!profMarker) profMarker = L.circleMarker(ll, {renderer:svgR, radius:7, color:"#fff", weight:3, fillColor:"#0F1B2A", fillOpacity:1, interactive:false}).addTo(map);
+      else profMarker.setLatLng(ll);
+    }
+  };
+  const leave = () => { $("profCross")?.setAttribute("visibility", "hidden"); $("profDot")?.setAttribute("visibility", "hidden"); if($("profTip")) $("profTip").hidden = true; profMarker?.remove(); profMarker = null; };
+  hit.addEventListener("pointermove", move); hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", leave);
+}
+
+// ================= hutten en restaurants =================
+const HUT_KIND = {h:["Berghut","hut"], r:["Restaurant","food"], c:["Café","cup"], b:["Bar","glass"], f:["Snackbar","food"]};
+const hutLayer = L.layerGroup();
+function drawHuts(){
+  hutLayer.clearLayers();
+  const A = S.area; if(!A || !S.hutsOn || map.getZoom() < 13){ hutLayer.remove(); return; }
+  hutLayer.addTo(map);
+  const b = map.getBounds().pad(.15);
+  for(const h of A.huts){
+    if(!b.contains([h.lat, h.lon])) continue;
+    const k = HUT_KIND[h.kind] || HUT_KIND.r;
+    const m = L.marker([h.lat, h.lon], {keyboard:false, zIndexOffset:300, title:h.name || k[0],
+      icon:L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,13], html:`<div class="hut hut-${h.kind}">${I(k[1])}</div>`})});
+    m.on("click", ev => { L.DomEvent.stopPropagation(ev); hutPopup(h); });
+    m.addTo(hutLayer);
+  }
+}
+function hutPopup(h){
+  const k = HUT_KIND[h.kind] || HUT_KIND.r, A = S.area, ele = A.nodes[h.node]?.ele;
+  const div = document.createElement("div"); div.className = "pop";
+  div.innerHTML = `<div class="pop-head"><span class="hut big hut-${h.kind}">${I(k[1])}</span><div><b>${esc(h.name || k[0])}</b><small>${k[0]}${ele != null ? ` · ca. ${ele} m` : ""}</small></div></div>
+    <div class="pop-btns">
+      <button type="button" class="primary" data-a="to">${I("flag")}Hierheen</button>
+      <button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>
+    </div>`;
+  const pop = L.popup({maxWidth:280, className:"pop-wrap"}).setLatLng([h.lat, h.lon]).setContent(div).openOn(map);
+  div.querySelectorAll("button").forEach(b => b.onclick = () => {
+    if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
+    else{
+      // huidige route als punten, de hut als stop vóór de eindbestemming
+      const w = wpsIn(currentWps());
+      if(w.length < 2){ toast("Kies eerst een route, dan kun je er een stop aan toevoegen."); return; }
+      w.splice(w.length - 1, 0, {k:"n", n:h.node}); S.wps = w; S.planBy = null;
+      if(!computePath()){ S.wps = []; toast("Deze plek is niet in je route te passen met jouw niveau."); update(); return; }
+    }
+    map.closePopup(pop); update(); fitRoute();
+    toast(b.dataset.a === "to" ? `Route naar ${h.name || k[0].toLowerCase()}.` : `${h.name || k[0]} toegevoegd als tussenstop.`);
+  });
+}
+map.on("zoomend moveend", () => { if(S.area) drawHuts(); });
+
+// De app haalt hutten en restaurants zelf op (OpenStreetMap via Overpass) zodra je een gebied opent,
+// en bewaart ze 30 dagen op de telefoon, zodat ze daarna ook zonder bereik werken.
+const HUT_TTL = 30*864e5;
+async function loadHuts(){
+  const A = S.area; if(!A) return;
+  const key = "pp-huts:" + A.id;
+  let cached = null; try{ cached = JSON.parse(localStorage.getItem(key) || "null"); }catch(e){}
+  if(cached){ setHuts(A, cached.h); if(Date.now() - cached.t < HUT_TTL) return; }
+  if(!navigator.onLine) return;
+  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
+  const s_ = Math.min(...lats) - .004, n_ = Math.max(...lats) + .004, w_ = Math.min(...lons) - .006, e_ = Math.max(...lons) + .006;
+  const bb = `${s_.toFixed(4)},${w_.toFixed(4)},${n_.toFixed(4)},${e_.toFixed(4)}`;
+  const q = `[out:json][timeout:30];(nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten)$"](${bb});nwr["tourism"="alpine_hut"](${bb}););out center tags;`;
+  let res = null;
+  for(const url of OVERPASS){
+    try{
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 35000);
+      const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}, signal:ctl.signal});
+      clearTimeout(timer);
+      if(r.ok){ res = await r.json(); break; }
+    }catch(e){}
+  }
+  if(S.area?.id !== A.id) return;
+  if(!res){   // alle servers druk: over een minuut nog één keer, anders bij de volgende keer openen
+    if(!A.hutRetry){ A.hutRetry = true; setTimeout(() => { if(S.area === A) loadHuts(); }, 60000); }
+    return;
+  }
+  const out = processHuts(A, res.elements || []);
+  try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), h:out})); }catch(e){}
+  setHuts(A, out);
+}
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+function processHuts(A, elements){
+  const out = [];
+  for(const el of elements){
+    const t = el.tags || {}, c = el.center || el; if(c.lat == null) continue;
+    const kind = t.tourism === "alpine_hut" ? "h" : ({restaurant:"r", cafe:"c", bar:"b", pub:"b", biergarten:"b", fast_food:"f"})[t.amenity] || "r";
+    // alleen plekken bij een piste of lift (hooguit 120 m), gekoppeld aan het dichtstbijzijnde knooppunt
+    const p = [c.lat, c.lon]; let near = Infinity;
+    for(const e of A.edges){ if(e.t === "w") continue; for(let k = 0; k < e.pts.length-1 && near > 30; k++) near = Math.min(near, segDist(p, e.pts[k], e.pts[k+1]).d); if(near <= 30) break; }
+    if(near > 120) continue;
+    const nn = nearestNode(c.lat, c.lon); if(nn.d > 400) continue;
+    out.push([+c.lon.toFixed(5), +c.lat.toFixed(5), kind, (t.name || "").slice(0, 60), nn.n]);
+  }
+  return out.slice(0, 150);
+}
+function setHuts(A, list){
+  A.huts = list.filter(x => A.nodes[x[4]]).map(x => ({lon:x[0], lat:x[1], kind:x[2], name:x[3], node:x[4]}));
+  // namen ook in de zoeklijst voor de bestemming
+  const extra = [];
+  for(const hh of A.huts){ if(!hh.name) continue; const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!A.names.has(lab)){ A.names.set(lab, hh.node); extra.push(lab); } }
+  if(extra.length) $("places").insertAdjacentHTML("beforeend", extra.map(x => `<option value="${esc(tr(x))}"></option>`).join(""));
+  if(S.area === A) drawHuts();
+}
+
+// ================= offline =================
+// staat de kaartdata van een gebied in de offline-opslag van de app?
+async function isOffline(row){
+  try{ return !!(await caches.match(`data/s${String(row[8]).padStart(3,"0")}.json?${DATA_V}`, {ignoreVary:true})); }catch(e){ return false; }
+}
+async function renderOffline(){
+  const A = S.area, box = $("offlineBox"); if(!A || !box) return;
+  const ok = "caches" in window && await isOffline(A.row), wx = wxStore(A.id);
+  box.innerHTML = `<p class="label">Offline</p>
+    <p class="off-line ${ok ? "ok" : ""}">${I(ok ? "check" : "cloud")}<span>${ok ? `<b>${esc(A.row[1])} staat op je telefoon.</b> Pistes, liften, routes, navigatie, status en dagboek werken zonder bereik.` : `<b>Nog niet offline.</b> Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.`}</span></p>
+    <p class="off-line">${I("snow")}<span>${wx ? `Laatste weerbericht bewaard om ${new Date(wx.t).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}.` : "Nog geen weerbericht bewaard."}</span></p>
+    <p class="off-line">${I("layers")}<span>Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.</span></p>`;
+}
+$("layersBtn").addEventListener("click", () => setTimeout(renderOffline, 0));
+// vinkje in de gebiedenlijst voor gebieden die al op de telefoon staan
+async function markOfflineAreas(){
+  if(!("caches" in window)) return;
+  for(const b of document.querySelectorAll("#areas .area-main")){
+    const r = S.index.find(x => x[0] === b.dataset.id);
+    if(r && await isOffline(r) && !b.querySelector(".off-mark")) b.querySelector(".nm")?.insertAdjacentHTML("beforeend", ` <span class="off-mark" title="Staat offline op je telefoon">${I("check")}</span>`);
+  }
+}
+
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
 $("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
@@ -1622,6 +1873,13 @@ LAND_MQ.addEventListener("change", () => {
   setTimeout(() => { map.invalidateSize(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); setPeek(); }, 250);
 });
 
+// ================= taal =================
+i18nStart();
+document.querySelectorAll("#langSeg button").forEach(b => {
+  b.setAttribute("aria-pressed", String(b.dataset.v === LANG));
+  b.onclick = () => { if(b.dataset.v !== LANG) setLang(b.dataset.v); };
+});
+
 // ================= start =================
 if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
 applyBase(); update(); setPeek();
@@ -1630,6 +1888,9 @@ applyBase(); update(); setPeek();
   catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
   renderCountries();
   parseShareHash();
+  const nAreas = S.index.length.toLocaleString(LOCALE);
+  $("pickerCount").textContent = `${nAreas} skigebieden`;
+  const st = $("splashTag"); if(st) st.textContent = `${nAreas} skigebieden`;
   const want = location.hash.slice(1).split("/")[0], byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
   const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
   await openArea(start || S.index[0][0]);
