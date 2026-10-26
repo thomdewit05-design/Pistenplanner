@@ -17,7 +17,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=15">
+<link rel="stylesheet" href="app.css?v=17">
 </head>
 <body>
 <!-- iconenset -->
@@ -72,6 +72,9 @@
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4-6 4v-17Z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M8.5 7.5h7M8.5 11h5"/></symbol>
+    <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" class="fill"/></symbol>
+    <symbol id="i-speed" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="m12 17 4-5"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 2.5 21.5 7v6.5c0 4-4 7.2-9.5 8.5C6.5 20.7 2.5 17.5 2.5 13.5V7L12 2.5Z"/><path d="M12 8v5M12 16v.1"/></symbol>
   </defs>
 </svg>
@@ -156,12 +159,21 @@
     </div>
     <p class="hint" id="pickHint"></p>
 
+    <section class="diary-card" id="diaryCard">
+      <button type="button" class="diary-open" id="diaryOpen">
+        <svg class="ic"><use href="#i-book"/></svg>
+        <span><b>Skidagboek</b><small id="diaryMini">Houd je skidag bij: kilometers, hoogtemeters en topsnelheid</small></span>
+        <span class="rec-pill" id="diaryRecPill" hidden><svg class="ic"><use href="#i-rec"/></svg>Opname</span>
+      </button>
+    </section>
+
     <details class="wx" id="wx" open>
       <summary id="wxSum"><span class="wx-loading">Weer laden…</span></summary>
       <div id="wxBody"></div>
     </details>
 
     <div id="result" aria-live="polite"><p class="empty">Kies een skigebied om te beginnen.</p></div>
+
 
     <details class="settings" id="myRoutes">
       <summary><svg class="ic"><use href="#i-bookmark"/></svg><span>Mijn routes</span><span class="mr-count" id="mrCount"></span><svg class="ic chev"><use href="#i-chev"/></svg></summary>
@@ -295,6 +307,22 @@
   </div>
 </div>
 
+<div id="diary" class="picker diary" role="dialog" aria-modal="true" aria-labelledby="diaryTitle" hidden>
+  <div class="picker-head">
+    <div><p class="label" id="diaryDate">Vandaag</p><h2 id="diaryTitle">Skidagboek</h2></div>
+    <button type="button" class="icon-btn" id="diaryClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="diary-ctrl" id="diaryCtrl"></div>
+  <div class="d-stats" id="diaryStats"></div>
+  <div id="diaryLists"></div>
+  <div class="set-group list g-set">
+    <label class="switch"><span>Mijn spoor op de kaart tonen</span><input type="checkbox" id="dShow" checked><i></i></label>
+    <label class="switch"><span>Scherm aan houden tijdens opnemen</span><input type="checkbox" id="dAwake"><i></i></label>
+  </div>
+  <p class="g-note">Je telefoon pauzeert web-apps als het scherm uit gaat. Laat de app open staan, of zet "Scherm aan houden" aan (kost meer batterij). Het spoor blijft alleen op deze telefoon.</p>
+  <div id="diaryHistory"></div>
+</div>
+
 <div id="sos" class="sos" role="dialog" aria-modal="true" aria-labelledby="sosTitle" hidden>
   <div class="sos-head">
     <div><p class="label">Noodgeval</p><h2 id="sosTitle">Hulp nodig?</h2></div>
@@ -322,6 +350,6 @@
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

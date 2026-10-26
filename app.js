@@ -608,11 +608,12 @@ function edgePopup(ei, latlng, nearNode){
 
 // ================= GPS en navigatie =================
 let wakeLock = null;
-async function keepAwake(on){
+async function keepAwake(){
+  const on = S.follow || (typeof D !== "undefined" && D.rec && D.awake);
   try{ if(on && "wakeLock" in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => wakeLock = null); }
        if(!on && wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(e){}
 }
-document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible" && S.follow) keepAwake(true); });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") keepAwake(); });
 function speak(text){
   if(!S.voice || !S.follow || !("speechSynthesis" in window)) return;
   try{ const u = new SpeechSynthesisUtterance(text); u.lang = "nl-NL"; u.rate = 1.02;
@@ -665,6 +666,7 @@ async function onPos(p){
   if(S.follow) showAt(ll);
   updateNav();
   groupOnPos();
+  diaryAdd(S.pos.lat, S.pos.lon, S.pos.acc, S.pos.alt);
   if(!$("group").hidden) renderGroup();
 }
 function distToRoute(){
@@ -1179,7 +1181,7 @@ function gHandle(d){
   if(d.id !== G.id){
     const m = G.members.get(d.id) || {id:d.id};
     m.name = String(d.name || "?").slice(0, 20); m.seen = Math.max(m.seen || 0, d.ts || 0);
-    if(d.t === "pos" && (!m.posTs || d.ts > m.posTs)){ m.lat = +d.lat; m.lon = +d.lon; m.posTs = d.ts; }
+    if(d.t === "pos" && (!m.posTs || d.ts > m.posTs)){ m.lat = +d.lat; m.lon = +d.lon; m.posTs = d.ts; if(d.dk != null){ m.dk = +d.dk; m.dh = +d.dh; } }
     G.members.set(d.id, m);
   }
   if(d.t === "plan" && d.ts > G.planTs){
@@ -1224,7 +1226,8 @@ function groupOnPos(){
   const minSec = sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC;
   if(dt >= POS_MAX_SEC || (moved >= POS_MIN_MOVE && dt >= minSec)){
     G.lastPos = {lat:S.pos.lat, lon:S.pos.lon, t:now};
-    gSend({t:"pos", lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5)});
+    const sm = D.rec ? D.day?.sum : null;
+    gSend({t:"pos", lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5), ...(sm && sm.n > 1 ? {dk:+sm.km.toFixed(1), dh:Math.round(sm.hm)} : {})});
   }
 }
 const ago = ts => { const m = Math.round((Date.now() - ts)/60000); return m < 1 ? "nu" : m < 60 ? `${m} min geleden` : `${Math.floor(m/60)} u geleden`; };
@@ -1262,7 +1265,8 @@ function renderGroup(){
   const others = [...G.members.values()].sort((a, b) => a.name.localeCompare(b.name, "nl")).map(m => {
     const where = m.lat != null ? (placeOf(m.lat, m.lon) || "in de buurt") : "positie niet gedeeld";
     const dist = m.lat != null && S.pos ? ` · ${km(meters(S.pos.lat, S.pos.lon, m.lat, m.lon))} van je` : "";
-    return `<li><div class="mem" style="--c:${gColor(m.id)}">${esc(m.name.charAt(0).toUpperCase())}</div><span><b>${esc(m.name)}</b><small>${esc(where)}${dist}</small></span><span class="ago">${ago(m.posTs || m.seen)}</span></li>`;
+    const day = m.dk != null ? ` · vandaag ${kmTxt(m.dk)} km, ${hmTxt(m.dh)} hm` : "";
+    return `<li><div class="mem" style="--c:${gColor(m.id)}">${esc(m.name.charAt(0).toUpperCase())}</div><span><b>${esc(m.name)}</b><small>${esc(where)}${dist}${day}</small></span><span class="ago">${ago(m.posTs || m.seen)}</span></li>`;
   }).join("");
   $("gMembers").innerHTML = me + (others || `<li class="empty" style="display:block">Nog niemand anders. Laat ze de code scannen.</li>`);
 }
@@ -1396,6 +1400,208 @@ $("mrSave").onclick = () => {
 };
 $("myRoutes").addEventListener("toggle", renderRoutes);
 
+// ================= skidagboek =================
+// Het spoor van de dag: [seconden sinds start, lat*1e5, lon*1e5, hoogte, rand-index, soort (0 los, 1 lift, 2 piste)]
+const D = {rec:false, day:null, view:null, show:true, awake:false, lastSave:0, lastDraw:0};
+try{ const d = JSON.parse(localStorage.getItem("pp-diary") || "null");
+  if(d) Object.assign(D, {rec:!!d.rec && d.date === todayKey(), show:d.show ?? true, awake:!!d.awake}); }catch(e){}
+const dSaveSettings = () => { try{ localStorage.setItem("pp-diary", JSON.stringify({rec:D.rec, date:todayKey(), show:D.show, awake:D.awake})); }catch(e){} };
+const dayKey = k => "pp-day:" + k;
+const niceDate = k => new Date(+k.slice(0,4), +k.slice(4,6)-1, +k.slice(6,8)).toLocaleDateString("nl-NL", {weekday:"long", day:"numeric", month:"long"});
+const trackLayer = L.layerGroup().addTo(map);
+function loadDay(k){ try{ return JSON.parse(localStorage.getItem(dayKey(k)) || "null"); }catch(e){ return null; } }
+function saveDay(day){
+  try{ localStorage.setItem(dayKey(day.date), JSON.stringify(day)); }
+  catch(e){ toast("Het dagboek is vol. Verwijder een paar oude dagen."); }
+}
+function listDays(){
+  const out = [];
+  try{ for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k?.startsWith("pp-day:")) out.push(k.slice(7)); } }catch(e){}
+  return out.sort().reverse();
+}
+function today(){
+  if(D.day && D.day.date === todayKey()) return D.day;
+  D.day = loadDay(todayKey()) || {date:todayKey(), start:Date.now(), area:S.area?.id || null, areaName:S.area?.row[1] || "", pts:[], sum:null};
+  return D.day;
+}
+// punt koppelen aan een piste of lift binnen 35 m; de hoogte komt dan uit de kaart
+function matchPoint(lat, lon){
+  const A = S.area; if(!A) return null;
+  const p = [lat, lon]; let best = null;
+  for(const e of A.edges){
+    if(e.t === "w") continue;
+    let acc = 0, hit = null;
+    for(let k = 0; k < e.pts.length-1; k++){
+      const r = segDist(p, e.pts[k], e.pts[k+1]);
+      if(!best || r.d < best.d){ best = {d:r.d, e}; hit = acc + r.t*r.len; }
+      acc += r.len;
+    }
+    if(hit != null){ best.along = hit; best.tot = acc; }
+  }
+  if(!best || best.d > 35) return null;
+  const e = best.e, ea = A.nodes[e.a].ele, eb = A.nodes[e.b].ele;
+  const ele = ea != null && eb != null ? ea + (eb - ea) * (best.tot ? best.along / best.tot : 0) : null;
+  return {e, ele};
+}
+function diaryAdd(lat, lon, acc, alt, t = Date.now()){
+  if(!D.rec) return;
+  const day = today();
+  if(acc != null && acc > 40) return;                       // te onnauwkeurig
+  const last = day.pts[day.pts.length-1], ts = Math.round((t - day.start)/1000);
+  if(last){ const dt = ts - last[0], d = meters(last[1]/1e5, last[2]/1e5, lat, lon); if(dt < 4 || (d < 6 && dt < 30)) return; }
+  if(!day.area && S.area){ day.area = S.area.id; day.areaName = S.area.row[1]; }
+  const m = day.area === S.area?.id ? matchPoint(lat, lon) : null;
+  const ele = m?.ele ?? (alt != null ? alt : (last ? last[3] : null));
+  day.pts.push([ts, Math.round(lat*1e5), Math.round(lon*1e5), ele == null ? null : Math.round(ele), m ? m.e.i : -1, m ? (m.e.t === "l" ? 1 : 2) : 0]);
+  if(t - D.lastSave > 30000 || day.pts.length % 20 === 0){ D.lastSave = t; day.sum = daySummary(day); saveDay(day); }
+  diaryLive();
+}
+function daySummary(day){
+  const P = day.pts, A = day.area && day.area === S.area?.id ? S.area : null;
+  const s = {km:0, hm:0, vmax:0, runs:0, lifts:0, secs:0, liftSecs:0, n:P.length, pisteList:[], liftList:[], from:null, to:null};
+  if(P.length < 2){ if(day.sum){ s.pisteList = day.sum.pisteList || []; s.liftList = day.sum.liftList || []; } return s; }
+  s.from = day.start + P[0][0]*1000; s.to = day.start + P[P.length-1][0]*1000;
+  // hoogte gladstrijken (mediaan van drie), tegen sprongen in de GPS-hoogte
+  const ele = P.map((p, i) => { const w = [P[i-1]?.[3], p[3], P[i+1]?.[3]].filter(x => x != null).sort((a, b) => a - b); return w.length ? w[Math.floor(w.length/2)] : null; });
+  let inLift = false, gain = 0, liftEdge = -1, drop = 0, prevV = null;
+  const lifts = [], pistes = []; let curKey = null, curN = 0;
+  const flushPiste = () => { if(curKey && curN >= 2) pistes.push(curKey); curKey = null; curN = 0; };
+  for(let i = 1; i < P.length; i++){
+    const a = P[i-1], b = P[i], dt = b[0] - a[0]; if(dt <= 0) continue;
+    const d = meters(a[1]/1e5, a[2]/1e5, b[1]/1e5, b[2]/1e5), v = d/dt*3.6;
+    const de = ele[i-1] != null && ele[i] != null ? ele[i] - ele[i-1] : 0;
+    s.secs += Math.min(dt, 300);
+    if(a[5] === 1 && b[5] === 1){
+      s.liftSecs += Math.min(dt, 300);
+      // nieuwe rit: net ingestapt, of direct overgestapt op een andere lift
+      if(inLift && b[4] !== liftEdge && a[4] !== b[4]){ if(gain >= 30){ s.lifts++; lifts.push(liftEdge); } inLift = false; }
+      if(!inLift){ inLift = true; gain = 0; liftEdge = b[4]; if(drop >= 80) s.runs++; drop = 0; }
+      gain += Math.max(0, de); prevV = null;
+    } else {
+      if(inLift){ inLift = false; if(gain >= 30){ s.lifts++; lifts.push(liftEdge); } }
+      if(v < 130 && dt <= 120){
+        if(de < 0 || v > 7) s.km += d/1000;
+        if(de < 0){ s.hm -= de; drop -= de; }
+        // topsnelheid: gemiddelde van twee stukken achter elkaar, zodat één GPS-sprong niet telt
+        if(dt >= 2 && dt <= 30){ if(prevV != null) s.vmax = Math.max(s.vmax, (v + prevV)/2); prevV = v; }
+      }
+    }
+    if(A && b[5] === 2){ const k = A.edges[b[4]]?.key; if(k === curKey) curN++; else { flushPiste(); curKey = k; curN = 1; } }
+    else flushPiste();
+  }
+  flushPiste();
+  if(inLift && gain >= 30){ s.lifts++; lifts.push(liftEdge); }
+  if(drop >= 80) s.runs++;
+  if(A){
+    const pc = new Map(); for(const k of pistes) if(!k.startsWith("e|")) pc.set(k, (pc.get(k) || 0) + 1);
+    s.pisteList = [...pc].map(([k, n]) => { const g = A.groups.get(k); return g ? {ref:g.e.ref, name:uc(pisteLabel(g.e)), diff:g.e.diff, n} : null; }).filter(Boolean);
+    const lcnt = new Map(); for(const ei of lifts){ const e = A.edges[ei]; if(!e) continue; const nm = uc(e.name || e.ref || LIFT[e.kind] || "lift"); lcnt.set(nm, (lcnt.get(nm) || 0) + 1); }
+    s.liftList = [...lcnt].map(([name, n]) => ({name, n}));
+  } else if(day.sum){ s.pisteList = day.sum.pisteList || []; s.liftList = day.sum.liftList || []; }
+  return s;
+}
+const hmTxt = x => Math.round(x).toLocaleString("nl-NL");
+const kmTxt = x => x.toFixed(1).replace(".", ",");
+const durTxt = sec => { const m = Math.round(sec/60); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
+function diaryLive(){
+  const day = D.day && D.day.date === todayKey() ? D.day : loadDay(todayKey());
+  const sum = day ? (day.sum = daySummary(day)) : null;
+  $("diaryRecPill").hidden = !D.rec; document.body.classList.toggle("recording", D.rec);
+  $("diaryMini").textContent = sum && sum.n > 1 ? `Vandaag: ${kmTxt(sum.km)} km · ${hmTxt(sum.hm)} hm · ${Math.round(sum.vmax)} km/u` : D.rec ? "Opname loopt. Ga skiën!" : "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid";
+  if(Date.now() - D.lastDraw > 3000){ D.lastDraw = Date.now(); drawTrack(); }
+  if(!$("diary").hidden) renderDiary();
+}
+function drawTrack(){
+  trackLayer.clearLayers();
+  if(!D.show) return;
+  const k = D.view || todayKey(), day = k === todayKey() ? (D.day?.date === k ? D.day : loadDay(k)) : loadDay(k);
+  if(!day || day.pts.length < 2) return;
+  const pts = day.pts.map(p => [p[1]/1e5, p[2]/1e5]);
+  L.polyline(pts, {renderer:svgR, interactive:false, color:"#ffffff", weight:7, opacity:.6, lineJoin:"round"}).addTo(trackLayer);
+  L.polyline(pts, {renderer:svgR, interactive:false, color:"#7C3AED", weight:4, opacity:.95, lineJoin:"round"}).addTo(trackLayer);
+}
+function renderDiary(){
+  const tk = todayKey(), k = D.view || tk, isToday = k === tk;
+  const day = isToday ? (D.day?.date === tk ? D.day : loadDay(tk)) : loadDay(k);
+  const sum = day ? (day.area === S.area?.id || !day.sum ? daySummary(day) : day.sum) : null;
+  $("diaryDate").textContent = `${isToday ? "Vandaag · " : ""}${niceDate(k)}${day?.areaName ? " · " + day.areaName : ""}`;
+  $("diaryTitle").textContent = isToday ? "Skidagboek" : "Eerdere dag";
+  // bediening
+  if(!isToday) $("diaryCtrl").innerHTML = `<button type="button" class="btn ghost" id="dBack">${I("book")}Terug naar vandaag</button>`;
+  else if(D.rec) $("diaryCtrl").innerHTML = `<div class="rec-line"><span class="rec-pill">${I("rec")}Opname</span><span>${sum?.from ? `sinds ${new Date(sum.from).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"})} · ` : ""}${day?.pts.length || 0} punten${S.pos ? "" : " · <b>wacht op GPS…</b>"}</span></div>
+      <button type="button" class="btn stop" id="dStop">${I("stop")}Opname stoppen</button>`;
+  else $("diaryCtrl").innerHTML = `<button type="button" class="btn primary" id="dStart">${I("rec")}${day?.pts.length ? "Verder opnemen" : "Begin met opnemen"}</button>`;
+  $("dStart")?.addEventListener("click", startRec);
+  $("dStop")?.addEventListener("click", stopRec);
+  $("dBack")?.addEventListener("click", () => { D.view = null; drawTrack(); renderDiary(); });
+  // cijfers
+  if(sum && sum.n > 1){
+    $("diaryStats").innerHTML = `<div class="d-stat big"><b>${kmTxt(sum.km)}<small>km</small></b><span>${I("ski")}geskied</span></div>
+      <div class="d-stat"><span>${I("down")}Omlaag</span><b>${hmTxt(sum.hm)}<small>hm</small></b></div>
+      <div class="d-stat"><span>${I("speed")}Top</span><b>${Math.round(sum.vmax)}<small>km/u</small></b></div>
+      <div class="d-stat"><span>${I("ski")}Afdalingen</span><b>${sum.runs}</b></div>
+      <div class="d-stat"><span>${I("lift")}Liften</span><b>${sum.lifts}</b></div>
+      <div class="d-stat"><span>${I("clock")}Op de berg</span><b>${durTxt(sum.secs)}</b></div>
+      <div class="d-stat"><span>${I("lift")}In de lift</span><b>${durTxt(sum.liftSecs)}</b></div>`;
+  } else $("diaryStats").innerHTML = isToday ? `<p class="empty" style="grid-column:1/-1">${D.rec ? "Zodra je beweegt, verschijnen hier je kilometers, hoogtemeters en topsnelheid." : "Tik op <strong>Begin met opnemen</strong> als je gaat skiën. De app houdt dan je dag bij."}</p>` : "";
+  // pistes en liften
+  const pl = sum?.pisteList || [], ll = sum?.liftList || [];
+  $("diaryLists").innerHTML = (pl.length ? `<div class="d-list"><p class="label">Pistes (${pl.length})</p><div class="d-chips">${pl.map(x =>
+      `<span class="d-chip"><span class="node${x.diff==="s" ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
+    + (ll.length ? `<div class="d-list"><p class="label">Liften (${ll.length})</p><div class="d-chips">${ll.map(x =>
+      `<span class="d-chip"><span class="node" style="background:var(--surface);color:var(--p-lift);border:1.5px solid var(--p-lift)">${I("lift")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
+    + (sum && sum.n > 1 ? `<button type="button" class="btn ghost" id="dShare" style="width:100%">${I("share")}Deel mijn dag</button>` : "");
+  $("dShare")?.addEventListener("click", () => shareDay(day, sum));
+  $("dShow").checked = D.show; $("dAwake").checked = D.awake;
+  // geschiedenis
+  const days = listDays();
+  $("diaryHistory").innerHTML = days.length ? `<div class="d-hist"><p class="label">Mijn skidagen</p><ul>${days.map(d => {
+      const x = loadDay(d), sm = x?.sum;
+      return `<li class="${d === k ? "cur" : ""}"><button type="button" class="mr-open" data-d="${d}"><b>${niceDate(d)}</b><small>${esc(x?.areaName || "")}${sm && sm.n > 1 ? ` · ${kmTxt(sm.km)} km · ${hmTxt(sm.hm)} hm` : ""}</small></button>
+        <button type="button" class="icon-btn" data-del="${d}" title="Verwijderen" aria-label="Dag verwijderen"><svg class="ic"><use href="#i-trash"/></svg></button></li>`; }).join("")}</ul></div>` : "";
+  $("diaryHistory").querySelectorAll(".mr-open").forEach(b => b.onclick = () => {
+    D.view = b.dataset.d === tk ? null : b.dataset.d; drawTrack(); renderDiary();
+    const x = loadDay(b.dataset.d); if(x?.pts.length > 1) map.fitBounds(L.latLngBounds(x.pts.map(p => [p[1]/1e5, p[2]/1e5])), {...sheetPad(), maxZoom:16});
+  });
+  $("diaryHistory").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    const d = b.dataset.del;
+    if(d === tk && D.rec){ toast("Stop eerst de opname van vandaag."); return; }
+    if(b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.style.color = "var(--danger)"; toast("Tik nog een keer om deze dag te verwijderen."); return; }
+    try{ localStorage.removeItem(dayKey(d)); }catch(e){}
+    if(D.day?.date === d) D.day = null;
+    if(D.view === d) D.view = null;
+    drawTrack(); renderDiary(); diaryLive(); toast("Dag verwijderd.");
+  });
+}
+async function shareDay(day, sum){
+  const lines = [`Mijn skidag in ${day.areaName || "de Alpen"} (${niceDate(day.date)}):`,
+    `${kmTxt(sum.km)} km geskied · ${hmTxt(sum.hm)} hoogtemeters omlaag · topsnelheid ${Math.round(sum.vmax)} km/u`,
+    `${sum.runs} afdalingen · ${sum.lifts} liften`];
+  if(sum.pisteList.length) lines.push("Pistes: " + sum.pisteList.slice(0, 12).map(x => x.ref || x.name).join(", "));
+  const text = lines.join("\n") + "\n\nBijgehouden met de Pistenplanner";
+  if(navigator.share){ try{ await navigator.share({title:"Mijn skidag", text}); return; }catch(e){ return; } }
+  try{ await navigator.clipboard.writeText(text); toast("Samenvatting gekopieerd."); }catch(e){ toast("Delen lukte niet."); }
+}
+function startRec(){
+  if(!startWatch()) return;
+  D.rec = true; D.view = null; today(); dSaveSettings(); keepAwake();
+  toast("Het dagboek neemt op. Veel skiplezier!");
+  diaryLive(); renderDiary();
+}
+function stopRec(){
+  D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
+  toast("Opname gestopt. Je dag is bewaard.");
+  diaryLive(); renderDiary();
+}
+function openDiary(){ $("diary").hidden = false; renderDiary(); drawTrack(); }
+$("diaryOpen").onclick = openDiary;
+$("diaryClose").onclick = () => { $("diary").hidden = true; };
+$("dShow").onchange = e => { D.show = e.target.checked; dSaveSettings(); drawTrack(); };
+$("dAwake").onchange = e => { D.awake = e.target.checked; dSaveSettings(); keepAwake(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("diary").hidden) $("diary").hidden = true; });
+// oude dagen opruimen: hooguit 60 dagen bewaren
+(() => { const days = listDays(); days.slice(60).forEach(d => { try{ localStorage.removeItem(dayKey(d)); }catch(e){} }); })();
+
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
 $("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
@@ -1435,4 +1641,6 @@ applyBase(); update(); setPeek();
     else toast("Vul je naam in en tik op Meedoen.", 3500);
   } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
+  diaryLive(); drawTrack();
+  if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }
 })();

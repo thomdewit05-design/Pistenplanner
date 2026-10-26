@@ -584,3 +584,50 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
   .chip.route .x{background:rgba(255,255,255,.12)}
   .pnum.s{border-color:#C9D4DE}
 }
+
+/* ---------- skidagboek ---------- */
+.diary-card{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,#7C3AED 8%,var(--surface)),var(--surface) 75%)}
+.diary-open{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+.diary-open>.ic{width:26px;height:26px;color:#7C3AED;flex:none}
+@media (prefers-color-scheme:dark){.diary-open>.ic{color:#A78BFA}}
+.diary-open>span{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.diary-open b{font-size:15px}
+.diary-open small{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diary-open:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.rec-pill{flex:none!important;flex-direction:row!important;align-items:center;gap:5px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent);padding:4px 9px 4px 7px;border-radius:999px}
+.rec-pill .ic{width:10px;height:10px;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+.diary{gap:12px;overflow:auto}
+.diary-ctrl{display:flex;flex-direction:column;gap:8px}
+.diary-ctrl .btn{width:100%}
+.diary-ctrl .rec-line{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.diary-ctrl .rec-line b{color:var(--danger)}
+.d-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.d-stats:empty{display:none}
+.d-stat{background:var(--bg);border-radius:12px;padding:10px 10px 9px;min-width:0}
+.d-stat span{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.d-stat span .ic{width:13px;height:13px}
+.d-stat b{display:block;font:800 24px/1.1 var(--f-display);margin-top:3px;font-variant-numeric:tabular-nums}
+.d-stat b small{font:600 13px var(--f-ui);color:var(--muted);margin-left:2px}
+.d-stat.big{grid-column:span 3;display:flex;align-items:baseline;gap:10px;background:color-mix(in srgb,#7C3AED 10%,var(--bg))}
+.d-stat.big b{font-size:36px;margin:0}
+.d-list{display:flex;flex-direction:column;gap:6px}
+.d-list .label{margin:6px 0 2px}
+.d-chips{display:flex;flex-wrap:wrap;gap:6px}
+.d-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:3px 9px 3px 3px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.d-chip .node{width:auto;min-width:26px;height:22px;padding:0 4px;font-size:12px;border-radius:6px;box-shadow:none}
+.d-chip .node .ic{width:14px;height:14px}
+.d-chip i{font-style:normal;color:var(--faint);font-weight:700}
+.d-hist ul{list-style:none;margin:0;padding:0}
+.d-hist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0}
+.d-hist li+li{border-top:1px solid var(--line-2)}
+.d-hist .mr-open{all:unset;cursor:pointer;min-width:0}
+.d-hist .mr-open b{display:block;font-size:15px}
+.d-hist .mr-open small{display:block;font-size:12.5px;color:var(--muted)}
+.d-hist li.cur .mr-open b{color:#7C3AED}
+@media (orientation:landscape) and (max-height:500px){.d-stat b{font-size:20px}.d-stat.big b{font-size:28px}}
+@media (prefers-reduced-motion:reduce){.rec-pill .ic{animation:none}}
+/* opname loopt: rood stipje op de knop van het skigebied */
+.area-btn{position:relative}
+.recording .area-btn::after{content:"";position:absolute;top:6px;left:34px;width:11px;height:11px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);animation:blink 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.recording .area-btn::after{animation:none}}
