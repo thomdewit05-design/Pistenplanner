@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Pistenplanner</title>
+<title>Skipiloot</title>
 <meta name="description" content="Routeplanner en pistenavigatie voor skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika.">
 <meta name="theme-color" content="#0F1B2A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Pistenplanner">
+<meta name="apple-mobile-web-app-title" content="Skipiloot">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/logo.svg">
 <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=33">
+<link rel="stylesheet" href="app.css?v=34">
 </head>
 <body>
 <!-- iconenset -->
@@ -93,7 +93,7 @@
 
 <div id="splash" class="splash" aria-hidden="true">
   <img src="icons/logo.svg" alt="" width="96" height="96">
-  <div class="splash-name">Pistenplanner</div>
+  <div class="splash-name">Skipiloot</div>
   <div class="splash-tag" id="splashTag">Skigebieden laden…</div>
   <div class="splash-bar"><span></span></div>
 </div>
@@ -164,7 +164,7 @@
 <section id="sheet" class="sheet" aria-label="Route">
   <button type="button" class="handle" id="handle" aria-label="Paneel openen of sluiten"><span></span></button>
   <div class="sheet-body">
-    <div class="brandline"><img src="icons/logo.svg" alt="" width="22" height="22"><span>Pistenplanner</span><small id="brandRegion">Alpen</small></div>
+    <div class="brandline"><img src="icons/logo.svg" alt="" width="22" height="22"><span>Skipiloot</span><small id="brandRegion">Alpen</small></div>
     <div class="peek" id="peek"></div>
 
     <div class="od">
@@ -322,12 +322,12 @@
 <div id="menu" class="picker menu" role="dialog" aria-modal="true" aria-labelledby="menuTitle" hidden>
   <div class="menu-head">
     <img src="icons/logo.svg" alt="" width="52" height="52">
-    <div><h2 id="menuTitle">Pistenplanner</h2><p class="menu-ver" id="menuVer"></p></div>
+    <div><h2 id="menuTitle">Skipiloot</h2><p class="menu-ver" id="menuVer"></p></div>
     <button type="button" class="icon-btn" id="menuClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
   </div>
 
   <section class="m-sec pro-sec" id="proSec" hidden>
-    <h3><svg class="ic"><use href="#i-star"/></svg>Pistenplanner Pro</h3>
+    <h3><svg class="ic"><use href="#i-star"/></svg>Skipiloot Pro</h3>
     <p class="m-hint" id="proState"></p>
     <button type="button" class="btn primary" id="proMore">Bekijk Pro</button>
   </section>
@@ -457,11 +457,11 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=33"></script>
-<script src="ads.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="ads.js?v=34"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=33"></script>
-<script src="app.js?v=33"></script>
+<script src="i18n.js?v=34"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

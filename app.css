@@ -1,4 +1,4 @@
-/* Pistenplanner – huisstijl
+/* Skipiloot – huisstijl
    Layout: kaart schermvullend; op telefoon een veegpaneel onderaan, op desktop een zwevend paneel links.
    Stijl: alpine nachtblauw, signaalgeel alleen voor de route, Barlow (pisteborden-letter) voor alle tekst. */
 :root{
@@ -830,7 +830,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 body.picking-home .leaflet-container{cursor:crosshair}
 .cta .home-set{flex:1 1 100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:4px;font-size:13.5px;font-weight:600;color:var(--accent);background:none;border:0;cursor:pointer}.home-set .ic{width:16px;height:16px}
 
-/* Pistenplanner Pro */
+/* Skipiloot Pro */
 .pro-dlg{position:fixed;inset:0;z-index:3500;background:rgba(8,16,26,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px;animation:goIn .2s ease-out}
 .pro-card{width:100%;max-width:440px;max-height:calc(100dvh - 24px);overflow:auto;background:var(--surface);color:var(--ink);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
 @media (min-width:600px){.pro-dlg{align-items:center}}

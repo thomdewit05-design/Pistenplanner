@@ -21,7 +21,7 @@ W = 6.0   # breedte van de route
 def svg():
     pts = lambda ps: " ".join(f"{x},{y}" for x, y in ps)
     d = f"M{ROUTE_PATH[0][0][0]},{ROUTE_PATH[0][0][1]} " + " ".join(f"C{a[0]},{a[1]} {b[0]},{b[1]} {c[0]},{c[1]}" for _, a, b, c in ROUTE_PATH)
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Pistenplanner">
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Skipiloot">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgb{NAVY_TOP}"/><stop offset="1" stop-color="rgb{NAVY_BOT}"/></linearGradient>
     <clipPath id="r"><rect width="100" height="100" rx="22"/></clipPath>

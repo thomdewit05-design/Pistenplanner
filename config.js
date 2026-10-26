@@ -1,11 +1,11 @@
-// Instellingen voor Pistenplanner Pro, de kaartdiensten en de privacyverklaring.
+// Instellingen voor Skipiloot Pro, de kaartdiensten en de privacyverklaring.
 // Leeg laten = nog niet ingesteld; de app werkt dan zoals altijd en iedereen kan alles gebruiken.
 window.PP_CONFIG = {
   pro: {
     enforce: false,       // pas op true zetten als de betaallink en de productgegevens hieronder kloppen
     checkout: "",         // betaallink van Lemon Squeezy, bijvoorbeeld https://jouwwinkel.lemonsqueezy.com/buy/...
     storeId: null,        // winkelnummer in Lemon Squeezy (Settings > Stores)
-    productId: null,      // productnummer van Pistenplanner Pro
+    productId: null,      // productnummer van Skipiloot Pro
     price: "€ 9,99",
     period: "eenmalig, voor altijd"
   },

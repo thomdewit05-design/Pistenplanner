@@ -131,7 +131,7 @@ def page_shell(title, desc, canon, body, depth="../"):
 <link rel="stylesheet" href="{depth}gebieden/site.css">
 </head>
 <body>
-<header class="top"><div class="in"><a href="{depth}"><img src="{depth}icons/logo.svg" alt="">PISTENPLANNER</a><nav><a href="{depth}gebieden/">Alle skigebieden</a></nav></div></header>
+<header class="top"><div class="in"><a href="{depth}"><img src="{depth}icons/logo.svg" alt="">SKIPILOOT</a><nav><a href="{depth}gebieden/">Alle skigebieden</a></nav></div></header>
 {body}
 <footer>
 <p>Pistedata © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>-bijdragers (ODbL), via <a href="https://openskimap.org" rel="noopener">OpenSkiMap</a>. Gegevens kunnen afwijken van de werkelijkheid; volg ter plaatse altijd de borden en de pistedienst.</p>
@@ -187,7 +187,7 @@ def main():
         hoogte = f"tussen {lo} en {hi} meter" if lo is not None and hi is not None else ""
         lead = (f"{esc(name)} ligt in {esc(region) + ', ' if region else ''}{esc(land)}. Het skigebied heeft ongeveer {kmp} km piste en {nl} liften"
                 f"{', ' + hoogte if hoogte else ''}. " + (f"De pistes zijn {', '.join(parts)}. " if parts else "")
-                + "Met de Pistenplanner zie je welke pistes en liften je moet nemen, en navigeer je met gesproken aanwijzingen naar je bestemming.")
+                + "Met Skipiloot zie je welke pistes en liften je moet nemen, en navigeer je met gesproken aanwijzingen naar je bestemming.")
         bar = "".join(f'<span style="width:{100*m/tot:.1f}%;background:{DIFF.get(d, DIFF["u"])[1]}" title="{esc(DIFF.get(d, DIFF["u"])[0])}"></span>'
                       for d, m in sorted(per.items(), key=lambda x: ORDER.find(x[0])) if m/tot >= .005)
         legend = "".join(f'<span><i style="background:{DIFF.get(d, DIFF["u"])[1]}"></i>{esc(DIFF.get(d, DIFF["u"])[0])}: {km(m)}</span>'
@@ -206,7 +206,7 @@ def main():
 <p class="crumbs"><a href="./">Skigebieden</a> › <a href="./#{cc.lower()}">{esc(land)}</a>{' › ' + esc(region) if region else ''}</p>
 <h1>{esc(name)}: pistekaart en routeplanner</h1>
 <p class="lead">{lead}</p>
-<a class="cta" href="{app}">Open {esc(name)} in de Pistenplanner →</a>
+<a class="cta" href="{app}">Open {esc(name)} in Skipiloot →</a>
 <p class="small">Gratis in je browser, ook te installeren als app op je telefoon.</p>
 <div class="tiles">
   <div class="tile"><b>{kmp} km</b><span>piste</span></div>
@@ -221,16 +221,16 @@ def main():
 {f'<h2>Liften</h2><p>{esc(name)} heeft {kinds_txt}.</p>' if kinds_txt else ''}
 {f'<table><tr><th>Lift</th><th>Soort</th><th class="n">Lengte</th><th class="n">Rit</th></tr>{lift_rows}</table>' if lift_rows else ''}
 <h2>Je route plannen in {esc(name)}</h2>
-<p>Tik in de Pistenplanner op je vertrekpunt en je bestemming, of laat de app een rondje voorstellen. De app kiest pistes die bij je niveau passen, waarschuwt voor de laatste lift en toont het weer op de top en in het dal. Ski je met vrienden, dan krijgt iedereen in je groep dezelfde route.</p>
+<p>Tik in Skipiloot op je vertrekpunt en je bestemming, of laat de app een rondje voorstellen. De app kiest pistes die bij je niveau passen, waarschuwt voor de laatste lift en toont het weer op de top en in het dal. Ski je met vrienden, dan krijgt iedereen in je groep dezelfde route.</p>
 <a class="cta" href="{app}">Plan je route in {esc(name)} →</a>
 {f'<p class="small">Officiële website: <a href="{esc(web)}" rel="noopener nofollow">{esc(re.sub(r"^https?://(www\.)?", "", web).rstrip("/"))}</a> (openingstijden, skipassen en liftstatus)</p>' if web else ''}
 {ad("page-bottom")}
 <h2>Skigebieden in de buurt</h2>
 <ul class="near">{near_li}</ul>
 </main>"""
-        desc = f"Pistekaart en routeplanner voor {name} ({land}): {kmp} km piste, {nl} liften. Plan je route over de pistes en navigeer met de gratis Pistenplanner."
+        desc = f"Pistekaart en routeplanner voor {name} ({land}): {kmp} km piste, {nl} liften. Plan je route over de pistes en navigeer met de gratis app Skipiloot."
         open(os.path.join(OUT, slugs[r[0]] + ".html"), "w", encoding="utf-8").write(
-            page_shell(f"{name} pistekaart en routeplanner | Pistenplanner", desc, url, body))
+            page_shell(f"{name} pistekaart en routeplanner | Skipiloot", desc, url, body))
         urls.append(url)
 
     # overzicht per land en regio
@@ -248,14 +248,14 @@ def main():
     nav = " · ".join(f'<a href="#{cc.lower()}">{esc(COUNTRY.get(cc, cc))}</a>' for cc in order)
     body = f"""<main>
 <h1>Alle skigebieden</h1>
-<p class="lead">Pistekaarten en routeplanners voor {len(urls)} skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika. Kies een gebied, bekijk de pistes en liften, en plan je route in de gratis Pistenplanner.</p>
-<a class="cta" href="../">Open de Pistenplanner →</a>
+<p class="lead">Pistekaarten en routeplanners voor {len(urls)} skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika. Kies een gebied, bekijk de pistes en liften, en plan je route in de gratis app Skipiloot.</p>
+<a class="cta" href="../">Open Skipiloot →</a>
 <p>{nav}</p>
 {ad("list-top")}
 {''.join(sec)}
 </main>"""
     open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(
-        page_shell("Alle skigebieden: pistekaarten en routeplanner | Pistenplanner",
+        page_shell("Alle skigebieden: pistekaarten en routeplanner | Skipiloot",
                    f"Pistekaarten en routeplanners voor {len(urls)} skigebieden in Europa en Noord-Amerika. Gratis route plannen en navigeren over de pistes.",
                    f"{BASE}gebieden/", body))
 

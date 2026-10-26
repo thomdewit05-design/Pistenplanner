@@ -1,4 +1,4 @@
-# Pistenplanner
+# Skipiloot
 
 Routekaart en pistenavigatie voor 1.883 skigebieden in de Alpen, de Pyreneeën, Scandinavië en Noord-Amerika, met satellietkaart en GPS. In het Nederlands, Engels en Duits. Te installeren als app op je telefoon of computer.
 
@@ -37,12 +37,12 @@ Verhoog bij elke update het versienummer op drie plekken, zodat telefoons de nie
 
 Na het opnieuw bouwen van `data/` ook `DATA_V` in `app.js` en `data/index.json?…` in `sw.js` verhogen.
 
-## Pistenplanner Pro en kaartsleutels
+## Skipiloot Pro en kaartsleutels
 
 Alles staat in `config.js`. Zolang `pro.enforce` op `false` staat, kan iedereen alles gebruiken.
 Met `?pro=preview` achter het adres zie je de app zoals hij met Pro aan werkt.
 
-1. Maak bij Lemon Squeezy een product "Pistenplanner Pro" met licentiecodes aan.
+1. Maak bij Lemon Squeezy een product "Skipiloot Pro" met licentiecodes aan.
 2. Vul in `config.js` de betaallink (`checkout`), het winkelnummer (`storeId`) en het productnummer (`productId`) in.
 3. Zet `enforce` op `true` en verhoog het versienummer.
 
