@@ -29,3 +29,8 @@ Verhoog daarna `VERSION` in `sw.js`, zodat geïnstalleerde apps de nieuwe data o
 - Kaartbibliotheek: Leaflet 1.9.4 (BSD-2).
 
 Tijden zijn schattingen. De app weet niets van echte afsluitingen of lawinegevaar: volg altijd de borden ter plaatse.
+
+## Een update uitbrengen
+
+Verhoog bij elke update het versienummer op drie plekken, zodat telefoons de nieuwe code ophalen:
+`app.css?v=…` en `app.js?v=…` in `index.html`, en `VERSION` plus dezelfde bestandsnamen in `sw.js`.

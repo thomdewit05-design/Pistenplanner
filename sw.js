@@ -1,7 +1,7 @@
 // Service worker: app en kaartdata offline beschikbaar, satelliettegels die je bekeken hebt ook.
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL = `shell-${VERSION}`, DATA = `data-${VERSION}`, TILES = "tiles-v1";
-const SHELL_FILES = ["./", "index.html", "app.css", "app.js", "manifest.webmanifest",
+const SHELL_FILES = ["./", "index.html", "app.css?v=6", "app.js?v=6", "manifest.webmanifest",
   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/fonts.css", "vendor/qrcode.js", "icons/icon-192.png", "icons/icon-512.png", "data/index.json"];
 const TILE_HOSTS = ["server.arcgisonline.com", "tile.opentopomap.org", "tile.openstreetmap.org"];
 const MAX_TILES = 4000;
@@ -27,7 +27,7 @@ async function cacheFirst(req, name, trim){
 }
 async function networkFirst(req){
   const c = await caches.open(SHELL);
-  try{ const res = await fetch(req); if(res.ok) c.put(req, res.clone()); return res; }
+  try{ const res = await fetch(req, {cache:"no-cache"}); if(res.ok) c.put(req, res.clone()); return res; }
   catch(e){ return (await c.match(req)) || (await c.match("index.html")); }
 }
 
