@@ -64,6 +64,9 @@ const labelLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/serv
 const canvas = L.canvas({padding:.4, tolerance:6});
 const svgR = L.svg({padding:.4});
 const pisteLayer = L.layerGroup().addTo(map);
+map.createPane("dim").style.cssText = "z-index:405;pointer-events:none";
+const dimR = L.canvas({padding:.4, pane:"dim"});
+const dimLayer = L.layerGroup().addTo(map);     // pistes die je vanaf A niet kunt bereiken
 const routeLayer = L.layerGroup().addTo(map);
 const markLayer = L.layerGroup().addTo(map);
 let meMarker = null, meCircle = null;
@@ -290,17 +293,21 @@ function fitRoute(){
 
 // ================= routeplanning =================
 // bias: randen die de route zeker moet nemen (de gekozen piste); die krijgen voorrang en mogen ook boven je niveau
+// RELAX: lukt het niet binnen je instellingen, dan stap voor stap ruimer zoeken
+//   1 = ook met de lift omlaag en langere stukjes lopen, 2 = ook pistes één niveau hoger, 3 = alles (ook skiroutes)
+let RELAX = 0;
+const overLevel = e => { const lv = DIFF[e.diff].lvl; return lv===4 ? !S.free : lv > S.level; };
 function graph(bias){
-  const A = S.area, out = A.nodes.map(() => []);
+  const A = S.area, out = A.nodes.map(() => []), R = RELAX;
   for(const e of A.edges){
     if(S.closed.has(e.i)) continue;
     const k = bias?.has(e.i) ? .05 : 1;
     if(e.t==="r"){
-      const lv = DIFF[e.diff].lvl;
-      if(k===1 && (lv===4 ? !S.free : lv > S.level)) continue;
+      const lv = DIFF[e.diff].lvl, over = k===1 && overLevel(e);
+      if(over && !(R >= 3 || (R >= 2 && lv !== 4 && lv <= S.level + 1))) continue;
       if(S.night && k===1 && !e.f.includes("l")) continue;          // avondskiën: alleen verlichte pistes
       const m = e.len / (DIFF[e.diff].spd * S.pace);
-      const avoid = S.noMogul && e.f.includes("m") ? 3 : 1;     // buckelpiste vermijden
+      const avoid = (S.noMogul && e.f.includes("m") ? 3 : 1) * (over ? (lv===4 ? 6 : 3) : 1);   // buckelpiste vermijden, boven je niveau alleen als het moet
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" ? m*DIFF[e.diff].pen : m)});
     } else if(e.t==="l"){
       if(S.night && k===1 && !A.nightLifts.has(e.i)) continue;   // 's avonds alleen liften bij verlichte pistes
@@ -308,13 +315,43 @@ function graph(bias){
       const avoid = S.noDrag && DRAG.has(e.kind) ? 4 : 1;          // sleeplift vermijden: alleen als het niet anders kan
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)});
       // met de lift naar beneden kan, maar skiën heeft de voorkeur
-      if(e.down && S.down) out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5 + 10});
+      if(e.down && (S.down || R >= 1)) out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5 + 10});
     } else {
-      const m = e.len / WALK_SPD + .5;
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:m*1.5}); out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5});
+      if(e.extra && R < 1) continue;
+      const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, c = m * (e.extra ? 3 : 1.5);
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:c}); out[e.b].push({to:e.a, e, rev:true, min:m, cost:c});
     }
   }
   return out;
+}
+// extra loopstukjes tot 250 m tussen punten die in de kaart net niet op elkaar aansluiten
+function addLongWalks(){
+  const A = S.area; if(A.longWalks) return; A.longWalks = true;
+  const N = A.nodes, MAX = 250, cell = .0025, near = new Set(), grid = new Map();
+  for(const e of A.edges){ near.add(e.a + "," + e.b); near.add(e.b + "," + e.a); }
+  N.forEach((p, i) => { const k = Math.floor(p.lat/cell) + "," + Math.floor(p.lon/cell); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  const add = [];
+  N.forEach((p, i) => {
+    const gy = Math.floor(p.lat/cell), gx = Math.floor(p.lon/cell), c = [];
+    for(let dy = -1; dy <= 1; dy++) for(let dx = -2; dx <= 2; dx++) for(const j of grid.get((gy+dy) + "," + (gx+dx)) || []){
+      if(j <= i || near.has(i + "," + j)) continue;
+      const d = meters(p.lat, p.lon, N[j].lat, N[j].lon), up = Math.abs((N[j].ele ?? 0) - (p.ele ?? 0));
+      if(d <= MAX && up <= 60) c.push([j, d + up*8, d, up]);     // klimmen telt zwaar mee
+    }
+    c.sort((x, y) => x[1] - y[1]).slice(0, 3).forEach(([j, , d, up]) => add.push([i, j, d, up]));
+  });
+  for(const [a, b, len, up] of add) A.edges.push({t:"w", extra:true, a, b, len:Math.round(len), climb:up, i:A.edges.length, pts:[[N[a].lat, N[a].lon], [N[b].lat, N[b].lon]]});
+}
+// alles wat je vanaf punt a kunt bereiken (afstand per knooppunt)
+const reachFrom = a => dijkstra(a, null, graph()).dist;
+// lukt het helemaal niet: het bereikbare punt dat het dichtst bij b ligt (zo ruim mogelijk gezocht)
+function nearestReachable(a, b){
+  if(a==null || b==null) return null;
+  addLongWalks(); RELAX = 3;
+  let dist; try{ dist = reachFrom(a); } finally{ RELAX = 0; }
+  const N = S.area.nodes; let best = null;
+  dist.forEach((d, n) => { if(d < Infinity && n !== a){ const m = meters(N[n].lat, N[n].lon, N[b].lat, N[b].lon); if(!best || m < best.d) best = {n, d:m}; } });
+  return best;
 }
 function dijkstra(a, b, out = graph()){
   const n = out.length, dist = new Float64Array(n).fill(Infinity), prev = new Array(n), heap = [[0,a]]; dist[a] = 0;
@@ -351,6 +388,15 @@ function wpLegs(){
 const wpStart = w => w.k === "p" ? (w.ch || (w.ch = chainFrom(w.ei))).start : w.n;
 const wpEnd = w => w.k === "p" ? (w.ch || (w.ch = chainFrom(w.ei))).end : w.n;
 function computePath(){
+  S.relax = 0;
+  for(let r = 0; r <= 3; r++){
+    if(r === 1) addLongWalks();
+    RELAX = r;
+    try{ const p = pathNow(); if(p){ S.relax = r; return p; } } finally{ RELAX = 0; }
+  }
+  return null;
+}
+function pathNow(){
   if(S.wps.length){
     const path = [];
     for(const [a, b, bias] of wpLegs()){ const p = shortest(a, b, bias); if(!p) return null; path.push(...p); }
@@ -483,6 +529,7 @@ function update(){
   const sig = (path||[]).map(s => s.e.i).join(",");
   if(sig !== S.sig){ S.sig = sig; S.navIdx = 0; S.spoken = {step:-1, pre:-1}; }
   routeLayer.clearLayers(); markLayer.clearLayers();
+  drawDim();
   if(path && path.length){
     const lines = path.map(s => s.e.pts);
     L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:13, opacity:.45, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
@@ -509,6 +556,18 @@ function update(){
   if(S.draw) renderDrawBar();
   if($("myRoutes").open) renderRoutes();
 }
+// na het kiezen van A: grijs wat je met jouw niveau en instellingen niet kunt bereiken
+function drawDim(){
+  dimLayer.clearLayers(); S.dimmed = false;
+  if(S.from==null || S.to!=null || S.target || S.wps.length || S.draw) return;
+  const out = graph(), dist = dijkstra(S.from, null, out).dist, ok = new Set();
+  out.forEach((list, u) => { if(dist[u] < Infinity) for(const s of list) ok.add(s.e.i); });
+  const lines = S.area.edges.filter(e => e.t !== "w" && !ok.has(e.i) && !S.closed.has(e.i)).map(e => e.pts);
+  if(!lines.length) return;
+  L.polyline(lines, {renderer:dimR, interactive:false, color:"#4A5560", weight:7, opacity:.75, lineCap:"round"}).addTo(dimLayer);
+  S.dimmed = true;
+  $("pickHint").innerHTML += ` <span class="dim-hint">Grijs valt buiten je niveau. Kies je het toch, dan zoekt de app de makkelijkste weg.</span>`;
+}
 function renderExtra(){
   const x = $("extra"), parts = [];
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
@@ -529,7 +588,7 @@ function renderResult(){
   const res = $("result"), peek = $("peek");
   if(S.from==null || S.to==null){
     res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`;
-    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Geen route" : "Kies je bestemming"}</b>${S.from==null ? "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen." : "Tik op de kaart op je bestemming, of tik een piste aan."}</p>
+    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Geen route" : "Kies je bestemming"}</b>${S.from==null ? "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
       <div class="cta"><button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button><button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button></div></div>`;
     $("suggestBtn").onclick = () => { defaultRoute(); update(); fitRoute(); };
     $("drawBtn2").onclick = startDraw;
@@ -543,9 +602,17 @@ function renderResult(){
     if(!S.free) tips.push("neem skiroutes mee");
     if(S.closed.size) tips.push("open een gesloten piste");
     const who = S.planBy ? `De route van ${esc(S.planBy)} is met jouw instellingen niet te halen. ` : "";
-    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${who}${tips.length ? "Probeer: " + tips.join(", ") + ". " : ""}Sommige delen van een skigebied zijn alleen met de skibus bereikbaar; die staan niet in de kaart.</p>`;
+    // het punt het dichtst bij je bestemming dat je wél kunt halen
+    const near = !S.wps.length && !S.target && S.via==null ? nearestReachable(S.from, S.to) : null, alt = near && near.d <= 2000 ? near : null;
+    const altBtn = alt ? `<button type="button" class="btn primary" id="altBtn">${I("flag")}Naar het dichtstbijzijnde punt · ${km(alt.d)} van je bestemming</button>` : "";
+    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${who ? `<span>${who}</span> ` : ""}${S.closed.size ? "<span>Probeer een gesloten piste of lift te openen.</span> " : ""}<span>Dit deel van het skigebied is vanaf je vertrekpunt niet over pistes en liften te bereiken, bijvoorbeeld omdat je er met de skibus heen moet; die staat niet in de kaart.</span></p>`;
     peek.innerHTML = S.planBy ? `<p class="empty"><strong>Je kunt de route van ${esc(S.planBy)} niet volgen</strong> met jouw niveau of instellingen. Kies een hoger niveau, of vraag om een makkelijkere bestemming.</p>`
-                              : `<p class="empty"><strong>Geen route gevonden</strong> met deze instellingen.</p>`; return setPeek();
+                              : `<div class="peek-empty"><p><b>Hier kom je niet over de piste</b>${alt ? "Wel kun je dichtbij komen." : "Kies een ander punt, of laat de app een rondje voorstellen."}</p>
+                                 <div class="cta">${altBtn || `<button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button>`}<button type="button" class="btn ghost" id="clearBtn">${I("close")}Route wissen</button></div></div>`;
+    $("altBtn")?.addEventListener("click", () => { S.to = alt.n; update(); fitRoute(); });
+    $("suggestBtn")?.addEventListener("click", () => { defaultRoute(); update(); fitRoute(); });
+    $("clearBtn").onclick = clearRoute;
+    return setPeek();
   }
   const path = S.path, steps = S.steps;
   const tot = path.reduce((s,x)=>s+x.min,0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
@@ -553,7 +620,7 @@ function renderResult(){
   const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span></div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
       <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>
@@ -574,11 +641,21 @@ function renderResult(){
   const riskyLifts = steps.filter(s => s.t==="l" && S.risk?.lifts.has(s.e.i)).length;
   if(riskyLifts) warn += `<p class="notice info">${I("wind")}<span>${riskyLifts === 1 ? "Eén lift" : riskyLifts + " liften"} op je route ${riskyLifts === 1 ? "is" : "zijn"} bij deze wind mogelijk dicht (${S.risk.reason}). Controleer de <button type="button" class="linkbtn" id="openStatus2" style="color:var(--accent)">liftstatus</button>.</span></p>`;
   if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
+  // ruimer gezocht: vertel wat er buiten je instellingen valt
+  if(S.relax){
+    const over = steps.filter(s => s.t==="r" && s.items.some(x => overLevel(x.e) && !S.target?.edges.includes(x.e.i)));
+    const downs = path.filter(s => s.rev && s.e.t==="l").length, walk = path.filter(s => s.e.extra).reduce((t, s) => t + s.e.len, 0);
+    const bits = [];
+    if(over.length) bits.push(over.length === 1 ? `één ${over[0].e.diff==="f" ? "skiroute" : DIFF[over[0].e.diff].adj + " piste"} boven je niveau` : `${over.length} pistes boven je niveau`);
+    if(downs && !S.down) bits.push(downs === 1 ? "één keer met de lift naar beneden" : `${downs} keer met de lift naar beneden`);
+    if(walk) bits.push(`${Math.round(walk/10)*10} m lopen`);
+    if(bits.length) warn = `<p class="notice ${over.length ? "bad" : "info"}">${I("warn")}<span><strong>Binnen je instellingen kon het niet.</strong> Deze route gaat via ${bits.join(" en ")}.</span></p>` + warn;
+  }
   const lastWp = S.wps[S.wps.length-1];
   const endLabel = lastWp ? (lastWp.k === "p" ? `Einde ${lastWp.ch.label}` : nodeLabel(S.to)) : S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
   res.innerHTML = warn + profileHtml() + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
-      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}</div>
+      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}${S.relax && s.t==="r" && s.items.some(x => overLevel(x.e)) ? `<span class="risk-chip">${I("warn")}Boven je niveau</span>` : ""}</div>
       <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
     + `<li class="end"><span class="node">${I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div></div><span></span></li></ol>`;
   $("valley2")?.addEventListener("click", toValley);
@@ -611,8 +688,14 @@ function renderClosed(){
 map.on("click", ev => {
   if(!S.area) return;
   const A = S.area, p0 = map.latLngToContainerPoint(ev.latlng);
-  let bn = -1, bd = Infinity;
-  A.nodes.forEach((n, i) => { const d = p0.distanceTo(map.latLngToContainerPoint([n.lat, n.lon])); if(d < bd){ bd = d; bn = i; } });
+  let bn = -1, bd = Infinity; const cands = [];
+  A.nodes.forEach((n, i) => { const d = p0.distanceTo(map.latLngToContainerPoint([n.lat, n.lon])); if(d < bd){ bd = d; bn = i; } if(d <= 36) cands.push([i, d]); });
+  // liggen er meer punten onder je vinger: neem het dichtstbijzijnde dat je vanaf het vorige punt kunt bereiken
+  const prevPt = S.draw ? (S.wps.length ? wpEnd(S.wps[S.wps.length-1]) : S.fromMe && S.pos ? S.from : null) : S.pick==="to" ? S.from : null;
+  if(prevPt != null && cands.length > 1){
+    const reach = reachFrom(prevPt), ok = cands.filter(([i]) => reach[i] < Infinity && i !== prevPt).sort((x, y) => x[1] - y[1])[0];
+    if(ok) bn = ok[0];
+  }
   // dichtstbijzijnde piste of lift (in schermpixels)
   let be = -1, bed = Infinity;
   for(const e of A.edges){
@@ -1388,7 +1471,7 @@ function addWp(w){
   if(S.wps.length > 1 || (S.fromMe && S.pos)){
     if(!computePath()){
       S.wps.pop();
-      toast("Dit punt is vanaf het vorige niet te bereiken met jouw niveau. Kies een ander punt.", 3500);
+      toast("Dit punt is vanaf het vorige niet over pistes en liften te bereiken. Kies een ander punt.", 3500);
       return;
     }
   }

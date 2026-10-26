@@ -158,6 +158,13 @@ en:{
  "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen.":"Tap your starting point on the map, tap a run, or let the app suggest a loop.",
  "Tik op de kaart op je bestemming, of tik een piste aan.":"Tap your destination on the map, or tap a run.", "Stel een route voor":"Suggest a route",
  "Route gewist. Tik op de kaart voor een nieuwe.":"Route cleared. Tap the map for a new one.",
+ "Binnen je instellingen kon het niet.":"Not possible within your settings.", "Boven je niveau":"Above your level", "Buiten je instellingen":"Outside your settings",
+ "Grijs valt buiten je niveau. Kies je het toch, dan zoekt de app de makkelijkste weg.":"Grey is beyond your level. Pick it anyway and the app finds the easiest way.",
+ "Tik op de kaart op je bestemming, of tik een piste aan. Grijs valt buiten je niveau.":"Tap your destination on the map, or tap a run. Grey is beyond your level.",
+ "Hier kom je niet over de piste":"You can't get here on the slopes", "Wel kun je dichtbij komen.":"But you can get close.", "Kies een ander punt, of laat de app een rondje voorstellen.":"Choose another point, or let the app suggest a loop.",
+ "Probeer een gesloten piste of lift te openen.":"Try reopening a closed run or lift.",
+ "Dit deel van het skigebied is vanaf je vertrekpunt niet over pistes en liften te bereiken, bijvoorbeeld omdat je er met de skibus heen moet; die staat niet in de kaart.":"This part of the ski area can't be reached from your starting point by runs and lifts, for example because you need the ski bus; that isn't on the map.",
+ "Dit punt is vanaf het vorige niet over pistes en liften te bereiken. Kies een ander punt.":"This point can't be reached from the previous one by runs and lifts. Choose another point.",
  "Snelheidsmeter tonen":"Show speedometer", "km/u":"km/h", "top":"top", "Exporteer GPX":"Export GPX", "GPX-bestand opgeslagen.":"GPX file saved.",
  "Deze dag heeft nog te weinig punten.":"This day doesn't have enough points yet.", "Seizoen":"Season", "Dagen":"Days", "Geskied":"Skied", "Per dag":"Per day",
  "Persoonlijke records":"Personal records", "Topsnelheid":"Top speed", "Langste dag":"Longest day", "Meeste hoogtemeters":"Most vertical", "Meeste afdalingen":"Most runs",
@@ -279,6 +286,13 @@ de:{
  "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen.":"Tippe auf der Karte deinen Startpunkt an, tippe eine Piste an oder lass dir eine Runde vorschlagen.",
  "Tik op de kaart op je bestemming, of tik een piste aan.":"Tippe auf der Karte dein Ziel an oder tippe eine Piste an.", "Stel een route voor":"Route vorschlagen",
  "Route gewist. Tik op de kaart voor een nieuwe.":"Route gelöscht. Tippe auf die Karte für eine neue.",
+ "Binnen je instellingen kon het niet.":"Mit deinen Einstellungen ging es nicht.", "Boven je niveau":"Über deinem Niveau", "Buiten je instellingen":"Außerhalb deiner Einstellungen",
+ "Grijs valt buiten je niveau. Kies je het toch, dan zoekt de app de makkelijkste weg.":"Grau liegt über deinem Niveau. Wählst du es trotzdem, sucht die App den leichtesten Weg.",
+ "Tik op de kaart op je bestemming, of tik een piste aan. Grijs valt buiten je niveau.":"Tippe auf der Karte dein Ziel an oder tippe eine Piste an. Grau liegt über deinem Niveau.",
+ "Hier kom je niet over de piste":"Hierhin kommst du nicht über die Piste", "Wel kun je dichtbij komen.":"Aber du kannst nah herankommen.", "Kies een ander punt, of laat de app een rondje voorstellen.":"Wähle einen anderen Punkt oder lass dir eine Runde vorschlagen.",
+ "Probeer een gesloten piste of lift te openen.":"Versuche, eine geschlossene Piste oder einen Lift zu öffnen.",
+ "Dit deel van het skigebied is vanaf je vertrekpunt niet over pistes en liften te bereiken, bijvoorbeeld omdat je er met de skibus heen moet; die staat niet in de kaart.":"Dieser Teil des Skigebiets ist von deinem Startpunkt aus nicht über Pisten und Lifte erreichbar, zum Beispiel weil du den Skibus brauchst; der ist nicht auf der Karte.",
+ "Dit punt is vanaf het vorige niet over pistes en liften te bereiken. Kies een ander punt.":"Dieser Punkt ist vom vorigen nicht über Pisten und Lifte erreichbar. Wähle einen anderen Punkt.",
  "Snelheidsmeter tonen":"Tacho anzeigen", "km/u":"km/h", "top":"max", "Exporteer GPX":"GPX exportieren", "GPX-bestand opgeslagen.":"GPX-Datei gespeichert.",
  "Deze dag heeft nog te weinig punten.":"Dieser Tag hat noch zu wenige Punkte.", "Seizoen":"Saison", "Dagen":"Tage", "Geskied":"Gefahren", "Per dag":"Pro Tag",
  "Persoonlijke records":"Persönliche Rekorde", "Topsnelheid":"Höchstgeschwindigkeit", "Langste dag":"Längster Tag", "Meeste hoogtemeters":"Meiste Höhenmeter", "Meeste afdalingen":"Meiste Abfahrten",
@@ -309,8 +323,23 @@ de:{
 
 // ---------- zinnen met namen of getallen ----------
 const N = "([\\d.,]+)";
+// onderdelen van "Deze route gaat via …" (ruimer gezochte route)
+const DIFF_T = {groene:["green","grüne"], blauwe:["blue","blaue"], rode:["red","rote"], zwarte:["black","schwarze"], dubbelzwarte:["double black","doppelschwarze"], ongemarkeerde:["unmarked","unmarkierte"]};
+function viaT(s, l){
+  return s.split(" en ").map(b => { let m;
+    if((m = b.match(/^één skiroute boven je niveau$/))) return ["one ski route above your level", "eine Skiroute über deinem Niveau"][l];
+    if((m = b.match(/^één (\S+) piste boven je niveau$/))) return [`one ${DIFF_T[m[1]]?.[0] || m[1]} run above your level`, `eine ${DIFF_T[m[1]]?.[1] || m[1]} Piste über deinem Niveau`][l];
+    if((m = b.match(/^(\d+) pistes boven je niveau$/))) return [`${m[1]} runs above your level`, `${m[1]} Pisten über deinem Niveau`][l];
+    if(b === "één keer met de lift naar beneden") return ["riding a lift down once", "einmal mit dem Lift nach unten"][l];
+    if((m = b.match(/^(\d+) keer met de lift naar beneden$/))) return [`riding a lift down ${m[1]} times`, `${m[1]}-mal mit dem Lift nach unten`][l];
+    if((m = b.match(/^(.+) lopen$/))) return [`walking ${m[1]}`, `${m[1]} zu Fuß`][l];
+    return b;
+  }).join([" and ", " und "][l]);
+}
 const P = (rx, en, de) => [new RegExp(rx), en, de];
 const PATTERNS = [
+ P("^Naar het dichtstbijzijnde punt · (.+) van je bestemming$", (m) => `To the nearest point · ${m[1]} from your destination`, (m) => `Zum nächsten Punkt · ${m[1]} von deinem Ziel`),
+ P("^Deze route gaat via (.+)\.$", (m) => `This route uses ${viaT(m[1], 0)}.`, (m) => `Diese Route führt über ${viaT(m[1], 1)}.`),
  P("^\((\d+) (dag|dagen)\)$", (m) => `(${m[1]} ${m[1] === "1" ? "day" : "days"})`, (m) => `(${m[1]} ${m[1] === "1" ? "Tag" : "Tage"})`),
  P("^(\d+) km/u$", (m) => `${m[1]} km/h`, (m) => `${m[1]} km/h`),
  P("^(.+) hm$", (m) => `${m[1]} m`, (m) => `${m[1]} Hm`),
