@@ -572,3 +572,15 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .cta .btn.primary,.cta .btn.stop{flex:1 1 100%}
 .cta .btn.ghost{flex:1 1 auto}
 .cta #gSendBtn{flex:0 0 auto;padding-left:14px;padding-right:14px}
+
+/* donkere modus: zwarte pistes en de hoofdknop in de popup leesbaar houden */
+.node.dark{color:#fff}
+@media (prefers-color-scheme:dark){
+  .node.dark{box-shadow:0 0 0 3px var(--surface),inset 0 0 0 1.5px #C9D4DE}
+  ol.steps li.d-s::before{background:#C9D4DE}
+  .pop-btns .primary{background:var(--route);border-color:var(--route);color:var(--route-ink)}
+  .pop-btns .primary .ic{color:var(--route-ink)}
+  .wpn{border-color:#C9D4DE}
+  .chip.route .x{background:rgba(255,255,255,.12)}
+  .pnum.s{border-color:#C9D4DE}
+}

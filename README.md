@@ -34,3 +34,5 @@ Tijden zijn schattingen. De app weet niets van echte afsluitingen of lawinegevaa
 
 Verhoog bij elke update het versienummer op drie plekken, zodat telefoons de nieuwe code ophalen:
 `app.css?v=…` en `app.js?v=…` in `index.html`, en `VERSION` plus dezelfde bestandsnamen in `sw.js`.
+
+Na het opnieuw bouwen van `data/` ook `DATA_V` in `app.js` en `data/index.json?…` in `sw.js` verhogen.

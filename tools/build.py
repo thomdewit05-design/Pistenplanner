@@ -63,7 +63,8 @@ def collect(path, kind):
         if not hit: continue
         rec = dict(coords=ft["geometry"]["coordinates"], name=p.get("name"), ref=p.get("ref"),
                    diff=p.get("difficulty"), lt=p.get("liftType"), dur=p.get("duration"),
-                   oneway=p.get("oneway"), grooming=p.get("grooming"))
+                   oneway=p.get("oneway"), grooming=p.get("grooming"),
+                   cc=((p.get("places") or [{}])[0] or {}).get("iso3166_1Alpha2") or "")
         for i in hit: areas[i]["runs" if kind == "run" else "lifts"].append(rec)
         n += 1
     print(kind, n)
@@ -226,12 +227,13 @@ for a in sorted(areas.values(), key=lambda a: (a["cc"], a["y"], a["x"])):
         ea, eb = nodes[e["a"]][2], nodes[e["b"]][2]
         drop = round(ea - eb) if ea is not None and eb is not None else 0
         if e["k"] == "r":
-            out_e.append(["r", e["a"], e["b"], nm(r["name"]), r["ref"] or "", DIFF.get(r["diff"], "u"), round(e["len"]), drop, g])
+            out_e.append(["r", e["a"], e["b"], nm(r["name"]), r["ref"] or "", DIFF.get(r["diff"], "u"), round(e["len"]), drop, g,
+                          r["cc"] if r["cc"] != a["cc"] else ""])
         else:
             dur = r["dur"]
             if not dur: dur = e["len"] / LIFT_SPEED.get(r["lt"], 3.5)
             out_e.append(["l", e["a"], e["b"], nm(r["name"]), r["ref"] or "", r["lt"] or "lift", round(e["len"]), round(dur), g,
-                          1 if r["lt"] in RIDE_DOWN else 0])
+                          1 if r["lt"] in RIDE_DOWN else 0, r["cc"] if r["cc"] != a["cc"] else ""])
     out_w = [[i, j, round(d)] for i, j, d in walk]
     out_n = [[round(n[3]*1e5), round(n[4]*1e5), round(n[2]) if n[2] is not None else None] for n in nodes]
     nr = sum(1 for e in edges if e["k"]=="r"); nl = len({id(e["rec"]) for e in edges if e["k"]=="l"})

@@ -71,7 +71,9 @@ function applyBase(){
 
 // ================= gebieden =================
 const shards = {};
-const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
+// versie van de kaartdata: verhogen na het opnieuw bouwen van data/, zodat telefoons de nieuwe bestanden ophalen
+const DATA_V = "d2";
+const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
 
 function renderCountries(){
   const counts = {}; S.index.forEach(r => counts[r[2]] = (counts[r[2]]||0)+1);
@@ -109,8 +111,9 @@ async function openArea(id, opts={}){
   for(const e of raw.e){
     let nm = raw.t[e[3]]||"", ref = e[4] === nm ? "" : e[4];
     if(!ref && /^\d{1,3}[a-z]?$/i.test(nm)){ ref = nm; nm = ""; }   // naam die eigenlijk een pistenummer is
-    if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8])});
-    else edges.push({t:"l", a:e[1], b:e[2], name:nm, ref, kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9]});
+    // land per piste/lift (leeg = hetzelfde land als het skigebied)
+    if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8]), cc:e[9] || row[2]});
+    else edges.push({t:"l", a:e[1], b:e[2], name:nm, ref, kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9], cc:e[10] || row[2]});
   }
   for(const w of raw.w) edges.push({t:"w", a:w[0], b:w[1], len:w[2], pts:[[nodes[w[0]].lat,nodes[w[0]].lon],[nodes[w[1]].lat,nodes[w[1]].lon]]});
   edges.forEach((e,i) => e.i = i);
@@ -392,7 +395,7 @@ function buildSteps(path){
       st.sub = `${uc(LIFT[e.kind]||"lift")} · ${km(e.len)} · ${st.rev ? "naar het dalstation" : "naar het bergstation"}${ele!=null ? ` op ${ele} m` : ""}`;
       st.say = `stap in bij ${liftLabel(e)}`;
     } else if(st.t==="r"){
-      st.cls = "run"; st.color = DIFF[e.diff].col;
+      st.cls = "run d-" + e.diff; st.color = DIFF[e.diff].col;
       st.node = `<span class="node${e.diff==="s" ? " dark" : ""}">${esc(e.ref) || I("ski")}</span>`;
       st.turn = prev && prev.t!=="l" ? turnBetween(prev, st) : null;
       st.icon = st.turn ? TURN_ICON[st.turn] : "straight";
@@ -928,7 +931,7 @@ function nearestPlace(){
   }
   if(!best || best.d > 2000) return null;
   const e = best.e, name = e.t==="l" ? liftLabel(e).replace(/^de /, "") : `${pisteLabel(e).replace(/^de /, "")} (${DIFF[e.diff].nl})`;
-  return {txt: best.d < 40 ? `Op ${name}` : `${Math.round(best.d/10)*10} m van ${name}`, d:best.d};
+  return {txt: best.d < 40 ? `Op ${name}` : `${Math.round(best.d/10)*10} m van ${name}`, d:best.d, cc:e.cc};
 }
 function sosText(){
   const {lat, lon, acc} = S.pos, pl = nearestPlace(), alt = sosAlt();
@@ -941,7 +944,9 @@ function sosAlt(){
   return null;
 }
 function renderSos(){
-  const cc = S.area?.row[2], loc = RESCUE[cc];
+  // land van de piste of lift waar je bent; anders het land van het skigebied
+  const near = S.pos ? nearestPlace() : null;
+  const cc = near && near.d < 1000 ? near.cc : S.area?.row[2], loc = RESCUE[cc];
   $("sosLocal").hidden = !loc;
   if(loc){ $("sosLocal").href = `tel:${loc[0]}`; $("sosLocalNum").textContent = `Bel ${loc[0]}`; $("sosLocalTxt").textContent = loc[1]; }
   if(!S.pos){
@@ -955,7 +960,7 @@ function renderSos(){
     <div class="sos-facts">
       <div><span>Nauwkeurig</span><b>± ${Math.round(acc)} m</b></div>
       <div><span>Hoogte</span><b>${alt != null ? `ca. ${alt} m` : "onbekend"}</b></div>
-      <div style="grid-column:1/-1"><span>Waar</span><b>${pl ? esc(pl.txt) : "Niet bij een piste of lift"}${S.area ? ` · ${esc(S.area.row[1])}` : ""}</b></div>
+      <div style="grid-column:1/-1"><span>Waar</span><b>${pl ? esc(pl.txt) : "Niet bij een piste of lift"}${S.area ? ` · ${esc(S.area.row[1])}` : ""}${cc && COUNTRY[cc] ? ` · ${COUNTRY[cc]}` : ""}</b></div>
     </div>`;
 }
 function openSos(){ $("sos").hidden = false; if(S.watch==null) startWatch(); renderSos(); clearInterval(sosTimer); sosTimer = setInterval(renderSos, 3000); }
@@ -1415,7 +1420,7 @@ LAND_MQ.addEventListener("change", () => {
 if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
 applyBase(); update(); setPeek();
 (async () => {
-  try{ const r = await fetch("data/index.json"); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
+  try{ const r = await fetch(`data/index.json?${DATA_V}`); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
   catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
   renderCountries();
   parseShareHash();
