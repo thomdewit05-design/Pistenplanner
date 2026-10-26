@@ -2,7 +2,7 @@
 import os
 from PIL import Image, ImageDraw
 
-NAVY, SNOW, ROCK, YELLOW = (20, 32, 43), (244, 248, 251), (120, 140, 160), (255, 208, 0)
+NAVY, SNOW, ROCK, YELLOW = (15, 27, 42), (244, 248, 251), (122, 142, 164), (255, 196, 0)
 
 def icon(size, pad=0.0):
     s = 4 * size                                   # supersampling voor gladde randen

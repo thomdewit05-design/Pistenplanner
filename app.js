@@ -13,13 +13,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, voice:true,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, voice:true,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, voice:s.voice??true, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, voice:s.voice??true, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, voice:S.voice, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, voice:S.voice, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -31,6 +31,9 @@ function segDist(p, a, b){
   return {d:Math.hypot(ax+t*dx, ay+t*dy), t, len:Math.sqrt(L2)};
 }
 const bearing = (p, q) => Math.atan2((q[1]-p[1])*Math.cos(p[0]*Math.PI/180), q[0]-p[0]) * 180/Math.PI;
+const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+const TURN_ICON = {"rechtdoor":"straight", "houd rechts aan":"sright", "ga rechtsaf":"right", "houd links aan":"sleft", "ga linksaf":"left"};
+const hideSplash = () => $("splash").classList.add("out");
 
 // ================= kaart =================
 const map = L.map("map", {zoomControl:false, preferCanvas:true, worldCopyJump:false, minZoom:6}).setView([46.4, 10.5], 7);
@@ -61,7 +64,8 @@ function applyBase(){
   (S.base==="sat" && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
   S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
-  $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels;
+  $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;
+  if(typeof drawNumbers === "function") drawNumbers();
   save();
 }
 
@@ -72,8 +76,8 @@ const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.j
 function renderCountries(){
   const counts = {}; S.index.forEach(r => counts[r[2]] = (counts[r[2]]||0)+1);
   const ccs = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
-  $("countries").innerHTML = [`<button type="button" class="chip" data-cc="" aria-pressed="${!S.cc}">Alle</button>`,
-    ...ccs.map(c => `<button type="button" class="chip" data-cc="${c}" aria-pressed="${S.cc===c}">${COUNTRY[c]||c} <span style="opacity:.6">${counts[c]}</span></button>`)].join("");
+  $("countries").innerHTML = [`<button type="button" class="chip" data-cc="" aria-pressed="${!S.cc}">Alle landen</button>`,
+    ...ccs.map(c => `<button type="button" class="chip" data-cc="${c}" aria-pressed="${S.cc===c}">${COUNTRY[c]||c} <span class="n">${counts[c]}</span></button>`)].join("");
   $("countries").querySelectorAll("button").forEach(b => b.onclick = () => { S.cc = b.dataset.cc; renderCountries(); renderAreas(); });
 }
 function renderAreas(){
@@ -83,9 +87,10 @@ function renderAreas(){
   rows.sort(S.nearSort && S.pos ? (a,b) => dist(a)-dist(b) : (a,b) => b[6]-a[6]);
   const shown = rows.slice(0, 80);
   $("areas").innerHTML = shown.map(r => `<li><button type="button" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
-      <span class="nm">${esc(r[1])}</span><span class="st">${S.nearSort && S.pos ? (dist(r)/1000).toFixed(0)+" km · " : ""}${r[6]} km piste</span>
-      <span class="rg">${COUNTRY[r[2]]||r[2]}${r[3] ? " · "+esc(r[3]) : ""} · ${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></button></li>`).join("")
-    || `<li style="padding:12px 4px;color:var(--muted)">Geen skigebied gevonden voor "${esc(S.q)}".</li>`;
+      <span class="cc">${r[2]}</span>
+      <span><span class="nm">${esc(r[1])}</span><span class="rg">${S.nearSort && S.pos ? `${(dist(r)/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
+      <span class="km">${r[6]}<small>km piste</small></span></button></li>`).join("")
+    || `<li class="empty" style="padding:16px 6px">Geen skigebied gevonden voor "${esc(S.q)}".</li>`;
   $("count").textContent = rows.length > shown.length ? `${shown.length} van ${rows.length} getoond. Typ om te zoeken.` : `${rows.length} skigebieden`;
   $("areas").querySelectorAll("button").forEach(b => b.onclick = () => { closePicker(); openArea(b.dataset.id); });
 }
@@ -97,7 +102,7 @@ async function openArea(id, opts={}){
   $("areaName").textContent = row[1]; $("areaStats").textContent = "Kaart laden…";
   let raw;
   try{ raw = (await loadShard(row[8]))[id]; }
-  catch(e){ $("areaStats").textContent = "Laden mislukt. Controleer je verbinding."; toast("Kaartdata kon niet laden."); return; }
+  catch(e){ hideSplash(); $("areaStats").textContent = "Laden mislukt. Controleer je verbinding."; toast("Kaartdata kon niet laden."); return; }
   const nodes = raw.n.map(n => ({lat:n[1]/1e5, lon:n[0]/1e5, ele:n[2]}));
   const geo = g => { const pts = []; let lo=0, la=0; for(let i=0;i<g.length;i+=2){ lo+=g[i]; la+=g[i+1]; pts.push([la/1e5, lo/1e5]); } return pts; };
   const edges = [];
@@ -118,7 +123,11 @@ async function openArea(id, opts={}){
   edges.filter(e=>e.t==="l").forEach(e => { add(e.a, `Dalstation ${liftName(e)}`, 0); add(e.b, `Bergstation ${liftName(e)}`, 0); });
   edges.filter(e=>e.t==="r" && (e.name||e.ref)).forEach(e => { const nm = pisteLabel(e); if(!names.has(`Begin ${nm}`)) add(e.a, `Begin ${nm}`, 1); add(e.b, `Einde ${nm}`, 2); });
 
-  S.area = {id, row, nodes, edges, place, names, outRuns, inRuns, bounds:L.latLngBounds(nodes.map(n => [n.lat, n.lon]))};
+  // kaartuitsnede zonder losse uitschieters (een verdwaalde lift buiten het gebied)
+  const q = (arr, f) => { const s = [...arr].sort((a,b) => a-b); return s[Math.min(s.length-1, Math.max(0, Math.round(f*(s.length-1))))]; };
+  const lats = nodes.map(n => n.lat), lons = nodes.map(n => n.lon);
+  const bounds = L.latLngBounds([q(lats,.02), q(lons,.02)], [q(lats,.98), q(lons,.98)]);
+  S.area = {id, row, nodes, edges, place, names, outRuns, inRuns, bounds};
   // "Skiën: piste X" als bestemming
   const skiNames = new Map(), seen = new Set();
   edges.forEach(e => { if(e.t!=="r" || !(e.name||e.ref)) return; const k = e.name+"|"+e.ref+"|"+e.diff; if(seen.has(k)) return; seen.add(k);
@@ -127,13 +136,42 @@ async function openArea(id, opts={}){
   S.closed = new Set(); S.target = null; S.via = null;
   $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(s)}"></option>`).join("");
   $("areaStats").textContent = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften${row[10] ? ` · ${row[9]}–${row[10]} m` : ""}`;
-  drawPistes();
-  if(!opts.keepView) fitArea();
+  drawPistes(); buildNumbers();
+  if(!opts.keepView) fitArea(!$("splash").classList.contains("out"));
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
   else { defaultRoute(); S.pick = "from"; }
   try{ history.replaceState(null, "", "#" + id); }catch(e){}
   save(); update();
+  if(!opts.keepView && S.path?.length){   // op de route inzoomen; die is interessanter dan het hele gebied
+    map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:16, animate:false});
+  }
+  drawNumbers();
+  setTimeout(hideSplash, 250);
 }
+
+// pistenummers op de kaart (alleen ingezoomd en binnen beeld, anders wordt het te druk)
+let numLabels = [];
+const numLayer = L.layerGroup().addTo(map);
+function buildNumbers(){
+  const A = S.area, best = new Map();
+  for(const e of A.edges){
+    if(e.t!=="r" || !e.ref || e.ref.length > 4) continue;
+    const k = e.ref+"|"+e.diff, cur = best.get(k);
+    if(!cur || e.len > cur.len) best.set(k, e);
+  }
+  numLabels = [...best.values()].map(e => ({e, at:e.pts[Math.floor(e.pts.length/2)]}));
+}
+function drawNumbers(){
+  numLayer.clearLayers();
+  if(!S.area || !S.nums || !S.pistes || map.getZoom() < 14) return;
+  const b = map.getBounds().pad(.1); let n = 0;
+  for(const {e, at} of numLabels){
+    if(!b.contains(at) || ++n > 160) continue;
+    L.marker(at, {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null,
+      html:`<span class="pnum ${e.diff}" style="background:${DIFF[e.diff].col}">${esc(e.ref)}</span>`})}).addTo(numLayer);
+  }
+}
+map.on("zoomend moveend", drawNumbers);
 const pisteLabel = e => e.name ? (e.ref ? `piste ${e.ref} ${e.name}` : e.name) : e.ref ? `piste ${e.ref}` : (e.diff==="f" ? "de skiroute" : `de ${DIFF[e.diff].adj} piste`);
 const liftLabel = e => `de ${LIFT[e.kind]||"lift"} ${e.name || e.ref || ""}`.trim();
 
@@ -175,7 +213,7 @@ function drawPistes(){
 }
 const sheetPad = () => window.innerWidth >= 900 ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
                                                  : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
-function fitArea(){ if(S.area) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16}); }
+function fitArea(instant){ if(S.area) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:!instant}); }
 function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
@@ -275,7 +313,6 @@ function nearestNode(lat, lon){
 }
 
 // ================= routebeschrijving =================
-const ICON_LIFT = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 3 L15 1"/><path d="M8 2 V6"/><rect x="4.5" y="6" width="7" height="7" rx="1.5"/></svg>`;
 const fmt = m => { m = Math.max(1, Math.round(m)); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
 const km = m => m >= 1000 ? (m/1000).toFixed(1).replace(".",",")+" km" : Math.round(m/10)*10+" m";
 const nodeLabel = n => S.area.place[n]?.s || `kruising op ${S.area.nodes[n].ele ?? "?"} m`;
@@ -305,22 +342,25 @@ function buildSteps(path){
   out.forEach((st, i) => {
     const e = st.e, prev = out[i-1];
     if(st.t==="l"){
-      st.badge = `<span class="badge l">${ICON_LIFT}</span>`;
+      st.cls = "lift"; st.node = `<span class="node">${I("lift")}</span>`; st.icon = "lift";
       st.title = `${st.rev ? "Ga met" : "Neem"} ${liftLabel(e)}${st.rev ? " naar beneden" : ""}`;
       const ele = S.area.nodes[st.end].ele;
-      st.sub = `${st.rev ? "naar het dalstation" : "naar het bergstation"}${ele!=null ? `, ${ele} m` : ""} · ${km(e.len)}`;
+      st.sub = `${uc(LIFT[e.kind]||"lift")} · ${km(e.len)} · ${st.rev ? "naar het dalstation" : "naar het bergstation"}${ele!=null ? ` op ${ele} m` : ""}`;
       st.say = `stap in bij ${liftLabel(e)}`;
     } else if(st.t==="r"){
-      st.badge = `<span class="badge ${e.diff}">${esc(e.ref) || "&nbsp;"}</span>`;
+      st.cls = "run"; st.color = DIFF[e.diff].col;
+      st.node = `<span class="node${e.diff==="s" ? " dark" : ""}">${esc(e.ref) || I("ski")}</span>`;
       st.turn = prev && prev.t!=="l" ? turnBetween(prev, st) : null;
-      const what = `${pisteLabel(e)}${e.name || e.ref ? "" : ""}`;
+      st.icon = st.turn ? TURN_ICON[st.turn] : "straight";
+      const what = pisteLabel(e);
       st.title = st.turn && st.turn !== "rechtdoor" ? `${uc(st.turn)} naar ${what}` : `Volg ${what}`;
-      st.sub = `${DIFF[e.diff].nl}, ${km(st.len)} tot ${lc(nodeLabel(st.end))}`;
+      const drop = st.items.reduce((s, x) => s + Math.max(0, x.e.drop||0), 0);
+      st.sub = `${uc(DIFF[e.diff].nl)} · ${km(st.len)}${drop > 20 ? ` · ${Math.round(drop)} hm` : ""} · tot ${lc(nodeLabel(st.end))}`;
       st.say = st.turn ? `${st.turn} naar ${what}` : `volg ${what}`;
     } else {
-      st.badge = `<span class="badge w">⋯</span>`;
+      st.cls = "walk"; st.node = `<span class="node">${I("walk")}</span>`; st.icon = "walk";
       st.title = `Loop of skate ${km(st.len)}`;
-      st.sub = `naar ${lc(nodeLabel(st.end))}`;
+      st.sub = `Naar ${lc(nodeLabel(st.end))}`;
       st.say = `loop of skate ${km(st.len).replace("km","kilometer").replace(" m"," meter")}`;
     }
   });
@@ -337,7 +377,8 @@ function update(){
   const A = S.area; if(!A) return;
   if(S.target) S.to = S.target.end;
   if(document.activeElement !== $("from")) $("from").value = S.from!=null ? (S.fromMe ? "Mijn locatie (" + lc(nodeLabel(S.from)) + ")" : nodeLabel(S.from)) : "";
-  if(document.activeElement !== $("to")) $("to").value = S.target ? `Skiën: ${S.target.label}` : S.to!=null ? nodeLabel(S.to) : "";
+  if(document.activeElement !== $("to")) $("to").value = S.target ? `Skiën: ${S.target.label}`
+    : S.to!=null && S.to===S.from && S.via!=null ? "Terug naar het vertrekpunt" : S.to!=null ? nodeLabel(S.to) : "";
   renderExtra();
 
   const path = computePath();
@@ -347,16 +388,17 @@ function update(){
   routeLayer.clearLayers(); markLayer.clearLayers();
   if(path && path.length){
     const lines = path.map(s => s.e.pts);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#14202B", weight:12, opacity:.35, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#FFD000", weight:8, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#14202B", weight:2.5, dashArray:"1 8", lineCap:"round", className:"route-core"}).addTo(routeLayer);
-    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.9, dashArray:"10 8"}).addTo(routeLayer);
+    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:13, opacity:.45, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
+    L.polyline(lines, {renderer:svgR, interactive:false, color:"#FFC400", weight:8, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
+    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2.5, dashArray:"1 9", lineCap:"round", className:"route-core"}).addTo(routeLayer);
+    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.95, dashArray:"10 8"}).addTo(routeLayer);
   }
-  const pins = [[S.from,"a","A"],[S.via,"v","↻"],[S.target ? S.target.start : null,"v","⛷"],[S.to,"b","B"]];
-  for(const [n, cls, t] of pins){
+  const pins = [[S.from,"a","<span></span>"],[S.via,"v",I("loop")],[S.target ? S.target.start : null,"v",I("ski")],[S.to,"b",I("flag")]];
+  for(const [n, cls, html] of pins){
     if(n==null || (cls==="a" && S.fromMe && S.pos) || (cls==="b" && S.to===S.from && S.via!=null)) continue;
-    const p = A.nodes[n];
-    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}">${t}</div>`, iconSize:[28,28], iconAnchor:[14,14]}), keyboard:false, interactive:false}).addTo(markLayer);
+    const p = A.nodes[n], sz = cls==="v" ? 26 : 30;
+    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}">${html}</div>`, iconSize:[sz,sz], iconAnchor:[sz/2, sz*1.2]}),
+      keyboard:false, interactive:false, zIndexOffset:cls==="v" ? 0 : 500}).addTo(markLayer);
   }
   renderResult();
   renderClosed();
@@ -364,8 +406,8 @@ function update(){
 }
 function renderExtra(){
   const x = $("extra"), parts = [];
-  if(S.target) parts.push(`<button type="button" class="chip on" data-k="target" title="Weghalen">⛷ Skiën: ${esc(S.target.label)} · ${km(S.target.len)} <span class="x">✕</span></button>`);
-  if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip on" data-k="via" title="Weghalen">↻ Via ${esc(lc(nodeLabel(S.via)))} <span class="x">✕</span></button>`);
+  if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
+  if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
   x.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
@@ -389,18 +431,21 @@ function renderResult(){
   const tot = path.reduce((s,x)=>s+x.min,0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
   const down = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+Math.max(0,x.e.drop||0),0);
   const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
-  peek.innerHTML = `<div class="sum">
-      <div><b>${fmt(tot)}</b><small>Totaal</small></div>
-      <div><b>${(pisteM/1000).toFixed(1).replace(".",",")}</b><small>Km piste</small></div>
-      <div><b>${nP}<span class="of"> / ${nL}</span></b><small>Pistes / liften</small></div>
-      <div><b>${Math.round(down)}</b><small>Hm dalen</small></div></div>
-    <button type="button" class="go ${S.follow ? "active" : ""}" id="goBtn">${S.follow ? "Navigatie stoppen" : "▶ Start navigatie"}</button>`;
+  const arrive = new Date(Date.now() + tot*60000).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"});
+  peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".",",")} km piste · klaar om ${arrive}</span></div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString("nl-NL")} hm dalen</span></div>
+    <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
+                               : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}</div>`;
   $("goBtn").onclick = toggleFollow;
   const warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
-    ? `<p class="warn">Let op: ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</p>` : "";
-  res.innerHTML = warn + `<ol class="steps">` + steps.map((s, i) => `<li data-i="${i}">${s.badge}<div><div class="st-title">${esc(s.title)}</div><div class="st-sub">${esc(s.sub)}</div></div>
-      <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}">sluiten</button>` : ""}</div></li>`).join("") + `</ol>`;
-  res.querySelectorAll("li").forEach(li => li.onclick = ev => {
+    ? `<p class="warn"><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</p>` : "";
+  const endLabel = S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
+  res.innerHTML = warn + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
+    + steps.map((s, i) => `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
+      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div></div>
+      <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
+    + `<li class="end"><span class="node">${I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div></div><span></span></li></ol>`;
+  res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
     if(ev.target.closest(".close-btn")) return;
     const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
     if(window.innerWidth < 900) setSheet(false);
@@ -419,7 +464,7 @@ function renderClosed(){
   const groups = new Map();
   for(const i of S.closed){ const e = A.edges[i]; const k = e.t==="l" ? `Lift ${e.name||e.ref||LIFT[e.kind]}` : uc(pisteLabel(e)); (groups.get(k) || groups.set(k, []).get(k)).push(i); }
   const vals = [...groups.values()];
-  c.innerHTML = [...groups.keys()].map((k,j) => `<button type="button" class="chip" data-j="${j}" title="Weer openen"><span class="x">✕</span>${esc(k)}</button>`).join("");
+  c.innerHTML = [...groups.keys()].map((k,j) => `<button type="button" class="chip closed" data-j="${j}" title="Weer openen">${I("ban")}${esc(k)}</button>`).join("");
   c.querySelectorAll("button").forEach(b => b.onclick = () => { vals[+b.dataset.j].forEach(i => S.closed.delete(i)); drawPistes(); update(); });
 }
 
@@ -450,13 +495,17 @@ function edgePopup(ei, latlng, nearNode){
   const ch = chainFrom(ei), e = ch.e, A = S.area;
   const drop = ch.kind==="r" ? (A.nodes[ch.start].ele ?? 0) - (A.nodes[ch.end].ele ?? 0) : (A.nodes[ch.end].ele ?? 0) - (A.nodes[ch.start].ele ?? 0);
   const div = document.createElement("div"); div.className = "pop";
-  const badge = ch.kind==="l" ? `<span class="badge l">${ICON_LIFT}</span>` : `<span class="badge ${e.diff}">${esc(e.ref) || "&nbsp;"}</span>`;
-  div.innerHTML = `<div class="pop-head">${badge}<div><b>${esc(uc(ch.label))}</b><small>${ch.kind==="l" ? esc(LIFT[e.kind]||"lift") : DIFF[e.diff].nl} · ${km(ch.len)} · ${Math.abs(Math.round(drop))} hm ${ch.kind==="l" ? "omhoog" : "dalen"}</small></div></div>
+  const node = ch.kind==="l" ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${I("lift")}</span>`
+                             : `<span class="node${e.diff==="s" ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
+  const mins = ch.kind==="l" ? e.dur/60 : ch.len / DIFF[e.diff].spd;
+  const top = ch.kind==="l" ? A.nodes[ch.end].ele : A.nodes[ch.start].ele;
+  div.innerHTML = `<div class="pop-head">${node}<div><b>${esc(uc(ch.label))}</b><small>${ch.kind==="l" ? uc(LIFT[e.kind]||"lift") : e.diff==="f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`}</small></div></div>
+    <div class="pop-facts"><div><b>${km(ch.len)}</b><span>Lengte</span></div><div><b>${Math.abs(Math.round(drop))} m</b><span>${ch.kind==="l" ? "Stijgen" : "Dalen"}</span></div><div><b>${fmt(mins)}</b><span>${top!=null ? `Top ${top} m` : "Duur"}</span></div></div>
     <div class="pop-btns">
-      <button type="button" class="primary" data-a="ski">${ch.kind==="l" ? "Neem deze lift" : "⛷ Ski deze piste"}</button>
-      <button type="button" data-a="to">Hierheen (B)</button>
-      <button type="button" data-a="from">Vertrek hier (A)</button>
-      <button type="button" data-a="close">Sluiten</button>
+      <button type="button" class="primary" data-a="ski">${I(ch.kind==="l" ? "lift" : "ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
+      <button type="button" data-a="to">Hierheen</button>
+      <button type="button" data-a="from">Vertrek hier</button>
+      <button type="button" class="danger" data-a="close" style="grid-column:1/-1">${ch.kind==="l" ? "Lift" : "Piste"} afsluiten</button>
     </div>`;
   const pop = L.popup({closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"}).setLatLng(latlng).setContent(div).openOn(map);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
@@ -563,10 +612,11 @@ function updateNav(){
   const frac = s.len ? Math.min(1, ns.rem / s.len) : 0;
   const left = s.min * frac + S.steps.slice(ns.i+1).reduce((t, x) => t + x.min, 0);
   ban.hidden = false;
-  $("navDist").textContent = `Over ${km(ns.rem)}`;
-  $("navNow").textContent = nx ? uc(nx.say) : "Je bestemming";
-  $("navBadge").outerHTML = (nx ? nx.badge : `<span class="badge b">B</span>`).replace('class="badge', 'id="navBadge" class="badge');
-  $("navNext").textContent = `Nu: ${s.title}${s.t==="r" ? ` · nog ${km(ns.rem)} op deze piste` : ""} · nog ${fmt(left)} totaal`;
+  $("navDist").textContent = km(ns.rem);
+  $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
+  $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
+  const arrive = new Date(Date.now() + left*60000).toLocaleTimeString("nl-NL", {hour:"2-digit", minute:"2-digit"});
+  $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)} · nog ${fmt(left)} · aankomst ${arrive}</span>`;
   document.querySelector(`ol.steps li[data-i="${ns.i}"]`)?.classList.add("current");
   // gesproken aanwijzingen
   if(S.spoken.step !== ns.i){ S.spoken.step = ns.i; speak(`${uc(s.say)}${s.t!=="w" ? ", " + km(s.len).replace("km","kilometer").replace(" m"," meter") : ""}.`); }
@@ -653,12 +703,13 @@ document.addEventListener("click", e => { if(!e.target.closest("#layerMenu,#laye
 document.querySelectorAll("input[name=base]").forEach(r => r.onchange = () => { S.base = r.value; applyBase(); });
 $("showPistes").onchange = e => { S.pistes = e.target.checked; applyBase(); };
 $("showLabels").onchange = e => { S.labels = e.target.checked; applyBase(); };
+$("showNums").onchange = e => { S.nums = e.target.checked; applyBase(); };
 document.querySelectorAll("#level button").forEach(b => b.onclick = () => { S.level = +b.dataset.v; update(); });
 document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.v; update(); });
 $("free").onchange = e => { S.free = e.target.checked; update(); };
 $("down").onchange = e => { S.down = e.target.checked; update(); };
 $("voice").onchange = e => { S.voice = e.target.checked; if(!S.voice) speechSynthesis?.cancel?.(); save(); };
-$("fitAreaBtn").onclick = fitArea;
+$("fitAreaBtn").onclick = () => fitArea();
 $("fitRouteBtn").onclick = fitRoute;
 
 // ================= start =================
@@ -666,7 +717,7 @@ if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serv
 applyBase(); update(); setPeek();
 (async () => {
   try{ const r = await fetch("data/index.json"); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
-  catch(e){ $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
+  catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
   renderCountries();
   const want = location.hash.slice(1), byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
   const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
