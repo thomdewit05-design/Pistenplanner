@@ -739,3 +739,37 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .chip.route.night-chip{background:color-mix(in srgb,#1C2D42 85%,transparent);color:#FFE680;border-color:#1C2D42}
 .chip.route.night-chip .x{background:rgba(255,255,255,.15)}
 .night #map .leaflet-tile-pane{filter:brightness(.55) saturate(.8)}
+
+/* ---------- live snelheidsmeter ---------- */
+.speedo{position:fixed;z-index:998;left:calc(10px + var(--safe-l));bottom:calc(var(--sheet-peek,170px) + 14px + var(--safe-b));display:flex;align-items:center;gap:12px;padding:8px 14px 8px 12px;border-radius:16px;color:var(--ink);transition:bottom .25s}
+.spd-now{display:flex;flex-direction:column;align-items:center;line-height:1}
+.spd-now b{font:800 38px/1 var(--f-display);font-variant-numeric:tabular-nums;min-width:2ch;text-align:center}
+.spd-now small{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+.spd-side{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);border-left:1px solid var(--line);padding-left:12px}
+.spd-side span{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.spd-side .ic{width:14px;height:14px}
+.spd-side b{color:var(--ink);font-variant-numeric:tabular-nums}
+@media (min-width:900px){.speedo{left:430px;bottom:calc(14px + var(--safe-b))}}
+@media (orientation:landscape) and (max-height:500px){.speedo{left:calc(var(--side) + 2*var(--gap) + var(--safe-l));bottom:calc(var(--gap) + var(--safe-b))}.spd-now b{font-size:30px}}
+.drawing .speedo{display:none}
+
+/* ---------- dagboek: acties, seizoen en records ---------- */
+.d-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.d-actions .btn{padding:10px 8px;font-size:14px}
+.d-season{display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--line)}
+.d-season-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.d-season-head .label{margin:8px 0 0}
+.d-season-name{font:800 18px/1 var(--f-display);margin-top:8px}
+.d-fav{display:flex;align-items:center;gap:6px;margin:0;font-size:13.5px;color:var(--muted)}
+.d-fav .ic{width:15px;height:15px;color:#F5B400;fill:#F5B400}
+.d-fav b{color:var(--ink)}
+.d-records{display:flex;flex-direction:column;gap:6px}
+.d-records .label{margin:10px 0 2px}
+.d-rec{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--bg);cursor:pointer}
+.d-rec:hover{background:color-mix(in srgb,#7C3AED 8%,var(--bg))}
+.d-rec:focus-visible{outline:2px solid var(--accent)}
+.d-rec>.ic{width:22px;height:22px;color:#7C3AED;flex:none}
+.d-rec span{display:grid;grid-template-columns:1fr auto;gap:0 10px;flex:1;min-width:0;align-items:baseline}
+.d-rec small{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.d-rec b{grid-row:span 2;font:800 22px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.d-rec i{font-style:normal;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

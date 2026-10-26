@@ -154,6 +154,10 @@ en:{
  "Onweer":"Thunderstorm", "Onweer met hagel":"Thunderstorm with hail", "Onbekend":"Unknown", "Dicht":"Closed", "Open":"Open",
  "Bijgehouden met de Pistenplanner":"Tracked with the Pistenplanner",
  "Menu en instellingen":"Menu and settings",
+ "Snelheidsmeter tonen":"Show speedometer", "km/u":"km/h", "top":"top", "Exporteer GPX":"Export GPX", "GPX-bestand opgeslagen.":"GPX file saved.",
+ "Deze dag heeft nog te weinig punten.":"This day doesn't have enough points yet.", "Seizoen":"Season", "Dagen":"Days", "Geskied":"Skied", "Per dag":"Per day",
+ "Persoonlijke records":"Personal records", "Topsnelheid":"Top speed", "Langste dag":"Longest day", "Meeste hoogtemeters":"Most vertical", "Meeste afdalingen":"Most runs",
+ "Favoriet gebied:":"Favourite area:",
  "Sleepliften vermijden":"Avoid T-bars and drag lifts", "Buckelpistes vermijden":"Avoid mogul runs", "Avondskiën: alleen verlichte pistes":"Night skiing: lit runs only", "Avondskiën":"Night skiing",
  "Sleepliften vermijden is fijn voor beginners en kinderen: de route neemt ze alleen als er geen andere weg is.":"Avoiding drag lifts is handy for beginners and children: the route only uses them when there's no other way.",
  "Geprepareerd":"Groomed", "Buckelpiste":"Moguls", "Niet geprepareerd":"Ungroomed", "Verlicht":"Floodlit", "Kunstsneeuw":"Snowmaking", "Bospiste":"Glades",
@@ -267,6 +271,10 @@ de:{
  "Onweer":"Gewitter", "Onweer met hagel":"Gewitter mit Hagel", "Onbekend":"Unbekannt", "Dicht":"Geschlossen", "Open":"Offen",
  "Bijgehouden met de Pistenplanner":"Aufgezeichnet mit dem Pistenplanner",
  "Menu en instellingen":"Menü und Einstellungen",
+ "Snelheidsmeter tonen":"Tacho anzeigen", "km/u":"km/h", "top":"max", "Exporteer GPX":"GPX exportieren", "GPX-bestand opgeslagen.":"GPX-Datei gespeichert.",
+ "Deze dag heeft nog te weinig punten.":"Dieser Tag hat noch zu wenige Punkte.", "Seizoen":"Saison", "Dagen":"Tage", "Geskied":"Gefahren", "Per dag":"Pro Tag",
+ "Persoonlijke records":"Persönliche Rekorde", "Topsnelheid":"Höchstgeschwindigkeit", "Langste dag":"Längster Tag", "Meeste hoogtemeters":"Meiste Höhenmeter", "Meeste afdalingen":"Meiste Abfahrten",
+ "Favoriet gebied:":"Lieblingsgebiet:",
  "Sleepliften vermijden":"Schlepplifte meiden", "Buckelpistes vermijden":"Buckelpisten meiden", "Avondskiën: alleen verlichte pistes":"Nachtskilauf: nur beleuchtete Pisten", "Avondskiën":"Nachtskilauf",
  "Sleepliften vermijden is fijn voor beginners en kinderen: de route neemt ze alleen als er geen andere weg is.":"Schlepplifte meiden ist praktisch für Anfänger und Kinder: Die Route nutzt sie nur, wenn es keinen anderen Weg gibt.",
  "Geprepareerd":"Präpariert", "Buckelpiste":"Buckelpiste", "Niet geprepareerd":"Nicht präpariert", "Verlicht":"Beleuchtet", "Kunstsneeuw":"Beschneit", "Bospiste":"Waldpiste",
@@ -295,6 +303,9 @@ de:{
 const N = "([\\d.,]+)";
 const P = (rx, en, de) => [new RegExp(rx), en, de];
 const PATTERNS = [
+ P("^\((\d+) (dag|dagen)\)$", (m) => `(${m[1]} ${m[1] === "1" ? "day" : "days"})`, (m) => `(${m[1]} ${m[1] === "1" ? "Tag" : "Tage"})`),
+ P("^(\d+) km/u$", (m) => `${m[1]} km/h`, (m) => `${m[1]} km/h`),
+ P("^(.+) hm$", (m) => `${m[1]} m`, (m) => `${m[1]} Hm`),
  P("^Avondskiën: (.+) km verlichte piste\.$", (m) => `Night skiing: ${m[1]} km of floodlit runs.`, (m) => `Nachtskilauf: ${m[1]} km beleuchtete Pisten.`),
  P("^Versie (.+) · (.+) skigebieden · kaartdata (.+)$", (m) => `Version ${m[1]} · ${m[2]} ski areas · map data ${m[3]}`, (m) => `Version ${m[1]} · ${m[2]} Skigebiete · Kartendaten ${m[3]}`),
  P("^(.+) MB in gebruik · (\\d+) bewaarde (route|routes) · (\\d+) (skidag|skidagen) in het dagboek$", (m) => `${m[1]} MB in use · ${m[2]} saved ${m[2] === "1" ? "route" : "routes"} · ${m[4]} ski ${m[4] === "1" ? "day" : "days"} in the diary`, (m) => `${m[1]} MB belegt · ${m[2]} gespeicherte ${m[2] === "1" ? "Route" : "Routen"} · ${m[4]} ${m[4] === "1" ? "Skitag" : "Skitage"} im Tagebuch`),

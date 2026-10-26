@@ -23,13 +23,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, noDrag:false, noMogul:false, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, noDrag:S.noDrag, noMogul:S.noMogul, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -681,6 +681,7 @@ function startWatch(){
   return true;
 }
 function stopWatch(){
+  setTimeout(renderSpeedo, 0);
   if(S.watch != null) navigator.geolocation.clearWatch(S.watch);
   S.watch = null; S.pos = null; S.follow = false; keepAwake(false);
   $("locBtn").classList.remove("on","follow");
@@ -691,6 +692,7 @@ let firstFix = true;
 async function onPos(p){
   const first = !S.pos;
   S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, alt:p.coords.altitude};
+  speedOnPos(p);
   const ll = [S.pos.lat, S.pos.lon];
   if(!meMarker){
     meCircle = L.circle(ll, {radius:S.pos.acc, color:"#1A8CFF", weight:1, fillOpacity:.12, interactive:false}).addTo(map);
@@ -774,6 +776,7 @@ function updateNav(){
   else if(!nx && ns.rem < 30 && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak("Je bent op je bestemming."); }
 }
 function toggleFollow(){
+  setTimeout(renderSpeedo, 0);
   if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); update(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
@@ -1613,8 +1616,10 @@ function renderDiary(){
       `<span class="d-chip"><span class="node${isDark(x.diff) ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (ll.length ? `<div class="d-list"><p class="label">Liften (${ll.length})</p><div class="d-chips">${ll.map(x =>
       `<span class="d-chip"><span class="node" style="background:var(--surface);color:var(--p-lift);border:1.5px solid var(--p-lift)">${I("lift")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
-    + (sum && sum.n > 1 ? `<button type="button" class="btn ghost" id="dShare" style="width:100%">${I("share")}Deel mijn dag</button>` : "");
+    + (sum && sum.n > 1 ? `<div class="d-actions"><button type="button" class="btn ghost" id="dShare">${I("share")}Deel mijn dag</button><button type="button" class="btn ghost" id="dGpx">${I("route")}Exporteer GPX</button></div>` : "");
   $("dShare")?.addEventListener("click", () => shareDay(day, sum));
+  $("dGpx")?.addEventListener("click", () => exportGpx(day));
+  renderSeason(k);
   $("dShow").checked = D.show; $("dAwake").checked = D.awake;
   // geschiedenis
   const days = listDays();
@@ -1636,6 +1641,37 @@ function renderDiary(){
     drawTrack(); renderDiary(); diaryLive(); toast("Dag verwijderd.");
   });
 }
+// GPX 1.1: punten met tijd en hoogte, te openen in Strava, Garmin Connect, Komoot en dergelijke
+function dayGpx(day){
+  const name = `${day.areaName || "Skidag"} ${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}`;
+  const pts = day.pts.map(p => `<trkpt lat="${(p[1]/1e5).toFixed(5)}" lon="${(p[2]/1e5).toFixed(5)}">${p[3] != null ? `<ele>${p[3]}</ele>` : ""}<time>${new Date(day.start + p[0]*1000).toISOString()}</time></trkpt>`).join("\n      ");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Pistenplanner" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>${esc(name)}</name><time>${new Date(day.start).toISOString()}</time></metadata>
+  <trk>
+    <name>${esc(name)}</name>
+    <type>alpine_ski</type>
+    <trkseg>
+      ${pts}
+    </trkseg>
+  </trk>
+</gpx>
+`;
+}
+async function exportGpx(day){
+  if(!day || day.pts.length < 2){ toast("Deze dag heeft nog te weinig punten."); return; }
+  const fname = `pistenplanner-${day.date.slice(0,4)}-${day.date.slice(4,6)}-${day.date.slice(6,8)}${day.areaName ? "-" + norm(day.areaName).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) : ""}.gpx`;
+  const blob = new Blob([dayGpx(day)], {type:"application/gpx+xml"});
+  // op de telefoon via het deelmenu (direct naar Strava e.d.), anders als download
+  try{
+    const file = new File([blob], fname, {type:"application/gpx+xml"});
+    if(navigator.canShare?.({files:[file]})){ await navigator.share({files:[file], title:fname}); return; }
+  }catch(e){ if(e?.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("GPX-bestand opgeslagen.");
+}
+
 async function shareDay(day, sum){
   const lines = [`Mijn skidag in ${day.areaName || "de bergen"} (${niceDate(day.date)}):`,
     `${kmTxt(sum.km)} km geskied · ${hmTxt(sum.hm)} hoogtemeters omlaag · topsnelheid ${Math.round(sum.vmax)} km/u`,
@@ -1656,6 +1692,50 @@ function stopRec(){
   toast("Opname gestopt. Je dag is bewaard.");
   diaryLive(); renderDiary();
 }
+// winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
+const seasonOf = k => { const y = +k.slice(0,4), m = +k.slice(4,6); const a = m >= 7 ? y : y - 1; return `${a}–${String(a + 1).slice(2)}`; };
+let seasonPick = null;
+function allDays(){
+  return listDays().map(d => { const x = loadDay(d); if(!x) return null; const sm = x.sum && x.sum.n > 1 ? x.sum : daySummary(x); return {d, area:x.areaName || "", s:sm}; })
+    .filter(x => x && x.s && x.s.n > 1);
+}
+function renderSeason(curKey){
+  const days = allDays(), box = $("diarySeason");
+  if(!days.length){ box.innerHTML = ""; return; }
+  const seasons = [...new Set(days.map(x => seasonOf(x.d)))].sort().reverse();
+  const sel = seasonPick && seasons.includes(seasonPick) ? seasonPick : seasons[0];
+  const sd = days.filter(x => seasonOf(x.d) === sel);
+  const tot = sd.reduce((a, x) => ({km:a.km + x.s.km, hm:a.hm + x.s.hm, runs:a.runs + x.s.runs, secs:a.secs + x.s.secs}), {km:0, hm:0, runs:0, secs:0});
+  const areaCount = new Map(); sd.forEach(x => x.area && areaCount.set(x.area, (areaCount.get(x.area) || 0) + 1));
+  const fav = [...areaCount].sort((a, b) => b[1] - a[1])[0];
+  const best = (list, f) => list.reduce((m, x) => !m || f(x) > f(m) ? x : m, null);
+  const rec = (title, x, val, icon) => x ? `<button type="button" class="d-rec" data-d="${x.d}">${I(icon)}<span><small>${title}</small><b>${val}</b><i>${niceDate(x.d)}${x.area ? " · " + esc(x.area) : ""}</i></span></button>` : "";
+  const r1 = best(days, x => x.s.vmax), r2 = best(days, x => x.s.km), r3 = best(days, x => x.s.hm), r4 = best(days, x => x.s.runs);
+  box.innerHTML = `<div class="d-season">
+      <div class="d-season-head"><p class="label">Seizoen</p>${seasons.length > 1 ? `<div class="chips">${seasons.map(x => `<button type="button" class="chip" data-season="${x}" aria-pressed="${x === sel}">${x}</button>`).join("")}</div>` : `<span class="d-season-name">${sel}</span>`}</div>
+      <div class="d-stats">
+        <div class="d-stat"><span>${I("calendar")}Dagen</span><b>${sd.length}</b></div>
+        <div class="d-stat"><span>${I("ski")}Geskied</span><b>${hmTxt(tot.km)}<small>km</small></b></div>
+        <div class="d-stat"><span>${I("down")}Omlaag</span><b>${tot.hm >= 10000 ? kmTxt(tot.hm/1000) + "<small>km</small>" : hmTxt(tot.hm) + "<small>hm</small>"}</b></div>
+        <div class="d-stat"><span>${I("ski")}Afdalingen</span><b>${tot.runs}</b></div>
+        <div class="d-stat"><span>${I("clock")}Op de berg</span><b>${durTxt(tot.secs)}</b></div>
+        <div class="d-stat"><span>${I("star")}Per dag</span><b>${kmTxt(tot.km / sd.length)}<small>km</small></b></div>
+      </div>
+      ${fav ? `<p class="d-fav">${I("star")}Favoriet gebied: <b>${esc(fav[0])}</b> (${fav[1]} ${fav[1] === 1 ? "dag" : "dagen"})</p>` : ""}
+    </div>
+    <div class="d-records"><p class="label">Persoonlijke records</p>
+      ${rec("Topsnelheid", r1, `${Math.round(r1.s.vmax)} km/u`, "speed")}
+      ${rec("Langste dag", r2, `${kmTxt(r2.s.km)} km`, "ski")}
+      ${rec("Meeste hoogtemeters", r3, `${hmTxt(r3.s.hm)} hm`, "down")}
+      ${rec("Meeste afdalingen", r4, `${r4.s.runs}`, "lift")}
+    </div>`;
+  box.querySelectorAll("[data-season]").forEach(b => b.onclick = () => { seasonPick = b.dataset.season; renderSeason(curKey); });
+  box.querySelectorAll(".d-rec").forEach(b => b.onclick = () => {
+    const d = b.dataset.d; D.view = d === todayKey() ? null : d; drawTrack(); renderDiary(); $("diary").scrollTop = 0;
+    const x = loadDay(d); if(x?.pts.length > 1) map.fitBounds(L.latLngBounds(x.pts.map(p => [p[1]/1e5, p[2]/1e5])), {...sheetPad(), maxZoom:16});
+  });
+}
+
 function openDiary(){ $("diary").hidden = false; renderDiary(); drawTrack(); }
 $("diaryOpen").onclick = openDiary;
 $("diaryClose").onclick = () => { $("diary").hidden = true; };
@@ -1905,6 +1985,34 @@ function setNight(on){
   drawPistes(); update(); if(S.path?.length) fitRoute();
 }
 
+// ================= live snelheidsmeter =================
+// snelheid uit de GPS als die er is, anders uit de laatste twee posities (licht gladgestreken)
+const SPD = {last:null, kmh:0, top:0, topDay:null};
+function speedOnPos(p){
+  const t = p.timestamp || Date.now(), c = p.coords;
+  let v = c.speed != null && c.speed >= 0 ? c.speed * 3.6 : null;
+  if(v == null && SPD.last){
+    const dt = (t - SPD.last.t) / 1000;
+    if(dt >= 1 && dt <= 20) v = meters(SPD.last.lat, SPD.last.lon, c.latitude, c.longitude) / dt * 3.6;
+  }
+  SPD.last = {t, lat:c.latitude, lon:c.longitude};
+  if(v == null || !(c.accuracy < 40) || v > 140) v = SPD.kmh * .6;    // onbetrouwbaar: rustig laten zakken
+  SPD.kmh = SPD.kmh ? SPD.kmh * .35 + v * .65 : v;
+  if(SPD.topDay !== todayKey()){ SPD.topDay = todayKey(); SPD.top = 0; }
+  if(SPD.kmh > SPD.top && c.accuracy < 25) SPD.top = SPD.kmh;
+  renderSpeedo();
+}
+function renderSpeedo(){
+  const box = $("speedo");
+  const show = S.speedo && S.watch != null && S.pos && (S.follow || D.rec);
+  box.hidden = !show; if(!show) return;
+  const daySum = D.rec ? D.day?.sum : null;
+  const top = Math.max(SPD.top, daySum?.vmax || 0), alt = sosAlt();
+  $("spdNow").textContent = Math.round(SPD.kmh < 2 ? 0 : SPD.kmh);
+  $("spdTop").textContent = Math.round(top);
+  $("spdAlt").textContent = alt != null ? hmTxt(alt) : "–";
+}
+
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
 function applyTheme(){
@@ -1916,7 +2024,7 @@ applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
 function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
-  $("navAwake").checked = S.navAwake; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("nightToggle").checked = S.night;
+  $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("nightToggle").checked = S.night;
   $("setName").value = G.name || "";
   $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden · kaartdata ${DATA_V}`;
   renderStorage(); renderInstall();
@@ -1971,6 +2079,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").
 $("menuLayers").onclick = e => { e.stopPropagation(); closeMenu(); $("layerMenu").hidden = false; renderOffline(); };
 document.querySelectorAll("#pace button").forEach(b => b.onclick = () => { S.pace = +b.dataset.v; syncMenu(); update(); });
 $("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake(); };
+$("speedoToggle").onchange = e => { S.speedo = e.target.checked; save(); renderSpeedo(); };
 $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
 $("nightToggle").onchange = e => setNight(e.target.checked);
