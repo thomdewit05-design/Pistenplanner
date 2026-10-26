@@ -527,7 +527,14 @@ function renderExtra(){
 
 function renderResult(){
   const res = $("result"), peek = $("peek");
-  if(S.from==null || S.to==null){ res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`; peek.innerHTML = ""; return setPeek(); }
+  if(S.from==null || S.to==null){
+    res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`;
+    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Geen route" : "Kies je bestemming"}</b>${S.from==null ? "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen." : "Tik op de kaart op je bestemming, of tik een piste aan."}</p>
+      <div class="cta"><button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button><button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button></div></div>`;
+    $("suggestBtn").onclick = () => { defaultRoute(); update(); fitRoute(); };
+    $("drawBtn2").onclick = startDraw;
+    return setPeek();
+  }
   if(S.wps.length && S.path && !S.path.length){ res.innerHTML = `<p class="empty">Tik het volgende punt aan om de route verder te tekenen.</p>`; peek.innerHTML = ""; return setPeek(); }
   if(S.from===S.to && S.via==null && !S.target && !S.wps.length){ res.innerHTML = `<p class="empty">Je bent al op je bestemming. Kies een andere bestemming.</p>`; peek.innerHTML = ""; return setPeek(); }
   if(!S.path){
@@ -549,9 +556,11 @@ function renderResult(){
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span></div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>`}
-      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
+      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>
+      <button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("valleyBtn").onclick = toValley;
+  $("clearBtn").onclick = clearRoute;
   $("gSendBtn")?.addEventListener("click", sendPlan);
   let warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
     ? `<p class="notice bad">${I("warn")}<span><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</span></p>` : "";
@@ -2011,6 +2020,19 @@ function renderSpeedo(){
   $("spdNow").textContent = Math.round(SPD.kmh < 2 ? 0 : SPD.kmh);
   $("spdTop").textContent = Math.round(top);
   $("spdAlt").textContent = alt != null ? hmTxt(alt) : "–";
+}
+
+// ================= route wissen =================
+// navigatie stoppen en alles van de route van het scherm halen; daarna direct een nieuwe kiezen
+function clearRoute(){
+  if(S.follow) toggleFollow();
+  if(S.draw) stopDraw();
+  map.closePopup();
+  S.from = null; S.to = null; S.via = null; S.target = null; S.wps = []; S.planBy = null; S.fromMe = false; S.pick = "from";
+  profMarker?.remove(); profMarker = null;
+  update(); setPeek();
+  if(!isSide()) setSheet(false);
+  toast("Route gewist. Tik op de kaart voor een nieuwe.");
 }
 
 // ================= menu en instellingen =================

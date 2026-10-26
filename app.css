@@ -773,3 +773,9 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .d-rec small{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .d-rec b{grid-row:span 2;font:800 22px/1 var(--f-display);font-variant-numeric:tabular-nums}
 .d-rec i{font-style:normal;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- geen route ---------- */
+.peek-empty{display:flex;flex-direction:column;gap:10px}
+.peek-empty p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.peek-empty p b{display:block;font:800 22px/1.15 var(--f-display);color:var(--ink);margin-bottom:2px}
+#clearBtn .ic{width:16px;height:16px}
