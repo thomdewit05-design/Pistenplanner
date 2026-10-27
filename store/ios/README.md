@@ -95,7 +95,7 @@ Een licentiecode van de website werkt in de iOS-app niet (Apple staat dat niet t
    - Referentienaam: `Skipilot Pro`, Product-ID: `nl.skipilot.app.pro` (moet gelijk zijn aan `pro.ios.productId` in `config.js`)
    - Prijs: kies een prijsniveau (bijvoorbeeld € 9,99). De app toont de prijs uit de App Store, in de valuta van de koper.
    - Weergavenaam en beschrijving in het Nederlands, Engels en Duits, bijvoorbeeld "Skipilot Pro" en
-     "Kaart downloaden voor zonder bereik, groepen, lunchstop, zon en schaduw, terug naar je hotel, seizoensoverzicht en GPX-export."
+     "Groepen, lunchstop, zon en schaduw, terug naar je hotel, seizoensoverzicht en GPX-export."
    - Schermafbeelding voor de beoordeling: het Pro-scherm uit de app.
 4. Zet in `config.js` bij `pro.ios` **`enforce: true`**, en bouw een nieuwe versie (Actions → iOS-app → Run workflow met TestFlight).
    Zolang het `false` is, is alles in de iOS-app gratis, zoals nu.

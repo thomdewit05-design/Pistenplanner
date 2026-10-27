@@ -46,7 +46,7 @@ Met `?pro=preview` achter het adres zie je de app zoals hij met Pro aan werkt.
 2. Vul in `config.js` de betaallink (`checkout`), het winkelnummer (`storeId`) en het productnummer (`productId`) in.
 3. Zet `enforce` op `true` en verhoog het versienummer.
 
-Pro-functies: een groep maken en "Start voor iedereen", lunchstop, zon en schaduw, hotel of auto, seizoensoverzicht, GPX-export en de kaart van een heel gebied downloaden (in IndexedDB, werkt ook in de iOS-app).
+Pro-functies: een groep maken en "Start voor iedereen", lunchstop, zon en schaduw, hotel of auto, seizoensoverzicht en GPX-export.
 Veiligheid (route, navigatie, weer, laatste lift, SOS) en meedoen met een groep blijven gratis.
 
 Eigen kaarttegels met een sleutel zet je in `config.js` onder `maps` (per laag een `url` en eventueel Leaflet-`options`).
