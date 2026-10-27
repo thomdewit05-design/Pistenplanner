@@ -4,5 +4,6 @@ import Capacitor
 class ViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(StorePlugin())
+        bridge?.registerPluginInstance(WidgetPlugin())
     }
 }

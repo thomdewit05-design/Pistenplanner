@@ -213,7 +213,24 @@ async function openArea(id, opts={}){
   }
   drawNumbers();
   setTimeout(hideSplash, 250);
-  loadWeather();
+  loadWeather(); widgetArea();
+}
+// ---- widgets op het beginscherm (iOS-app) ----
+// de app geeft het skigebied en de skidag door; het weer haalt de widget zelf op, zodat hij ook bijblijft als de app dicht is
+function widgetSet(key, val){
+  const cap = window.Capacitor;
+  if(window.PP_STORE !== "ios" || !cap?.nativePromise) return;
+  cap.nativePromise("Widget", "set", {key, value:JSON.stringify(val)}).catch(() => {});
+}
+function widgetArea(){
+  const r = S.area?.row; if(!r) return;
+  widgetSet("area", {id:r[0], name:r[1], lat:r[5], lon:r[4], hi:r[10] ?? 2400, lo:r[9] ?? 1200, open:S.liftOpen, close:S.liftClose, lang:LANG});
+}
+let widgetDayT = 0;
+function widgetDay(day, sum, force){
+  if(!day || !sum || sum.n < 2 || sum.km < .05 || (!force && Date.now() - widgetDayT < 60e3)) return;
+  widgetDayT = Date.now();
+  widgetSet("day", {date:day.date, area:day.areaName || "", km:+sum.km.toFixed(1), hm:Math.round(sum.hm), runs:sum.runs, lifts:sum.lifts, vmax:Math.round(sum.vmax), lang:LANG});
 }
 
 // pistenummers op de kaart (alleen ingezoomd en binnen beeld, anders wordt het te druk)
@@ -1794,6 +1811,7 @@ const durTxt = sec => { const m = Math.round(sec/60); return m >= 60 ? `${Math.f
 function diaryLive(){
   const day = D.day && D.day.date === todayKey() ? D.day : loadDay(todayKey());
   const sum = day ? (day.sum = daySummary(day)) : null;
+  widgetDay(day, sum, !D.rec);
   $("diaryRecPill").hidden = !D.rec; document.body.classList.toggle("recording", D.rec);
   $("diaryMini").textContent = sum && sum.n > 1 ? `Vandaag: ${kmTxt(sum.km)} km · ${hmTxt(sum.hm)} hm · ${Math.round(sum.vmax)} km/u` : D.rec ? "Opname loopt. Ga skiën!" : "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid";
   if(Date.now() - D.lastDraw > 3000){ D.lastDraw = Date.now(); drawTrack(); }
@@ -2215,8 +2233,8 @@ async function markOfflineAreas(){
 
 // ================= openingstijden =================
 $("liftOpen").value = S.liftOpen; $("liftClose").value = S.liftClose;
-$("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); } };
-$("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.value; save(); update(); } };
+$("liftOpen").onchange = e => { if(e.target.value){ S.liftOpen = e.target.value; save(); update(); widgetArea(); } };
+$("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.value; save(); update(); widgetArea(); } };
 
 // een punt in het midden van het zichtbare deel van de kaart zetten (niet achter het paneel)
 function showAt(ll, zoom){

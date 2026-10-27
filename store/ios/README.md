@@ -18,6 +18,20 @@ Je hebt **geen Mac** nodig: GitHub bouwt de app op een Mac in de cloud (`.github
   de app zelf en de pistedata werken wel volledig offline.
 - Alleen voor iPhone (op een iPad draait hij als iPhone-app). Dan zijn er ook geen iPad-schermafbeeldingen nodig.
 
+## Widgets op het beginscherm
+
+Twee widgets (iOS 17 en nieuwer), in het Nederlands, Engels of Duits, net als de app:
+- **Skigebied** (klein, middel, toegangsscherm): weer bovenop de berg, verse sneeuw van de laatste 24 uur, sneeuwhoogte en wind
+  in het laatst geopende skigebied. De middelgrote toont ook drie dagen vooruit, de temperatuur in het dal en de liftentijden.
+  Het weer haalt de widget zelf elk half uur op bij Open-Meteo, ook als de app dicht is.
+- **Skidag** (klein, toegangsscherm): kilometers, hoogtemeters, afdalingen en topsnelheid van vandaag, of van je laatste skidag.
+
+De app geeft het skigebied en de skidag door via een gedeelde *App Group* (`group.nl.skipilot.app`).
+De code staat in `ios/App/SkipilotWidget/` en `ios/App/App/WidgetPlugin.swift`.
+Bij het ondertekenen via GitHub registreert Xcode de App Group en het widget-ID (`nl.skipilot.app.widget`) zelf.
+Lukt dat niet, maak ze dan met de hand aan op developer.apple.com → Certificates, Identifiers & Profiles:
+een App Group `group.nl.skipilot.app`, en zet *App Groups* aan bij `nl.skipilot.app` en `nl.skipilot.app.widget`.
+
 ## Mappen en bestanden
 
 | Wat | Waar |
