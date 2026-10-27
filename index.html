@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=39">
+<link rel="stylesheet" href="app.css?v=40">
 </head>
 <body>
 <!-- iconenset -->
@@ -60,6 +60,8 @@
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
     <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19L12 3.5Z"/><path d="M12 10v4.5M12 17.2v.1"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="m2.5 19 6-9 3.5 4.5 2.5-3 7 7.5"/><path d="M15.5 3v5M13 5.8 15.5 8.3 18 5.8"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.3 6.3a8 8 0 0 1 0 11.4"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></symbol>
     <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3.5h3.5l1.8 4.5-2.3 1.5a11 11 0 0 0 6.5 6.5l1.5-2.3 4.5 1.8V19a1.8 1.8 0 0 1-2 1.8A16.5 16.5 0 0 1 3.2 5.5 1.8 1.8 0 0 1 5 3.5Z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></symbol>
@@ -136,6 +138,7 @@
   <div class="nav-main">
     <svg class="nav-arrow" id="navArrow"><use href="#i-straight"/></svg>
     <div class="nav-txt"><span class="nav-dist" id="navDist"></span><b id="navNow"></b></div>
+    <button type="button" class="nav-voice" id="navVoice" aria-pressed="true" aria-label="Gesproken aanwijzingen uitzetten" title="Gesproken aanwijzingen uitzetten"><svg class="ic"><use href="#i-sound"/></svg></button>
   </div>
   <div class="nav-sub" id="navNext"></div>
   <div class="nav-warn" id="navWarn" hidden></div>
@@ -368,6 +371,17 @@
     <h3><svg class="ic"><use href="#i-nav"/></svg>Navigatie</h3>
     <div class="m-list">
       <label class="switch"><span>Gesproken aanwijzingen</span><input type="checkbox" id="voice" checked><i></i></label>
+      <div class="voice-opts" id="voiceOpts">
+        <p class="label">Taal van de stem</p>
+        <div class="seg four" id="voiceLangSeg" data-notr>
+          <button type="button" data-v="">App</button>
+          <button type="button" data-v="nl" lang="nl">NL</button>
+          <button type="button" data-v="en" lang="en">EN</button>
+          <button type="button" data-v="de" lang="de">DE</button>
+        </div>
+        <p class="label">Stem</p>
+        <div class="voice-pick"><select id="voicePick" aria-label="Stem"></select><button type="button" class="btn ghost" id="voiceTest"><svg class="ic"><use href="#i-sound"/></svg>Probeer</button></div>
+      </div>
       <label class="switch"><span>Scherm aan tijdens navigatie</span><input type="checkbox" id="navAwake" checked><i></i></label>
       <label class="switch"><span>Snelheidsmeter tonen</span><input type="checkbox" id="speedoToggle" checked><i></i></label>
     </div>
@@ -458,11 +472,11 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=39"></script>
-<script src="ads.js?v=39"></script>
+<script src="config.js?v=40"></script>
+<script src="ads.js?v=40"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=39"></script>
-<script src="app.js?v=39"></script>
+<script src="i18n.js?v=40"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>
