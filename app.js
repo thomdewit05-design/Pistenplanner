@@ -809,8 +809,11 @@ function edgePopup(ei, latlng, nearNode){
 
 // ================= GPS en navigatie =================
 let wakeLock = null;
+// in de iOS-app via de KeepAwake-plug-in: daar werkt navigator.wakeLock niet op elke iOS-versie
 async function keepAwake(){
   const on = (S.follow && S.navAwake) || (typeof D !== "undefined" && D.rec && D.awake);
+  const cap = window.Capacitor;
+  if(cap?.nativePromise && cap.isNativePlatform?.()){ try{ await cap.nativePromise("KeepAwake", on ? "keepAwake" : "allowSleep", {}); }catch(e){} return; }
   try{ if(on && "wakeLock" in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => wakeLock = null); }
        if(!on && wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(e){}
 }
@@ -2110,7 +2113,9 @@ async function loadHuts(force){
   if(!cached) hutState(A, "loading");
   let list = null;
   try{
-    const r = await fetch(`data/h${String(A.row[8]).padStart(3, "0")}.json?${DATA_V}`);
+    // de iOS-app draagt zijn eigen bestanden mee; de verse hutten staan op de website
+    const base = window.PP_STORE === "ios" ? (window.PP_CONFIG?.site || "") : "";
+    const r = await fetch(`${base}data/h${String(A.row[8]).padStart(3, "0")}.json?${DATA_V}`);
     if(r.ok){ const j = await r.json(); if(j[A.id]) list = j[A.id].map(([lon, lat, kind, name]) => ({lon, lat, kind, name})); }
   }catch(e){}
   if(!list) list = await overpassHuts(A);
@@ -2458,8 +2463,8 @@ function goHome(){
 // Na de aankoop krijg je een licentiecode; die wordt hier één keer geactiveerd en daarna eens per week gecontroleerd.
 // Zolang Pro in config.js niet aan staat, kan iedereen alles gebruiken.
 const PRO_CFG = window.PP_CONFIG?.pro || {};
-// in de Play Store-app mag niet buiten Google Play om betaald worden: daar is alles vrij tot er Play Billing is
-const proLive = () => window.PP_STORE !== "play" && (!!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search));
+// in de Play Store- en iOS-app mag niet buiten de winkel om betaald worden: daar is alles vrij tot er Play Billing / In-App Purchase is
+const proLive = () => window.PP_STORE === "web" && (!!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search));
 const PRO_FEATURES = [
   ["group", "group", "Een groep maken en de route voor iedereen starten"],
   ["lunch", "food", "Lunchstop bij een hut op het juiste moment"],
@@ -2606,7 +2611,7 @@ let installEvt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if(!$("menu").hidden) renderInstall(); });
 window.addEventListener("appinstalled", () => { installEvt = null; toast("Skipilot staat nu tussen je apps."); renderInstall(); });
 function renderInstall(){
-  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone || window.PP_STORE !== "web";
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const card = (txt, btn) => `<div class="install-card"><img src="icons/logo.svg" alt="" width="44" height="44"><div>${txt}</div>${btn || ""}</div>`;
   $("installBox").innerHTML = standalone ? card(`<b>Geïnstalleerd</b>Je gebruikt Skipilot als app.`)
@@ -2641,7 +2646,7 @@ document.querySelectorAll("#langSeg button").forEach(b => {
 });
 
 // ================= start =================
-if("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
 applyBase(); update(); setPeek();
 (async () => {
   try{ const r = await fetch(`data/index.json?${DATA_V}`); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }

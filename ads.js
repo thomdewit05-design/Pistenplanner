@@ -2,8 +2,8 @@
 // Google toont zelf de cookiemelding voor bezoekers uit Europa (instellen in AdSense onder Privacy en berichten).
 // Advertentieplekken zijn <div class="ad-slot" data-ad="naam">; de naam koppelt aan een advertentieblok in config.js.
 (function(){
-  // in de Play Store-app geen AdSense (daar hoort AdMob bij)
-  const cfg = window.PP_STORE === "play" ? {} : (window.PP_CONFIG || {}).ads || {};
+  // in de Play Store- en iOS-app geen AdSense (daar hoort AdMob bij)
+  const cfg = window.PP_STORE !== "web" ? {} : (window.PP_CONFIG || {}).ads || {};
   let loaded = false;
   function load(){
     if(loaded || !cfg.client) return; loaded = true;

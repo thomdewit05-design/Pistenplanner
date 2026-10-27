@@ -1,0 +1,74 @@
+# Bouwt de iOS-app op een Mac van GitHub. Zo is er geen eigen Mac nodig.
+# - Bij elke wijziging aan de app: een proefbouw voor de iPhone-simulator (zonder ondertekening), om te zien dat alles nog compileert.
+# - Met de hand via Actions > iOS-app > Run workflow, met "Naar TestFlight" aangevinkt: ondertekenen en uploaden naar App Store Connect.
+#   Daarvoor zijn vier geheimen nodig (zie store/ios/README.md): APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID en ASC_KEY_P8.
+name: iOS-app
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Naar TestFlight (App Store Connect) uploaden"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [index.html, app.js, app.css, i18n.js, config.js, ads.js, "data/index.json", "ios/**", package.json, package-lock.json, capacitor.config.json, tools/build_www.mjs, .github/workflows/ios.yml]
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Webbestanden in de app zetten
+        run: |
+          npm ci
+          npm run ios
+      - name: Proefbouw voor de simulator
+        if: ${{ !inputs.upload }}
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+      - name: Ondertekenen en uploaden naar TestFlight
+        if: ${{ inputs.upload }}
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -o pipefail
+          for v in TEAM_ID KEY_ID ISSUER_ID KEY_P8; do
+            if [ -z "${!v}" ]; then echo "::error::Geheim voor $v ontbreekt (Settings > Secrets and variables > Actions)"; exit 1; fi
+          done
+          KEY="$RUNNER_TEMP/AuthKey_$KEY_ID.p8"
+          printf '%s\n' "$KEY_P8" > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          # bouwnummer loopt vanzelf op; het versienummer (1.0) staat in het Xcode-project als MARKETING_VERSION
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/Skipilot.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            "${AUTH[@]}" archive | tail -n 40
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Skipilot.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"
+          rm -f "$KEY"
+          echo "Geüpload. Na een paar minuten verwerken staat bouw ${{ github.run_number }} in App Store Connect onder TestFlight."
