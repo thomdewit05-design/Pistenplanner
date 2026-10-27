@@ -53,9 +53,44 @@ map.createPane("labels"); map.getPane("labels").style.zIndex = 350; map.getPane(
 const ESRI = "Satelliet © Esri, Maxar, Earthstar Geographics, GIS User Community";
 // in config.js kun je eigen tegels met een sleutel instellen (nodig voor commercieel gebruik); anders de gratis tegels
 const MAPCFG = window.PP_CONFIG?.maps || {};
+// gedownloade kaartstukjes (Pro) staan in IndexedDB: dat werkt ook in de iOS-app, waar geen service worker draait
+const TileDB = (() => {
+  let db = null;
+  const open = () => db ??= new Promise((ok, no) => {
+    const r = indexedDB.open("pp-tiles", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("t");
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  });
+  const run = async (mode, fn) => { const d = await open(); return new Promise((ok, no) => {
+    const t = d.transaction("t", mode), req = fn(t.objectStore("t"));
+    t.oncomplete = () => ok(req?.result); t.onerror = t.onabort = () => no(t.error);
+  }); };
+  return {get:k => run("readonly", s => s.get(k)), has:k => run("readonly", s => s.count(k)).then(n => n > 0),
+          put:(k, v) => run("readwrite", s => s.put(v, k)), clear:() => run("readwrite", s => s.clear())};
+})();
+let OFFMAP = (() => { try{ return JSON.parse(localStorage.getItem("pp-offmap") || "{}"); }catch(e){ return {}; } })();
+const offMapSave = () => { try{ localStorage.setItem("pp-offmap", JSON.stringify(OFFMAP)); }catch(e){} };
+// sleutel van een kaartstukje: het adres met het eerste subdomein, zodat a/b/c-servers hetzelfde stukje geven
+const tileKey = (layer, x, y, z) => L.Util.template(layer._url, {...layer.options, s:(layer.options.subdomains || "")[0] || "", x, y, z, r:""});
+// eerst kijken of het stukje gedownload is; alleen als er iets gedownload is, anders gewoon zoals altijd
+const OffTileLayer = L.TileLayer.extend({
+  createTile(c, done){
+    if(!Object.keys(OFFMAP).length) return L.TileLayer.prototype.createTile.call(this, c, done);
+    const img = document.createElement("img"), url = this.getTileUrl(c);
+    L.DomEvent.on(img, "load", L.Util.bind(this._tileOnLoad, this, done, img));
+    L.DomEvent.on(img, "error", L.Util.bind(this._tileOnError, this, done, img));
+    if(this.options.crossOrigin || this.options.crossOrigin === "") img.crossOrigin = this.options.crossOrigin === true ? "" : this.options.crossOrigin;
+    img.alt = ""; img.setAttribute("role", "presentation");
+    TileDB.get(tileKey(this, c.x, c.y, this._getZoomForUrl())).then(b => {
+      if(!b){ img.src = url; return; }
+      const u = URL.createObjectURL(b); img.addEventListener("load", () => URL.revokeObjectURL(u), {once:true}); img.src = u;
+    }).catch(() => img.src = url);
+    return img;
+  }
+});
 const tiles = (k, url, opts) => MAPCFG[k]?.url
-  ? L.tileLayer(MAPCFG[k].url, {...opts, ...(MAPCFG[k].options || {}), attribution:k === "labels" ? undefined : MAPCFG.attribution || opts.attribution})
-  : L.tileLayer(url, opts);
+  ? new OffTileLayer(MAPCFG[k].url, {...opts, ...(MAPCFG[k].options || {}), attribution:k === "labels" ? undefined : MAPCFG.attribution || opts.attribution})
+  : new OffTileLayer(url, opts);
 const baseLayers = {
   sat: tiles("sat", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, attribution:ESRI}),
@@ -84,6 +119,7 @@ function applyBase(){
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;
   if(typeof drawNumbers === "function") drawNumbers();
+  if(!$("layerMenu").hidden) renderOffline();
   save();
 }
 
@@ -2193,20 +2229,87 @@ function setHuts(A, list){
 // ================= offline =================
 // staat de kaartdata van een gebied in de offline-opslag van de app?
 async function isOffline(row){
+  if(window.PP_STORE === "ios") return true;   // de iOS-app draagt alle pistedata zelf mee
   try{ return !!(await caches.match(`data/s${String(row[8]).padStart(3,"0")}.json?${DATA_V}`, {ignoreVary:true})); }catch(e){ return false; }
 }
 async function renderOffline(){
   const A = S.area, box = $("offlineBox"); if(!A || !box) return;
-  const ok = "caches" in window && await isOffline(A.row), wx = wxStore(A.id);
+  const ok = (window.PP_STORE === "ios" || "caches" in window) && await isOffline(A.row), wx = wxStore(A.id);
+  const dl = OFFMAP[`${A.id}:${S.base}`], busy = offDl?.area === A;
   box.innerHTML = `<p class="label">Offline</p>
     <p class="off-line ${ok ? "ok" : ""}">${I(ok ? "check" : "cloud")}<span>${ok ? `<b>${esc(A.row[1])} staat op je telefoon.</b> Pistes, liften, routes, navigatie, status en dagboek werken zonder bereik.` : `<b>Nog niet offline.</b> Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.`}</span></p>
     <p class="off-line">${I("snow")}<span>${wx ? `Laatste weerbericht bewaard om ${new Date(wx.t).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}.` : "Nog geen weerbericht bewaard."}</span></p>
-    <p class="off-line">${I("layers")}<span>Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.</span></p>`;
+    ${busy ? `<p class="off-line">${I("dl")}<span><b>Kaart downloaden…</b> <span id="offProg">${offDl.done} van ${offDl.total}</span></span></p>
+      <div class="off-btns"><button type="button" class="btn ghost" id="offStop">Stoppen</button></div>`
+    : dl ? `<p class="off-line ok">${I("check")}<span><b>Kaart gedownload</b> ${dl.n.toLocaleString(LOCALE)} kaartstukjes · ${Math.max(1, Math.round(dl.bytes/1048576))} MB</span></p>
+      <div class="off-btns"><button type="button" class="btn ghost" id="offGet">${I("dl")}Opnieuw downloaden</button></div>`
+    : `<p class="off-line">${I("layers")}<span>${window.PP_STORE === "ios" ? "Download de achtergrondkaart van dit gebied, dan heb je hem ook zonder bereik." : "Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied."}</span></p>
+      <div class="off-btns"><button type="button" class="btn ghost" id="offGet">${I(isPro() ? "dl" : "star")}Kaart downloaden</button><span class="off-size">Ongeveer ${offEstimate(A)} MB</span></div>`}`;
+  $("offGet")?.addEventListener("click", () => { if(requirePro("offline")) offDownload(A); });
+  $("offStop")?.addEventListener("click", () => { if(offDl) offDl.stop = true; });
+}
+// ---- hele kaart van een gebied downloaden (Pro) ----
+// de achtergrondkaart die aan staat (bij satelliet ook de plaatsnamen), van overzicht tot detail; groot gebied = één detailniveau minder
+const OFF_ZMIN = 9, OFF_ZMAX = 16, OFF_LIMIT = 4000;
+let offDl = null;
+function offTileList(A){
+  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
+  const s = Math.min(...lats) - .01, n = Math.max(...lats) + .01, w = Math.min(...lons) - .015, e = Math.max(...lons) + .015;
+  const layers = [baseLayers[S.base], ...(S.base === "sat" && S.labels ? [labelLayer] : [])];
+  const tx = (lon, z) => Math.floor((lon + 180) / 360 * 2**z);
+  const ty = (lat, z) => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1/Math.cos(r)) / Math.PI) / 2 * 2**z); };
+  const build = zmax => {
+    const out = [];
+    // een rand eromheen, zodat ook uitgezoomd het scherm vol is
+    for(const l of layers) for(let z = OFF_ZMIN, m; z <= Math.min(zmax, l.options.maxNativeZoom ?? l.options.maxZoom); z++)
+      for(let x = tx(w, z) - (m = z <= 13 ? 2 : 1); x <= tx(e, z) + m; x++) for(let y = ty(n, z) - m; y <= ty(s, z) + m; y++)
+        out.push({key:tileKey(l, x, y, z), url:L.Util.template(l._url, {...l.options, s:(l.options.subdomains || "")[(x + y) % (l.options.subdomains || "").length || 0] || "", x, y, z, r:""})});
+    return out;
+  };
+  let zmax = OFF_ZMAX, list = build(zmax);
+  while(list.length > OFF_LIMIT && zmax > 14) list = build(--zmax);
+  return list;
+}
+// geschatte grootte: een satellietstukje is zo'n 25 kB, een terreinstukje 20 kB, plaatsnamen 6 kB
+const offEstimate = A => Math.max(1, Math.round(offTileList(A).reduce((t, x) => t + (/Reference/.test(x.key) ? 6 : S.base === "sat" ? 25 : 20), 0) / 1024));
+async function offDownload(A){
+  if(offDl) return;
+  if(S.base === "osm"){ toast("De OpenStreetMap-kaart kan niet gedownload worden. Kies satelliet of terrein.", 4000); return; }
+  if(!navigator.onLine){ toast("Geen internet. Download de kaart als je verbinding hebt, het liefst op wifi.", 4000); return; }
+  try{ await navigator.storage?.persist?.(); }catch(e){}
+  const list = offTileList(A);
+  offDl = {area:A, base:S.base, total:list.length, done:0, failed:0, bytes:0, stop:false};
+  renderOffline();
+  const prog = () => { const el = $("offProg"); if(el) el.textContent = `${offDl.done} van ${offDl.total}`; };
+  let i = 0, full = false;
+  const worker = async () => {
+    while(i < list.length && !offDl.stop && !full){
+      const t = list[i++];
+      try{
+        if(!(await TileDB.has(t.key))){
+          const r = await fetch(t.url, {mode:"cors"}); if(!r.ok) throw new Error(r.status);
+          const b = await r.blob(); await TileDB.put(t.key, b); offDl.bytes += b.size;
+        }
+      }catch(e){ offDl.failed++; if(e?.name === "QuotaExceededError") full = true; }
+      offDl.done++; if(offDl.done % 10 === 0) prog();
+    }
+  };
+  await Promise.all(Array.from({length:6}, worker));
+  const d = offDl; offDl = null;
+  if(full) toast("Te weinig opslagruimte op je telefoon voor de kaart.", 4000);
+  else if(d.stop) toast("Downloaden gestopt.");
+  else if(d.failed > d.total * .05) toast("Niet alle kaartstukjes zijn gelukt. Probeer het later opnieuw op wifi.", 4000);
+  if(!d.stop && !full){
+    const k = `${A.id}:${d.base}`;
+    OFFMAP[k] = {t:Date.now(), n:d.total - d.failed, bytes:(OFFMAP[k]?.bytes || 0) + d.bytes};
+    offMapSave(); if(d.failed <= d.total * .05) toast("De kaart van dit gebied staat op je telefoon.", 3000);
+  }
+  renderOffline();
 }
 $("layersBtn").addEventListener("click", () => setTimeout(renderOffline, 0));
 // vinkje in de gebiedenlijst voor gebieden die al op de telefoon staan
 async function markOfflineAreas(){
-  if(!("caches" in window)) return;
+  if(!("caches" in window) || window.PP_STORE === "ios") return;   // in de iOS-app staan ze allemaal op de telefoon
   for(const b of document.querySelectorAll("#areas .area-main")){
     const r = S.index.find(x => x[0] === b.dataset.id);
     if(r && await isOffline(r) && !b.querySelector(".off-mark")) b.querySelector(".nm")?.insertAdjacentHTML("beforeend", ` <span class="off-mark" title="Staat offline op je telefoon">${I("check")}</span>`);
@@ -2474,7 +2577,8 @@ const PRO_FEATURES = [
   ["sun", "sun", "Zon en schaduw, en routes door de zon"],
   ["home", "bed", "Terug naar je hotel of auto"],
   ["season", "calendar", "Seizoensoverzicht en persoonlijke records"],
-  ["gpx", "share", "Je skidagen als GPX-bestand"]
+  ["gpx", "share", "Je skidagen als GPX-bestand"],
+  ["offline", "dl", "De kaart van een heel gebied downloaden voor onderweg zonder bereik"]
 ];
 let PRO = (() => { try{ return JSON.parse(localStorage.getItem("pp-pro") || "null"); }catch(e){ return null; } })();
 const proSave = () => { try{ PRO ? localStorage.setItem("pp-pro", JSON.stringify(PRO)) : localStorage.removeItem("pp-pro"); }catch(e){} };
@@ -2640,7 +2744,8 @@ document.querySelectorAll("[data-clear]").forEach(b => b.onclick = async () => {
   const drop = pre => { try{ for(let i = localStorage.length - 1; i >= 0; i--){ const k = localStorage.key(i); if(k?.startsWith(pre)) localStorage.removeItem(k); } }catch(e){} };
   if(what === "routes"){ drop("pp-routes:"); toast("Je bewaarde routes zijn gewist."); }
   if(what === "diary"){ if(D.rec) stopRec(); drop("pp-day:"); D.day = null; D.view = null; drawTrack(); diaryLive(); toast("Je skidagboek is gewist."); }
-  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts:"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
+  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){}
+    if(offDl) offDl.stop = true; try{ await TileDB.clear(); }catch(e){} OFFMAP = {}; offMapSave(); drop("pp-huts:"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
   if(what === "all"){
     try{ localStorage.clear(); }catch(e){}
     try{ for(const k of await caches.keys()) await caches.delete(k); }catch(e){}
