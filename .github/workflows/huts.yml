@@ -1,0 +1,35 @@
+# Haalt elke maand de hutten en restaurants rond alle skigebieden op (OpenStreetMap) en zet ze in data/h*.json.
+# Draait ook zodra het script of dit bestand verandert, en met de hand via Actions > Hutten bijwerken > Run workflow.
+name: Hutten bijwerken
+on:
+  schedule:
+    - cron: "17 3 1 * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tools/update_huts.py, .github/workflows/huts.yml]
+permissions:
+  contents: write
+concurrency:
+  group: huts
+  cancel-in-progress: false
+jobs:
+  huts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Hutten ophalen
+        run: python tools/update_huts.py
+      - name: Opslaan als er iets veranderd is
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/h*.json
+          if git diff --cached --quiet; then echo "niets veranderd"; exit 0; fi
+          git commit -m "Hutten en restaurants bijgewerkt"
+          git pull --rebase
+          git push

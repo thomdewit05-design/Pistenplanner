@@ -1010,13 +1010,19 @@ $("nearBtn").onclick = () => {
   if(S.pos) return renderAreas();
   if(startWatch()){ toast("Locatie zoeken…"); const t = setInterval(() => { if(S.pos){ clearInterval(t); renderAreas(); } }, 500); setTimeout(() => clearInterval(t), 30000); }
 };
-$("layersBtn").onclick = e => { e.stopPropagation(); $("layerMenu").hidden = !$("layerMenu").hidden; };
+$("layersBtn").onclick = e => { e.stopPropagation(); $("layerMenu").hidden = !$("layerMenu").hidden; if(!$("layerMenu").hidden) renderHutInfo(); };
 document.addEventListener("click", e => { if(!e.target.closest("#layerMenu,#layersBtn")) $("layerMenu").hidden = true; });
 document.querySelectorAll("input[name=base]").forEach(r => r.onchange = () => { S.base = r.value; applyBase(); });
 $("showPistes").onchange = e => { S.pistes = e.target.checked; applyBase(); };
 $("showLabels").onchange = e => { S.labels = e.target.checked; applyBase(); };
 $("showNums").onchange = e => { S.nums = e.target.checked; applyBase(); };
-$("showHuts").onchange = e => { S.hutsOn = e.target.checked; save(); drawHuts(); };
+$("showHuts").onchange = e => {
+  S.hutsOn = e.target.checked; save(); drawHuts(); renderHutInfo();
+  const A = S.area; if(!S.hutsOn || !A) return;
+  // laten weten waarom je (nog) niets ziet
+  if(A.hutState === "error" || A.hutState === "offline"){ A.hutTry = 0; loadHuts(true); }
+  else if(A.hutState === "ok" && A.huts.length && map.getZoom() < 13) toast("Zoom verder in om de hutten en restaurants te zien.");
+};
 $("showHuts").checked = S.hutsOn;
 document.querySelectorAll("#level button").forEach(b => b.onclick = () => { S.level = +b.dataset.v; update(); });
 document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.v; update(); });
@@ -2089,55 +2095,89 @@ function hutPopup(h){
   });
 }
 map.on("zoomend moveend", () => { if(S.area) drawHuts(); });
+map.on("zoomend", () => { if(S.area && !$("layerMenu").hidden) renderHutInfo(); });
 
-// De app haalt hutten en restaurants zelf op (OpenStreetMap via Overpass) zodra je een gebied opent,
-// en bewaart ze 30 dagen op de telefoon, zodat ze daarna ook zonder bereik werken.
-const HUT_TTL = 30*864e5;
-async function loadHuts(){
+// Hutten en restaurants komen van de eigen site (data/h000.json ..., elke maand bijgewerkt door GitHub).
+// Lukt dat niet, dan live van OpenStreetMap (Overpass); die servers zijn vaak druk, dus een paar keer opnieuw proberen.
+// Het resultaat blijft 30 dagen op de telefoon, zodat het daarna ook zonder bereik werkt.
+const HUT_TTL = 30*864e5, HUT_RETRY = [5e3, 20e3, 60e3, 180e3];
+const hutKey = A => `pp-huts:${DATA_V}:${A.id}`;
+async function loadHuts(force){
   const A = S.area; if(!A) return;
-  const key = "pp-huts:" + A.id;
-  let cached = null; try{ cached = JSON.parse(localStorage.getItem(key) || "null"); }catch(e){}
-  if(cached){ setHuts(A, cached.h); if(Date.now() - cached.t < HUT_TTL) return; }
-  if(!navigator.onLine) return;
-  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
-  const s_ = Math.min(...lats) - .004, n_ = Math.max(...lats) + .004, w_ = Math.min(...lons) - .006, e_ = Math.max(...lons) + .006;
-  const bb = `${s_.toFixed(4)},${w_.toFixed(4)},${n_.toFixed(4)},${e_.toFixed(4)}`;
-  const q = `[out:json][timeout:30];(nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten)$"](${bb});nwr["tourism"="alpine_hut"](${bb}););out center tags;`;
-  let res = null;
-  for(const url of OVERPASS){
-    try{
-      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 35000);
-      const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}, signal:ctl.signal});
-      clearTimeout(timer);
-      if(r.ok){ res = await r.json(); break; }
-    }catch(e){}
-  }
-  if(S.area?.id !== A.id) return;
-  if(!res){   // alle servers druk: over een minuut nog één keer, anders bij de volgende keer openen
-    if(!A.hutRetry){ A.hutRetry = true; setTimeout(() => { if(S.area === A) loadHuts(); }, 60000); }
+  let cached = null; try{ cached = JSON.parse(localStorage.getItem(hutKey(A)) || "null"); }catch(e){}
+  if(cached){ setHuts(A, cached.h); if(!force && Date.now() - cached.t < HUT_TTL) return; }
+  if(!navigator.onLine){ if(!cached) hutState(A, "offline"); return; }
+  if(!cached) hutState(A, "loading");
+  let list = null;
+  try{
+    const r = await fetch(`data/h${String(A.row[8]).padStart(3, "0")}.json?${DATA_V}`);
+    if(r.ok){ const j = await r.json(); if(j[A.id]) list = j[A.id].map(([lon, lat, kind, name]) => ({lon, lat, kind, name})); }
+  }catch(e){}
+  if(!list) list = await overpassHuts(A);
+  if(S.area !== A) return;
+  if(!list){
+    if(cached) return;
+    hutState(A, "error");
+    const wait = HUT_RETRY[A.hutTry = (A.hutTry || 0)]; A.hutTry++;
+    if(wait) setTimeout(() => { if(S.area === A && A.hutState === "error") loadHuts(); }, wait);
     return;
   }
-  const out = processHuts(A, res.elements || []);
-  try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), h:out})); }catch(e){}
+  const out = processHuts(A, list);
+  try{ localStorage.setItem(hutKey(A), JSON.stringify({t:Date.now(), h:out})); }catch(e){}
   setHuts(A, out);
 }
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
-function processHuts(A, elements){
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+async function overpassHuts(A){
+  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
+  const bb = `${(Math.min(...lats) - .004).toFixed(4)},${(Math.min(...lons) - .006).toFixed(4)},${(Math.max(...lats) + .004).toFixed(4)},${(Math.max(...lons) + .006).toFixed(4)}`;
+  const q = `[out:json][timeout:60];(nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten)$"](${bb});nwr["tourism"="alpine_hut"](${bb}););out center tags;`;
+  for(const url of OVERPASS){
+    try{
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 65000);
+      const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}, signal:ctl.signal});
+      clearTimeout(timer);
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(/error|timed out/i.test(j.remark || "")) continue;    // server liep vast: dit is geen echt (leeg) antwoord
+      return (j.elements || []).map(el => {
+        const t = el.tags || {}, c = el.center || el;
+        return {lon:c.lon, lat:c.lat, name:t.name || "", kind:t.tourism === "alpine_hut" ? "h" : ({restaurant:"r", cafe:"c", bar:"b", pub:"b", biergarten:"b", fast_food:"f"})[t.amenity] || "r"};
+      }).filter(x => x.lat != null);
+    }catch(e){}
+  }
+  return null;
+}
+function processHuts(A, list){
   const out = [];
-  for(const el of elements){
-    const t = el.tags || {}, c = el.center || el; if(c.lat == null) continue;
-    const kind = t.tourism === "alpine_hut" ? "h" : ({restaurant:"r", cafe:"c", bar:"b", pub:"b", biergarten:"b", fast_food:"f"})[t.amenity] || "r";
+  for(const c of list){
     // alleen plekken bij een piste of lift (hooguit 120 m), gekoppeld aan het dichtstbijzijnde knooppunt
     const p = [c.lat, c.lon]; let near = Infinity;
     for(const e of A.edges){ if(e.t === "w") continue; for(let k = 0; k < e.pts.length-1 && near > 30; k++) near = Math.min(near, segDist(p, e.pts[k], e.pts[k+1]).d); if(near <= 30) break; }
     if(near > 120) continue;
     const nn = nearestNode(c.lat, c.lon); if(nn.d > 400) continue;
-    out.push([+c.lon.toFixed(5), +c.lat.toFixed(5), kind, (t.name || "").slice(0, 60), nn.n]);
+    out.push([+c.lon.toFixed(5), +c.lat.toFixed(5), c.kind, (c.name || "").slice(0, 60), nn.n]);
   }
-  return out.slice(0, 150);
+  return out;
 }
+// hoe staat het met de hutten in dit gebied: tonen in het lagenmenu
+function hutState(A, st){ A.hutState = st; if(S.area === A) renderHutInfo(); }
+function renderHutInfo(){
+  const el = $("hutInfo"), A = S.area; if(!el) return;
+  if(!A || !S.hutsOn){ el.hidden = true; return; }
+  const n = (A.huts || []).length, st = A.hutState;
+  el.hidden = false;
+  el.innerHTML = st === "loading" ? `<span>Hutten en restaurants laden…</span>`
+    : st === "error" ? `<span>Ophalen lukte niet; de dienst is even druk.</span> <button type="button" class="linkbtn" id="hutRetry">Opnieuw proberen</button>`
+    : st === "offline" ? `<span>Geen internet. De hutten verschijnen zodra je weer online bent.</span>`
+    : n ? `<span>${n === 1 ? "1 hut of restaurant" : `${n} hutten en restaurants`} in dit gebied${map.getZoom() < 13 ? ". Zoom in om ze te zien." : "."}</span>`
+    : `<span>Geen hutten of restaurants bekend bij de pistes in dit gebied.</span>`;
+  $("hutRetry")?.addEventListener("click", () => { A.hutTry = 0; loadHuts(true); });
+}
+window.addEventListener("online", () => { const A = S.area; if(A && (A.hutState === "error" || A.hutState === "offline")) loadHuts(); });
 function setHuts(A, list){
+  A.hutState = "ok";
   A.huts = list.filter(x => A.nodes[x[4]]).map(x => ({lon:x[0], lat:x[1], kind:x[2], name:x[3], node:x[4]}));
+  if(S.area === A) renderHutInfo();
   // namen ook in de zoeklijst voor de bestemming
   const extra = [];
   for(const hh of A.huts){ if(!hh.name) continue; const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!A.names.has(lab)){ A.names.set(lab, hh.node); extra.push(lab); } }
