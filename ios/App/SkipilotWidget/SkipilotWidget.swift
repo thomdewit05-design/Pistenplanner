@@ -2,14 +2,16 @@ import WidgetKit
 import SwiftUI
 
 // Widgets voor het beginscherm en het toegangsscherm:
-// - Skigebied: weer, verse sneeuw en wind in het laatst geopende skigebied (het weer haalt de widget zelf op bij Open-Meteo)
-// - Skidag: kilometers, hoogtemeters en afdalingen van je skidag (komt uit het skidagboek in de app)
+// - Skigebied: weer, verse sneeuw, liftentijden en waarschuwingen in het laatst geopende skigebied
+//   (het weer haalt de widget zelf op bij Open-Meteo)
+// - Skidag: kilometers, hoogtemeters, afdalingen en tijd op de piste (komt uit het skidagboek in de app)
 // De app zet het skigebied en de skidag in de gedeelde App Group (WidgetPlugin.swift).
 
 let appGroup = "group.nl.skipilot.app"
 let navy = Color(red: 15/255, green: 27/255, blue: 42/255)
 let navyTop = Color(red: 34/255, green: 57/255, blue: 90/255)
 let gold = Color(red: 1, green: 196/255, blue: 0)
+let soft = Color.white.opacity(0.8)
 
 // ---------- gedeelde gegevens ----------
 struct SharedArea: Codable {
@@ -32,6 +34,7 @@ struct SharedDay: Codable {
     let runs: Int
     let lifts: Int
     let vmax: Double
+    let secs: Int?     // tijd op de piste in seconden (oudere versies van de app sturen dit niet mee)
     let lang: String?
 }
 
@@ -61,6 +64,15 @@ struct Tr {
         let o = DateFormatter(); o.locale = locale; o.dateFormat = "EEE"
         return o.string(from: d).replacingOccurrences(of: ".", with: "").capitalized
     }
+    // 80 minuten -> "1 u 20 min"
+    func duration(minutes m: Int) -> String {
+        let h = m / 60, r = m % 60
+        let hu = t("u", "h", "Std."), mu = t("min", "min", "Min.")
+        if h == 0 { return "\(r) \(mu)" }
+        return r == 0 ? "\(h) \(hu)" : "\(h) \(hu) \(r) \(mu)"
+    }
+    func height(_ m: Double) -> String { "\(num((m / 50).rounded() * 50)) m" }
+    func distance(_ m: Double) -> String { m >= 1000 ? "\(num(m / 1000, digits: m < 10000 ? 1 : 0)) km" : "\(num((m / 10).rounded() * 10)) m" }
 }
 
 // ---------- weer ----------
@@ -69,8 +81,12 @@ struct Weather: Codable {
     let valleyTemp: Double
     let code: Int
     let wind: Double
+    let gusts: Double?
+    let visibility: Double?  // meter
+    let freezing: Double?    // vriesgrens in meter
     let snowDepth: Double?   // cm
     let fresh24: Double      // cm in de laatste 24 uur
+    let sunset: String?      // "16:45"
     let days: [Day]
     let fetched: Date
 
@@ -89,6 +105,9 @@ private struct OMResponse: Decodable {
         let temperature_2m: Double
         let weather_code: Int
         let wind_speed_10m: Double
+        let wind_gusts_10m: Double?
+        let visibility: Double?
+        let freezing_level_height: Double?
         let snow_depth: Double?
     }
     struct Hourly: Decodable {
@@ -101,6 +120,7 @@ private struct OMResponse: Decodable {
         let temperature_2m_max: [Double?]
         let temperature_2m_min: [Double?]
         let snowfall_sum: [Double?]
+        let sunset: [String?]?
     }
     let current: Current
     let hourly: Hourly
@@ -113,10 +133,10 @@ enum WeatherService {
         c.queryItems = [
             .init(name: "latitude", value: "\(a.lat),\(a.lat)"), .init(name: "longitude", value: "\(a.lon),\(a.lon)"),
             .init(name: "elevation", value: "\(Int(a.hi)),\(Int(a.lo))"), .init(name: "timezone", value: "auto"),
-            .init(name: "forecast_days", value: "3"), .init(name: "past_days", value: "1"),
-            .init(name: "current", value: "temperature_2m,weather_code,wind_speed_10m,snow_depth"),
+            .init(name: "forecast_days", value: "4"), .init(name: "past_days", value: "1"),
+            .init(name: "current", value: "temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,visibility,freezing_level_height,snow_depth"),
             .init(name: "hourly", value: "snowfall"),
-            .init(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum")
+            .init(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,sunset")
         ]
         guard let url = c.url, let result = try? await URLSession.shared.data(from: url) else { return cached(a) }
         let (data, res) = result
@@ -134,16 +154,20 @@ enum WeatherService {
             Weather.Day(date: d.time[i], code: d.weather_code[i] ?? 0, max: d.temperature_2m_max[i] ?? 0,
                         min: d.temperature_2m_min[i] ?? 0, snow: d.snowfall_sum[i] ?? 0)
         }
-        let w = Weather(topTemp: top.current.temperature_2m, valleyTemp: valley.current.temperature_2m,
-                        code: top.current.weather_code, wind: top.current.wind_speed_10m,
-                        snowDepth: top.current.snow_depth.map { $0 * 100 }, fresh24: fresh, days: Array(days), fetched: Date())
-        if let enc = try? JSONEncoder().encode(w) { Shared.defaults?.set(enc, forKey: "wx:\(a.id)") }
+        var sunset: String? = nil
+        if let s = d.sunset, s.count > 1, let today = s[1] { sunset = String(today.suffix(5)) }
+        let cur = top.current
+        let w = Weather(topTemp: cur.temperature_2m, valleyTemp: valley.current.temperature_2m, code: cur.weather_code,
+                        wind: cur.wind_speed_10m, gusts: cur.wind_gusts_10m, visibility: cur.visibility,
+                        freezing: cur.freezing_level_height, snowDepth: cur.snow_depth.map { $0 * 100 },
+                        fresh24: fresh, sunset: sunset, days: Array(days), fetched: Date())
+        if let enc = try? JSONEncoder().encode(w) { Shared.defaults?.set(enc, forKey: "wx2:\(a.id)") }
         return w
     }
 
     // zonder bereik: het laatste weerbericht van dit gebied, als het niet ouder is dan 12 uur
     static func cached(_ a: SharedArea) -> Weather? {
-        guard let data = Shared.defaults?.data(forKey: "wx:\(a.id)"),
+        guard let data = Shared.defaults?.data(forKey: "wx2:\(a.id)"),
               let w = try? JSONDecoder().decode(Weather.self, from: data),
               Date().timeIntervalSince(w.fetched) < 12 * 3600 else { return nil }
         return w
@@ -162,6 +186,79 @@ enum WeatherService {
         default: return "cloud.fill"
         }
     }
+
+    static func describe(_ code: Int, _ tr: Tr) -> String {
+        switch code {
+        case 0: return tr.t("Zonnig", "Sunny", "Sonnig")
+        case 1, 2: return tr.t("Half bewolkt", "Partly cloudy", "Teils bewölkt")
+        case 3: return tr.t("Bewolkt", "Cloudy", "Bewölkt")
+        case 45, 48: return tr.t("Mist", "Fog", "Nebel")
+        case 51...57: return tr.t("Motregen", "Drizzle", "Nieselregen")
+        case 61...67, 80...82: return tr.t("Regen", "Rain", "Regen")
+        case 71...77, 85, 86: return tr.t("Sneeuw", "Snow", "Schnee")
+        case 95...99: return tr.t("Onweer", "Thunderstorm", "Gewitter")
+        default: return tr.t("Bewolkt", "Cloudy", "Bewölkt")
+        }
+    }
+}
+
+// ---------- handige regels: liften en waarschuwingen ----------
+struct Line {
+    let icon: String
+    let text: String
+    let warn: Bool
+}
+
+enum Info {
+    private static func minutes(_ hhmm: String) -> Int? {
+        let p = hhmm.split(separator: ":").compactMap { Int($0) }
+        return p.count == 2 ? p[0] * 60 + p[1] : nil
+    }
+
+    // "Open tot 16:30 · nog 1 u 20 min", of wanneer ze weer opengaan
+    static func lifts(_ a: SharedArea, at date: Date, _ tr: Tr) -> Line? {
+        guard let o = a.open, let c = a.close, let om = minutes(o), let cm = minutes(c) else { return nil }
+        let hm = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let now = (hm.hour ?? 0) * 60 + (hm.minute ?? 0)
+        if now < om { return Line(icon: "cablecar", text: tr.t("Liften open om \(o)", "Lifts open at \(o)", "Lifte öffnen um \(o)"), warn: false) }
+        if now >= cm { return Line(icon: "cablecar", text: tr.t("Liften dicht · morgen \(o)", "Lifts closed · tomorrow \(o)", "Lifte zu · morgen \(o)"), warn: false) }
+        let left = tr.duration(minutes: cm - now)
+        return Line(icon: "cablecar", text: tr.t("Open tot \(c) · nog \(left)", "Open until \(c) · \(left) left", "Offen bis \(c) · noch \(left)"), warn: cm - now <= 30)
+    }
+
+    // het belangrijkste dat je moet weten voor je de berg op gaat
+    static func alert(_ w: Weather, _ tr: Tr) -> Line? {
+        if let g = w.gusts, g >= 60 {
+            return Line(icon: "wind", text: tr.t("Storm (\(tr.num(g)) km/h): liften kunnen dicht", "Gales (\(tr.num(g)) km/h): lifts may close", "Sturm (\(tr.num(g)) km/h): Lifte evtl. zu"), warn: true)
+        }
+        if let v = w.visibility, v < 300 {
+            return Line(icon: "cloud.fog.fill", text: tr.t("Slecht zicht (\(tr.distance(v)))", "Poor visibility (\(tr.distance(v)))", "Schlechte Sicht (\(tr.distance(v)))"), warn: true)
+        }
+        if w.fresh24 >= 15 {
+            return Line(icon: "snowflake", text: tr.t("Poederdag: \(tr.num(w.fresh24)) cm vers", "Powder day: \(tr.num(w.fresh24)) cm fresh", "Powdertag: \(tr.num(w.fresh24)) cm Neuschnee"), warn: true)
+        }
+        if w.topTemp <= -15 {
+            return Line(icon: "thermometer.snowflake", text: tr.t("Erg koud: \(tr.num(w.topTemp))° boven", "Very cold: \(tr.num(w.topTemp))° at the top", "Sehr kalt: \(tr.num(w.topTemp))° oben"), warn: true)
+        }
+        return nil
+    }
+
+    static func fresh(_ w: Weather, _ tr: Tr) -> Line {
+        Line(icon: "snowflake", text: tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm Neuschnee"), warn: w.fresh24 >= 1)
+    }
+}
+
+struct LineView: View {
+    let line: Line
+    var font: Font = .caption2
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: line.icon).frame(width: 14)
+            Text(line.text).lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .font(font.weight(line.warn ? .semibold : .regular))
+        .foregroundStyle(line.warn ? gold : soft)
+    }
 }
 
 // ---------- widget: skigebied ----------
@@ -173,7 +270,8 @@ struct AreaEntry: TimelineEntry {
 
 struct AreaProvider: TimelineProvider {
     static let sample = SharedArea(id: "x", name: "Zillertal Arena", lat: 47.2, lon: 12.0, hi: 2400, lo: 1200, open: "08:30", close: "16:30", lang: nil)
-    static let sampleWx = Weather(topTemp: -4, valleyTemp: 2, code: 71, wind: 18, snowDepth: 85, fresh24: 12, days: [
+    static let sampleWx = Weather(topTemp: -4, valleyTemp: 2, code: 71, wind: 18, gusts: 35, visibility: 8000, freezing: 1400, snowDepth: 85,
+                                  fresh24: 18, sunset: "16:52", days: [
         .init(date: "2026-01-12", code: 71, max: -2, min: -8, snow: 6), .init(date: "2026-01-13", code: 0, max: 1, min: -9, snow: 0),
         .init(date: "2026-01-14", code: 2, max: 2, min: -6, snow: 0)], fetched: Date())
 
@@ -185,13 +283,15 @@ struct AreaProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<AreaEntry>) -> Void) {
-        let next = Date().addingTimeInterval(30 * 60)
+        let now = Date()
         guard let a: SharedArea = Shared.read("area") else {
-            return completion(Timeline(entries: [AreaEntry(date: Date(), area: nil, weather: nil)], policy: .never))
+            return completion(Timeline(entries: [AreaEntry(date: now, area: nil, weather: nil)], policy: .never))
         }
         Task {
             let w = await WeatherService.fetch(a)
-            completion(Timeline(entries: [AreaEntry(date: Date(), area: a, weather: w)], policy: .after(next)))
+            // elke 5 minuten een stand, zodat de aftelling tot de laatste lift klopt; na een half uur nieuw weer
+            let entries = (0..<6).map { AreaEntry(date: now.addingTimeInterval(Double($0) * 300), area: a, weather: w) }
+            completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
         }
     }
 }
@@ -207,6 +307,7 @@ struct AreaView: View {
             case .accessoryInline: inline(a, tr)
             case .accessoryRectangular: rectangular(a, tr)
             case .systemMedium: medium(a, tr)
+            case .systemLarge: large(a, tr)
             default: small(a, tr)
             }
         } else {
@@ -217,29 +318,41 @@ struct AreaView: View {
     func temp(_ v: Double, _ tr: Tr) -> String { "\(tr.num(v))°" }
 
     @ViewBuilder func small(_ a: SharedArea, _ tr: Tr) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(a.name).font(.caption.weight(.bold)).lineLimit(1).foregroundStyle(.white.opacity(0.85))
             if let w = entry.weather {
                 HStack(spacing: 6) {
                     Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title2)
-                    Text(temp(w.topTemp, tr)).font(.system(size: 34, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                    Text(temp(w.topTemp, tr)).font(.system(size: 32, weight: .bold, design: .rounded)).foregroundStyle(.white)
                 }
                 Spacer(minLength: 0)
-                Label(tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm Neuschnee"), systemImage: "snowflake")
-                    .font(.caption.weight(.semibold)).foregroundStyle(w.fresh24 >= 1 ? gold : .white.opacity(0.8))
-                if let s = w.snowDepth {
-                    Label(tr.t("\(tr.num(s)) cm sneeuw", "\(tr.num(s)) cm snow", "\(tr.num(s)) cm Schnee"), systemImage: "mountain.2.fill")
-                        .font(.caption2).foregroundStyle(.white.opacity(0.8))
-                }
-                Label("\(tr.num(w.wind)) km/h", systemImage: "wind").font(.caption2).foregroundStyle(.white.opacity(0.8))
+                LineView(line: Info.fresh(w, tr))
+                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
+                if let al = Info.alert(w, tr) { LineView(line: al) }
+                else if let s = w.snowDepth { LineView(line: Line(icon: "mountain.2.fill", text: tr.t("\(tr.num(s)) cm sneeuw", "\(tr.num(s)) cm snow", "\(tr.num(s)) cm Schnee"), warn: false)) }
             } else {
                 Spacer(minLength: 0)
-                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(.white.opacity(0.8))
+                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(soft)
+                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
                 Spacer(minLength: 0)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .labelStyle(TightLabel())
+    }
+
+    @ViewBuilder func forecast(_ w: Weather, _ tr: Tr, count: Int) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(w.days.prefix(count), id: \.date) { d in
+                HStack(spacing: 6) {
+                    Text(tr.weekday(d.date)).font(.caption.weight(.semibold)).frame(width: 30, alignment: .leading)
+                    Image(systemName: WeatherService.symbol(d.code)).symbolRenderingMode(.multicolor).frame(width: 22)
+                    Text("\(temp(d.max, tr)) / \(temp(d.min, tr))").font(.caption.monospacedDigit())
+                    Spacer(minLength: 0)
+                    if d.snow >= 1 { Text("\(tr.num(d.snow)) cm").font(.caption2.weight(.semibold)).foregroundStyle(gold) }
+                }
+            }
+        }
+        .foregroundStyle(.white)
     }
 
     @ViewBuilder func medium(_ a: SharedArea, _ tr: Tr) -> some View {
@@ -247,33 +360,76 @@ struct AreaView: View {
             small(a, tr)
             if let w = entry.weather {
                 VStack(alignment: .leading, spacing: 5) {
-                    ForEach(w.days.prefix(3), id: \.date) { d in
-                        HStack(spacing: 6) {
-                            Text(tr.weekday(d.date)).font(.caption.weight(.semibold)).frame(width: 30, alignment: .leading)
-                            Image(systemName: WeatherService.symbol(d.code)).symbolRenderingMode(.multicolor).frame(width: 22)
-                            Text("\(temp(d.max, tr)) / \(temp(d.min, tr))").font(.caption.monospacedDigit())
-                            Spacer(minLength: 0)
-                            if d.snow >= 1 { Text("\(tr.num(d.snow)) cm").font(.caption2.weight(.semibold)).foregroundStyle(gold) }
-                        }
-                    }
+                    forecast(w, tr, count: 3)
                     Spacer(minLength: 0)
-                    HStack(spacing: 10) {
-                        Label(tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"), systemImage: "house.fill")
-                        if let o = a.open, let c = a.close { Label("\(o)–\(c)", systemImage: "clock") }
-                    }
-                    .font(.caption2).foregroundStyle(.white.opacity(0.8)).labelStyle(TightLabel())
+                    LineView(line: Line(icon: "house.fill", text: tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"), warn: false))
+                    if let s = w.sunset { LineView(line: Line(icon: "sunset.fill", text: tr.t("Zon onder \(s)", "Sunset \(s)", "Sonnenuntergang \(s)"), warn: false)) }
                 }
-                .foregroundStyle(.white)
             }
         }
+    }
+
+    @ViewBuilder func large(_ a: SharedArea, _ tr: Tr) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(a.name).font(.headline).lineLimit(1).foregroundStyle(.white)
+                    if let w = entry.weather {
+                        Text("\(WeatherService.describe(w.code, tr)) · \(tr.t("boven", "top", "oben")) \(tr.height(a.hi))").font(.caption).foregroundStyle(soft)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let w = entry.weather {
+                    HStack(spacing: 6) {
+                        Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title)
+                        Text(temp(w.topTemp, tr)).font(.system(size: 36, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                    }
+                }
+            }
+            if let w = entry.weather {
+                if let al = Info.alert(w, tr) {
+                    LineView(line: al, font: .footnote)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(gold.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                }
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 5) {
+                    GridRow {
+                        LineView(line: Info.fresh(w, tr), font: .footnote)
+                        if let s = w.snowDepth { LineView(line: Line(icon: "mountain.2.fill", text: tr.t("\(tr.num(s)) cm sneeuw", "\(tr.num(s)) cm snow", "\(tr.num(s)) cm Schnee"), warn: false), font: .footnote) }
+                    }
+                    GridRow {
+                        LineView(line: Line(icon: "wind", text: w.gusts.map { "\(tr.num(w.wind)) km/h · \(tr.t("stoten", "gusts", "Böen")) \(tr.num($0))" } ?? "\(tr.num(w.wind)) km/h", warn: (w.gusts ?? 0) >= 60), font: .footnote)
+                        if let v = w.visibility { LineView(line: Line(icon: "eye", text: tr.t("Zicht \(tr.distance(v))", "Visibility \(tr.distance(v))", "Sicht \(tr.distance(v))"), warn: v < 300), font: .footnote) }
+                    }
+                    GridRow {
+                        LineView(line: Line(icon: "house.fill", text: tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"), warn: false), font: .footnote)
+                        if let f = w.freezing { LineView(line: Line(icon: "thermometer.snowflake", text: tr.t("Vriesgrens \(tr.height(f))", "Freezing level \(tr.height(f))", "Nullgradgrenze \(tr.height(f))"), warn: false), font: .footnote) }
+                    }
+                }
+                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l, font: .footnote) }
+                if let s = w.sunset { LineView(line: Line(icon: "sunset.fill", text: tr.t("Zon onder \(s)", "Sunset \(s)", "Sonnenuntergang \(s)"), warn: false), font: .footnote) }
+                Divider().overlay(Color.white.opacity(0.2))
+                forecast(w, tr, count: 3)
+            } else {
+                Spacer(minLength: 0)
+                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(soft)
+                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l, font: .footnote) }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder func rectangular(_ a: SharedArea, _ tr: Tr) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(a.name).font(.headline).lineLimit(1)
             if let w = entry.weather {
-                Label(temp(w.topTemp, tr), systemImage: WeatherService.symbol(w.code))
-                Label(tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm Neuschnee"), systemImage: "snowflake")
+                Label("\(temp(w.topTemp, tr)) · \(tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu"))", systemImage: WeatherService.symbol(w.code))
+            }
+            if let w = entry.weather, let al = Info.alert(w, tr) {
+                Label(al.text, systemImage: al.icon).lineLimit(1)
+            } else if let l = Info.lifts(a, at: entry.date, tr) {
+                Label(l.text, systemImage: l.icon).lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -297,12 +453,6 @@ struct AreaView: View {
     }
 }
 
-struct TightLabel: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) { configuration.icon; configuration.title }
-    }
-}
-
 struct AreaWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotArea", provider: AreaProvider()) { entry in
@@ -311,8 +461,8 @@ struct AreaWidget: Widget {
             }
         }
         .configurationDisplayName("Skigebied")
-        .description("Weer, verse sneeuw en wind in je skigebied.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .description("Weer, verse sneeuw, liftentijden en waarschuwingen in je skigebied.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -324,7 +474,7 @@ struct DayEntry: TimelineEntry {
 
 struct DayProvider: TimelineProvider {
     func placeholder(in context: Context) -> DayEntry {
-        DayEntry(date: Date(), day: SharedDay(date: "", area: "Zillertal Arena", km: 42.5, hm: 6120, runs: 14, lifts: 15, vmax: 71, lang: nil))
+        DayEntry(date: Date(), day: SharedDay(date: "", area: "Zillertal Arena", km: 42.5, hm: 6120, runs: 14, lifts: 15, vmax: 71, secs: 15120, lang: nil))
     }
     func getSnapshot(in context: Context, completion: @escaping (DayEntry) -> Void) {
         let d: SharedDay? = Shared.read("day")
@@ -345,27 +495,34 @@ struct DayView: View {
         let tr = Tr(entry.day?.lang)
         if let d = entry.day {
             let title = isToday(d.date) ? tr.t("Vandaag", "Today", "Heute") : label(d.date, tr)
-            if family == .accessoryRectangular {
+            switch family {
+            case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.headline)
                     Text("\(tr.num(d.km, digits: 1)) km · \(tr.num(d.hm)) \(tr.t("hm", "m vert", "Hm"))")
                     Text("\(d.runs) \(tr.t("afdalingen", "runs", "Abfahrten")) · \(tr.num(d.vmax)) km/h")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            case .systemMedium:
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title).font(.caption.weight(.bold)).foregroundStyle(gold)
+                        bigKm(d, tr)
+                        Spacer(minLength: 0)
+                        if !d.area.isEmpty { Text(d.area).font(.caption2).lineLimit(1).foregroundStyle(soft) }
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        stats(d, tr, all: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            default:
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title).font(.caption.weight(.bold)).foregroundStyle(gold)
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(tr.num(d.km, digits: 1)).font(.system(size: 32, weight: .bold, design: .rounded))
-                        Text("km").font(.caption.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
+                    bigKm(d, tr)
                     Spacer(minLength: 0)
-                    Label("\(tr.num(d.hm)) \(tr.t("hm", "m vert", "Hm"))", systemImage: "arrow.down.right")
-                    Label("\(d.runs) \(tr.t("afdalingen", "runs", "Abfahrten"))", systemImage: "figure.skiing.downhill")
-                    Label("\(tr.num(d.vmax)) km/h max", systemImage: "speedometer")
+                    stats(d, tr, all: false)
                 }
-                .font(.caption2).foregroundStyle(.white.opacity(0.85)).labelStyle(TightLabel())
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         } else {
@@ -376,6 +533,22 @@ struct DayView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+    }
+
+    @ViewBuilder func bigKm(_ d: SharedDay, _ tr: Tr) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(tr.num(d.km, digits: 1)).font(.system(size: 32, weight: .bold, design: .rounded))
+            Text("km").font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+    }
+
+    @ViewBuilder func stats(_ d: SharedDay, _ tr: Tr, all: Bool) -> some View {
+        LineView(line: Line(icon: "arrow.down.right", text: "\(tr.num(d.hm)) \(tr.t("hoogtemeters", "m vertical", "Höhenmeter"))", warn: false))
+        LineView(line: Line(icon: "figure.skiing.downhill", text: all ? "\(d.runs) \(tr.t("afdalingen", "runs", "Abfahrten"))" : "\(d.runs) \(tr.t("afd.", "runs", "Abf.")) · \(d.lifts) \(tr.t("liften", "lifts", "Lifte"))", warn: false))
+        if all { LineView(line: Line(icon: "cablecar", text: "\(d.lifts) \(tr.t("liften", "lifts", "Lifte"))", warn: false)) }
+        LineView(line: Line(icon: "speedometer", text: "\(tr.num(d.vmax)) km/h max", warn: false))
+        if let s = d.secs, s > 0 { LineView(line: Line(icon: "clock", text: tr.t("\(tr.duration(minutes: s / 60)) op de piste", "\(tr.duration(minutes: s / 60)) on the slopes", "\(tr.duration(minutes: s / 60)) auf der Piste"), warn: false)) }
     }
 
     func isToday(_ ymd: String) -> Bool {
@@ -397,8 +570,8 @@ struct DayWidget: Widget {
             }
         }
         .configurationDisplayName("Skidag")
-        .description("Kilometers, hoogtemeters en afdalingen van je skidag.")
-        .supportedFamilies([.systemSmall, .accessoryRectangular])
+        .description("Kilometers, hoogtemeters, afdalingen en tijd op de piste van je skidag.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }
 

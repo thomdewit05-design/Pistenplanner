@@ -230,7 +230,7 @@ let widgetDayT = 0;
 function widgetDay(day, sum, force){
   if(!day || !sum || sum.n < 2 || sum.km < .05 || (!force && Date.now() - widgetDayT < 60e3)) return;
   widgetDayT = Date.now();
-  widgetSet("day", {date:day.date, area:day.areaName || "", km:+sum.km.toFixed(1), hm:Math.round(sum.hm), runs:sum.runs, lifts:sum.lifts, vmax:Math.round(sum.vmax), lang:LANG});
+  widgetSet("day", {date:day.date, area:day.areaName || "", km:+sum.km.toFixed(1), hm:Math.round(sum.hm), runs:sum.runs, lifts:sum.lifts, vmax:Math.round(sum.vmax), secs:Math.round(sum.secs), lang:LANG});
 }
 
 // pistenummers op de kaart (alleen ingezoomd en binnen beeld, anders wordt het te druk)
