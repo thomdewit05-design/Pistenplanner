@@ -19,7 +19,13 @@ window.PP_CONFIG = {
     storeId: null,        // winkelnummer in Lemon Squeezy (Settings > Stores)
     productId: null,      // productnummer van Skipilot Pro
     price: "€ 9,99",
-    period: "eenmalig, voor altijd"
+    period: "eenmalig, voor altijd",
+    // iOS-app: Pro als eenmalige aankoop in de App Store (In-App Purchase, zie store/ios/README.md).
+    // Pas op true zetten als het product in App Store Connect bestaat; de prijs komt dan uit de App Store.
+    ios: {
+      enforce: false,
+      productId: "nl.skipilot.app.pro"
+    }
   },
   // eigen kaarttegels met een sleutel (voor commercieel gebruik); leeg = de gratis tegels van nu
   // per laag: {url, options}; options zijn Leaflet-instellingen zoals tileSize, zoomOffset, maxNativeZoom

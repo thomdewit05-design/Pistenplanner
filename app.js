@@ -2459,12 +2459,15 @@ function goHome(){
 }
 
 // ================= Skipilot Pro =================
-// Betalen loopt via Lemon Squeezy (zij zijn de verkoper en regelen btw en terugbetaling).
+// Op de website loopt betalen via Lemon Squeezy (zij zijn de verkoper en regelen btw en terugbetaling).
 // Na de aankoop krijg je een licentiecode; die wordt hier één keer geactiveerd en daarna eens per week gecontroleerd.
+// In de iOS-app is Pro een eenmalige aankoop in de App Store (StorePlugin.swift); Apple houdt bij wie hem gekocht heeft.
 // Zolang Pro in config.js niet aan staat, kan iedereen alles gebruiken.
 const PRO_CFG = window.PP_CONFIG?.pro || {};
-// in de Play Store- en iOS-app mag niet buiten de winkel om betaald worden: daar is alles vrij tot er Play Billing / In-App Purchase is
-const proLive = () => window.PP_STORE === "web" && (!!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search));
+const IOS_PRO = window.PP_STORE === "ios" ? PRO_CFG.ios || {} : null;
+// in de Play Store-app mag niet buiten Google Play om betaald worden: daar is alles vrij tot er Play Billing is
+const proLive = () => IOS_PRO ? !!(IOS_PRO.enforce && IOS_PRO.productId)
+  : window.PP_STORE === "web" && (!!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search));
 const PRO_FEATURES = [
   ["group", "group", "Een groep maken en de route voor iedereen starten"],
   ["lunch", "food", "Lunchstop bij een hut op het juiste moment"],
@@ -2475,7 +2478,7 @@ const PRO_FEATURES = [
 ];
 let PRO = (() => { try{ return JSON.parse(localStorage.getItem("pp-pro") || "null"); }catch(e){ return null; } })();
 const proSave = () => { try{ PRO ? localStorage.setItem("pp-pro", JSON.stringify(PRO)) : localStorage.removeItem("pp-pro"); }catch(e){} };
-const proActive = () => !!(PRO?.key && !["expired", "disabled"].includes(PRO.status) && !(PRO.expires && Date.parse(PRO.expires) < Date.now()));
+const proActive = () => PRO?.store === "ios" || !!(PRO?.key && !["expired", "disabled"].includes(PRO.status) && !(PRO.expires && Date.parse(PRO.expires) < Date.now()));
 const isPro = () => !proLive() || proActive();
 function requirePro(f){ if(isPro()) return true; openPro(f); return false; }
 const proTeaser = f => `<div class="pro-teaser">${I("star")}<span><b>${esc(PRO_FEATURES.find(x => x[0] === f)?.[2] || "Deze functie")}</b> hoort bij Skipilot Pro.</span><button type="button" class="btn ghost" onclick="openPro('${f}')">Bekijk Pro</button></div>`;
@@ -2498,8 +2501,42 @@ async function proActivate(key){
     toast("Pro staat aan. Veel skiplezier!", 3500);
   }catch(e){ toast("Geen verbinding met de licentieserver. Probeer het later opnieuw."); }
 }
+// ---- App Store (iOS-app) ----
+const appStore = (method, extra) => window.Capacitor.nativePromise("Store", method, {id:IOS_PRO.productId, ...extra});
+let iosPrice = null;
+// bij elke start: de App Store weet het ook zonder internet, en een terugbetaalde aankoop valt zo weer weg
+async function iosCheck(){
+  try{ const {owned} = await appStore("owned"); iosOwned(owned); }catch(e){}
+}
+function iosOwned(owned){
+  if(owned === (PRO?.store === "ios")) return;
+  PRO = owned ? {store:"ios"} : null; proSave(); renderPro(); update();
+  if($("proDlg")) openPro();
+}
+async function iosBuy(){
+  const b = $("proBuy"); if(b) b.disabled = true;
+  try{
+    const {state} = await appStore("buy");
+    if(state === "bought"){ iosOwned(true); toast("Pro staat aan. Veel skiplezier!", 3500); }
+    else if(state === "pending") toast("De aankoop wacht op goedkeuring. Pro gaat vanzelf aan zodra hij rond is.", 4500);
+  }catch(e){ toast("De App Store is nu niet bereikbaar. Probeer het later opnieuw.", 4000); }
+  if(b) b.disabled = false;
+}
+async function iosRestore(){
+  try{
+    const {owned} = await appStore("restore");
+    if(owned){ iosOwned(true); toast("Pro is teruggezet. Veel skiplezier!", 3500); }
+    else toast("Geen eerdere aankoop van Pro gevonden op deze Apple ID.", 4000);
+  }catch(e){ toast("De App Store is nu niet bereikbaar. Probeer het later opnieuw.", 4000); }
+}
+async function iosLoadPrice(){
+  if(iosPrice) return;
+  try{ iosPrice = (await appStore("product")).price; const el = $("proPrice"); if(el) el.textContent = iosPrice; }catch(e){}
+}
+
 // eens per week kijken of de code nog geldig is; zonder internet blijft Pro gewoon werken
 async function proCheck(){
+  if(IOS_PRO){ if(proLive()) iosCheck(); return; }
   if(!proLive() || !PRO?.key || !navigator.onLine || Date.now() - (PRO.checked || 0) < 7*864e5) return;
   try{
     const d = await lsCall("validate", {license_key:PRO.key, ...(PRO.instance ? {instance_id:PRO.instance} : {})});
@@ -2520,10 +2557,14 @@ function openPro(f){
   div.innerHTML = `<div class="pro-card">
     <div class="pro-head"><img src="icons/logo.svg" alt="" width="44" height="44"><div><p class="label">Skipilot</p><h2>Pro</h2></div><button type="button" class="icon-btn" id="proClose" aria-label="Sluiten">${I("close")}</button></div>
     ${feat && !on ? `<p class="pro-why">${I(feat[1])}<span><b>${esc(feat[2])}</b> hoort bij Pro.</span></p>` : ""}
-    ${on ? `<p class="pro-on">${I("check")}<span><b>Pro staat aan op dit apparaat.</b>${PRO.email ? ` Gekocht met ${esc(PRO.email)}.` : ""}</span></p>` : ""}
+    ${on ? `<p class="pro-on">${I("check")}<span><b>Pro staat aan op dit apparaat.</b>${PRO.store === "ios" ? " Gekocht via de App Store." : PRO.email ? ` Gekocht met ${esc(PRO.email)}.` : ""}</span></p>` : ""}
     <ul class="pro-list">${PRO_FEATURES.map(([, ic, t]) => `<li>${I(ic)}<span>${esc(t)}</span></li>`).join("")}</ul>
     <p class="m-hint">Alles voor je veiligheid blijft gratis: route plannen, navigatie, weer, de laatste-liftwaarschuwing en SOS. Meedoen met een groep is ook gratis.</p>
-    ${on ? `<button type="button" class="btn ghost" id="proOff">Pro op dit apparaat uitzetten</button>` : `
+    ${on ? (IOS_PRO ? "" : `<button type="button" class="btn ghost" id="proOff">Pro op dit apparaat uitzetten</button>`) : IOS_PRO ? `
+      <div class="pro-buy"><div class="pro-price"><b id="proPrice">${esc(iosPrice || PRO_CFG.price || "")}</b><span>${esc(PRO_CFG.period || "")}</span></div>
+      <button type="button" class="btn primary" id="proBuy">${I("star")}Koop Pro</button></div>
+      <button type="button" class="btn ghost" id="proRestore">Aankopen herstellen</button>
+      <p class="m-hint">Eenmalige aankoop via de App Store. Werkt op al je iPhones met dezelfde Apple ID.</p>` : `
       <div class="pro-buy"><div class="pro-price"><b>${esc(PRO_CFG.price || "")}</b><span>${esc(PRO_CFG.period || "")}</span></div>
       ${PRO_CFG.checkout ? `<a class="btn primary" id="proBuy" href="${esc(PRO_CFG.checkout)}" target="_blank" rel="noopener">${I("star")}Koop Pro</a>` : `<button type="button" class="btn primary" disabled>Binnenkort te koop</button>`}</div>
       <p class="label">Heb je al een licentiecode?</p>
@@ -2538,6 +2579,8 @@ function openPro(f){
   $("proAct")?.addEventListener("click", () => proActivate($("proKey").value));
   $("proKey")?.addEventListener("keydown", e => { if(e.key === "Enter") proActivate(e.target.value); });
   $("proOff")?.addEventListener("click", proDeactivate);
+  $("proRestore")?.addEventListener("click", iosRestore);
+  if(IOS_PRO){ $("proBuy")?.addEventListener("click", iosBuy); iosLoadPrice(); }
 }
 function renderPro(){
   const sec = $("proSec"); if(!sec) return;
@@ -2548,7 +2591,7 @@ function renderPro(){
   if(!isPro() && (S.sunOn || S.sunny)){ S.sunOn = S.sunny = false; save(); if(S.area){ drawSun(); } }
 }
 $("proMore").onclick = () => openPro();
-renderPro(); setTimeout(proCheck, 5000);
+renderPro(); setTimeout(proCheck, IOS_PRO ? 0 : 5000);
 
 // navigatie stoppen en alles van de route van het scherm halen; daarna direct een nieuwe kiezen
 function clearRoute(){

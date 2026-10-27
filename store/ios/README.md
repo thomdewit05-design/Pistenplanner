@@ -9,8 +9,8 @@ Je hebt **geen Mac** nodig: GitHub bouwt de app op een Mac in de cloud (`.github
 
 ## Wat er anders is in de iOS-app
 
-- De app herkent zichzelf (`PP_STORE = "ios"` in `config.js`): geen Pro-betaling via Lemon Squeezy en geen AdSense,
-  net als in de Play-versie. Apple staat alleen In-App Purchase toe voor digitale functies.
+- De app herkent zichzelf (`PP_STORE = "ios"` in `config.js`): geen AdSense en geen Lemon Squeezy.
+  Pro is in de app een **eenmalige In-App Purchase** via de App Store (zie hieronder).
 - Het scherm blijft aan tijdens navigeren en het skidagboek via de plug-in `@capacitor-community/keep-awake`.
 - Locatie vraagt iOS zelf, met de tekst uit `ios/App/App/Info.plist` (`NSLocationWhenInUseUsageDescription`).
 - De link "Alle skigebieden op de website" opent de website in Safari.
@@ -77,6 +77,35 @@ Zonder het vinkje maakt de workflow alleen een proefbouw voor de simulator; dat 
 Tip voor de beoordeling: Apple weigert apps die "alleen een website" zijn. Leg in de opmerking voor de beoordelaar uit
 dat de app offline werkt met de ingebouwde pistedata van 1.800+ skigebieden, GPS-navigatie met gesproken aanwijzingen
 en een skidagboek heeft, en dat de kaart werkt zonder account.
+
+## Skipilot Pro als In-App Purchase
+
+In de iOS-app koop je Pro met je Apple ID: eenmalig, voor altijd, op al je iPhones.
+Apple int het geld, regelt btw en terugbetalingen en houdt 15 % in (met het *App Store Small Business Program*, anders 30 %).
+De code zit in `ios/App/App/StorePlugin.swift` (StoreKit 2) en het Pro-gedeelte van `app.js`.
+De app controleert bij elke start bij de App Store of je Pro hebt; dat werkt ook zonder internet, en een terugbetaalde aankoop zet Pro weer uit.
+Een licentiecode van de website werkt in de iOS-app niet (Apple staat dat niet toe voor aankopen buiten de App Store).
+
+### Instellen
+1. **Betaalde apps-overeenkomst**: App Store Connect → Zakelijk → onderteken de *Paid Apps Agreement* en vul bankrekening en belastinggegevens in.
+   Zonder dit verschijnt het product niet in de app.
+2. Meld je aan voor het [App Store Small Business Program](https://developer.apple.com/app-store/small-business-program/) (15 % in plaats van 30 %).
+3. App Store Connect → je app → **In-App Purchases** → **+**:
+   - Type: **Niet-verbruikbaar** (Non-Consumable)
+   - Referentienaam: `Skipilot Pro`, Product-ID: `nl.skipilot.app.pro` (moet gelijk zijn aan `pro.ios.productId` in `config.js`)
+   - Prijs: kies een prijsniveau (bijvoorbeeld € 9,99). De app toont de prijs uit de App Store, in de valuta van de koper.
+   - Weergavenaam en beschrijving in het Nederlands, Engels en Duits, bijvoorbeeld "Skipilot Pro" en
+     "Groepen, lunchstop, zon en schaduw, terug naar je hotel, seizoensoverzicht en GPX-export."
+   - Schermafbeelding voor de beoordeling: het Pro-scherm uit de app.
+4. Zet in `config.js` bij `pro.ios` **`enforce: true`**, en bouw een nieuwe versie (Actions → iOS-app → Run workflow met TestFlight).
+   Zolang het `false` is, is alles in de iOS-app gratis, zoals nu.
+5. Kies bij het indienen van de app-versie onder *In-App Purchases* het product **Skipilot Pro**, zodat Apple ze samen beoordeelt.
+   De eerste In-App Purchase moet altijd samen met een app-versie ingediend worden.
+
+### Testen
+- Maak in App Store Connect → Gebruikers en toegang → **Sandbox** een testaccount aan (een e-mailadres dat nog geen Apple ID is).
+- Installeer de app via TestFlight en koop Pro: in TestFlight betaal je nooit echt.
+- Probeer ook **Aankopen herstellen** (Apple eist die knop) en kijk of Pro na het opnieuw installeren terugkomt.
 
 ## Lokaal werken op een Mac (optioneel)
 ```
