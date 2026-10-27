@@ -124,6 +124,22 @@ Een licentiecode van de website werkt in de iOS-app niet (Apple staat dat niet t
 - Installeer de app via TestFlight en koop Pro: in TestFlight betaal je nooit echt.
 - Probeer ook **Aankopen herstellen** (Apple eist die knop) en kijk of Pro na het opnieuw installeren terugkomt.
 
+## Zelf installeren met een .ipa-bestand (zonder App Store of TestFlight)
+
+Bij elke bouw maakt GitHub ook een **niet-ondertekend** `Skipilot.ipa`: open de run onder Actions → iOS-app,
+en download onderaan bij *Artifacts* het zipbestand `Skipilot-ipa` (14 dagen bewaard).
+Een iPhone installeert zo'n bestand niet vanuit de Bestanden-app; het moet eerst voor jouw toestel ondertekend worden. Op Windows:
+
+1. Installeer **iTunes** (van apple.com, niet uit de Microsoft Store) en **[Sideloadly](https://sideloadly.io)**.
+2. Sluit je iPhone met een kabel aan en tik op de iPhone op *Vertrouw*.
+3. Sleep `Skipilot.ipa` in Sideloadly, vul je Apple ID in en klik **Start**.
+4. Op de iPhone: Instellingen → Algemeen → VPN en apparaatbeheer → je Apple ID → *Vertrouw*.
+   Op iOS 16 en nieuwer ook: Instellingen → Privacy en beveiliging → **Ontwikkelaarsmodus** aan (de iPhone start opnieuw op).
+
+Met een gratis Apple ID werkt de app 7 dagen; met je Apple Developer-account een jaar.
+De aankopen via de App Store werken zo niet, en de widgets alleen als Sideloadly de App Group goed overneemt.
+Voor gewoon gebruik is TestFlight makkelijker en betrouwbaarder.
+
 ## Lokaal werken op een Mac (optioneel)
 ```
 npm install

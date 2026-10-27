@@ -1,5 +1,6 @@
 # Bouwt de iOS-app op een Mac van GitHub. Zo is er geen eigen Mac nodig.
-# - Bij elke wijziging aan de app: een proefbouw voor de iPhone-simulator (zonder ondertekening), om te zien dat alles nog compileert.
+# - Bij elke wijziging aan de app: een proefbouw voor de iPhone-simulator (zonder ondertekening), om te zien dat alles nog compileert,
+#   plus een niet-ondertekend Skipilot.ipa (onder Artifacts van de run) om zelf op je iPhone te zetten.
 # - Met de hand via Actions > iOS-app > Run workflow, met "Naar TestFlight" aangevinkt: ondertekenen en uploaden naar App Store Connect.
 #   Daarvoor zijn vier geheimen nodig (zie store/ios/README.md): APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID en ASC_KEY_P8.
 name: iOS-app
@@ -39,6 +40,25 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
             -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
             CODE_SIGNING_ALLOWED=NO build | tail -n 40
+      # niet-ondertekend .ipa-bestand voor de iPhone, om zelf te installeren met bijvoorbeeld Sideloadly (zie store/ios/README.md)
+      - name: Niet-ondertekend .ipa-bestand maken
+        if: ${{ !inputs.upload }}
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination "generic/platform=iOS" -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION=${{ github.run_number }} build | tail -n 20
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$RUNNER_TEMP/dd/Build/Products/Release-iphoneos/App.app" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry Skipilot.ipa Payload)
+          ls -lh "$RUNNER_TEMP/ipa/Skipilot.ipa"
+      - name: .ipa-bestand bewaren
+        if: ${{ !inputs.upload }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skipilot-ipa
+          path: ${{ runner.temp }}/ipa/Skipilot.ipa
+          retention-days: 14
       - name: Ondertekenen en uploaden naar TestFlight
         if: ${{ inputs.upload }}
         env:
