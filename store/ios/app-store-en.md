@@ -53,7 +53,7 @@ MORE THAN 1,800 SKI AREAS
 In the Alps (Austria, France, Switzerland, Italy, Germany, Slovenia), the Pyrenees, Scandinavia and North America. Satellite, terrain and street maps. The runs and lifts of every area are built into the app, so planning and navigation work without signal.
 
 PRIVACY
-No account needed, no ads and no trackers. Your routes and ski diary stay on your iPhone. Your position is only shared with your group members when you use a group yourself.
+No account needed. Skipilot is free thanks to a small ad banner in the ski area list, the diary and the menu, never during navigation. Your routes and ski diary stay on your iPhone. Your position is only shared with your group members when you use a group yourself.
 
 SAFETY
 Skipilot is a guide. Run data comes from OpenStreetMap and may differ from reality. The app doesn't know which runs and lifts are actually open today and has no avalanche information. Always follow the signs and the ski patrol.

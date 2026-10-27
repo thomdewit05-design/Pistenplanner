@@ -53,7 +53,7 @@ MEER DAN 1.800 SKIGEBIEDEN
 In de Alpen (Oostenrijk, Frankrijk, Zwitserland, Italië, Duitsland, Slovenië), de Pyreneeën, Scandinavië en Noord-Amerika. Satellietkaart, terreinkaart en gewone kaart. De pistes en liften van alle gebieden zitten in de app, dus plannen en navigeren werkt ook zonder bereik.
 
 PRIVACY
-Geen account nodig, geen advertenties en geen trackers. Je routes en je skidagboek blijven op je iPhone. Je positie gaat alleen naar je groepsgenoten als je zelf een groep gebruikt.
+Geen account nodig. Skipilot is gratis dankzij een kleine advertentiebalk in de skigebiedkiezer, het dagboek en het menu, nooit tijdens het navigeren. Je routes en je skidagboek blijven op je iPhone. Je positie gaat alleen naar je groepsgenoten als je zelf een groep gebruikt.
 
 VEILIGHEID
 Skipilot is een hulpmiddel. De pistedata komt van OpenStreetMap en kan afwijken van de werkelijkheid. De app weet niet welke pistes en liften vandaag echt open zijn en kent geen lawinegevaar. Volg altijd de borden en de pistedienst.
@@ -69,3 +69,4 @@ Skipilot is a ski navigation app. No login is required.
 To test: tap the ski area name at the top, search for "Zillertal Arena" (or any other area), then tap two points on the map to plan a route and tap "Start navigatie" (Start navigation). Language can be switched to English in the menu (top left) under Taal / Language.
 All run and lift data for 1,800+ ski areas is bundled in the app, so route planning and turn-by-turn voice navigation work offline on the mountain. Location is only used while navigating or recording the ski diary. The app includes two home screen widgets (ski area weather and ski day stats).
 Group location sharing is optional and only active when the user creates or joins a group.
+The free app shows a Google AdMob banner in the ski area list, the ski diary and the menu (never during navigation), after the Google consent form and the App Tracking Transparency prompt.

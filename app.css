@@ -718,6 +718,8 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .m-list{display:flex;flex-direction:column}
 .m-list .switch{padding:10px 0}
 .m-list .switch+.switch{border-top:1px solid var(--line-2)}
+/* iOS-app: ruimte voor de advertentiebalk onderin */
+body.admob .picker{padding-bottom:calc(70px + var(--safe-b))}
 .voice-opts{padding:2px 0 12px}
 .voice-opts[hidden]{display:none}
 .voice-opts .label{margin:6px 0 6px}
