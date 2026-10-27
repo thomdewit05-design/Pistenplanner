@@ -1,0 +1,11 @@
+{
+  "appId": "nl.skipilot.app",
+  "appName": "Skipilot",
+  "webDir": "www",
+  "backgroundColor": "#0F1B2A",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0F1B2A",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

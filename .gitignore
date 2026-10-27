@@ -6,3 +6,8 @@ promo/*.mp4
 promo/stills/
 promo/shots/
 promo/vo/
+
+
+# iOS-app: afhankelijkheden en de gekopieerde webbestanden (ios/.gitignore regelt de rest)
+node_modules/
+www/

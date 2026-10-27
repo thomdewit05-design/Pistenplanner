@@ -60,3 +60,8 @@ Draai dit opnieuw na het bijwerken van `data/` of bij een eigen domeinnaam (geef
 Advertenties (Google AdSense) staan in `config.js` onder `ads`. Zolang `client` leeg is, verschijnen er geen advertenties.
 Plekken: bovenaan en onderaan elke gebiedspagina, in het overzicht, en in de app in de skigebiedkiezer, het dagboek en het menu (nooit tijdens het navigeren).
 Zet in AdSense onder "Privacy en berichten" de toestemmingsmelding voor Europa aan.
+
+## iOS-app
+
+Skipilot bestaat ook als iPhone-app (Capacitor, map `ios/`). GitHub bouwt hem op een Mac in de cloud; uploaden naar TestFlight en de App Store staat in `store/ios/README.md`.
+Na een wijziging aan de webapp: een nieuwe bouw via Actions > iOS-app > Run workflow (de iOS-app haalt zijn code niet van de website).

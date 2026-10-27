@@ -92,4 +92,11 @@ png(512).save("icons/icon-512.png")
 png(512, inset=.1, rounded=False).save("icons/icon-maskable-512.png")   # Android knipt zelf de vorm
 png(180, rounded=False).save("icons/apple-touch-icon.png")             # iOS rondt zelf af
 png(64).save("icons/favicon-64.png")
+# iOS-app: icoon zonder doorzichtigheid (Apple weigert een alfakanaal) en het opstartscherm
+IOS = "ios/App/App/Assets.xcassets"
+if os.path.isdir(IOS):
+    png(1024, rounded=False).convert("RGB").save(f"{IOS}/AppIcon.appiconset/AppIcon-512@2x.png")
+    splash = Image.new("RGB", (2732, 2732), NAVY_BOT)
+    logo = png(560); splash.paste(logo, ((2732 - 560) // 2, (2732 - 560) // 2), logo)
+    for n in ("splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"): splash.save(f"{IOS}/Splash.imageset/{n}")
 print("ok")
