@@ -23,13 +23,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -846,11 +846,21 @@ async function keepAwake(){
        if(!on && wakeLock){ await wakeLock.release(); wakeLock = null; } }catch(e){}
 }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") keepAwake(); });
-function speak(text){
-  if(!S.voice || !S.follow || !("speechSynthesis" in window)) return;
-  try{ const u = new SpeechSynthesisUtterance(tr(text)); u.lang = SPEECH_LANG(); u.rate = 1.02;
-       const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(LANG)); if(v) u.voice = v;
+// de stem mag een andere taal spreken dan de app; zelf een stem kiezen kan ook (menu > Navigatie)
+const voiceLang = () => S.voiceLang || LANG;
+const voicesFor = l => ("speechSynthesis" in window ? speechSynthesis.getVoices() : []).filter(v => (v.lang || "").toLowerCase().replace("_", "-").startsWith(l));
+function voiceFor(l){
+  const list = voicesFor(l);
+  return list.find(v => v.name === S.voiceName) || list.find(v => v.default) || list.find(v => v.localService) || list[0] || null;
+}
+function say(text, force){
+  if(!(force || (S.voice && S.follow)) || !("speechSynthesis" in window)) return;
+  try{ const l = voiceLang(), u = new SpeechSynthesisUtterance(trTo(text, l)); u.lang = SPEECH_LANGS[l]; u.rate = 1.02;
+       const v = voiceFor(l); if(v) u.voice = v;
        speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+}
+function speak(text){
+  say(text);
 }
 function startWatch(){
   if(S.watch != null) return true;
@@ -1059,7 +1069,34 @@ document.querySelectorAll("#level button").forEach(b => b.onclick = () => { S.le
 document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.v; update(); });
 $("free").onchange = e => { S.free = e.target.checked; update(); };
 $("down").onchange = e => { S.down = e.target.checked; update(); };
-$("voice").onchange = e => { S.voice = e.target.checked; if(!S.voice) speechSynthesis?.cancel?.(); save(); };
+function setVoice(on, from){
+  S.voice = on; if(!on) speechSynthesis?.cancel?.(); save(); syncVoice();
+  if(from === "nav"){ toast(on ? "Gesproken aanwijzingen aan." : "Gesproken aanwijzingen uit."); if(on) say("Gesproken aanwijzingen aan.", true); }
+}
+function syncVoice(){
+  $("voice").checked = S.voice; $("voiceOpts").hidden = !S.voice;
+  const b = $("navVoice"), lab = S.voice ? "Gesproken aanwijzingen uitzetten" : "Gesproken aanwijzingen aanzetten";
+  b.setAttribute("aria-pressed", String(S.voice)); b.setAttribute("aria-label", lab); b.title = lab;
+  b.querySelector("use").setAttribute("href", S.voice ? "#i-sound" : "#i-mute");
+  document.querySelectorAll("#voiceLangSeg button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.voiceLang)));
+  fillVoices();
+}
+// de stemmen van het toestel in de gekozen taal; op iOS en Android komen ze soms pas na een tel binnen
+function fillVoices(){
+  const sel = $("voicePick"), list = voicesFor(voiceLang());
+  const cur = voiceFor(voiceLang());
+  sel.innerHTML = list.length
+    ? list.map(v => `<option value="${esc(v.name)}"${cur && v.name === cur.name ? " selected" : ""}>${esc(v.name.replace(/\s*\(.*\)$/, ""))}${v.localService === false ? " (online)" : ""}</option>`).join("")
+    : `<option value="">${esc(tr("Standaardstem van je toestel"))}</option>`;
+  sel.disabled = !list.length;
+}
+if("speechSynthesis" in window) speechSynthesis.addEventListener?.("voiceschanged", fillVoices);
+$("voice").onchange = e => setVoice(e.target.checked);
+$("navVoice").onclick = () => setVoice(!S.voice, "nav");
+document.querySelectorAll("#voiceLangSeg button").forEach(b => b.onclick = () => { S.voiceLang = b.dataset.v; S.voiceName = ""; save(); syncVoice(); });
+$("voicePick").onchange = e => { S.voiceName = e.target.value; save(); };
+$("voiceTest").onclick = () => say("Over 200 meter: neem de stoeltjeslift.", true);
+syncVoice();
 $("fitAreaBtn").onclick = () => fitArea();
 $("fitRouteBtn").onclick = fitRoute;
 
