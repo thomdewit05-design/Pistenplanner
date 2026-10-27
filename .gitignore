@@ -11,3 +11,5 @@ promo/vo/
 # iOS-app: afhankelijkheden en de gekopieerde webbestanden (ios/.gitignore regelt de rest)
 node_modules/
 www/
+promo/phones/
+promo/frames/
