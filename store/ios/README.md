@@ -98,6 +98,27 @@ Tip voor de beoordeling: Apple weigert apps die "alleen een website" zijn. Leg i
 dat de app offline werkt met de ingebouwde pistedata van 1.800+ skigebieden, GPS-navigatie met gesproken aanwijzingen
 en een skidagboek heeft, en dat de kaart werkt zonder account.
 
+## Advertenties (Google AdMob)
+
+De gratis iPhone-app toont een advertentiebalk onderin zolang de skigebiedkiezer, het skidagboek of het menu open is;
+nooit tijdens het navigeren en niet voor wie Pro gekocht heeft. Bij het eerste gebruik vraagt de app eerst om toestemming
+(de melding van Google voor Europa, daarna Apple's "Sta toe dat deze app je volgt"). Code: `ads.js`, instellingen in `config.js` onder `ads.ios`.
+
+Zolang er geen eigen advertentieblok is ingevuld, toont de app **proefadvertenties** van Google ("Test Ad"). Zo zet je echte advertenties aan:
+
+1. Maak een account op [admob.google.com](https://admob.google.com) en voeg de app toe (iOS, "staat in de App Store": eerst nee, later koppelen).
+2. Je krijgt een **App-ID** (`ca-app-pub-…~…`). Zet die in GitHub als geheim **`ADMOB_APP_ID`** (Settings → Secrets and variables → Actions).
+3. Maak een advertentieblok van het type **Banner** en zet de ID (`ca-app-pub-…/…`) in `config.js` bij `ads.ios.banner`.
+4. AdMob → **Privacy en berichten**: maak een GDPR-melding (Europa) en een IDFA-uitleg (iOS) aan en publiceer ze.
+5. Zet `app-ads.txt` op je website als AdMob daarom vraagt (dat werkt alleen in de hoofdmap van een eigen domein).
+6. Bouw een nieuwe versie (Actions → iOS-app → Naar TestFlight).
+
+Wil je helemaal geen advertenties: zet `ads.ios.test` op `false` en laat `banner` leeg.
+
+**App Store Connect → App Privacy** verandert door advertenties. Geef aan: *Identifiers → Device ID* (gebruikt voor Third-Party Advertising,
+alleen met toestemming, gebruikt om te volgen), *Usage Data → Advertising Data* en *Diagnostics*, allemaal voor **Third-Party Advertising**.
+Controleer dit zelf met de [AdMob-uitleg voor de privacylabels](https://developers.google.com/admob/ios/privacy/data-disclosure).
+
 ## Skipilot Pro als In-App Purchase
 
 In de iOS-app koop je Pro met je Apple ID: eenmalig, voor altijd, op al je iPhones.

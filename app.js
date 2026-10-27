@@ -1095,6 +1095,7 @@ $("voice").onchange = e => setVoice(e.target.checked);
 $("navVoice").onclick = () => setVoice(!S.voice, "nav");
 document.querySelectorAll("#voiceLangSeg button").forEach(b => b.onclick = () => { S.voiceLang = b.dataset.v; S.voiceName = ""; save(); syncVoice(); });
 $("voicePick").onchange = e => { S.voiceName = e.target.value; save(); };
+$("adPrivacy").onclick = () => window.ppAds?.native?.privacy();
 $("voiceTest").onclick = () => say("Over 200 meter: neem de stoeltjeslift.", true);
 syncVoice();
 $("fitAreaBtn").onclick = () => fitArea();
@@ -2540,7 +2541,8 @@ const PRO_FEATURES = [
   ["sun", "sun", "Zon en schaduw, en routes door de zon"],
   ["home", "bed", "Terug naar je hotel of auto"],
   ["season", "calendar", "Seizoensoverzicht en persoonlijke records"],
-  ["gpx", "share", "Je skidagen als GPX-bestand"]
+  ["gpx", "share", "Je skidagen als GPX-bestand"],
+  ...(window.PP_STORE === "ios" ? [["noads", "ban", "Geen advertenties"]] : [])
 ];
 let PRO = (() => { try{ return JSON.parse(localStorage.getItem("pp-pro") || "null"); }catch(e){ return null; } })();
 const proSave = () => { try{ PRO ? localStorage.setItem("pp-pro", JSON.stringify(PRO)) : localStorage.removeItem("pp-pro"); }catch(e){} };

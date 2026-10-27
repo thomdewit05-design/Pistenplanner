@@ -66,6 +66,7 @@ jobs:
           KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}   # optioneel; zonder dit geheim gebruikt de app het proef-ID van Google
         run: |
           set -o pipefail
           for v in TEAM_ID KEY_ID ISSUER_ID KEY_P8; do
@@ -78,6 +79,7 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/Skipilot.xcarchive" \
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            ${ADMOB_APP_ID:+ADMOB_APP_ID="$ADMOB_APP_ID"} \
             "${AUTH[@]}" archive | tail -n 40
           cat > "$RUNNER_TEMP/export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
