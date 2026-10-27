@@ -24,10 +24,13 @@ Je hebt **geen Mac** nodig: GitHub bouwt de app op een Mac in de cloud (`.github
 ## Widgets op het beginscherm
 
 Twee widgets (iOS 17 en nieuwer), in het Nederlands, Engels of Duits, net als de app:
-- **Skigebied** (klein, middel, toegangsscherm): weer bovenop de berg, verse sneeuw van de laatste 24 uur, sneeuwhoogte en wind
-  in het laatst geopende skigebied. De middelgrote toont ook drie dagen vooruit, de temperatuur in het dal en de liftentijden.
+- **Skigebied** (klein, middel, groot, toegangsscherm): weer bovenop de berg, verse sneeuw van de laatste 24 uur, sneeuwhoogte
+  en hoe lang de liften nog open zijn (of wanneer ze opengaan) in het laatst geopende skigebied. Waarschuwt bij storm, slecht zicht,
+  een poederdag of strenge kou. Middel en groot tonen ook drie dagen vooruit, het dal en zonsondergang; groot ook windstoten,
+  zicht en de vriesgrens.
   Het weer haalt de widget zelf elk half uur op bij Open-Meteo, ook als de app dicht is.
-- **Skidag** (klein, toegangsscherm): kilometers, hoogtemeters, afdalingen en topsnelheid van vandaag, of van je laatste skidag.
+- **Skidag** (klein, middel, toegangsscherm): kilometers, hoogtemeters, afdalingen, liften, topsnelheid en tijd op de piste van
+  vandaag, of van je laatste skidag.
 
 De app geeft het skigebied en de skidag door via een gedeelde *App Group* (`group.nl.skipilot.app`).
 De code staat in `ios/App/SkipilotWidget/` en `ios/App/App/WidgetPlugin.swift`.
