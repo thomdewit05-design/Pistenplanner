@@ -1,5 +1,6 @@
-"""Haalt hutten, restaurants, cafés en bars rond alle skigebieden op uit OpenStreetMap (Overpass)
-en schrijft ze naar data/h000.json ... (zelfde indeling als de kaartbestanden s000.json ...).
+"""Haalt hutten, restaurants, cafés en bars rond alle skigebieden op uit OpenStreetMap (Overpass), en ook de voorzieningen:
+skipaskassa's, skiverhuur, skidepots/kluisjes, skischolen en bushaltes. Schrijft ze naar data/h000.json ...
+(zelfde indeling als de kaartbestanden s000.json ...). Per plek: [lon, lat, soort, naam, website].
 
 Draait elke maand op de servers van GitHub (zie .github/workflows/huts.yml), zodat de app de hutten van de eigen site
 haalt en niet afhangt van de vaak overbelaste Overpass-servers. Een stuk kaart dat niet lukt, houdt de vorige gegevens.
@@ -16,10 +17,33 @@ UA = "Skipilot/1.0 (ski route planner; github.com/thomdewit05-design/Pistenplann
 TILE = 0.5          # stukken kaart van een halve graad
 PAD = 0.01          # marge rond een skigebied
 KIND = {"restaurant": "r", "cafe": "c", "bar": "b", "pub": "b", "biergarten": "b", "fast_food": "f"}
-Q = """[out:json][timeout:120];
+Q = """[out:json][timeout:150];
 (nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten)$"]({s},{w},{n},{e});
- nwr["tourism"="alpine_hut"]({s},{w},{n},{e}););
+ nwr["tourism"="alpine_hut"]({s},{w},{n},{e});
+ nwr["shop"~"^(ticket|ski)$"]({s},{w},{n},{e});
+ nwr["amenity"~"^(ski_rental|ski_school|locker|luggage_locker|ski_storage)$"]({s},{w},{n},{e});
+ nwr["office"="ski_school"]({s},{w},{n},{e});
+ nwr["shop"="sports"]["rental"~"ski"]({s},{w},{n},{e});
+ node["highway"="bus_stop"]({s},{w},{n},{e}););
 out center tags;"""
+
+
+def kind_of(t):
+    """Soort plek: h hut, r/c/b/f eten en drinken, p skipas, v verhuur, d depot, s skischool, o bushalte (None = overslaan)."""
+    if t.get("tourism") == "alpine_hut": return "h"
+    a, shop = t.get("amenity", ""), t.get("shop", "")
+    if a in KIND: return KIND[a]
+    if shop == "ticket": return "p"
+    if a == "ski_school" or t.get("office") == "ski_school": return "s"
+    if a == "ski_rental" or shop == "ski" or "ski" in t.get("rental", ""): return "v"
+    if a in ("locker", "luggage_locker", "ski_storage"): return "d"
+    if t.get("highway") == "bus_stop": return "o"
+    return None
+
+
+def website(t):
+    w = (t.get("website") or t.get("contact:website") or t.get("url") or "").split(";")[0].strip()
+    return w[:200] if w.startswith(("http://", "https://")) else ""
 
 
 def query(s, w, n, e):
@@ -67,8 +91,9 @@ def main():
         for el in els:
             t = el.get("tags", {}); c = el.get("center") or el
             if "lat" not in c: continue
-            kind = "h" if t.get("tourism") == "alpine_hut" else KIND.get(t.get("amenity"), "r")
-            item = [round(c["lon"], 5), round(c["lat"], 5), kind, (t.get("name") or "")[:60]]
+            kind = kind_of(t)
+            if not kind: continue
+            item = [round(c["lon"], 5), round(c["lat"], 5), kind, (t.get("name") or "")[:60], website(t)]
             for aid in aids:
                 bs, bw, bn, be = boxes[aid]
                 if bs <= c["lat"] <= bn and bw <= c["lon"] <= be:
