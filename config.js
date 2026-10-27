@@ -1,5 +1,13 @@
 // Instellingen voor Skipilot Pro, de kaartdiensten en de privacyverklaring.
 // Leeg laten = nog niet ingesteld; de app werkt dan zoals altijd en iedereen kan alles gebruiken.
+// Play Store-versie: de Android-app opent de site met ?src=play (of verwijst vanuit android-app://).
+// Daarin geen betaling buiten Google Play om en geen AdSense; onthouden per sessie, zodat dezelfde site in Chrome gewoon de webversie blijft.
+window.PP_STORE = (() => {
+  try{
+    if(/[?&]src=play\b/.test(location.search) || document.referrer.startsWith("android-app://")) sessionStorage.setItem("pp-store", "play");
+    return sessionStorage.getItem("pp-store") || "web";
+  }catch(e){ return /[?&]src=play\b/.test(location.search) ? "play" : "web"; }
+})();
 window.PP_CONFIG = {
   pro: {
     enforce: false,       // pas op true zetten als de betaallink en de productgegevens hieronder kloppen

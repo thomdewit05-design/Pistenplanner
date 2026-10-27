@@ -2418,7 +2418,8 @@ function goHome(){
 // Na de aankoop krijg je een licentiecode; die wordt hier één keer geactiveerd en daarna eens per week gecontroleerd.
 // Zolang Pro in config.js niet aan staat, kan iedereen alles gebruiken.
 const PRO_CFG = window.PP_CONFIG?.pro || {};
-const proLive = () => !!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search);
+// in de Play Store-app mag niet buiten Google Play om betaald worden: daar is alles vrij tot er Play Billing is
+const proLive = () => window.PP_STORE !== "play" && (!!(PRO_CFG.enforce && PRO_CFG.checkout) || /[?&]pro=preview/.test(location.search));
 const PRO_FEATURES = [
   ["group", "group", "Een groep maken en de route voor iedereen starten"],
   ["lunch", "food", "Lunchstop bij een hut op het juiste moment"],

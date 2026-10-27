@@ -65,4 +65,15 @@ await c.evaluate(`(async () => {
 })()`);
 await shot("4-sun");
 
+// 5. routebeschrijving uitgeklapt, met het weer
+await c.evaluate(`(async () => {
+  S.sunOn = false; drawSun(); defaultRoute(); update(); fitRoute(); setSheet(true);
+  document.getElementById("result").scrollIntoView({block:"start"});
+})()`);
+await shot("5-steps");
+
+// 6. skigebied kiezen: ruim 1.800 gebieden
+await c.evaluate(`(async () => { setSheet(false); openPicker(); document.getElementById("q").blur(); })()`);
+await shot("6-areas");
+
 c.close();

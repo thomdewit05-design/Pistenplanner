@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Skipilot store-afbeeldingen</title>
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Afbeeldingen voor de Play Store: telefoonschermen met een kop (1080 x 1920) en de banner (1024 x 500).
+// screenshot(lang, i) en feature(lang) geven een JPEG terug als base64.
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const YEL = "#FFC400", INK = "#1A1300";
+const F = (w, s, fam = "Barlow") => `${w} ${s}px "${fam}"`;
+const SHOTS = ["1-route", "2-nav", "3-group", "4-sun", "5-steps", "6-areas"];
+const TXT = {
+  nl:{tag:"Jouw piloot op de piste", items:[
+      ["Kies waar je heen wilt", "Skipilot kiest pistes die bij jou passen"],
+      ["Navigeer met je stem", "Welke piste, welke lift: stap voor stap"],
+      ["Ski samen met vrienden", "Eén tik en iedereen krijgt dezelfde route"],
+      ["Zoek de zon op", "Zie welke pistes nu in de zon liggen"],
+      ["Je hele route op een rij", "Met hoogteprofiel en lunchstop"],
+      ["Meer dan 1.800 skigebieden", "Alpen, Pyreneeën, Scandinavië en Noord-Amerika"]]},
+  en:{tag:"Your pilot on the slopes", items:[
+      ["Pick where you want to go", "Skipilot finds runs that match your level"],
+      ["Navigate by voice", "Which run, which lift: turn by turn"],
+      ["Ski together with friends", "One tap and everyone gets the same route"],
+      ["Chase the sun", "See which slopes are sunny right now"],
+      ["Your whole route at a glance", "With elevation profile and lunch stop"],
+      ["More than 1,800 ski areas", "Alps, Pyrenees, Scandinavia and North America"]]}
+};
+const img = src => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = src; });
+function rrect(x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function ridge(W, H, base, amp, off, color){
+  g.fillStyle = color; g.beginPath(); g.moveTo(0, H);
+  for(let x = -20; x <= W + 20; x += 20){ const u = x / W; g.lineTo(x, base - amp * (.55*Math.abs(Math.sin(u*3.1 + off)) + .3*Math.abs(Math.sin(u*7.3 + off*2)) + .15*Math.sin(u*17 + off))); }
+  g.lineTo(W, H); g.closePath(); g.fill();
+}
+function background(W, H, seed){
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#0B1522"); gr.addColorStop(.55, "#22395A"); gr.addColorStop(1, "#3B5B82");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  ridge(W, H, H*.80, H*.17, 1.3 + seed, "#41658F"); ridge(W, H, H*.88, H*.135, 4.1 + seed, "#6E8FB5"); ridge(W, H, H*.97, H*.10, 2.2 + seed, "#DCE7F2");
+  let s = 7 + seed*13; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  g.fillStyle = "#fff";
+  for(let i = 0; i < 140 * W * H / (1080*1920); i++){ g.globalAlpha = .3 + rnd()*.5; g.beginPath(); g.arc(rnd()*W, rnd()*H, 1.5 + rnd()*4, 0, 6.283); g.fill(); }
+  g.globalAlpha = 1;
+}
+function phone(im, cx, cy, pw){
+  const ph = pw * 2532 / 1170, bz = pw * .037, w = pw + bz*2, h = ph + bz*2, r = pw * .143;
+  g.save(); g.shadowColor = "rgba(0,0,0,.55)"; g.shadowBlur = 70; g.shadowOffsetY = 26;
+  g.fillStyle = "#05090F"; rrect(cx - w/2, cy - h/2, w, h, r); g.fill(); g.restore();
+  g.strokeStyle = "#2B3B50"; g.lineWidth = 4; rrect(cx - w/2 + 2, cy - h/2 + 2, w - 4, h - 4, r - 2); g.stroke();
+  g.save(); rrect(cx - pw/2, cy - ph/2, pw, ph, r * .75); g.clip(); g.drawImage(im, cx - pw/2, cy - ph/2, pw, ph); g.restore();
+  g.fillStyle = "#05090F"; rrect(cx - pw*.115, cy - ph/2 + pw*.023, pw*.23, pw*.063, pw*.032); g.fill();
+}
+// gecentreerde tekst; te breed = kleiner tot hij past
+function center(s, y, w, size, fam, color, maxW = 960){
+  do { g.font = F(w, size, fam); size -= 2; } while(g.measureText(s).width > maxW && size > 20);
+  g.fillStyle = color; g.textAlign = "center"; g.fillText(s, cv.width/2, y);
+}
+
+async function ready(){ await Promise.all([document.fonts.load(F(800, 100, "Barlow Condensed")), document.fonts.load(F(600, 40)), document.fonts.load(F(500, 40))]); return true; }
+async function screenshot(lang, i){
+  cv.width = 1080; cv.height = 1920;
+  const im = await img(`shots/${lang === "nl" ? "" : lang + "/"}${SHOTS[i]}.png`);
+  background(1080, 1920, i);
+  const [t, s] = TXT[lang].items[i];
+  center(t, 215, 800, 108, "Barlow Condensed", "#fff");
+  center(s, 300, 500, 46, "Barlow", "#D6E2EF");
+  phone(im, 540, 1160, 690);
+  return cv.toDataURL("image/jpeg", .92).split(",")[1];
+}
+async function feature(lang){
+  cv.width = 1024; cv.height = 500;
+  background(1024, 500, 2);
+  const logo = await img("../icons/icon-512.png"), im = await img(`shots/${lang === "nl" ? "" : lang + "/"}1-route.png`);
+  g.save(); g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = 30; g.shadowOffsetY = 10; g.drawImage(logo, 70, 120, 150, 150); g.restore();
+  g.textAlign = "left"; g.font = F(800, 104, "Barlow Condensed"); g.fillStyle = "#fff"; g.fillText("SKIPILOT", 245, 235);
+  g.font = F(600, 34); g.fillStyle = YEL; g.fillText(TXT[lang].tag, 248, 285);
+  g.font = F(500, 24); g.fillStyle = "#D6E2EF"; g.fillText(lang === "nl" ? "Route plannen en navigeren over de piste" : "Plan your route and navigate the slopes", 72, 350);
+  // telefoon schuin aan de rechterkant, onderaan afgesneden
+  g.save(); g.translate(845, 330); g.rotate(-.12); phone(im, 0, 120, 250); g.restore();
+  return cv.toDataURL("image/jpeg", .93).split(",")[1];
+}
+window.ready = ready(); window.screenshot = screenshot; window.feature = feature;
+</script>
+</body>
+</html>
