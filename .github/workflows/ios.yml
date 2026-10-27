@@ -12,7 +12,9 @@ on:
         default: false
   push:
     branches: [main]
-    paths: [index.html, app.js, app.css, i18n.js, config.js, ads.js, "data/index.json", "ios/**", package.json, package-lock.json, capacitor.config.json, tools/build_www.mjs, .github/workflows/ios.yml]
+    paths: &app [index.html, app.js, app.css, i18n.js, config.js, ads.js, "data/index.json", "ios/**", package.json, package-lock.json, capacitor.config.json, tools/build_www.mjs, .github/workflows/ios.yml]
+  pull_request:
+    paths: *app
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
