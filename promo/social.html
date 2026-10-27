@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Skipilot social</title>
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>html,body{margin:0;background:#000}canvas{display:block;width:540px;height:960px}</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Advertentievideo voor social media, staand (1080 x 1920), fris en licht, zonder geluid (ondertitels in beeld).
+// ?lang=en voor Engels. renderAt(t) tekent één moment; make_social.mjs zet de beelden om naar een MP4.
+const LANG = new URLSearchParams(location.search).get("lang") || "nl";
+const W = 1080, H = 1920, DUR = 22.5;
+const T = {
+  nl:{hook:["Nooit meer", "verdwalen", "op de piste."],
+      s:[["Kies je bestemming", "Pistes die passen bij jouw niveau"],
+         ["Navigeer met je stem", "Welke piste, welke lift: stap voor stap"],
+         ["Ski samen", "Eén tik en iedereen krijgt de route"],
+         ["Zon, lunch & meer", "Zonnige pistes, hutten, de laatste lift"]],
+      areas:"skigebieden", regions:"Alpen · Pyreneeën · Scandinavië · Noord-Amerika",
+      tag:"Jouw piloot op de piste", cta:"Gratis voor iPhone", sub:"Zoek Skipilot in de App Store"},
+  en:{hook:["Never get", "lost", "on the slopes."],
+      s:[["Pick your destination", "Runs that match your level"],
+         ["Navigate by voice", "Which run, which lift: step by step"],
+         ["Ski together", "One tap and everyone gets the route"],
+         ["Sun, lunch & more", "Sunny slopes, huts, the last lift"]],
+      areas:"ski areas", regions:"Alps · Pyrenees · Scandinavia · North America",
+      tag:"Your pilot on the slopes", cta:"Free for iPhone", sub:"Search Skipilot on the App Store"}
+}[LANG];
+
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const NAVY = "#0F1B2A", BLUE = "#2F6FED", YEL = "#FFC400", ICE = "#EAF2FB";
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const out3 = x => 1 - Math.pow(1 - x, 3);
+const inOut = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const back = x => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3*Math.pow(x - 1, 3) + c1*Math.pow(x - 1, 2); };
+const F = (w, s, fam = "Barlow") => `${w} ${s}px "${fam}"`;
+const COND = "Barlow Condensed";
+
+// ---------- beelden ----------
+const img = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+let P = [], LOGO = null;
+window.ready = (async () => {
+  P = await Promise.all([1, 2, 3, 4, 5, 6].map(i => img(`phones/${LANG}/${i}.png`)));
+  LOGO = await img("../icons/icon-512.png");
+  await Promise.all([document.fonts.load(F(800, 100, COND)), document.fonts.load(F(700, 100, COND)), document.fonts.load(F(700, 50)), document.fonts.load(F(600, 40)), document.fonts.load(F(500, 40))]);
+  renderAt(0);
+  return true;
+})();
+
+// ---------- achtergrond: licht, met zachte vormen en sneeuw ----------
+let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const flakes = Array.from({length:70}, () => ({x:rnd()*W, y:rnd()*H, r:2 + rnd()*5, v:30 + rnd()*70, s:rnd()*6.28, a:.25 + rnd()*.35}));
+function background(t){
+  const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, "#F7FAFE"); gr.addColorStop(1, "#DCE9F8");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // zachte gekleurde bollen die langzaam bewegen
+  const blob = (x, y, r, c) => { const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, c); rg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = rg; g.fillRect(x - r, y - r, 2*r, 2*r); };
+  blob(W*.15 + Math.sin(t*.4)*60, H*.18 + Math.cos(t*.3)*40, 620, "rgba(47,111,237,.16)");
+  blob(W*.9 + Math.cos(t*.35)*50, H*.62 + Math.sin(t*.5)*60, 680, "rgba(255,196,0,.18)");
+  blob(W*.3 + Math.sin(t*.25)*40, H*.95, 600, "rgba(47,111,237,.10)");
+  // bergsilhouet onderaan
+  g.fillStyle = "rgba(15,27,42,.05)"; g.beginPath(); g.moveTo(0, H);
+  for(let x = 0; x <= W; x += 24){ const u = x / W; g.lineTo(x, H*.86 - 150*(.6*Math.abs(Math.sin(u*3 + 1)) + .4*Math.abs(Math.sin(u*7.5)))); }
+  g.lineTo(W, H); g.fill();
+  for(const f of flakes){
+    const y = (f.y + f.v*t) % (H + 20) - 10, x = f.x + Math.sin(t + f.s)*14;
+    g.globalAlpha = f.a; g.fillStyle = "#8FB3E0"; g.beginPath(); g.arc(x, y, f.r, 0, 6.283); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+
+// ---------- tekst ----------
+function text(s, x, y, font, color, {align = "center", alpha = 1, dy = 0} = {}){
+  if(alpha <= 0) return;
+  g.save(); g.globalAlpha = alpha; g.font = font; g.fillStyle = color; g.textAlign = align; g.textBaseline = "alphabetic";
+  g.fillText(s, x, y + dy); g.restore();
+}
+// kop met onderregel, komt omhoog in beeld en gaat weer weg
+function headline(t, a, b, title, sub, y = 250){
+  const i = out3(prog(t, a, a + .5)), o = prog(t, b - .35, b);
+  const al = i * (1 - o);
+  if(al <= 0) return;
+  text(title, W/2, y, F(800, 112, COND), NAVY, {alpha:al, dy:(1 - i)*50 - o*30});
+  const i2 = out3(prog(t, a + .15, a + .7));
+  text(sub, W/2, y + 78, F(500, 44), "#40556E", {alpha:i2 * (1 - o), dy:(1 - i2)*40 - o*30});
+  // geel streepje
+  const lw = 120 * out3(prog(t, a + .3, a + .8));
+  g.globalAlpha = 1 - o; g.fillStyle = YEL; roundRect(W/2 - lw/2, y + 112, lw, 10, 5); g.fill(); g.globalAlpha = 1;
+}
+function roundRect(x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+// ---------- telefoon ----------
+function phone(im, cx, top, scale, rot = 0, alpha = 1){
+  if(alpha <= 0) return;
+  const w = im.width * scale, h = im.height * scale;
+  g.save(); g.globalAlpha = alpha; g.translate(cx, top + h/2); g.rotate(rot);
+  g.shadowColor = "rgba(15,27,42,.28)"; g.shadowBlur = 70*scale; g.shadowOffsetY = 30*scale;
+  g.drawImage(im, -w/2, -h/2, w, h);
+  g.restore();
+}
+
+// ---------- scènes ----------
+// 0 - 3     haak: "Nooit meer verdwalen op de piste."
+function hook(t){
+  const o = prog(t, 2.75, 3.1);
+  const lines = T.hook, y0 = 760;
+  lines.forEach((s, k) => {
+    const st = .15 + k*.32, p = prog(t, st, st + .45), sc = back(p);
+    if(p <= 0) return;
+    const y = y0 + k*175;
+    g.save(); g.globalAlpha = clamp(p*2) * (1 - o); g.translate(W/2, y - o*80); g.scale(sc, sc);
+    g.font = F(800, k === 1 ? 190 : 150, COND); g.textAlign = "center"; g.textBaseline = "middle";
+    if(k === 1){   // kernwoord op een geel vlak
+      const tw = g.measureText(s).width + 70, rp = out3(prog(t, st + .2, st + .6));
+      g.fillStyle = YEL; roundRect(-tw/2, -100, tw * rp, 190, 28); g.fill();
+    }
+    g.fillStyle = NAVY; g.fillText(s, 0, 8); g.restore();
+  });
+  // logo bovenin
+  const lp = out3(prog(t, 0, .5));
+  g.globalAlpha = lp * (1 - o); g.drawImage(LOGO, W/2 - 70, 380 - (1 - lp)*30, 140, 140); g.globalAlpha = 1;
+}
+
+// een scène met één telefoon die van onder binnenkomt en naar links weggaat
+function single(t, a, b, im, k){
+  if(t < a - .1 || t > b + .1) return;
+  headline(t, a, b, T.s[k][0], T.s[k][1]);
+  const i = out3(prog(t, a, a + .7)), o = inOut(prog(t, b - .4, b + .05));
+  const drift = (t - a) * 6;   // langzaam inzoomen
+  const sc = .95 + drift * .004;
+  phone(im, W/2 - o*W*.9, 500 + (1 - i)*900 - drift*2, sc, (1 - i)*.08 - o*.06, 1);
+}
+
+// scène 4: twee telefoons schuin naast elkaar
+function duo(t, a, b){
+  if(t < a - .1 || t > b + .1) return;
+  headline(t, a, b, T.s[3][0], T.s[3][1]);
+  const i1 = out3(prog(t, a, a + .7)), i2 = out3(prog(t, a + .2, a + .9)), o = inOut(prog(t, b - .4, b + .05));
+  phone(P[4], W*.32 - o*W, 560 + (1 - i1)*900, .78, -.07, 1);
+  phone(P[3], W*.68 + o*W, 470 + (1 - i2)*900, .82, .06, 1);
+}
+
+// scène 5: 1.800+ skigebieden
+function areas(t, a, b){
+  if(t < a - .1 || t > b + .1) return;
+  const i = out3(prog(t, a, a + .6)), o = prog(t, b - .35, b);
+  const n = Math.round(1800 * out3(prog(t, a + .1, a + 1.3)));
+  const al = i * (1 - o);
+  text((n >= 1800 ? "1.800+" : n.toLocaleString(LANG === "nl" ? "nl-NL" : "en-GB")).replace(LANG === "en" ? "." : "\u0000", ","), W/2, 330, F(800, 220, COND), NAVY, {alpha:al, dy:(1 - i)*40});
+  text(T.areas, W/2, 420, F(700, 70, COND), BLUE, {alpha:al, dy:(1 - i)*40});
+  text(T.regions, W/2, 495, F(500, 36), "#40556E", {alpha:al * out3(prog(t, a + .3, a + .9))});
+  phone(P[5], W/2, 600 + (1 - i)*900 + o*120, .9, 0, 1 - o);
+}
+
+// slot: logo, naam, belofte en oproep
+function end(t, a){
+  if(t < a) return;
+  const p = prog(t, a, a + .6), lp = back(p);
+  g.save(); g.translate(W/2, 720); g.scale(lp, lp);
+  g.shadowColor = "rgba(15,27,42,.25)"; g.shadowBlur = 50; g.shadowOffsetY = 20;
+  g.drawImage(LOGO, -150, -150, 300, 300); g.restore();
+  const tp = out3(prog(t, a + .25, a + .8));
+  text("Skipilot", W/2, 1010, F(800, 170, COND), NAVY, {alpha:tp, dy:(1 - tp)*40});
+  const sp = out3(prog(t, a + .45, a + 1));
+  text(T.tag, W/2, 1090, F(600, 52), "#40556E", {alpha:sp, dy:(1 - sp)*30});
+  // gele knop met oproep
+  const bp = back(prog(t, a + .7, a + 1.2));
+  if(bp > 0){
+    g.save(); g.translate(W/2, 1250); g.scale(bp, bp);
+    g.font = F(700, 54); const tw = g.measureText(T.cta).width + 120;
+    g.shadowColor = "rgba(255,196,0,.45)"; g.shadowBlur = 40; g.shadowOffsetY = 12;
+    g.fillStyle = YEL; roundRect(-tw/2, -60, tw, 120, 60); g.fill();
+    g.shadowColor = "transparent"; g.fillStyle = NAVY; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(T.cta, 0, 4);
+    g.restore();
+  }
+  const cp = out3(prog(t, a + 1, a + 1.5));
+  text(T.sub, W/2, 1390, F(500, 40), "#40556E", {alpha:cp});
+}
+
+function renderAt(t){
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  hook(t);
+  single(t, 3, 6.7, P[0], 0);
+  single(t, 6.7, 10.3, P[1], 1);
+  single(t, 10.3, 13.9, P[2], 2);
+  duo(t, 13.9, 17.3);
+  areas(t, 17.3, 19.9);
+  end(t, 19.9);
+  // zachte overgang naar zwart helemaal aan het eind is niet nodig: het slotbeeld blijft staan
+}
+</script>
+</body>
+</html>

@@ -13,3 +13,15 @@ Teaser van 30 seconden (33 met voice-over), staand (1080 x 1920), voor Reels, Ti
 Schermafbeeldingen in een andere taal: `node promo/shots.mjs en`.
 
 De animatie zelf staat in `video.html` (teksten, timing en volgorde van de scènes).
+
+## Advertentievideo voor social media
+
+Fris, licht filmpje van 22,5 seconden, staand (1080 x 1920), zonder geluid (de teksten staan in beeld). In het Nederlands en Engels.
+Gemaakt van de telefoons uit de winkelafbeeldingen in `store/<taal>/`, dus zonder lokale server of kaartdiensten.
+
+```
+python promo/phones.py
+node promo/make_social.mjs nl      (of: en; met --stills alleen voorbeeldbeelden)
+```
+
+Resultaat: `promo/skipilot-social-nl.mp4` en `promo/skipilot-social-en.mp4`. Teksten en timing staan in `social.html`.
