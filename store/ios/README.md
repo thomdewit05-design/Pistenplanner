@@ -17,6 +17,9 @@ Je hebt **geen Mac** nodig: GitHub bouwt de app op een Mac in de cloud (`.github
 - Bekeken satelliettegels worden in de app niet extra bewaard (daar draait geen service worker);
   de app zelf en de pistedata werken wel volledig offline.
 - Alleen voor iPhone (op een iPad draait hij als iPhone-app). Dan zijn er ook geen iPad-schermafbeeldingen nodig.
+- Ook voor de opvouwbare **iPhone Duo**: op het buitenscherm de gewone telefoonindeling, op het binnenscherm staand het paneel
+  als kaart in het midden, liggend het paneel opzij. Bij open- en dichtvouwen past de kaart zich opnieuw aan de route aan.
+  App Store Connect vraagt mogelijk ook schermafbeeldingen van het binnenscherm.
 
 ## Widgets op het beginscherm
 

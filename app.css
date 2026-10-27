@@ -115,6 +115,10 @@ symbol .fill{fill:currentColor;stroke:none}
 .sheet-body{overflow:auto;padding:4px max(18px,var(--safe-l)) calc(18px + var(--safe-b)) max(18px,var(--safe-r));overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px}
 .brandline{display:none}
 
+/* breed staand scherm (binnenscherm van een opvouwbare iPhone, kleine tablet): het paneel als kaart in het midden */
+@media (min-width:600px) and (max-width:899px) and (orientation:portrait){
+  .sheet{width:min(540px,100%);margin:0 auto}
+}
 @media (min-width:900px){
   .sheet{top:calc(84px + var(--safe-t));left:calc(12px + var(--safe-l));right:auto;bottom:12px;width:404px;max-height:none;border-radius:var(--r-lg);transform:none!important;box-shadow:var(--sh-2)}
   .handle{display:none}

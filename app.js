@@ -315,6 +315,17 @@ function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
 }
+// opvouwbare iPhone open of dicht, telefoon gedraaid: na een flinke verandering in breedte de kaart opnieuw passend maken
+// (alleen de breedte, zodat het toetsenbord niets laat verspringen; tijdens navigeren volgt de kaart je positie al)
+let fitW = innerWidth, fitT = null;
+addEventListener("resize", () => {
+  clearTimeout(fitT);
+  fitT = setTimeout(() => {
+    const changed = Math.abs(innerWidth - fitW) > 80; fitW = innerWidth;
+    if(!changed || !S.area || S.follow) return;
+    map.invalidateSize(); fitRoute();
+  }, 250);
+});
 
 // ================= routeplanning =================
 // bias: randen die de route zeker moet nemen (de gekozen piste); die krijgen voorrang en mogen ook boven je niveau
