@@ -18,7 +18,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=44">
+<link rel="stylesheet" href="app.css?v=45">
 </head>
 <body>
 <!-- iconenset -->
@@ -180,6 +180,7 @@
 </div>
 
 <div class="fabs">
+  <button type="button" id="threeBtn" class="fab glass three-btn" aria-label="3D-bergen" title="3D-bergen" aria-pressed="false" hidden>3D</button>
   <button type="button" id="drawBtn" class="fab glass" aria-label="Route tekenen" title="Route tekenen"><svg class="ic"><use href="#i-pencil"/></svg></button>
   <button type="button" id="sosBtn" class="fab sos-fab" aria-label="Noodgeval (SOS)" title="Noodgeval">SOS</button>
   <button type="button" id="locBtn" class="fab glass" aria-label="Mijn locatie" title="Mijn locatie"><svg class="ic"><use href="#i-locate"/></svg></button>
@@ -497,11 +498,12 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=44"></script>
-<script src="ads.js?v=44"></script>
+<script src="config.js?v=45"></script>
+<script src="ads.js?v=45"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=44"></script>
-<script src="app.js?v=44"></script>
+<script src="i18n.js?v=45"></script>
+<script src="map3d.js?v=45"></script>
+<script src="app.js?v=45"></script>
 </body>
 </html>

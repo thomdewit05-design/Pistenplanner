@@ -27,9 +27,9 @@ const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, targe
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -84,6 +84,7 @@ function applyBase(){
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;
   if(typeof drawNumbers === "function") drawNumbers();
+  M3.sync("base", "pistes");
   save();
 }
 
@@ -302,6 +303,7 @@ function drawPistes(){
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
   st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
   drawSun();
+  M3.sync("pistes");
 }
 // paneel opzij: op een groot scherm, of op een liggende telefoon
 const SIDE_MQ = matchMedia("(min-width:900px), (orientation:landscape) and (max-height:500px)");
@@ -631,6 +633,7 @@ function update(){
   renderResult();
   renderClosed();
   updateNav();
+  M3.sync("route");
   if(S.draw) renderDrawBar();
   if($("myRoutes").open) renderRoutes();
 }
@@ -828,14 +831,14 @@ function edgePopup(ei, latlng, nearNode){
       <button type="button" data-a="from">Vertrek hier</button>
       <button type="button" class="danger" data-a="close" style="grid-column:1/-1">${ch.kind==="l" ? "Lift" : "Piste"} afsluiten</button>
     </div>`;
-  const pop = L.popup({closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"}).setLatLng(latlng).setContent(div).openOn(map);
+  const pop = openPop(latlng, div, {closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"});
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     const a = b.dataset.a;
     if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from==null) S.from = ch.start; }
     else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; S.wps = []; }
     else if(a==="from"){ S.from = nearNode; S.fromMe = false; S.pick = "to"; }
     else { setClosed(ch.edges, true); if(S.target?.edges.some(i => ch.edges.includes(i))) S.target = null; drawPistes(); toast(`${uc(ch.label)} gesloten.`); }
-    map.closePopup(pop); update();
+    pop.remove(); update();
     if(a==="ski") fitRoute();
   });
 }
@@ -915,6 +918,7 @@ async function onPos(p){
   }
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
   if(S.follow) showAt(ll, POV.on ? povZoom() : undefined);
+  M3.meAt(S.pos.lat, S.pos.lon);
   updateNav();
   groupOnPos();
   diaryAdd(S.pos.lat, S.pos.lon, S.pos.acc, S.pos.alt);
@@ -957,6 +961,7 @@ function updateNav(){
   document.querySelectorAll("ol.steps li.current").forEach(li => li.classList.remove("current"));
   const ns = S.follow ? navState() : null;
   povHeading(ns);
+  if(POV.mode === "gl" && S.pos) M3.navCam(S.pos.lat, S.pos.lon, POV.rot, povZoom() - 1.3, S.area?.nodes[nearestNode(S.pos.lat, S.pos.lon).n]?.ele ?? S.pos.alt);
   if(!ns){ ban.hidden = true; renderDash(null); return; }
   const s = S.steps[ns.i], nx = S.steps[ns.i+1];
   const frac = s.len ? Math.min(1, ns.rem / s.len) : 0;
@@ -1000,7 +1005,7 @@ function toggleFollow(){
 // aankomst, reistijd, afstand, wat er daarna komt en de volgende hut op je route.
 // De kaart wordt daarvoor groter dan het scherm (anders zie je bij het draaien lege hoeken). Pistes worden dan zonder
 // retina-scherpte en met minder marge getekend, anders worden de canvassen te groot voor een iPhone.
-const POV = {on:false, rot:0, gps:null, z:17};
+const POV = {on:false, mode:"off", rot:0, gps:null, z:17};
 const RETINA = L.Browser.retina;
 try{ S.pov = localStorage.getItem("pp-pov") !== "0"; }catch(e){ S.pov = true; }
 // hoe ver kantelen en hoe groot de kaart moet zijn om het scherm tot bovenin te vullen, bij elke draaiing
@@ -1017,28 +1022,36 @@ function povLayout(){
   }
   return best;
 }
+// twee manieren: met echte bergen (MapLibre, "gl") of, als dat niet kan of nog laadt, de platte kaart gekanteld ("css")
 function povApply(relayout){
   const want = !!(S.follow && S.pov && S.area), root = document.documentElement;
-  if(want === POV.on && !(want && relayout)) return;
-  if(want !== POV.on){
-    POV.on = want; document.body.classList.toggle("nav3d", want);
-    L.Browser.retina = want ? false : RETINA;
-    for(const r of [canvas, dimR, sunR, svgR]) r.options.padding = want ? .05 : .4;
-    map.getRenderer({options:{}}).options.padding = want ? .05 : .1;   // de standaardlaag van Leaflet (o.a. de nauwkeurigheidscirkel)
-    for(const h of ["dragging", "touchZoom", "doubleClickZoom", "scrollWheelZoom", "boxZoom", "keyboard"]) map[h]?.[want ? "disable" : "enable"]();
-    map.closePopup();
+  if(want && M3.supported && !M3.loaded() && !M3.failed) M3.load().then(() => povApply()).catch(() => {});
+  const mode = !want ? "off" : M3.supported && M3.loaded() ? "gl" : "css";
+  if(mode === POV.mode && !(want && relayout)) return;
+  const was = POV.mode; POV.mode = mode; POV.on = want;
+  document.body.classList.toggle("nav3d", want); document.body.classList.toggle("gl3d", mode === "gl");
+  const css = mode === "css";
+  if(css !== (was === "css")){
+    L.Browser.retina = css ? false : RETINA;
+    for(const r of [canvas, dimR, sunR, svgR]) r.options.padding = css ? .05 : .4;
+    map.getRenderer({options:{}}).options.padding = css ? .05 : .1;   // de standaardlaag van Leaflet (o.a. de nauwkeurigheidscirkel)
   }
-  if(want){
+  for(const h of ["dragging", "touchZoom", "doubleClickZoom", "scrollWheelZoom", "boxZoom", "keyboard"]) map[h]?.[want ? "disable" : "enable"]();
+  if(want) map.closePopup();
+  ["--pov-size", "--pov-y", "--pov-p", "--pov-tilt", "--pov-rot"].forEach(k => root.style.removeProperty(k));
+  if(css){
     const l = povLayout();
     root.style.setProperty("--pov-size", l.size + "px"); root.style.setProperty("--pov-y", l.y + "px");
     root.style.setProperty("--pov-p", l.p + "px"); root.style.setProperty("--pov-tilt", l.tilt + "deg");
     root.style.setProperty("--pov-rot", (-POV.rot).toFixed(1) + "deg");
-  } else ["--pov-size", "--pov-y", "--pov-p", "--pov-tilt", "--pov-rot"].forEach(k => root.style.removeProperty(k));
+  } else if(mode === "gl") root.style.setProperty("--pov-y", Math.round(innerHeight * .63) + "px");
+  if(mode === "gl"){ if(!M3.open("nav")) return povApply(true); }
+  else if(M3.mode === "nav") M3.close();
   $("povMe").hidden = !want;
   map.invalidateSize({pan:false});
-  if(S.pos) want ? map.setView([S.pos.lat, S.pos.lon], povZoom(), {animate:false}) : S.follow && showAt([S.pos.lat, S.pos.lon]);
+  if(S.pos) css ? map.setView([S.pos.lat, S.pos.lon], povZoom(), {animate:false}) : !want && S.follow && showAt([S.pos.lat, S.pos.lon]);
   else if(!want && S.path?.length && !S.follow) fitRoute();
-  renderDash(null); updateNav(); renderSpeedo();
+  renderDash(null); updateNav(); renderSpeedo(); apply3d();
 }
 function setPov(on){
   S.pov = on; try{ localStorage.setItem("pp-pov", on ? "1" : "0"); }catch(e){}
@@ -1119,6 +1132,40 @@ function renderDash(ns, left, arrive){
 }
 $("ndStop").onclick = () => { if(S.follow) toggleFollow(); };
 $("ndFlat").onclick = () => setPov(false);
+// ================= 3D-kaart (bergen) =================
+// Knop 3D: de kaart met echte hoogtes, om rond te kijken. Plannen werkt gewoon (tikken op pistes, liften, hutten);
+// route tekenen gaat op de platte kaart. Tijdens het navigeren neemt de navigatieweergave het over.
+function apply3d(){
+  const want = !!(S.t3d && M3.supported && !M3.failed && !POV.on && !S.draw);
+  $("threeBtn").hidden = !M3.supported || M3.failed;
+  $("threeBtn").classList.toggle("on", !!S.t3d && !M3.failed);
+  $("threeBtn").setAttribute("aria-pressed", String(!!S.t3d));
+  if(!want){ if(M3.mode === "view") M3.close(); return; }
+  if(M3.mode === "view") return;
+  if(M3.loaded()){ M3.open("view"); if(S.pos) M3.meAt(S.pos.lat, S.pos.lon); return; }
+  document.body.classList.add("m3-loading");
+  M3.load().then(() => { document.body.classList.remove("m3-loading"); apply3d(); })
+    .catch(() => { document.body.classList.remove("m3-loading"); toast("De 3D-kaart kon niet laden. Probeer het later opnieuw."); S.t3d = false; save(); apply3d(); });
+}
+function popOpen(){ return M3.mode === "view"; }
+// popups op de 3D-kaart als die open is, anders op de platte kaart
+function openPop(latlng, div, opt){
+  if(popOpen()) return M3.popup(latlng, div);
+  return L.popup(opt).setLatLng(latlng).setContent(div).openOn(map);
+}
+// tikken op de 3D-kaart: zelfde keuzes als op de platte kaart, met afstanden in meters in plaats van pixels
+function pick3d(lat, lon, edge, px){
+  if(!S.area) return;
+  if(S.pickHome){ setHome(lat, lon, S.pickHome); return; }
+  const nn = nearestNode(lat, lon);   // px = meters per pixel op de 3D-kaart
+  if(edge != null && nn.d > 14 * px) return edgePopup(edge, [lat, lon], nn.n);
+  if(nn.d > 36 * px){ toast("Tik op een piste, een lift of een liftstation."); return; }
+  if(S.pick==="from"){ S.from = nn.n; S.fromMe = false; S.pick = "to"; } else { S.to = nn.n; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; }
+  update();
+}
+$("threeBtn").onclick = () => { S.t3d = !S.t3d; save(); apply3d(); };
+map.on("moveend", () => M3.followLeaflet());
+
 $("locBtn").onclick = () => {
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
   if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
@@ -1852,14 +1899,14 @@ function startDraw(){
   if(!(S.fromMe && S.pos)) S.from = null;
   S.to = null;
   document.body.classList.add("drawing"); $("drawBtn").classList.add("drawing");
-  $("drawBar").hidden = false; map.closePopup();
+  $("drawBar").hidden = false; map.closePopup(); apply3d();
   if(!isSide()) setSheet(false);
   update(); renderDrawBar();
 }
 function stopDraw(){
   S.draw = false;
   document.body.classList.remove("drawing"); $("drawBtn").classList.remove("drawing");
-  $("drawBar").hidden = true;
+  $("drawBar").hidden = true; apply3d();
   if(S.wps.length === 1 && !(S.fromMe && S.pos)) S.wps = [];   // één los punt is nog geen route
   update();
   if(S.path?.length){ fitRoute(); if(!isSide()) setSheet(true); }
@@ -2296,7 +2343,7 @@ const HUT_KIND = {h:["Berghut","hut"], r:["Restaurant","food"], c:["Café","cup"
 const SVC = "pvdso", isSvc = h => SVC.includes(h.kind), isFood = h => !isSvc(h);
 const hutLayer = L.layerGroup();
 function drawHuts(){
-  hutLayer.clearLayers();
+  hutLayer.clearLayers(); M3.sync("huts");
   const A = S.area; if(!A || !(S.hutsOn || S.svcOn) || map.getZoom() < 13){ hutLayer.remove(); return; }
   hutLayer.addTo(map);
   const b = map.getBounds().pad(.15), z = map.getZoom();
@@ -2326,7 +2373,7 @@ function hutPopup(h){
       <button type="button" class="${h.kind === "o" ? "" : "primary"}" data-a="to" style="grid-column:1/-1">${I("flag")}${isSvc(h) ? "Route hierheen" : "Hierheen"}</button>
       ${isSvc(h) ? "" : `<button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>`}
     </div>`;
-  const pop = L.popup({maxWidth:280, className:"pop-wrap"}).setLatLng([h.lat, h.lon]).setContent(div).openOn(map);
+  const pop = openPop([h.lat, h.lon], div, {maxWidth:280, className:"pop-wrap"});
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
     else{
@@ -2336,7 +2383,7 @@ function hutPopup(h){
       w.splice(w.length - 1, 0, {k:"n", n:h.node}); S.wps = w; S.planBy = null;
       if(!computePath()){ S.wps = []; toast("Deze plek is niet in je route te passen met jouw niveau."); update(); return; }
     }
-    map.closePopup(pop); update(); fitRoute();
+    pop.remove(); update(); fitRoute();
     toast(b.dataset.a === "to" ? `Route naar ${h.name || k[0].toLowerCase()}.` : `${h.name || k[0]} toegevoegd als tussenstop.`);
   });
 }
@@ -2496,7 +2543,8 @@ $("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.valu
 // een punt in het midden van het zichtbare deel van de kaart zetten (niet achter het paneel)
 function showAt(ll, zoom){
   const z = zoom ?? map.getZoom(), sh = $("sheet");
-  if(POV.on){ map.setView(ll, z, {animate:true}); return; }   // in de 3D-weergave is het midden van de kaart jouw plek
+  if(POV.mode === "gl") return;                                   // de 3D-kaart volgt je zelf (M3.navCam)
+  if(POV.on){ map.setView(ll, z, {animate:true}); return; }   // gekantelde platte kaart: het midden van de kaart is jouw plek
   let dx = 0, dy = 0;
   if(LAND_MQ.matches || isSide()) dx = (sh.offsetWidth + 16) / 2;
   else if(!sh.classList.contains("open")) dy = -(sheetPeek()) / 2;
@@ -2967,7 +3015,7 @@ document.querySelectorAll("#langSeg button").forEach(b => {
 
 // ================= start =================
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
-applyBase(); update(); setPeek();
+applyBase(); update(); setPeek(); $("threeBtn").hidden = !M3.supported;
 (async () => {
   try{ const r = await fetch(`data/index.json?${DATA_V}`); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
   catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
@@ -2987,6 +3035,6 @@ applyBase(); update(); setPeek();
     else toast("Vul je naam in en tik op Meedoen.", 3500);
   } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
-  diaryLive(); drawTrack();
+  diaryLive(); drawTrack(); apply3d();
   if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }
 })();
