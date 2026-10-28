@@ -6,8 +6,9 @@
 // De gewone (Leaflet-)kaart blijft eronder bestaan; daar gebeurt de planning, deze kaart laat hetzelfde in 3D zien.
 const M3 = (() => {
   const LIB = "vendor/maplibre/maplibre-gl.js?v=5.24.0", CSS = "vendor/maplibre/maplibre-gl.css?v=5.24.0";
-  // hoogtetegels via een eigen protocol, zodat we foute pixels eruit kunnen halen (zie despike)
-  const DEM = "skidem://elevation-tiles-prod/terrarium/{z}/{x}/{y}.png", DEM_HOST = "https://s3.amazonaws.com/";
+  const DEM = "skidem://{z}/{x}/{y}", WINTER = "skiwinter://{z}/{x}/{y}";
+  const LABELS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  const ROADS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}";
   const DEM_ATTR = 'Hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Mapzen Terrain Tiles</a>';
   const EMPTY = {type:"FeatureCollection", features:[]}, EXAG = 1.3;
   const HANDLERS = ["dragPan", "dragRotate", "scrollZoom", "touchZoomRotate", "doubleClickZoom", "keyboard", "touchPitch", "boxZoom"];
@@ -32,9 +33,15 @@ const M3 = (() => {
 
   // dezelfde ondergrond als de platte kaart (satelliet, terrein of kaart), ook als die in config.js is aangepast
   function baseTiles(){
+    if(S.base === "winter") return {tiles:[WINTER], maxzoom:18, attribution:baseLayers.winter.options.attribution};
     const b = baseLayers[S.base], o = b.options, url = b._url.replace("{r}", "");
     const subs = typeof o.subdomains === "string" ? o.subdomains.split("") : (o.subdomains || []);
     return {tiles:url.includes("{s}") ? subs.map(s => url.replace("{s}", s)) : [url], maxzoom:o.maxNativeZoom ?? o.maxZoom ?? 18, attribution:o.attribution || ""};
+  }
+  // welke extra lagen bij welke ondergrond: wegen en plaatsnamen op satelliet en winter, reliëfschaduw op terrein en kaart
+  function vis(id){
+    const on = id === "shade" ? S.base === "topo" || S.base === "osm" : id === "roads" ? S.base === "winter" : (S.base === "sat" || S.base === "winter") && S.labels;
+    return on ? "visible" : "none";
   }
   function style(){
     const bt = baseTiles(), line = {"line-cap":"round", "line-join":"round"};
@@ -42,7 +49,8 @@ const M3 = (() => {
     return {
       version:8,
       sources:{
-        base:{type:"raster", tiles:bt.tiles, tileSize:256, maxzoom:bt.maxzoom, attribution:bt.attribution},
+        base:{type:"raster", tiles:bt.tiles, tileSize:256, maxzoom:18, attribution:bt.attribution},
+        labels:{type:"raster", tiles:[LABELS], tileSize:256, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:256, maxzoom:18},
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
@@ -52,7 +60,9 @@ const M3 = (() => {
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
         {id:"base", type:"raster", source:"base", paint:{"raster-fade-duration":150}},
         // reliëfschaduw alleen op terrein- en gewone kaart; een satellietfoto heeft zelf al schaduw
-        {id:"shade", type:"hillshade", source:"shade", layout:{visibility:S.base === "sat" ? "none" : "visible"}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
+        {id:"roads", type:"raster", source:"roads", layout:{visibility:vis("roads")}, paint:{"raster-opacity":.8}},
+        {id:"labels", type:"raster", source:"labels", layout:{visibility:vis("labels")}},
+        {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
         {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3, 7), "line-opacity":.6}},
         {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4)}},
         {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4), "line-dasharray":[2, 1.4]}},
@@ -96,45 +106,13 @@ const M3 = (() => {
     if(A && S.target) f.push({type:"Feature", properties:{k:"t"}, geometry:{type:"MultiLineString", coordinates:S.target.edges.map(i => A.edges[i].pts.map(ll))}});
     return {type:"FeatureCollection", features:f};
   }
-  // ---------- hoogtetegels opschonen ----------
-  // De AWS-tegels hebben op lage zoom losse foute pixels (honderden meters te hoog of te laag); die gaven rare pieken die
-  // verdwenen als je inzoomde. Een pixel dat ver afwijkt van zijn buren krijgt de mediaan van die buren; onder zee = 0 m.
-  const cv = document.createElement("canvas"), cx = cv.getContext("2d", {willReadFrequently:true});
-  async function bitmap(src){
-    try{ return await createImageBitmap(src, {premultiplyAlpha:"none", colorSpaceConversion:"none"}); }catch(e){ return createImageBitmap(src); }
-  }
-  async function demLoad(params, abort){
-    const url = params.url.replace("skidem://", DEM_HOST), z = +url.split("/").slice(-3)[0];
-    const res = await fetch(url, {signal:abort.signal});
-    if(!res.ok) throw new Error(`hoogtetegel ${res.status}`);
-    const bmp = await bitmap(await res.blob()), W = bmp.width, H = bmp.height;
-    if(cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
-    cx.clearRect(0, 0, W, H); cx.drawImage(bmp, 0, 0); bmp.close?.();
-    const img = cx.getImageData(0, 0, W, H);
-    return {data:despike(img, z) ? await bitmap(img) : await bitmap(cv)};
-  }
-  function despike(img, z){
-    const d = img.data, W = img.width, H = img.height, h = new Float32Array(W * H);
-    for(let i = 0; i < W * H; i++) h[i] = d[4*i] * 256 + d[4*i+1] + d[4*i+2] / 256 - 32768;
-    const T = z <= 9 ? 350 : z <= 11 ? 220 : 150, nb = new Float32Array(8);
-    let fixed = 0;
-    for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
-      const i = y * W + x, v = h[i];
-      let n = 0, sum = 0;
-      for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++){
-        if(!dx && !dy) continue;
-        const yy = Math.min(H - 1, Math.max(0, y + dy)), xx = Math.min(W - 1, Math.max(0, x + dx)), q = h[yy * W + xx];
-        nb[n++] = q; sum += q;
-      }
-      if(v >= 0 && Math.abs(v - sum / 8) <= T) continue;
-      const m = nb.sort()[4];                                  // mediaan van de buren (de 8 zijn net gesorteerd)
-      const out = Math.max(0, Math.abs(v - m) > T ? m : v);
-      if(out === v) continue;
-      const e = out + 32768, r = Math.floor(e / 256), g = Math.floor(e) % 256, b = Math.floor((e - Math.floor(e)) * 256);
-      d[4*i] = r; d[4*i+1] = g; d[4*i+2] = b; fixed++;
-    }
-    return fixed > 0;
-  }
+  // ---------- eigen tegels ----------
+  // skidem://   hoogtetegels, opgeschoond (zonder pieken) door terrain.js
+  // skiwinter:// de winterkaart, ook getekend door terrain.js; beide in een worker, zodat de kaart niet hapert
+  const tileFrom = kind => async params => {
+    const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url);
+    return {data:await PPterrain.get(kind, +m[1], +m[2], +m[3])};
+  };
 
   // ---------- pistenummers en hutten als plaatjes ----------
   const FONT = getComputedStyle(document.documentElement).getPropertyValue("--f-display").trim() || "system-ui, sans-serif";
@@ -188,7 +166,7 @@ const M3 = (() => {
   function flush(){
     flushT = null;
     if(!gl || !styled) return;
-    if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); gl.setLayoutProperty("shade", "visibility", S.base === "sat" ? "none" : "visible"); }
+    if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id)); }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); }
     if(dirty.has("route")) gl.getSource("route").setData(routeData());
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
@@ -205,7 +183,7 @@ const M3 = (() => {
   function create(center, zoom){
     const el = document.createElement("div"); el.id = "map3d"; el.className = "map3d";
     $("map").after(el);
-    if(!proto){ maplibregl.addProtocol("skidem", demLoad); proto = true; }
+    if(!proto){ maplibregl.addProtocol("skidem", tileFrom("dem")); maplibregl.addProtocol("skiwinter", tileFrom("winter")); proto = true; }
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
       pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false});

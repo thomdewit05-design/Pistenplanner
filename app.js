@@ -62,8 +62,19 @@ const baseLayers = {
   topo: tiles("topo", "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
         {maxZoom:19, maxNativeZoom:17, subdomains:"abc", crossOrigin:true, attribution:"Kaart © OpenTopoMap (CC-BY-SA), © OpenStreetMap"}),
   osm: tiles("osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {maxZoom:19, crossOrigin:true, attribution:"© OpenStreetMap-bijdragers"})
+        {maxZoom:19, crossOrigin:true, attribution:"© OpenStreetMap-bijdragers"}),
+  // winterkaart: door de app zelf getekend uit hoogtegegevens (terrain.js), met wegen en plaatsnamen van Esri erover
+  winter:new (L.GridLayer.extend({
+    createTile(c, done){
+      const t = document.createElement("canvas"), r = devicePixelRatio > 1.5 ? 2 : 1;   // scherp op een retinascherm
+      t.width = t.height = 256 * r;
+      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+      return t;
+    }
+  }))({maxZoom:19, maxNativeZoom:16, keepBuffer:3, attribution:'Winterkaart van Skipilot · hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen Terrain Tiles</a> · wegen en namen: Esri'})
 };
+const roadsLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+        {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.8});
 const labelLayer = tiles("labels", "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.95});
 const canvas = L.canvas({padding:.4, tolerance:6});
@@ -79,7 +90,8 @@ let meMarker = null, meCircle = null;
 function applyBase(){
   Object.entries(baseLayers).forEach(([k, l]) => k===S.base ? l.addTo(map) : l.remove());
   baseLayers[S.base].bringToBack();
-  (S.base==="sat" && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
+  ((S.base==="sat" || S.base==="winter") && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
+  S.base==="winter" ? roadsLayer.addTo(map) : roadsLayer.remove();
   S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;
