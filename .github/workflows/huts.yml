@@ -1,9 +1,11 @@
-# Haalt elke maand de hutten en restaurants rond alle skigebieden op (OpenStreetMap) en zet ze in data/h*.json.
+# Haalt elke maand de hutten, restaurants en voorzieningen rond alle skigebieden op (OpenStreetMap) en zet ze in data/h*.json.
+# Elk kaartbestand is een aparte taak met een tijdslimiet; wat binnen de tijd lukt wordt opgeslagen, de rest volgt de volgende keer.
 # Draait ook zodra het script of dit bestand verandert, en met de hand via Actions > Hutten bijwerken > Run workflow.
 name: Hutten bijwerken
 on:
   schedule:
     - cron: "17 3 1 * *"
+    - cron: "17 3 15 * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -14,16 +16,50 @@ concurrency:
   group: huts
   cancel-in-progress: false
 jobs:
-  huts:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    outputs:
+      shards: ${{ steps.s.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: s
+        run: echo "shards=$(python3 -c 'import json; print(json.dumps(sorted({r[8] for r in json.load(open("data/index.json"))})))')" >> "$GITHUB_OUTPUT"
+
+  shard:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Hutten ophalen
-        run: python tools/update_huts.py
+        run: python tools/update_huts.py --shard ${{ matrix.shard }} --budget 75
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: huts-${{ matrix.shard }}
+          path: data/h*.json
+          if-no-files-found: ignore
+          retention-days: 3
+
+  commit:
+    needs: shard
+    if: always() && needs.shard.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: huts-*
+          path: data
+          merge-multiple: true
       - name: Opslaan als er iets veranderd is
         run: |
           git config user.name "github-actions[bot]"
@@ -31,5 +67,5 @@ jobs:
           git add data/h*.json
           if git diff --cached --quiet; then echo "niets veranderd"; exit 0; fi
           git commit -m "Hutten en restaurants bijgewerkt"
-          git pull --rebase
-          git push
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 10; done
+          exit 1
