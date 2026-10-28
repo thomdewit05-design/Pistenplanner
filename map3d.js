@@ -6,12 +6,16 @@
 // De gewone (Leaflet-)kaart blijft eronder bestaan; daar gebeurt de planning, deze kaart laat hetzelfde in 3D zien.
 const M3 = (() => {
   const LIB = "vendor/maplibre/maplibre-gl.js?v=5.24.0", CSS = "vendor/maplibre/maplibre-gl.css?v=5.24.0";
-  const DEM = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+  const DEM = "skidem://{z}/{x}/{y}", WINTER = "skiwinter://{z}/{x}/{y}";
+  const LABELS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  const ROADS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}";
   const DEM_ATTR = 'Hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Mapzen Terrain Tiles</a>';
   const EMPTY = {type:"FeatureCollection", features:[]}, EXAG = 1.3;
   const HANDLERS = ["dragPan", "dragRotate", "scrollZoom", "touchZoomRotate", "doubleClickZoom", "keyboard", "touchPitch", "boxZoom"];
   let gl = null, mode = null, loading = null, failed = false, styled = false, dirty = new Set(), flushT = null;
-  let me = null, numMarks = [], hutMarks = [], pop = null;
+  let me = null, pop = null, proto = false;
+  const SCALE = 2;   // plaatjes voor pistenummers en hutten op dubbele resolutie
+  const HUT_COL = {h:"#7A2E0E", r:"#8A4B12", f:"#8A4B12", c:"#6B3FA0", b:"#6B3FA0", p:"#1F5FCC", v:"#0F7A6B", d:"#4A5A6E", s:"#C2410C", o:"#15803D"};
 
   const supported = (() => {
     try{ const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); }catch(e){ return false; }
@@ -29,9 +33,15 @@ const M3 = (() => {
 
   // dezelfde ondergrond als de platte kaart (satelliet, terrein of kaart), ook als die in config.js is aangepast
   function baseTiles(){
+    if(S.base === "winter") return {tiles:[WINTER], maxzoom:18, attribution:baseLayers.winter.options.attribution};
     const b = baseLayers[S.base], o = b.options, url = b._url.replace("{r}", "");
     const subs = typeof o.subdomains === "string" ? o.subdomains.split("") : (o.subdomains || []);
     return {tiles:url.includes("{s}") ? subs.map(s => url.replace("{s}", s)) : [url], maxzoom:o.maxNativeZoom ?? o.maxZoom ?? 18, attribution:o.attribution || ""};
+  }
+  // welke extra lagen bij welke ondergrond: wegen en plaatsnamen op satelliet en winter, reliëfschaduw op terrein en kaart
+  function vis(id){
+    const on = id === "shade" ? S.base === "topo" || S.base === "osm" : id === "roads" ? S.base === "winter" : (S.base === "sat" || S.base === "winter") && S.labels;
+    return on ? "visible" : "none";
   }
   function style(){
     const bt = baseTiles(), line = {"line-cap":"round", "line-join":"round"};
@@ -39,15 +49,20 @@ const M3 = (() => {
     return {
       version:8,
       sources:{
-        base:{type:"raster", tiles:bt.tiles, tileSize:256, maxzoom:bt.maxzoom, attribution:bt.attribution},
+        base:{type:"raster", tiles:bt.tiles, tileSize:256, maxzoom:18, attribution:bt.attribution},
+        labels:{type:"raster", tiles:[LABELS], tileSize:256, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:256, maxzoom:18},
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
+        // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
-        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}
+        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}
       },
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
         {id:"base", type:"raster", source:"base", paint:{"raster-fade-duration":150}},
-        {id:"shade", type:"hillshade", source:"shade", paint:{"hillshade-exaggeration":S.base === "sat" ? .12 : .4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
+        // reliëfschaduw alleen op terrein- en gewone kaart; een satellietfoto heeft zelf al schaduw
+        {id:"roads", type:"raster", source:"roads", layout:{visibility:vis("roads")}, paint:{"raster-opacity":.8}},
+        {id:"labels", type:"raster", source:"labels", layout:{visibility:vis("labels")}},
+        {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
         {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3, 7), "line-opacity":.6}},
         {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4)}},
         {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4), "line-dasharray":[2, 1.4]}},
@@ -59,7 +74,11 @@ const M3 = (() => {
         {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(7, 14), "line-opacity":.45}},
         {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#FFC400", "line-width":w(4, 8.5)}},
         {id:"route-core", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(1.2, 2.5), "line-dasharray":[.2, 3]}},
-        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#fff", "line-width":w(1.5, 3), "line-dasharray":[3, 2.5]}}
+        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#fff", "line-width":w(1.5, 3), "line-dasharray":[3, 2.5]}},
+        // pistenummers en hutten als plaatjes in de kaart zelf (veel lichter dan losse HTML-knopjes die elk beeld opnieuw geplaatst worden)
+        {id:"nums", type:"symbol", source:"nums", minzoom:12.5, layout:{"icon-image":["get", "img"], "icon-padding":1}},
+        {id:"huts", type:"symbol", source:"huts", minzoom:12, filter:["!=", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":["interpolate", ["linear"], ["zoom"], 12, .75, 15, 1]}},
+        {id:"bus", type:"symbol", source:"huts", minzoom:13.5, filter:["==", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":.85}}
       ],
       sky:{"sky-color":"#4F86C6", "horizon-color":"#D7E6F3", "fog-color":"#E8EFF5", "sky-horizon-blend":.55, "horizon-fog-blend":.55, "fog-ground-blend":.2,
            "atmosphere-blend":["interpolate", ["linear"], ["zoom"], 0, 1, 10, 1, 12, 0]},
@@ -87,38 +106,70 @@ const M3 = (() => {
     if(A && S.target) f.push({type:"Feature", properties:{k:"t"}, geometry:{type:"MultiLineString", coordinates:S.target.edges.map(i => A.edges[i].pts.map(ll))}});
     return {type:"FeatureCollection", features:f};
   }
-  // pistenummers en hutten als losse knopjes (zoals op de platte kaart); ze staan op de juiste hoogte en verdwijnen achter bergen
-  function drawNums(){
-    numMarks.forEach(m => m.remove()); numMarks = [];
-    if(!S.area || !S.nums || !S.pistes) return;
-    for(const {e, at} of numLabels){
-      const el = document.createElement("span"); el.className = `pnum ${e.diff}`; el.style.background = DIFF[e.diff].col; el.textContent = e.ref;
-      numMarks.push(new maplibregl.Marker({element:el}).setLngLat(ll(at)).addTo(gl));
-    }
+  // ---------- eigen tegels ----------
+  // skidem://   hoogtetegels, opgeschoond (zonder pieken) door terrain.js
+  // skiwinter:// de winterkaart, ook getekend door terrain.js; beide in een worker, zodat de kaart niet hapert
+  const tileFrom = kind => async params => {
+    const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url);
+    return {data:await PPterrain.get(kind, +m[1], +m[2], +m[3])};
+  };
+
+  // ---------- pistenummers en hutten als plaatjes ----------
+  const FONT = getComputedStyle(document.documentElement).getPropertyValue("--f-display").trim() || "system-ui, sans-serif";
+  function numImage(ref, diff){
+    const id = `num-${diff}-${ref}`;
+    if(gl.hasImage(id)) return id;
+    const c = document.createElement("canvas"), x = c.getContext("2d"), f = `800 ${12 * SCALE}px ${FONT}`;
+    x.font = f;
+    const w = Math.max(22, Math.ceil(x.measureText(ref).width / SCALE) + 10), hgt = 18;
+    c.width = (w + 4) * SCALE; c.height = (hgt + 4) * SCALE;
+    x.scale(SCALE, SCALE); x.font = f.replace(`${12 * SCALE}px`, "12px");
+    x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 3; x.shadowOffsetY = 1;
+    x.fillStyle = DIFF[diff]?.col || "#555"; x.beginPath(); x.roundRect ? x.roundRect(2, 2, w, hgt, 5) : x.rect(2, 2, w, hgt); x.fill();
+    x.shadowColor = "transparent"; x.lineWidth = 1.5; x.strokeStyle = "#fff"; x.stroke();
+    x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(ref, 2 + w / 2, 2 + hgt / 2 + .5);
+    gl.addImage(id, x.getImageData(0, 0, c.width, c.height), {pixelRatio:SCALE});
+    return id;
   }
-  function drawHutMarks(){
-    hutMarks.forEach(m => m.remove()); hutMarks = [];
-    const A = S.area; if(!A?.huts) return;
-    for(const h of A.huts){
-      if(isSvc(h) ? !S.svcOn : !S.hutsOn) continue;
-      const k = HUT_KIND[h.kind] || HUT_KIND.r, el = document.createElement("div");
-      el.className = `hut hut-${h.kind}`; el.innerHTML = I(k[1]); el.title = h.name || k[0];
-      el.addEventListener("click", ev => { ev.stopPropagation(); if(mode === "view") hutPopup(h); });
-      hutMarks.push(new maplibregl.Marker({element:el}).setLngLat([h.lon, h.lat]).addTo(gl));
-    }
+  const hutWait = {};
+  // het hut-icoon zoals op de platte kaart: wit rondje met gekleurde rand en het symbool uit index.html
+  function hutImage(kind){
+    const id = `hut-${kind}`;
+    if(gl.hasImage(id) || hutWait[id]) return id;
+    const k = HUT_KIND[kind] || HUT_KIND.r, col = HUT_COL[kind] || HUT_COL.r, bus = kind === "o", ink = bus ? "#fff" : col;
+    const sym = document.getElementById("i-" + k[1]), vb = sym?.getAttribute("viewBox") || "0 0 24 24";
+    const inner = (sym?.innerHTML || "").replace(/class="fill"/g, `fill="${ink}" stroke="none"`);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${30 * SCALE}" height="${30 * SCALE}" viewBox="0 0 30 30">
+      <circle cx="15" cy="15.6" r="13" fill="rgba(0,0,0,.28)"/><circle cx="15" cy="15" r="12" fill="${bus ? col : "#fff"}" stroke="${bus ? "#fff" : col}" stroke-width="2"/>
+      <svg x="8" y="8" width="14" height="14" viewBox="${vb}" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg></svg>`;
+    const im = new Image();
+    hutWait[id] = true;
+    // klaar: toevoegen en de hutten opnieuw neerzetten (al opgebouwde tegels pakken een later plaatje anders niet op)
+    im.onload = () => { delete hutWait[id]; if(gl && !gl.hasImage(id)){ gl.addImage(id, im, {pixelRatio:SCALE}); sync("huts"); } };
+    im.onerror = () => { delete hutWait[id]; };
+    im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    return id;
   }
-  function zoomClass(){
-    if(!gl) return;
-    const z = gl.getZoom(), c = gl.getContainer().classList;
-    c.toggle("m3-nums", z >= 13); c.toggle("m3-huts", z >= 12); c.toggle("m3-bus", z >= 13.5);
+  function numsData(){
+    if(!S.area || !S.nums || !S.pistes) return EMPTY;
+    return {type:"FeatureCollection", features:numLabels.map(({e, at}) => ({type:"Feature", properties:{img:numImage(e.ref, e.diff)}, geometry:{type:"Point", coordinates:ll(at)}}))};
+  }
+  function hutsData(){
+    const A = S.area; if(!A?.huts) return EMPTY;
+    const f = [];
+    A.huts.forEach((h, j) => {
+      if(isSvc(h) ? !S.svcOn : !S.hutsOn) return;
+      f.push({type:"Feature", properties:{j, kind:h.kind, img:hutImage(h.kind)}, geometry:{type:"Point", coordinates:[h.lon, h.lat]}});
+    });
+    return {type:"FeatureCollection", features:f};
   }
   function flush(){
     flushT = null;
     if(!gl || !styled) return;
-    if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); gl.setPaintProperty("shade", "hillshade-exaggeration", S.base === "sat" ? .12 : .4); }
-    if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); drawNums(); }
+    if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id)); }
+    if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); }
     if(dirty.has("route")) gl.getSource("route").setData(routeData());
-    if(dirty.has("huts")) drawHutMarks();
+    if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     dirty.clear();
   }
   // wat er op de platte kaart veranderd is: "pistes", "route", "huts" of "base"
@@ -132,14 +183,16 @@ const M3 = (() => {
   function create(center, zoom){
     const el = document.createElement("div"); el.id = "map3d"; el.className = "map3d";
     $("map").after(el);
+    if(!proto){ maplibregl.addProtocol("skidem", tileFrom("dem")); maplibregl.addProtocol("skiwinter", tileFrom("winter")); proto = true; }
+    // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
-      attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false});
+      pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false});
     styled = false;
     gl.on("load", () => {
-      styled = true; dirty = new Set(["pistes", "route", "huts"]); flush(); zoomClass();
+      styled = true; dirty = new Set(["pistes", "route", "huts"]); flush(); ovCheck();
       el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
-    gl.on("zoomend", zoomClass);
+    gl.on("moveend", ovCheck);
     gl.on("error", ev => { if(String(ev?.error?.message || "").includes("WebGL")) failGl(); });
     gl.on("click", onClick);
   }
@@ -170,6 +223,7 @@ const M3 = (() => {
       me?.getElement().classList.remove("m3-hide");
       if(was === "nav"){ const v = fromLeaflet(); gl.easeTo({...v, pitch:58, padding:{top:0, bottom:0, left:0, right:0}, duration:800}); }
     } else me?.getElement().classList.add("m3-hide");
+    ovCheck();
     gl.resize();
     return true;
   }
@@ -177,11 +231,29 @@ const M3 = (() => {
     if(!gl){ mode = null; return; }
     // terug naar de platte kaart op dezelfde plek
     if(mode === "view" && !failed){ const c = gl.getCenter(); map.setView([c.lat, c.lng], Math.round(gl.getZoom() + 1), {animate:false}); }
-    numMarks = []; hutMarks = []; me = null; pop = null; cam = null;
+    me = null; pop = null; cam = null; $("ovBtn").hidden = true;
     try{ gl.remove(); }catch(e){}
     $("map3d")?.remove();
     gl = null; mode = null; styled = false;
     document.body.classList.remove("m3-on");
+  }
+
+  // ---------- overzicht ----------
+  // hoe de camera staat als je het hele skigebied ziet (noorden boven)
+  function ovCam(){
+    const b = S.area?.bounds; if(!b || !gl) return null;
+    const side = isSide(), pad = {top:90, left:side ? 440 : 24, right:80, bottom:(side ? 0 : sheetPeek()) + 24};
+    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:pad, bearing:0}); }catch(e){ return null; }
+  }
+  // knop Overzicht alleen als je flink ingezoomd bent (of het gebied uit beeld is)
+  function ovCheck(){
+    const btn = $("ovBtn"); if(!gl || mode !== "view"){ btn.hidden = true; return; }
+    const c = ovCam(), b = S.area?.bounds, ctr = gl.getCenter();
+    btn.hidden = !c || !(gl.getZoom() > c.zoom + 1 || !b.pad(1).contains([ctr.lat, ctr.lng]));
+  }
+  function overview(){
+    const c = ovCam(); if(!c) return;
+    gl.easeTo({center:c.center, zoom:c.zoom - .3, bearing:0, pitch:50, duration:1400});
   }
 
   // ---------- volgen ----------
@@ -225,6 +297,8 @@ const M3 = (() => {
   function onClick(ev){
     if(mode !== "view") return;
     const p = ev.point, box = [[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]];
+    const hut = gl.queryRenderedFeatures([[p.x - 6, p.y - 6], [p.x + 6, p.y + 6]], {layers:["huts", "bus"]})[0];
+    if(hut && S.area?.huts[hut.properties.j]) return hutPopup(S.area.huts[hut.properties.j]);
     const hit = gl.queryRenderedFeatures(box, {layers:["run", "run-route", "lift", "drag", "closed"].filter(id => gl.getLayer(id))})[0];
     const mpp = 40075016.686 * Math.cos(ev.lngLat.lat * Math.PI / 180) / (512 * 2 ** gl.getZoom());   // meters per pixel in het midden
     window.pick3d?.(ev.lngLat.lat, ev.lngLat.lng, hit ? hit.properties.i : null, mpp);
@@ -235,6 +309,6 @@ const M3 = (() => {
     return pop;
   }
 
-  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup,
+  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview,
           get mode(){ return mode; }, get failed(){ return failed; }, get gl(){ return gl; }};
 })();

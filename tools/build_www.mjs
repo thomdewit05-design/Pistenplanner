@@ -2,7 +2,7 @@
 // Gebruik: node tools/build_www.mjs (vanuit de projectmap), daarna npx cap sync ios. Of in één keer: npm run ios.
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-const FILES = ["index.html", "app.css", "app.js", "i18n.js", "config.js", "ads.js", "map3d.js", "privacy.html", "voorwaarden.html"];
+const FILES = ["index.html", "app.css", "app.js", "i18n.js", "config.js", "ads.js", "map3d.js", "terrain.js", "privacy.html", "voorwaarden.html"];
 const DIRS = ["icons", "vendor", "data"];
 
 rmSync("www", { recursive: true, force: true });
