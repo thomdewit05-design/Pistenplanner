@@ -23,13 +23,13 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, svcOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -2126,15 +2126,20 @@ function bindProfile(){
 }
 
 // ================= hutten en restaurants =================
-const HUT_KIND = {h:["Berghut","hut"], r:["Restaurant","food"], c:["Café","cup"], b:["Bar","glass"], f:["Snackbar","food"]};
+const HUT_KIND = {h:["Berghut","hut"], r:["Restaurant","food"], c:["Café","cup"], b:["Bar","glass"], f:["Snackbar","food"],
+  // voorzieningen in en rond het skigebied
+  p:["Skipaskassa","ticket"], v:["Skiverhuur","ski"], d:["Skidepot","locker"], s:["Skischool","school"], o:["Bushalte","bus"]};
+const SVC = "pvdso", isSvc = h => SVC.includes(h.kind), isFood = h => !isSvc(h);
 const hutLayer = L.layerGroup();
 function drawHuts(){
   hutLayer.clearLayers();
-  const A = S.area; if(!A || !S.hutsOn || map.getZoom() < 13){ hutLayer.remove(); return; }
+  const A = S.area; if(!A || !(S.hutsOn || S.svcOn) || map.getZoom() < 13){ hutLayer.remove(); return; }
   hutLayer.addTo(map);
-  const b = map.getBounds().pad(.15);
+  const b = map.getBounds().pad(.15), z = map.getZoom();
   for(const h of A.huts){
     if(!b.contains([h.lat, h.lon])) continue;
+    if(isSvc(h) ? !S.svcOn : !S.hutsOn) continue;
+    if(h.kind === "o" && z < 14) continue;   // bushaltes pas van dichtbij, anders wordt de kaart te vol
     const k = HUT_KIND[h.kind] || HUT_KIND.r;
     const m = L.marker([h.lat, h.lon], {keyboard:false, zIndexOffset:300, title:h.name || k[0],
       icon:L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,13], html:`<div class="hut hut-${h.kind}">${I(k[1])}</div>`})});
@@ -2145,10 +2150,17 @@ function drawHuts(){
 function hutPopup(h){
   const k = HUT_KIND[h.kind] || HUT_KIND.r, A = S.area, ele = A.nodes[h.node]?.ele;
   const div = document.createElement("div"); div.className = "pop";
-  div.innerHTML = `<div class="pop-head"><span class="hut big hut-${h.kind}">${I(k[1])}</span><div><b>${esc(h.name || k[0])}</b><small>${k[0]}${ele != null ? ` · ca. ${ele} m` : ""}</small></div></div>
+  // vertrektijden van een bushalte: Apple Kaarten op een iPhone, anders Google Maps (beide tonen de vertrektijden van de halte)
+  const ios = window.PP_STORE === "ios" || /iPhone|iPad/.test(navigator.userAgent);
+  const times = ios ? `https://maps.apple.com/?q=${encodeURIComponent(h.name || "Bushalte")}&ll=${h.lat},${h.lon}`
+                    : `https://www.google.com/maps/search/?api=1&query=${h.lat},${h.lon}`;
+  const web = h.web ? `<a href="${esc(h.web)}" target="_blank" rel="noopener" style="grid-column:1/-1">${I("link")}Website</a>` : "";
+  div.innerHTML = `<div class="pop-head"><span class="hut big hut-${h.kind}">${I(k[1])}</span><div><b>${esc(h.name || k[0])}</b><small>${k[0]}${ele != null && !isSvc(h) ? ` · ca. ${ele} m` : ""}</small></div></div>
     <div class="pop-btns">
-      <button type="button" class="primary" data-a="to">${I("flag")}Hierheen</button>
-      <button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>
+      ${h.kind === "o" ? `<a href="${times}" target="_blank" rel="noopener" class="primary" style="grid-column:1/-1">${I("clock")}Vertrektijden</a>` : ""}
+      ${web}
+      <button type="button" class="${h.kind === "o" ? "" : "primary"}" data-a="to" style="grid-column:1/-1">${I("flag")}${isSvc(h) ? "Route hierheen" : "Hierheen"}</button>
+      ${isSvc(h) ? "" : `<button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>`}
     </div>`;
   const pop = L.popup({maxWidth:280, className:"pop-wrap"}).setLatLng([h.lat, h.lon]).setContent(div).openOn(map);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
@@ -2171,7 +2183,7 @@ map.on("zoomend", () => { if(S.area && !$("layerMenu").hidden) renderHutInfo(); 
 // Lukt dat niet, dan live van OpenStreetMap (Overpass); die servers zijn vaak druk, dus een paar keer opnieuw proberen.
 // Het resultaat blijft 30 dagen op de telefoon, zodat het daarna ook zonder bereik werkt.
 const HUT_TTL = 30*864e5, HUT_RETRY = [5e3, 20e3, 60e3, 180e3];
-const hutKey = A => `pp-huts:${DATA_V}:${A.id}`;
+const hutKey = A => `pp-huts2:${DATA_V}:${A.id}`;   // 2: met voorzieningen en websites
 async function loadHuts(force){
   const A = S.area; if(!A) return;
   let cached = null; try{ cached = JSON.parse(localStorage.getItem(hutKey(A)) || "null"); }catch(e){}
@@ -2183,7 +2195,7 @@ async function loadHuts(force){
     // de iOS-app draagt zijn eigen bestanden mee; de verse hutten staan op de website
     const base = window.PP_STORE === "ios" ? (window.PP_CONFIG?.site || "") : "";
     const r = await fetch(`${base}data/h${String(A.row[8]).padStart(3, "0")}.json?${DATA_V}`);
-    if(r.ok){ const j = await r.json(); if(j[A.id]) list = j[A.id].map(([lon, lat, kind, name]) => ({lon, lat, kind, name})); }
+    if(r.ok){ const j = await r.json(); if(j[A.id]) list = j[A.id].map(([lon, lat, kind, name, web]) => ({lon, lat, kind, name, web})); }
   }catch(e){}
   if(!list) list = await overpassHuts(A);
   if(S.area !== A) return;
@@ -2202,7 +2214,8 @@ const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.k
 async function overpassHuts(A){
   const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
   const bb = `${(Math.min(...lats) - .004).toFixed(4)},${(Math.min(...lons) - .006).toFixed(4)},${(Math.max(...lats) + .004).toFixed(4)},${(Math.max(...lons) + .006).toFixed(4)}`;
-  const q = `[out:json][timeout:60];(nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten)$"](${bb});nwr["tourism"="alpine_hut"](${bb}););out center tags;`;
+  const q = `[out:json][timeout:60];(nwr["amenity"~"^(restaurant|cafe|bar|pub|fast_food|biergarten|ski_rental|ski_school|locker|luggage_locker|ski_storage)$"](${bb});nwr["tourism"="alpine_hut"](${bb});`
+    + `nwr["shop"~"^(ticket|ski)$"](${bb});nwr["office"="ski_school"](${bb});nwr["shop"="sports"]["rental"~"ski"](${bb});node["highway"="bus_stop"](${bb}););out center tags;`;
   for(const url of OVERPASS){
     try{
       const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 65000);
@@ -2212,31 +2225,46 @@ async function overpassHuts(A){
       const j = await r.json();
       if(/error|timed out/i.test(j.remark || "")) continue;    // server liep vast: dit is geen echt (leeg) antwoord
       return (j.elements || []).map(el => {
-        const t = el.tags || {}, c = el.center || el;
-        return {lon:c.lon, lat:c.lat, name:t.name || "", kind:t.tourism === "alpine_hut" ? "h" : ({restaurant:"r", cafe:"c", bar:"b", pub:"b", biergarten:"b", fast_food:"f"})[t.amenity] || "r"};
-      }).filter(x => x.lat != null);
+        const t = el.tags || {}, c = el.center || el, kind = osmKind(t);
+        const web = (t.website || t["contact:website"] || t.url || "").split(";")[0].trim();
+        return kind && {lon:c.lon, lat:c.lat, name:t.name || "", kind, web:/^https?:\/\//.test(web) ? web.slice(0, 200) : ""};
+      }).filter(x => x && x.lat != null);
     }catch(e){}
   }
+  return null;
+}
+// zelfde indeling als tools/update_huts.py
+function osmKind(t){
+  if(t.tourism === "alpine_hut") return "h";
+  const a = t.amenity || "", shop = t.shop || "";
+  const food = {restaurant:"r", cafe:"c", bar:"b", pub:"b", biergarten:"b", fast_food:"f"}[a]; if(food) return food;
+  if(shop === "ticket") return "p";
+  if(a === "ski_school" || t.office === "ski_school") return "s";
+  if(a === "ski_rental" || shop === "ski" || (t.rental || "").includes("ski")) return "v";
+  if(["locker", "luggage_locker", "ski_storage"].includes(a)) return "d";
+  if(t.highway === "bus_stop") return "o";
   return null;
 }
 function processHuts(A, list){
   const out = [];
   for(const c of list){
-    // alleen plekken bij een piste of lift (hooguit 120 m), gekoppeld aan het dichtstbijzijnde knooppunt
+    // eten en drinken alleen bij een piste of lift (hooguit 120 m); voorzieningen mogen in het dorp ernaast liggen (tot 600 m)
+    const svc = SVC.includes(c.kind), max = svc ? 600 : 120;
     const p = [c.lat, c.lon]; let near = Infinity;
     for(const e of A.edges){ if(e.t === "w") continue; for(let k = 0; k < e.pts.length-1 && near > 30; k++) near = Math.min(near, segDist(p, e.pts[k], e.pts[k+1]).d); if(near <= 30) break; }
-    if(near > 120) continue;
-    const nn = nearestNode(c.lat, c.lon); if(nn.d > 400) continue;
-    out.push([+c.lon.toFixed(5), +c.lat.toFixed(5), c.kind, (c.name || "").slice(0, 60), nn.n]);
+    if(near > max) continue;
+    const nn = nearestNode(c.lat, c.lon); if(nn.d > (svc ? 1200 : 400)) continue;
+    out.push([+c.lon.toFixed(5), +c.lat.toFixed(5), c.kind, (c.name || "").slice(0, 60), nn.n, c.web || ""]);
   }
   return out;
 }
 // hoe staat het met de hutten in dit gebied: tonen in het lagenmenu
 function hutState(A, st){ A.hutState = st; if(S.area === A) renderHutInfo(); }
 function renderHutInfo(){
+  renderSvcInfo();
   const el = $("hutInfo"), A = S.area; if(!el) return;
   if(!A || !S.hutsOn){ el.hidden = true; return; }
-  const n = (A.huts || []).length, st = A.hutState;
+  const n = (A.huts || []).filter(isFood).length, st = A.hutState;
   el.hidden = false;
   el.innerHTML = st === "loading" ? `<span>Hutten en restaurants laden…</span>`
     : st === "error" ? `<span>Ophalen lukte niet; de dienst is even druk.</span> <button type="button" class="linkbtn" id="hutRetry">Opnieuw proberen</button>`
@@ -2246,13 +2274,29 @@ function renderHutInfo(){
   $("hutRetry")?.addEventListener("click", () => { A.hutTry = 0; loadHuts(true); });
 }
 window.addEventListener("online", () => { const A = S.area; if(A && (A.hutState === "error" || A.hutState === "offline")) loadHuts(); });
+// voorzieningen per soort, met een knop die de kaart erop laat inzoomen
+function renderSvcInfo(){
+  const el = $("svcInfo"), A = S.area; if(!el) return;
+  if(!A || !S.svcOn || A.hutState !== "ok"){ el.hidden = true; return; }
+  const by = {}; for(const h of A.huts || []) if(isSvc(h)) (by[h.kind] ||= []).push(h);
+  el.hidden = false;
+  el.innerHTML = [...SVC].filter(k => by[k]).map(k => `<button type="button" data-k="${k}"><span class="hut hut-${k}">${I(HUT_KIND[k][1])}</span>${HUT_KIND[k][0]} <b>${by[k].length}</b></button>`).join("")
+    || `<p>Geen skipaskassa's, verhuur, skischolen of bushaltes bekend bij dit gebied.</p>`;
+  el.querySelectorAll("button").forEach(b => b.onclick = () => {
+    const list = by[b.dataset.k]; $("layerMenu").hidden = true;
+    map.fitBounds(L.latLngBounds(list.map(h => [h.lat, h.lon])).pad(.3), {...sheetPad(), maxZoom:b.dataset.k === "o" ? 15 : 16});
+    if(list.length === 1) setTimeout(() => hutPopup(list[0]), 400);
+  });
+}
+$("showSvc").checked = S.svcOn;
+$("showSvc").onchange = e => { S.svcOn = e.target.checked; save(); drawHuts(); renderHutInfo(); };
 function setHuts(A, list){
   A.hutState = "ok";
-  A.huts = list.filter(x => A.nodes[x[4]]).map(x => ({lon:x[0], lat:x[1], kind:x[2], name:x[3], node:x[4]}));
+  A.huts = list.filter(x => A.nodes[x[4]]).map(x => ({lon:x[0], lat:x[1], kind:x[2], name:x[3], node:x[4], web:x[5] || ""}));
   if(S.area === A) renderHutInfo();
   // namen ook in de zoeklijst voor de bestemming
   const extra = [];
-  for(const hh of A.huts){ if(!hh.name) continue; const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!A.names.has(lab)){ A.names.set(lab, hh.node); extra.push(lab); } }
+  for(const hh of A.huts){ if(!hh.name || hh.kind === "o") continue; const lab = `${HUT_KIND[hh.kind]?.[0] || "Restaurant"}: ${hh.name}`; if(!A.names.has(lab)){ A.names.set(lab, hh.node); extra.push(lab); } }
   if(extra.length) $("places").insertAdjacentHTML("beforeend", extra.map(x => `<option value="${esc(tr(x))}"></option>`).join(""));
   if(S.area === A) drawHuts();
 }
@@ -2431,7 +2475,7 @@ function lunchForm(){
   $("lfCancel").onclick = () => update();
 }
 function planLunch(at, dur){
-  const A = S.area, huts = (A.huts || []).filter(h => A.nodes[h.node]);
+  const A = S.area, huts = (A.huts || []).filter(h => A.nodes[h.node] && isFood(h));
   S.lunchPref = {at, dur};
   if(!S.path || !S.path.length){ toast("Kies eerst een route, dan zoekt de app een plek voor de lunch."); return; }
   if(!huts.length){ toast("In dit gebied zijn nog geen hutten of restaurants bekend. Open het gebied met internet en probeer het opnieuw.", 4000); return; }
@@ -2708,7 +2752,7 @@ document.querySelectorAll("[data-clear]").forEach(b => b.onclick = async () => {
   const drop = pre => { try{ for(let i = localStorage.length - 1; i >= 0; i--){ const k = localStorage.key(i); if(k?.startsWith(pre)) localStorage.removeItem(k); } }catch(e){} };
   if(what === "routes"){ drop("pp-routes:"); toast("Je bewaarde routes zijn gewist."); }
   if(what === "diary"){ if(D.rec) stopRec(); drop("pp-day:"); D.day = null; D.view = null; drawTrack(); diaryLive(); toast("Je skidagboek is gewist."); }
-  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts:"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
+  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
   if(what === "all"){
     try{ localStorage.clear(); }catch(e){}
     try{ for(const k of await caches.keys()) await caches.delete(k); }catch(e){}
