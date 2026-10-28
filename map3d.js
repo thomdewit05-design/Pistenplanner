@@ -53,10 +53,16 @@ const M3 = (() => {
   const mx = lon => (lon + 180) / 360, my = lat => { const s = Math.sin(lat * Math.PI / 180); return .5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
   const mz = (alt, lat) => alt / (CIRC * Math.cos(lat * Math.PI / 180));
   // de kabels en masten als lijnstukken [x, y, z] (ten opzichte van het midden van het gebied) per lift
+  // Zoals een echte kabelbaan: masten van gelijke hoogte, neergezet waar de kabel anders te dicht bij de grond komt
+  // (op bulten en kammen), met lange vrije overspanningen boven dalen. Tussen twee masten hangt de kabel in een boog.
+  // Per soort: masthoogte, vrije ruimte onder de kabel en de langste overspanning (in meters, vóór de overdrijving).
+  const LIFT_SHAPE = {chair_lift:{h:11, clr:6, span:260}, gondola:{h:17, clr:9, span:480}, mixed_lift:{h:17, clr:9, span:480},
+    cable_car:{h:32, clr:18, span:1800}};
   function buildCables(){
     const A = S.area; if(!A || !S.pistes) return [];
     const c = A.bounds.getCenter(); cableOrigin = [mx(c.lng), my(c.lat)];
     const ground = (lat, lon, fb) => { const t = gl.queryTerrainElevation([lon, lat]); return t != null && t > 0 ? t : fb * EXAG; };
+    const P = (p, z) => [mx(p[1]) - cableOrigin[0], my(p[0]) - cableOrigin[1], mz(z, p[0])];
     const out = [];
     for(const e of A.edges){
       if(!aerial(e)) continue;
@@ -64,26 +70,54 @@ const M3 = (() => {
       let total = 0; const seg = [0];
       for(let k = 1; k < pts.length; k++){ total += meters(...pts[k-1], ...pts[k]); seg.push(total); }
       if(total < 20) continue;
-      const n = Math.max(2, Math.min(80, Math.ceil(total / 25))), up = 18 * EXAG;
-      // punt op afstand d langs de lift
+      const shape = LIFT_SHAPE[e.kind] || LIFT_SHAPE.chair_lift;
+      const H = shape.h * EXAG, clr = shape.clr * EXAG;
+      // punt op afstand d langs de lift, en het terrein daar (om de ±10 m)
       const at = d => { let k = 1; while(k < seg.length - 1 && seg[k] < d) k++; const f = seg[k] > seg[k-1] ? (d - seg[k-1]) / (seg[k] - seg[k-1]) : 0;
         return [pts[k-1][0] + (pts[k][0] - pts[k-1][0]) * f, pts[k-1][1] + (pts[k][1] - pts[k-1][1]) * f]; };
-      const samples = [];
-      for(let i = 0; i <= n; i++){ const t = i / n, p = at(t * total); samples.push({t, p, g:ground(p[0], p[1], eA + (eB - eA) * t)}); }
-      const hA = samples[0].g + up, hB = samples[n].g + up, sag = Math.min(25, total * .025) * EXAG;
-      // tussen twee meetpunten kan de grond hoger liggen: per punt de hoogste grond van de buren nemen
-      samples.forEach((q, i) => { q.top = Math.max(q.g, samples[i-1]?.g ?? q.g, samples[i+1]?.g ?? q.g); });
-      const line = samples.map(q => { const z = Math.max(hA + (hB - hA) * q.t - 4 * sag * q.t * (1 - q.t), q.top + 14 * EXAG);
-        return {xyz:[mx(q.p[1]) - cableOrigin[0], my(q.p[0]) - cableOrigin[1], mz(z, q.p[0])], q}; });
-      const pylons = [];
-      for(let d = 180; d < total - 60; d += 180){
-        const i = Math.round(d / total * n), L = line[i];
-        pylons.push([[L.xyz[0], L.xyz[1], mz(L.q.g, L.q.p[0])], L.xyz]);
+      const n = Math.max(4, Math.min(400, Math.ceil(total / 10)));
+      const smp = [];
+      for(let i = 0; i <= n; i++){ const d = i / n * total, p = at(d); smp.push({d, p, g:ground(p[0], p[1], eA + (eB - eA) * i / n)}); }
+      const maxStep = Math.max(1, Math.round(shape.span / (total / n)));
+      // hoeveel doorhang kan de overspanning i..j hebben zonder te dicht bij de grond te komen (< 0: kan niet)
+      const sagFor = (i, j) => {
+        const zi = smp[i].g + H, zj = smp[j].g + H; let room = Infinity;
+        for(let k = i + 1; k < j; k++){
+          const t = (smp[k].d - smp[i].d) / (smp[j].d - smp[i].d), free = zi + (zj - zi) * t - (smp[k].g + clr);
+          if(free < 0) return -1;
+          room = Math.min(room, free / (4 * t * (1 - t)));
+        }
+        return Math.min(room, (smp[j].d - smp[i].d) * .03 * EXAG);
+      };
+      // masten: steeds de verste plek waar de kabel nog vrij hangt
+      const towers = [0];
+      for(let i = 0; i < n;){
+        let best = i + 1;
+        for(let j = i + 1; j <= Math.min(n, i + maxStep); j++) if(sagFor(i, j) >= 0) best = j;
+        towers.push(best); i = best;
       }
-      // stations: korte paal van de grond tot de kabel
-      pylons.push([[line[0].xyz[0], line[0].xyz[1], mz(samples[0].g, samples[0].p[0])], line[0].xyz]);
-      pylons.push([[line[n].xyz[0], line[n].xyz[1], mz(samples[n].g, samples[n].p[0])], line[n].xyz]);
-      out.push({i:e.i, closed:S.closed.has(e.i), line:line.map(x => x.xyz), pylons});
+      // de kabel: per overspanning een boog (parabool), om de ±10 m een punt
+      const line = [];
+      for(let s = 1; s < towers.length; s++){
+        const i = towers[s-1], j = towers[s], sag = Math.max(0, sagFor(i, j)), zi = smp[i].g + H, zj = smp[j].g + H;
+        for(let k = i; k <= j; k++){
+          if(s > 1 && k === i) continue;
+          const t = (smp[k].d - smp[i].d) / (smp[j].d - smp[i].d);
+          line.push(P(smp[k].p, zi + (zj - zi) * t - 4 * sag * t * (1 - t)));
+        }
+      }
+      // masten met een dwarsbalk (loodrecht op de kabel); bij de stations een paal
+      const pylons = [], bar = 3.5;
+      towers.forEach((k, idx) => {
+        const q = smp[k], top = P(q.p, q.g + H), foot = P(q.p, q.g);
+        pylons.push([foot, top]);
+        if(idx === 0 || idx === towers.length - 1) return;
+        const a = smp[Math.max(0, k - 1)].p, b = smp[Math.min(n, k + 1)].p, ky = Math.cos(q.p[0] * Math.PI / 180);
+        const dx = (b[1] - a[1]) * ky, dy = b[0] - a[0], L = Math.hypot(dx, dy) || 1;
+        const off = [dx / L * bar / 111320, -dy / L * bar / 111320 / ky];      // loodrecht op de kabel, in graden: [lat, lon]
+        pylons.push([P([q.p[0] + off[0], q.p[1] + off[1]], q.g + H), P([q.p[0] - off[0], q.p[1] - off[1]], q.g + H)]);
+      });
+      out.push({i:e.i, closed:S.closed.has(e.i), line, pylons});
     }
     return out;
   }
@@ -95,16 +129,18 @@ const M3 = (() => {
       for(const [p, o, flip, side] of [[a, b, 1, -1], [a, b, 1, 1], [b, a, -1, -1], [b, a, -1, -1], [a, b, 1, 1], [b, a, -1, 1]])
         v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
     };
-    const white = [1, 1, 1, .9], dark = [.08, .13, .17, 1], grey = [.6, .65, .7, 1], pole = [.25, .3, .36, 1];
+    const soft = [1, 1, 1, .6], dark = [.08, .13, .17, 1], grey = [.6, .65, .7, 1], pole = [.2, .24, .3, 1];
     const navy = [.06, .11, .16, .55], gold = [1, .77, 0, 1];
     // liften op je route: net als de route op de grond geel met een donkere rand, maar dan langs de kabel
     const onRoute = new Set((S.path || []).filter(x => aerial(x.e)).map(x => x.e.i));
     let half = 0;
     for(const pass of [0, 1]){ if(pass) half = v.length / FLOATS; for(const c of geo){
       const r = onRoute.has(c.i);
-      for(const [a, b] of c.pylons) quad(a, b, pass ? 1.6 : 3.4, pass ? pole : white);
+      // masten: dunne donkere palen zonder witte rand (die maakte er vreemde pilaren van)
+      if(pass) for(const [a, b] of c.pylons) quad(a, b, 1.7, pole);
+      // kabel: slank, met een zachte witte rand zodat hij op sneeuw en satelliet zichtbaar blijft
       for(let k = 1; k < c.line.length; k++)
-        quad(c.line[k-1], c.line[k], r ? (pass ? 7.5 : 12) : (pass ? 2.2 : 5), r ? (pass ? gold : navy) : pass ? (c.closed ? grey : dark) : white);
+        quad(c.line[k-1], c.line[k], r ? (pass ? 7.5 : 12) : (pass ? 1.8 : 3.6), r ? (pass ? gold : navy) : pass ? (c.closed ? grey : dark) : soft);
     } }
     const out = new Float32Array(v); out.half = half; return out;
   }
