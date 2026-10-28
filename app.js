@@ -648,6 +648,7 @@ function update(){
   renderResult();
   renderClosed();
   updateNav();
+  navLive();
   M3.sync("route");
   if(S.draw) renderDrawBar();
   if($("myRoutes").open) renderRoutes();
@@ -1182,6 +1183,61 @@ $("threeBtn").onclick = () => { S.t3d = !S.t3d; save(); apply3d(); };
 $("ovBtn").onclick = () => M3.overview();
 map.on("moveend", () => M3.followLeaflet());
 
+// ================= iPhone: navigatie op het toegangsscherm en Siri =================
+// Bij het starten van de navigatie gaan de stappen naar NavPlugin.swift; die houdt ook met de telefoon op slot
+// de volgende afslag bij op het toegangsscherm en in het Dynamic Island (Live Activity).
+const navNative = (m, o = {}) => {
+  const cap = window.Capacitor;
+  if(window.PP_STORE !== "ios" || !cap?.nativePromise) return Promise.resolve(null);
+  return cap.nativePromise("Nav", m, o).catch(() => null);
+};
+const SF_ICON = {straight:"arrow.up", right:"arrow.turn.up.right", left:"arrow.turn.up.left", sright:"arrow.up.right", sleft:"arrow.up.left",
+  lift:"cablecar", walk:"figure.walk", flag:"flag.checkered", ski:"figure.skiing.downhill"};
+let liveSig = null;
+function navLive(){
+  if(!S.follow || !S.steps.length){ if(liveSig){ liveSig = null; navNative("stop"); } return; }
+  if(liveSig === S.sig) return;    // dezelfde route: de plug-in rekent zelf verder
+  liveSig = S.sig;
+  const steps = S.steps.map((s, i) => {
+    const nx = S.steps[i+1];
+    return {line:s.line.map(p => [+p[0].toFixed(6), +p[1].toFixed(6)]), title:tr(s.title), min:s.min, len:s.len,
+      next:nx ? uc(tr(nx.say)) : tr("Je bent er bijna"), icon:SF_ICON[nx ? nx.icon : "flag"] || "arrow.up",
+      badge:s.t === "r" ? s.e.ref || "" : "", color:s.t === "r" ? s.color : "#14202B"};
+  });
+  navNative("start", {steps, dest:tr(S.to != null ? nodeLabel(S.to) : ""), lang:LANG});
+}
+
+// Siri-opdrachten (Shortcuts.swift): de app wordt geopend en vraagt hier welke opdracht er klaarstaat
+let actionBusy = false;
+async function pollAction(){
+  if(actionBusy) return;
+  const a = (await navNative("pending"))?.action;
+  if(a) runAction(a);
+}
+async function runAction(a){
+  if(a === "stop"){ if(S.follow) toggleFollow(); return; }
+  if(!S.area){ toast("Open eerst een skigebied."); return; }
+  actionBusy = true;
+  try{
+    if(!startWatch()) return;
+    for(let i = 0; i < 40 && !S.pos; i++) await new Promise(r => setTimeout(r, 500));   // hooguit 20 s op de GPS wachten
+    if(!S.pos){ toast("Locatie niet gevonden. Probeer het buiten opnieuw.", 3500); return; }
+    S.fromMe = true;
+    if(a === "valley") toValley(false);
+    else if(a === "home") goHome();
+    else if(a === "hut"){
+      const from = nearestNode(S.pos.lat, S.pos.lon).n, reach = reachFrom(from);
+      const h = (S.area.huts || []).filter(x => isFood(x) && reach[x.node] < Infinity && x.node !== from).sort((x, y) => reach[x.node] - reach[y.node])[0];
+      if(!h){ toast("Geen hut gevonden die je vanaf hier kunt bereiken."); return; }
+      S.from = from; S.to = h.node; S.via = null; S.target = null; S.wps = []; S.planBy = null; S.pick = "from";
+      update(); fitRoute(); toast(`Naar ${h.name || "de dichtstbijzijnde hut"}.`, 3000);
+    }
+    if(S.path?.length && !S.follow) toggleFollow();
+  } finally { actionBusy = false; }
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") pollAction(); });
+addEventListener("ppaction", pollAction);
+
 $("locBtn").onclick = () => {
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
   if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
@@ -1393,6 +1449,21 @@ const AVALANCHE = {NO:["https://varsom.no/en/avalanche-bulletins/","Varsom lawin
   FR:["https://meteofrance.com/meteo-montagne","Météo-France bergweer"], IT:["https://bollettini.aineva.it/","AINEVA lawinebulletin"],
   DE:["https://www.lawinenwarndienst.bayern.de/","Lawinenwarndienst Bayern"], SI:["https://meteo.arso.gov.si/met/sl/avalanche/","ARSO lawinebulletin"],
   LI:["https://www.slf.ch/de/lawinenbulletin-und-schneesituation/","SLF lawinebulletin"]};
+// waar een regio een eigen lawinedienst heeft: direct naar het juiste bericht
+const AVALANCHE_REGION = {"AT|Tyrol":["https://avalanche.report","Lawinenwarndienst Tirol (avalanche.report)"],
+  "IT|Bolzano/Bozen":["https://avalanche.report","Lawinenwarndienst Südtirol (avalanche.report)"], "IT|Trento":["https://avalanche.report","Meteotrentino valanghe (avalanche.report)"],
+  "AT|Salzburg":["https://lawine.salzburg.at","Lawinenwarndienst Salzburg"]};
+// de Europese gevarenschaal (EAWS), zodat je het lawinebericht kunt lezen
+const AV_LEVELS = [["Gering", "Over het algemeen stabiel. Lawines vooral op extreem steile hellingen bij grote extra belasting.", "#CCFF66"],
+  ["Matig", "Op sommige steile hellingen matig stabiel. Let op de genoemde hellingen en hoogtes.", "#FFFF00"],
+  ["Aanzienlijk", "Op veel steile hellingen zwak. Lawines al mogelijk door één skiër. Hier gebeuren de meeste ongelukken.", "#FF9900"],
+  ["Groot", "Op de meeste steile hellingen zwak. Spontane lawines waarschijnlijk. Blijf op open, beveiligde pistes.", "#FF0000"],
+  ["Zeer groot", "Zeer instabiel. Veel grote spontane lawines, ook op matig steile hellingen.", "#7A0000"]];
+function avScale(){
+  return `<details class="av-scale"><summary>${I("warn")}Wat betekent het lawinegevaar?</summary><ol>${AV_LEVELS.map(([n, d, c], i) =>
+    `<li><span class="av-n" style="background:${c};color:${i >= 3 ? "#fff" : "#1a1a1a"}">${i + 1}</span><span><b>${n}</b><small>${d}</small></span></li>`).join("")}</ol>
+    <p class="av-note">Op beveiligde, open pistes ben je beschermd. Naast de piste niet: lees dan altijd het lawinebericht en ga nooit alleen.</p></details>`;
+}
 const wxCache = {};
 const wxStore = id => { try{ return JSON.parse(localStorage.getItem("pp-wx:" + id) || "null"); }catch(e){ return null; } };
 const deg = t => `${Math.round(t)}°`;
@@ -1431,6 +1502,11 @@ function renderWeather(d, savedAt){
     <svg class="ic chev"><use href="#i-chev"/></svg>`;
   const notes = [];
   if(c.wind_gusts_10m >= 60) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (stoten tot ${Math.round(c.wind_gusts_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
+  // poederdag en sneeuw op komst
+  const Dd = top.daily, i0 = Math.max(0, Dd.time.indexOf(c.time.slice(0, 10)));
+  const coming = Dd.snowfall_sum.slice(i0 + 1, i0 + 4).reduce((a, x) => a + (x || 0), 0);
+  if(fresh >= 15) notes.push(`<p class="notice good">${I("snow")}<span><strong>Poederdag!</strong> ${Math.round(fresh)} cm verse sneeuw in 24 uur. Vroeg erbij zijn loont: pistes in de schaduw blijven het langst poederig.</span></p>`);
+  else if(coming >= 10) notes.push(`<p class="notice info">${I("snow")}<span><strong>Sneeuw op komst:</strong> de komende drie dagen ongeveer ${Math.round(coming)} cm.</span></p>`);
   if(c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Slecht zicht op de top</strong> (${c.visibility < 200 ? "minder dan 200 m" : Math.round(c.visibility/100)*100 + " m"}). Blijf op gemarkeerde pistes.</span></p>`);
   const D = top.daily, today = c.time.slice(0, 10), start = Math.max(0, D.time.indexOf(today));
   const days = D.time.slice(start, start + 4).map((t, k) => {
@@ -1440,7 +1516,7 @@ function renderWeather(d, savedAt){
     return `<div class="wx-day" title="${dt}"><b>${name}</b><svg class="ic"><use href="#i-${di}"/></svg>
       <span class="t">${deg(D.temperature_2m_max[i])} <i>${deg(D.temperature_2m_min[i])}</i></span><span class="sn">${sn >= 0.5 ? `${Math.round(sn)} cm` : ""}</span></div>`;
   }).join("");
-  const av = AVALANCHE[r[2]];
+  const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]];
   const vis = c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".", DEC)} km` : `${Math.round(c.visibility/10)*10} m`;
   $("wxBody").innerHTML = (notes.length ? `<div style="padding:0 14px">${notes.join("")}</div>` : "") + `
     <div class="wx-grid">
@@ -1453,9 +1529,55 @@ function renderWeather(d, savedAt){
     </div>
     <div class="wx-days">${days}</div>
     <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
-      ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>`;
-  $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top`;
+      ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>
+    ${avScale()}
+    <div class="best-snow" id="bestSnow"></div>`;
+  $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top${depth ? ` · ${depth} cm sneeuw` : ""}${fresh >= 5 ? ` · ${Math.round(fresh)} cm vers` : ""}`;
   computeRisk(c, fresh);
+  renderBestSnow(c, cd, fresh);
+}
+
+// ================= beste sneeuw nu =================
+// Schatting per piste uit zon en schaduw (sunShade), hoogte, temperatuur (top en dal), verse sneeuw, wind en zicht:
+// na verse sneeuw de schaduw, als het warm is hoog en in de schaduw, in het voorjaar rond de middag de zon (firn),
+// bij kou de zon, bij slecht zicht lager tussen de bomen. Alleen pistes binnen je niveau, met een naam of nummer.
+function bestSnow(c, cd, fresh){
+  const A = S.area; if(!A || S.night) return [];
+  const sun = sunShade(), hr = sun.time.m / 60, r = A.row, hi = r[10] ?? 2400, lo = r[9] ?? 1200;
+  const tAt = ele => cd.temperature_2m + (c.temperature_2m - cd.temperature_2m) * Math.max(0, Math.min(1, (ele - lo) / Math.max(1, hi - lo)));
+  const month = new Date().getMonth() + 1, spring = month >= 3 && month <= 5, groups = new Map();
+  for(const e of A.edges){
+    if(e.t !== "r" || S.closed.has(e.i) || !e.len || overLevel(e) || !(e.ref || e.name)) continue;
+    const ele = ((A.nodes[e.a].ele ?? lo) + (A.nodes[e.b].ele ?? lo)) / 2, t = tAt(ele), up = (ele - lo) / 100;
+    const lit = sun.alt > 2 && sun.v[e.i] >= SUN_MIN;
+    let sc, why;
+    if(fresh >= 8){ sc = fresh * (lit ? .7 : 1.2) + up; why = lit ? "Verse sneeuw" : "Verse sneeuw in de schaduw: blijft het langst poederig"; }
+    else if(t >= 3){ sc = -t * (lit ? 2 : 1) + up * 1.6 + (lit ? 0 : 6); why = lit ? "Zachte sneeuw" : "Hoog en in de schaduw: de sneeuw blijft stevig"; }
+    else if(spring && lit && t > -2 && hr >= 10 && hr <= 13.5){ sc = 20 + up / 2; why = "Zon op de helling: zachte voorjaarssneeuw (firn)"; }
+    else { sc = (lit ? 10 : 4) + up * .7 - (t < -12 ? 3 : 0); why = lit ? "In de zon, de sneeuw blijft koud en stroef" : "Koude, stroeve sneeuw"; }
+    if(c.visibility < 1500){ if(ele < 1900){ sc += 6; why = "Lager tussen de bomen: beter zicht"; } else sc -= 6; }
+    if((c.wind_gusts_10m || 0) >= 50) sc -= up * .8;
+    const g = groups.get(e.key) || {e, len:0, sc:0, why:{}};
+    g.len += e.len; g.sc += sc * e.len; g.why[why] = (g.why[why] || 0) + e.len; groups.set(e.key, g);
+  }
+  return [...groups.values()].filter(g => g.len >= 400)
+    .map(g => ({e:g.e, score:g.sc / g.len, reason:Object.entries(g.why).sort((a, b) => b[1] - a[1])[0][0]}))
+    .sort((a, b) => b.score - a.score).slice(0, 3);
+}
+function renderBestSnow(c, cd, fresh){
+  const box = $("bestSnow"); if(!box) return;
+  const list = bestSnow(c, cd, fresh);
+  if(!list.length){ box.innerHTML = ""; return; }
+  box.innerHTML = `<p class="label">${I("snow")}Beste sneeuw nu</p>` + list.map((g, i) =>
+    `<button type="button" class="bs-row" data-i="${i}"><span class="node${isDark(g.e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>
+      <span class="bs-txt"><b>${esc(uc(pisteLabel(g.e)))}</b><small>${g.reason}</small></span>${I("chev")}</button>`).join("")
+    + `<p class="bs-note">Schatting uit zon, hoogte, temperatuur en verse sneeuw. Tik om erheen te gaan.</p>`;
+  box.querySelectorAll(".bs-row").forEach(b => b.onclick = () => {
+    const ch = chainFrom(list[+b.dataset.i].e.i);
+    S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
+    if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
+    update(); fitRoute();
+  });
 }
 
 // ================= SOS =================
@@ -2091,6 +2213,7 @@ function diaryLive(){
   $("diaryRecPill").hidden = !D.rec; document.body.classList.toggle("recording", D.rec);
   $("diaryMini").textContent = sum && sum.n > 1 ? `Vandaag: ${kmTxt(sum.km)} km · ${hmTxt(sum.hm)} hm · ${Math.round(sum.vmax)} km/u` : D.rec ? "Opname loopt. Ga skiën!" : "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid";
   if(Date.now() - D.lastDraw > 3000){ D.lastDraw = Date.now(); drawTrack(); }
+  if(D.rec) checkBadges();
   if(!$("diary").hidden) renderDiary();
 }
 function drawTrack(){
@@ -2135,7 +2258,7 @@ function renderDiary(){
     + (sum && sum.n > 1 ? `<div class="d-actions"><button type="button" class="btn ghost" id="dShare">${I("share")}Deel mijn dag</button><button type="button" class="btn ghost" id="dGpx">${I("route")}Exporteer GPX</button></div>` : "");
   $("dShare")?.addEventListener("click", () => shareDay(day, sum));
   $("dGpx")?.addEventListener("click", () => exportGpx(day));
-  renderSeason(k);
+  renderSeason(k); renderBadges();
   $("dShow").checked = D.show; $("dAwake").checked = D.awake;
   // geschiedenis
   const days = listDays();
@@ -2189,14 +2312,146 @@ async function exportGpx(day){
   toast("GPX-bestand opgeslagen.");
 }
 
+// ================= dagkaart =================
+// Een afbeelding van je skidag in het formaat van Instagram (1080×1350): je spoor op de winterkaart, de pistes
+// eromheen en de cijfers eronder. De kaart komt van terrain.js, dus er zit geen vreemde afbeelding in (canvas blijft schoon).
+const mercX = (lon, z) => (lon + 180) / 360 * 256 * 2 ** z;
+const mercY = (lat, z) => { const s = Math.sin(lat * Math.PI / 180); return (.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * 2 ** z; };
+async function dayCard(day, sum){
+  const W = 1080, H = 1350, MH = 900, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d"), pts = day.pts.map(p => [p[1] / 1e5, p[2] / 1e5]);
+  let s = 90, n = -90, w = 180, e = -180;
+  for(const [la, lo] of pts){ s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
+  let z = 16;
+  while(z > 9 && (mercX(e, z) - mercX(w, z) > W * .78 || mercY(s, z) - mercY(n, z) > MH * .74)) z--;
+  const ox = (mercX(w, z) + mercX(e, z)) / 2 - W / 2, oy = (mercY(n, z) + mercY(s, z)) / 2 - MH / 2 + 30;
+  const P = ([la, lo]) => [mercX(lo, z) - ox, mercY(la, z) - oy];
+  x.fillStyle = "#E8EEF4"; x.fillRect(0, 0, W, H);
+  const jobs = [];
+  for(let ty = Math.floor(oy / 256); ty <= Math.floor((oy + MH) / 256); ty++)
+    for(let tx = Math.floor(ox / 256); tx <= Math.floor((ox + W) / 256); tx++)
+      jobs.push(PPterrain.get("winter", z, tx, ty, 1).then(b => { x.drawImage(b, tx * 256 - ox, ty * 256 - oy, 256, 256); b.close?.(); }, () => {}));
+  await Promise.all(jobs);
+  // pistes en liften van het gebied (als dat geladen is)
+  const A = day.area && S.area?.id === day.area ? S.area : null;
+  x.lineCap = x.lineJoin = "round";
+  if(A) for(const ed of A.edges){
+    if(ed.t === "w") continue;
+    x.beginPath(); ed.pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); });
+    x.strokeStyle = ed.t === "l" ? "rgba(20,32,43,.75)" : DIFF[ed.diff].col; x.lineWidth = ed.t === "l" ? 2.5 : 4; x.globalAlpha = .75; x.stroke(); x.globalAlpha = 1;
+  }
+  // het spoor
+  const line = () => { x.beginPath(); pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); }); };
+  line(); x.strokeStyle = "rgba(255,255,255,.9)"; x.lineWidth = 15; x.stroke();
+  line(); x.strokeStyle = "#7C3AED"; x.lineWidth = 8; x.stroke();
+  for(const [p, col] of [[pts[0], "#1F9D57"], [pts[pts.length - 1], "#D23A3A"]]){
+    const [px, py] = P(p); x.beginPath(); x.arc(px, py, 14, 0, 7); x.fillStyle = col; x.fill(); x.lineWidth = 5; x.strokeStyle = "#fff"; x.stroke();
+  }
+  // onderste deel: donker met de cijfers
+  const g = x.createLinearGradient(0, MH - 160, 0, MH); g.addColorStop(0, "rgba(15,27,42,0)"); g.addColorStop(1, "rgba(15,27,42,1)");
+  x.fillStyle = g; x.fillRect(0, MH - 160, W, 160); x.fillStyle = "#0F1B2A"; x.fillRect(0, MH, W, H - MH);
+  await document.fonts?.ready;
+  const F = getComputedStyle(document.documentElement).getPropertyValue("--f-display").trim() || "sans-serif";
+  const UI = getComputedStyle(document.documentElement).getPropertyValue("--f-ui").trim() || "sans-serif";
+  x.fillStyle = "#AFC0D3"; x.font = `600 34px ${UI}`; x.textBaseline = "alphabetic";
+  x.fillText(`${uc(niceDate(day.date))}${day.areaName ? " · " + day.areaName : ""}`.slice(0, 60), 64, MH - 30);
+  x.fillStyle = "#fff"; x.font = `800 170px ${F}`; const big = kmTxt(sum.km); x.fillText(big, 60, MH + 150);
+  const bw = x.measureText(big).width; x.font = `700 60px ${F}`; x.fillStyle = "#FFC400"; x.fillText("km", 72 + bw, MH + 150);
+  const stat = (v, label, i) => { const cx = 64 + i * 330; x.fillStyle = "#fff"; x.font = `800 64px ${F}`; x.fillText(v, cx, MH + 270);
+    x.fillStyle = "#8FA3B8"; x.font = `600 28px ${UI}`; x.fillText(tr(label).toUpperCase(), cx, MH + 310); };
+  stat(`${hmTxt(sum.hm)} m`, "omlaag", 0); stat(`${Math.round(sum.vmax)} km/u`.replace("km/u", tr("km/u")), "topsnelheid", 1); stat(String(sum.runs), "afdalingen", 2);
+  // merk
+  const logo = new Image(); logo.src = "icons/logo.svg";
+  try{ await logo.decode(); x.drawImage(logo, W - 64 - 64, H - 64 - 64, 64, 64); }catch(err){}
+  x.fillStyle = "#fff"; x.font = `800 44px ${F}`; x.textAlign = "right"; x.fillText("Skipilot", W - 64 - 80, H - 76);
+  x.fillStyle = "#8FA3B8"; x.font = `600 24px ${UI}`; x.fillText(tr("de skiroute-app"), W - 64 - 80, H - 46); x.textAlign = "left";
+  return c;
+}
+// de kaart tonen als delen niet kan (op een computer): bewaren met de knop, op een telefoon lang indrukken
+function showCard(url, name, text){
+  const m = document.createElement("div"); m.className = "card-modal";
+  m.innerHTML = `<div class="card-box"><img src="${url}" alt="${esc(tr("Dagkaart"))}"><p>${esc(tr("Houd de afbeelding ingedrukt om hem te bewaren, of gebruik de knop."))}</p>
+    <div class="card-btns"><a class="btn primary" href="${url}" download="${name}">${I("down")}${tr("Bewaren")}</a><button type="button" class="btn ghost" data-copy>${I("copy")}${tr("Tekst kopiëren")}</button><button type="button" class="btn ghost" data-close>${I("close")}${tr("Sluiten")}</button></div></div>`;
+  m.querySelector("[data-close]").onclick = () => { m.remove(); URL.revokeObjectURL(url); };
+  m.querySelector("[data-copy]").onclick = async () => { try{ await navigator.clipboard.writeText(text); toast("Tekst gekopieerd."); }catch(e){} };
+  m.onclick = ev => { if(ev.target === m) m.querySelector("[data-close]").click(); };
+  document.body.appendChild(m);
+}
 async function shareDay(day, sum){
   const lines = [`Mijn skidag in ${day.areaName || "de bergen"} (${niceDate(day.date)}):`,
     `${kmTxt(sum.km)} km geskied · ${hmTxt(sum.hm)} hoogtemeters omlaag · topsnelheid ${Math.round(sum.vmax)} km/u`,
     `${sum.runs} afdalingen · ${sum.lifts} liften`];
   if(sum.pisteList.length) lines.push("Pistes: " + sum.pisteList.slice(0, 12).map(x => x.ref || x.name).join(", "));
   const text = lines.map(tr).join("\n") + "\n\n" + tr("Bijgehouden met Skipilot");
+  // eerst als afbeelding (dagkaart), anders alleen de tekst
+  toast("Dagkaart maken…", 4000);
+  let blob = null;
+  try{ const c = await dayCard(day, sum); blob = await new Promise(r => c.toBlob(r, "image/jpeg", .9)); }catch(e){}
+  if(blob){
+    const name = `skipilot-${day.date}.jpg`, file = new File([blob], name, {type:"image/jpeg"});
+    if(navigator.canShare?.({files:[file]})){
+      try{ await navigator.share({files:[file], text}); return; }catch(e){ if(e.name === "AbortError") return; }
+    }
+    showCard(URL.createObjectURL(blob), name, text); return;
+  }
   if(navigator.share){ try{ await navigator.share({title:"Mijn skidag", text}); return; }catch(e){ return; } }
   try{ await navigator.clipboard.writeText(text); toast("Samenvatting gekopieerd."); }catch(e){ toast("Delen lukte niet."); }
+}
+// ================= prestaties =================
+// Badges uit alle bewaarde skidagen. Een nieuwe badge geeft een melding; de lijst staat in het skidagboek.
+const BADGES = [
+  {id:"first", icon:"ski", t:"Eerste skidag", d:"Je eerste skidag bijgehouden", v:a => a.days, goal:1},
+  {id:"days5", icon:"calendar", t:"Vaste gast", d:"5 skidagen", v:a => a.days, goal:5},
+  {id:"days20", icon:"calendar", t:"Seizoensheld", d:"20 skidagen", v:a => a.days, goal:20},
+  {id:"km20", icon:"ski", t:"Kilometervreter", d:"20 km op één dag", v:a => a.km, goal:20},
+  {id:"km50", icon:"ski", t:"Marathonskiër", d:"50 km op één dag", v:a => a.km, goal:50},
+  {id:"runs20", icon:"loop", t:"Nog eentje dan", d:"20 afdalingen op één dag", v:a => a.runs, goal:20},
+  {id:"hm5k", icon:"down", t:"Hoogtevrees? Nee hoor", d:"5.000 hoogtemeters omlaag op één dag", v:a => a.hm, goal:5000},
+  {id:"everest", icon:"down", t:"Everest op een dag", d:"8.848 hoogtemeters omlaag op één dag", v:a => a.hm, goal:8848},
+  {id:"hm100k", icon:"star", t:"100 km omlaag", d:"100.000 hoogtemeters in totaal", v:a => a.hmTot, goal:100000},
+  {id:"v60", icon:"speed", t:"Snelheidsduivel", d:"Topsnelheid 60 km/u", v:a => a.vmax, goal:60},
+  {id:"v80", icon:"speed", t:"Raket", d:"Topsnelheid 80 km/u", v:a => a.vmax, goal:80},
+  {id:"black", icon:"ski", t:"Zwart gezien", d:"Een zwarte piste geskied", v:a => a.blacks, goal:1},
+  {id:"black10", icon:"ski", t:"Zwarte reeks", d:"10 verschillende zwarte pistes", v:a => a.blacks, goal:10},
+  {id:"areas3", icon:"flag", t:"Ontdekker", d:"3 verschillende skigebieden", v:a => a.areas, goal:3},
+  {id:"areas10", icon:"flag", t:"Wereldreiziger", d:"10 verschillende skigebieden", v:a => a.areas, goal:10},
+  {id:"early", icon:"sun", t:"Vroege vogel", d:"Vóór 9:00 op de piste", v:a => a.early, goal:1},
+  {id:"long", icon:"clock", t:"Van open tot dicht", d:"6 uur op de berg op één dag", v:a => a.secs / 3600, goal:6}
+];
+function badgeStats(){
+  const a = {days:0, km:0, runs:0, hm:0, hmTot:0, vmax:0, secs:0, blacks:0, areas:0, early:0}, blacks = new Set(), areas = new Set();
+  for(const x of allDays()){
+    const s = x.s; a.days++;
+    a.km = Math.max(a.km, s.km); a.runs = Math.max(a.runs, s.runs); a.hm = Math.max(a.hm, s.hm); a.hmTot += s.hm;
+    a.vmax = Math.max(a.vmax, s.vmax); a.secs = Math.max(a.secs, s.secs);
+    if(x.area) areas.add(x.area);
+    for(const p of s.pisteList || []) if(p.diff === "s" || p.diff === "x") blacks.add(x.area + "|" + (p.ref || p.name));
+    if(s.from && new Date(s.from).getHours() < 9) a.early = 1;
+  }
+  a.blacks = blacks.size; a.areas = areas.size;
+  return a;
+}
+const badgeSeen = () => { try{ return new Set(JSON.parse(localStorage.getItem("pp-badges") || "[]")); }catch(e){ return new Set(); } };
+let badgeT = 0;
+function checkBadges(force){
+  if(!force && Date.now() - badgeT < 60e3) return;
+  badgeT = Date.now();
+  const a = badgeStats(), seen = badgeSeen(), got = BADGES.filter(b => b.v(a) >= b.goal).map(b => b.id);
+  const fresh = got.filter(id => !seen.has(id));
+  try{ localStorage.setItem("pp-badges", JSON.stringify(got)); }catch(e){}
+  // de eerste keer (alles wat er al was) stil opslaan, daarna elke nieuwe melden
+  let init = false; try{ init = !!localStorage.getItem("pp-badges-init"); localStorage.setItem("pp-badges-init", "1"); }catch(e){}
+  if(init && fresh.length) toast(`Nieuwe prestatie: ${tr(BADGES.find(x => x.id === fresh[fresh.length - 1]).t)}!`, 4000);
+}
+function renderBadges(){
+  const box = $("diaryBadges"); if(!box) return;
+  const days = allDays(); if(!days.length){ box.innerHTML = ""; return; }
+  const a = badgeStats(), got = BADGES.filter(b => b.v(a) >= b.goal).length;
+  box.innerHTML = `<div class="badges"><p class="label">Prestaties (${got}/${BADGES.length})</p><div class="badge-grid">${BADGES.map(b => {
+    const v = b.v(a), ok = v >= b.goal, pct = Math.min(100, Math.round(100 * v / b.goal));
+    return `<div class="badge${ok ? " ok" : ""}" title="${esc(b.d)}"><span class="b-ic">${I(b.icon)}</span><b>${b.t}</b><small>${b.d}</small>${ok ? "" : `<i class="b-bar"><i style="width:${pct}%"></i></i>`}</div>`;
+  }).join("")}</div></div>`;
 }
 function startRec(){
   if(!startWatch()) return;
@@ -2207,6 +2462,7 @@ function startRec(){
 function stopRec(){
   D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
   toast("Opname gestopt. Je dag is bewaard.");
+  setTimeout(() => checkBadges(true), 2500);
   diaryLive(); renderDiary(); window.ppAds?.native?.pause?.();
 }
 // winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
@@ -3056,6 +3312,6 @@ applyBase(); update(); setPeek(); $("threeBtn").hidden = !M3.supported;
     else toast("Vul je naam in en tik op Meedoen.", 3500);
   } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
-  diaryLive(); drawTrack(); apply3d();
+  diaryLive(); drawTrack(); apply3d(); pollAction();
   if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }
 })();
