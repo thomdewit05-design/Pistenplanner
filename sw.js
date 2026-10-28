@@ -1,7 +1,7 @@
 // Service worker: app en kaartdata offline beschikbaar, satelliettegels die je bekeken hebt ook.
-const VERSION = "v50";
+const VERSION = "v51";
 const SHELL = `shell-${VERSION}`, DATA = `data-${VERSION}`, TILES = "tiles-v1";
-const SHELL_FILES = ["./", "index.html", "app.css?v=50", "app.js?v=50", "i18n.js?v=50", "manifest.webmanifest", "config.js?v=50", "ads.js?v=50", "map3d.js?v=50", "terrain.js?v=50", "icons/winter.png", "privacy.html", "voorwaarden.html",
+const SHELL_FILES = ["./", "index.html", "app.css?v=51", "app.js?v=51", "i18n.js?v=51", "manifest.webmanifest", "config.js?v=51", "ads.js?v=51", "map3d.js?v=51", "terrain.js?v=51", "icons/winter.png", "privacy.html", "voorwaarden.html",
   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/fonts.css", "vendor/qrcode.js", "icons/logo.svg", "icons/icon-192.png", "icons/icon-512.png", "data/index.json?d4"];
 const TILE_HOSTS = ["server.arcgisonline.com", "tile.opentopomap.org", "tile.openstreetmap.org"];
 const MAX_TILES = 4000;

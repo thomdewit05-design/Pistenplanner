@@ -32,8 +32,13 @@ const M3 = (() => {
   }
 
   // dezelfde ondergrond als de platte kaart (satelliet, terrein of kaart), ook als die in config.js is aangepast
+  // Scherp op een retinascherm: MapLibre toont een tegel van 256 px op 256 schermpunten, dus op een iPhone (2-3x) wazig.
+  // Met tileSize 128 haalt hij tegels van één zoomniveau dieper; de winterkaart tekenen we zelf op 512 px.
+  const RETINA = (devicePixelRatio || 1) > 1.5, TS = RETINA ? 128 : 256;
+  const baseSource = () => { const bt = baseTiles();
+    return {type:"raster", tiles:bt.tiles, tileSize:S.base === "winter" ? 256 : TS, maxzoom:bt.maxzoom, attribution:bt.attribution}; };
   function baseTiles(){
-    if(S.base === "winter") return {tiles:[WINTER], maxzoom:18, attribution:baseLayers.winter.options.attribution};
+    if(S.base === "winter") return {tiles:[WINTER], maxzoom:17, attribution:baseLayers.winter.options.attribution};
     const b = baseLayers[S.base], o = b.options, url = b._url.replace("{r}", "");
     const subs = typeof o.subdomains === "string" ? o.subdomains.split("") : (o.subdomains || []);
     return {tiles:url.includes("{s}") ? subs.map(s => url.replace("{s}", s)) : [url], maxzoom:o.maxNativeZoom ?? o.maxZoom ?? 18, attribution:o.attribution || ""};
@@ -190,13 +195,13 @@ const M3 = (() => {
     return on ? "visible" : "none";
   }
   function style(){
-    const bt = baseTiles(), line = {"line-cap":"round", "line-join":"round"};
+    const line = {"line-cap":"round", "line-join":"round"};
     const w = (a, b) => ["interpolate", ["linear"], ["zoom"], 11, a, 16, b];
     return {
       version:8,
       sources:{
-        base:{type:"raster", tiles:bt.tiles, tileSize:256, maxzoom:18, attribution:bt.attribution},
-        labels:{type:"raster", tiles:[LABELS], tileSize:256, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:256, maxzoom:18},
+        base:baseSource(),
+        labels:{type:"raster", tiles:[LABELS], tileSize:TS, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:TS, maxzoom:18},
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
@@ -209,9 +214,9 @@ const M3 = (() => {
         {id:"roads", type:"raster", source:"roads", layout:{visibility:vis("roads")}, paint:{"raster-opacity":.8}},
         {id:"labels", type:"raster", source:"labels", layout:{visibility:vis("labels")}},
         {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
-        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3, 7), "line-opacity":.6}},
-        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4)}},
-        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(1.8, 4), "line-dasharray":[2, 1.4]}},
+        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3.6, 8), "line-opacity":.75}},
+        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6)}},
+        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6), "line-dasharray":[2, 1.4]}},
         // sleepliften, lopende banden en kabeltreinen liggen op de grond; kabelbanen hangen in de lucht (laag "cables"),
         // op de grond staat dan alleen een vage schaduw van hun spoor
         {id:"lift-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "drag"], layout:line, paint:{"line-color":"#fff", "line-width":w(2.5, 5), "line-opacity":.85}},
@@ -228,7 +233,7 @@ const M3 = (() => {
         {id:"huts", type:"symbol", source:"huts", minzoom:12, filter:["!=", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":["interpolate", ["linear"], ["zoom"], 12, .75, 15, 1]}},
         {id:"bus", type:"symbol", source:"huts", minzoom:13.5, filter:["==", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":.85}}
       ],
-      sky:{"sky-color":"#4F86C6", "horizon-color":"#D7E6F3", "fog-color":"#E8EFF5", "sky-horizon-blend":.55, "horizon-fog-blend":.5, "fog-ground-blend":.75,
+      sky:{"sky-color":"#4F86C6", "horizon-color":"#D7E6F3", "fog-color":"#E8EFF5", "sky-horizon-blend":.5, "horizon-fog-blend":.35, "fog-ground-blend":.9,
            "atmosphere-blend":["interpolate", ["linear"], ["zoom"], 0, 1, 10, 1, 12, 0]},
       terrain:{source:"dem", exaggeration:EXAG}
     };
@@ -260,7 +265,7 @@ const M3 = (() => {
   // skiwinter:// de winterkaart, ook getekend door terrain.js; beide in een worker, zodat de kaart niet hapert
   const tileFrom = kind => async (params, abort) => {
     const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url);
-    return {data:await PPterrain.get(kind, +m[1], +m[2], +m[3], 1, abort?.signal)};
+    return {data:await PPterrain.get(kind, +m[1], +m[2], +m[3], kind === "winter" && RETINA ? 2 : 1, abort?.signal)};
   };
 
   // ---------- pistenummers en hutten als plaatjes ----------
@@ -315,7 +320,13 @@ const M3 = (() => {
   function flush(){
     flushT = null;
     if(!gl || !styled) return;
-    if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id)); }
+    if(dirty.has("base")){
+      const paint = {"raster-fade-duration":150};
+      if(gl.getLayer("base")) gl.removeLayer("base");
+      if(gl.getSource("base")) gl.removeSource("base");
+      gl.addSource("base", baseSource()); gl.addLayer({id:"base", type:"raster", source:"base", paint}, "roads");
+      for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id));
+    }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("route")){ gl.getSource("route").setData(routeData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
@@ -335,7 +346,8 @@ const M3 = (() => {
     if(!proto){ maplibregl.addProtocol("skidem", tileFrom("dem")); maplibregl.addProtocol("skiwinter", tileFrom("winter")); proto = true; }
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
-      pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false});
+      pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
+      canvasContextAttributes:{antialias:true}});   // gladde randen van pistes, kabels en bergkammen
     styled = false;
     gl.on("load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd

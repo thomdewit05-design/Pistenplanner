@@ -97,7 +97,9 @@
     }
     const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + .5) / 2 ** z))) ;
     const mpp = 40075016.686 * Math.cos(lat) / (256 * r * 2 ** z);
-    const ex = z <= 10 ? 2.2 : z <= 12 ? 1.6 : 1.15;          // uitgezoomd wat meer reliëf, anders wordt het vlak
+    const ex = z <= 10 ? 2.2 : z <= 12 ? 1.6 : 1.3;           // uitgezoomd wat meer reliëf, anders wordt het vlak
+    // hoogtelijnen, zoals op een pistekaart: dichter als je verder inzoomt; elke vijfde iets donkerder
+    const ze = z + Math.log2(r), step = ze >= 15 ? 50 : ze >= 13 ? 100 : ze >= 11 ? 200 : 0;
     const out = new ImageData(S, S), o = out.data;
     for(let j = 0; j < S; j++) for(let i = 0; i < S; i++){
       const k = (j + 1) * E + i + 1, h = hh[k];
@@ -116,6 +118,13 @@
         R = mix(R, R * .82 + 20, valley); G = mix(G, G * .9 + 18, valley); B = mix(B, B * .8 + 10, valley);
         const rock = Math.max(0, Math.min(1, (slope - 38) / 14));           // steile wanden: rots
         if(rock){ R = mix(R, mix(62, 150, t), rock); G = mix(G, mix(66, 146, t), rock); B = mix(B, mix(76, 142, t), rock); }
+        if(step){
+          const band = Math.floor(h / step), bR = Math.floor(hh[k + 1] / step), bD = Math.floor(hh[k + E] / step);
+          if(band !== bR || band !== bD){
+            const big = Math.max(band, bR, bD) % 5 === 0, m = (big ? .42 : .24) * (1 - rock * .6);
+            R = mix(R, 92, m); G = mix(G, 114, m); B = mix(B, 148, m);
+          }
+        }
       }
       const p = (j * S + i) * 4; o[p] = R; o[p+1] = G; o[p+2] = B; o[p+3] = 255;
     }
