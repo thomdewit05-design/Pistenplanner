@@ -648,6 +648,7 @@ function update(){
   renderResult();
   renderClosed();
   updateNav();
+  navLive();
   M3.sync("route");
   if(S.draw) renderDrawBar();
   if($("myRoutes").open) renderRoutes();
@@ -1181,6 +1182,61 @@ function pick3d(lat, lon, edge, px){
 $("threeBtn").onclick = () => { S.t3d = !S.t3d; save(); apply3d(); };
 $("ovBtn").onclick = () => M3.overview();
 map.on("moveend", () => M3.followLeaflet());
+
+// ================= iPhone: navigatie op het toegangsscherm en Siri =================
+// Bij het starten van de navigatie gaan de stappen naar NavPlugin.swift; die houdt ook met de telefoon op slot
+// de volgende afslag bij op het toegangsscherm en in het Dynamic Island (Live Activity).
+const navNative = (m, o = {}) => {
+  const cap = window.Capacitor;
+  if(window.PP_STORE !== "ios" || !cap?.nativePromise) return Promise.resolve(null);
+  return cap.nativePromise("Nav", m, o).catch(() => null);
+};
+const SF_ICON = {straight:"arrow.up", right:"arrow.turn.up.right", left:"arrow.turn.up.left", sright:"arrow.up.right", sleft:"arrow.up.left",
+  lift:"cablecar", walk:"figure.walk", flag:"flag.checkered", ski:"figure.skiing.downhill"};
+let liveSig = null;
+function navLive(){
+  if(!S.follow || !S.steps.length){ if(liveSig){ liveSig = null; navNative("stop"); } return; }
+  if(liveSig === S.sig) return;    // dezelfde route: de plug-in rekent zelf verder
+  liveSig = S.sig;
+  const steps = S.steps.map((s, i) => {
+    const nx = S.steps[i+1];
+    return {line:s.line.map(p => [+p[0].toFixed(6), +p[1].toFixed(6)]), title:tr(s.title), min:s.min, len:s.len,
+      next:nx ? uc(tr(nx.say)) : tr("Je bent er bijna"), icon:SF_ICON[nx ? nx.icon : "flag"] || "arrow.up",
+      badge:s.t === "r" ? s.e.ref || "" : "", color:s.t === "r" ? s.color : "#14202B"};
+  });
+  navNative("start", {steps, dest:tr(S.to != null ? nodeLabel(S.to) : ""), lang:LANG});
+}
+
+// Siri-opdrachten (Shortcuts.swift): de app wordt geopend en vraagt hier welke opdracht er klaarstaat
+let actionBusy = false;
+async function pollAction(){
+  if(actionBusy) return;
+  const a = (await navNative("pending"))?.action;
+  if(a) runAction(a);
+}
+async function runAction(a){
+  if(a === "stop"){ if(S.follow) toggleFollow(); return; }
+  if(!S.area){ toast("Open eerst een skigebied."); return; }
+  actionBusy = true;
+  try{
+    if(!startWatch()) return;
+    for(let i = 0; i < 40 && !S.pos; i++) await new Promise(r => setTimeout(r, 500));   // hooguit 20 s op de GPS wachten
+    if(!S.pos){ toast("Locatie niet gevonden. Probeer het buiten opnieuw.", 3500); return; }
+    S.fromMe = true;
+    if(a === "valley") toValley(false);
+    else if(a === "home") goHome();
+    else if(a === "hut"){
+      const from = nearestNode(S.pos.lat, S.pos.lon).n, reach = reachFrom(from);
+      const h = (S.area.huts || []).filter(x => isFood(x) && reach[x.node] < Infinity && x.node !== from).sort((x, y) => reach[x.node] - reach[y.node])[0];
+      if(!h){ toast("Geen hut gevonden die je vanaf hier kunt bereiken."); return; }
+      S.from = from; S.to = h.node; S.via = null; S.target = null; S.wps = []; S.planBy = null; S.pick = "from";
+      update(); fitRoute(); toast(`Naar ${h.name || "de dichtstbijzijnde hut"}.`, 3000);
+    }
+    if(S.path?.length && !S.follow) toggleFollow();
+  } finally { actionBusy = false; }
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") pollAction(); });
+addEventListener("ppaction", pollAction);
 
 $("locBtn").onclick = () => {
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
@@ -3056,6 +3112,6 @@ applyBase(); update(); setPeek(); $("threeBtn").hidden = !M3.supported;
     else toast("Vul je naam in en tik op Meedoen.", 3500);
   } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
-  diaryLive(); drawTrack(); apply3d();
+  diaryLive(); drawTrack(); apply3d(); pollAction();
   if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }
 })();

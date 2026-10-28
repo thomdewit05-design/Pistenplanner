@@ -99,32 +99,33 @@ struct Weather: Codable {
     }
 }
 
+// alles optioneel: als Open-Meteo een veld weglaat of leeg laat, tonen we de rest gewoon
 private struct OMResponse: Decodable {
     struct Current: Decodable {
         let time: String
-        let temperature_2m: Double
-        let weather_code: Int
-        let wind_speed_10m: Double
+        let temperature_2m: Double?
+        let weather_code: Int?
+        let wind_speed_10m: Double?
         let wind_gusts_10m: Double?
         let visibility: Double?
         let freezing_level_height: Double?
         let snow_depth: Double?
     }
     struct Hourly: Decodable {
-        let time: [String]
-        let snowfall: [Double?]
+        let time: [String]?
+        let snowfall: [Double?]?
     }
     struct Daily: Decodable {
-        let time: [String]
-        let weather_code: [Int?]
-        let temperature_2m_max: [Double?]
-        let temperature_2m_min: [Double?]
-        let snowfall_sum: [Double?]
+        let time: [String]?
+        let weather_code: [Int?]?
+        let temperature_2m_max: [Double?]?
+        let temperature_2m_min: [Double?]?
+        let snowfall_sum: [Double?]?
         let sunset: [String?]?
     }
     let current: Current
-    let hourly: Hourly
-    let daily: Daily
+    let hourly: Hourly?
+    let daily: Daily?
 }
 
 enum WeatherService {
@@ -138,27 +139,31 @@ enum WeatherService {
             .init(name: "hourly", value: "snowfall"),
             .init(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,sunset")
         ]
-        guard let url = c.url, let result = try? await URLSession.shared.data(from: url) else { return cached(a) }
+        // korte time-out: een widget krijgt maar even de tijd; lukt het niet, dan het laatste bericht
+        var req = URLRequest(url: c.url!); req.timeoutInterval = 12
+        guard let result = try? await URLSession.shared.data(for: req) else { return cached(a) }
         let (data, res) = result
         guard (res as? HTTPURLResponse)?.statusCode == 200,
-              let both = try? JSONDecoder().decode([OMResponse].self, from: data), both.count == 2 else { return cached(a) }
+              let both = try? JSONDecoder().decode([OMResponse].self, from: data), both.count == 2,
+              let topTemp = both[0].current.temperature_2m else { return cached(a) }
         let top = both[0], valley = both[1]
         // verse sneeuw: de laatste 24 uur tot nu
-        let h = top.hourly
         var fresh = 0.0
-        if let now = h.time.lastIndex(where: { $0 <= top.current.time }), now < h.snowfall.count {
-            fresh = h.snowfall[max(0, now - 23)...now].reduce(0) { $0 + ($1 ?? 0) }
+        if let ht = top.hourly?.time, let sf = top.hourly?.snowfall, let now = ht.lastIndex(where: { $0 <= top.current.time }), now < sf.count {
+            fresh = sf[max(0, now - 23)...now].reduce(0) { $0 + ($1 ?? 0) }
         }
         let d = top.daily
-        let days = d.time.indices.dropFirst().map { i in   // dag 0 is gisteren
-            Weather.Day(date: d.time[i], code: d.weather_code[i] ?? 0, max: d.temperature_2m_max[i] ?? 0,
-                        min: d.temperature_2m_min[i] ?? 0, snow: d.snowfall_sum[i] ?? 0)
+        let dt = d?.time ?? []
+        func at<T>(_ arr: [T?]?, _ i: Int) -> T? { guard let arr = arr, i < arr.count else { return nil }; return arr[i] }
+        let days = dt.indices.dropFirst().map { i in   // dag 0 is gisteren
+            Weather.Day(date: dt[i], code: at(d?.weather_code, i) ?? 0, max: at(d?.temperature_2m_max, i) ?? 0,
+                        min: at(d?.temperature_2m_min, i) ?? 0, snow: at(d?.snowfall_sum, i) ?? 0)
         }
         var sunset: String? = nil
-        if let s = d.sunset, s.count > 1, let today = s[1] { sunset = String(today.suffix(5)) }
+        if let today: String = at(d?.sunset, 1) { sunset = String(today.suffix(5)) }
         let cur = top.current
-        let w = Weather(topTemp: cur.temperature_2m, valleyTemp: valley.current.temperature_2m, code: cur.weather_code,
-                        wind: cur.wind_speed_10m, gusts: cur.wind_gusts_10m, visibility: cur.visibility,
+        let w = Weather(topTemp: topTemp, valleyTemp: valley.current.temperature_2m ?? topTemp, code: cur.weather_code ?? 3,
+                        wind: cur.wind_speed_10m ?? 0, gusts: cur.wind_gusts_10m, visibility: cur.visibility,
                         freezing: cur.freezing_level_height, snowDepth: cur.snow_depth.map { $0 * 100 },
                         fresh24: fresh, sunset: sunset, days: Array(days), fetched: Date())
         if let enc = try? JSONEncoder().encode(w) { Shared.defaults?.set(enc, forKey: "wx2:\(a.id)") }
@@ -254,7 +259,7 @@ struct LineView: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: line.icon).frame(width: 14)
-            Text(line.text).lineLimit(1).minimumScaleFactor(0.75)
+            Text(line.text).lineLimit(1).minimumScaleFactor(0.65)
         }
         .font(font.weight(line.warn ? .semibold : .regular))
         .foregroundStyle(line.warn ? gold : soft)
@@ -279,7 +284,9 @@ struct AreaProvider: TimelineProvider {
 
     func getSnapshot(in context: Context, completion: @escaping (AreaEntry) -> Void) {
         guard let a: SharedArea = Shared.read("area") else { return completion(placeholder(in: context)) }
-        completion(AreaEntry(date: Date(), area: a, weather: WeatherService.cached(a)))
+        if let w = WeatherService.cached(a) { return completion(AreaEntry(date: Date(), area: a, weather: w)) }
+        if context.isPreview { return completion(AreaEntry(date: Date(), area: a, weather: Self.sampleWx)) }
+        Task { completion(AreaEntry(date: Date(), area: a, weather: await WeatherService.fetch(a))) }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<AreaEntry>) -> Void) {
@@ -291,7 +298,7 @@ struct AreaProvider: TimelineProvider {
             let w = await WeatherService.fetch(a)
             // elke 5 minuten een stand, zodat de aftelling tot de laatste lift klopt; na een half uur nieuw weer
             let entries = (0..<6).map { AreaEntry(date: now.addingTimeInterval(Double($0) * 300), area: a, weather: w) }
-            completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
+            completion(Timeline(entries: w == nil ? [entries[0]] : entries, policy: .after(now.addingTimeInterval(w == nil ? 5 * 60 : 30 * 60))))
         }
     }
 }
@@ -317,19 +324,25 @@ struct AreaView: View {
 
     func temp(_ v: Double, _ tr: Tr) -> String { "\(tr.num(v))°" }
 
+    // "18 cm vers · 85 cm": verse sneeuw en sneeuwhoogte op één regel
+    func snowLine(_ w: Weather, _ tr: Tr) -> Line {
+        var t = tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu")
+        if let s = w.snowDepth, s >= 1 { t += " · \(tr.num(s)) cm" }
+        return Line(icon: "snowflake", text: t, warn: w.fresh24 >= 1)
+    }
+
     @ViewBuilder func small(_ a: SharedArea, _ tr: Tr) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(a.name).font(.caption.weight(.bold)).lineLimit(1).foregroundStyle(.white.opacity(0.85))
+        VStack(alignment: .leading, spacing: 2) {
+            Text(a.name).font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(.white.opacity(0.85))
             if let w = entry.weather {
-                HStack(spacing: 6) {
-                    Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title2)
-                    Text(temp(w.topTemp, tr)).font(.system(size: 32, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                HStack(spacing: 5) {
+                    Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title3)
+                    Text(temp(w.topTemp, tr)).font(.system(size: 30, weight: .bold, design: .rounded)).minimumScaleFactor(0.7).foregroundStyle(.white)
                 }
                 Spacer(minLength: 0)
-                LineView(line: Info.fresh(w, tr))
-                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
-                if let al = Info.alert(w, tr) { LineView(line: al) }
-                else if let s = w.snowDepth { LineView(line: Line(icon: "mountain.2.fill", text: tr.t("\(tr.num(s)) cm sneeuw", "\(tr.num(s)) cm snow", "\(tr.num(s)) cm Schnee"), warn: false)) }
+                LineView(line: snowLine(w, tr))
+                if let al = Info.alert(w, tr), w.fresh24 < 15 { LineView(line: al) }
+                else if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
             } else {
                 Spacer(minLength: 0)
                 Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(soft)
@@ -580,5 +593,6 @@ struct SkipilotWidgets: WidgetBundle {
     var body: some Widget {
         AreaWidget()
         DayWidget()
+        NavLiveActivity()
     }
 }
