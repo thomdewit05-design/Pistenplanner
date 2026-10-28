@@ -1,7 +1,7 @@
 // Service worker: app en kaartdata offline beschikbaar, satelliettegels die je bekeken hebt ook.
-const VERSION = "v44";
+const VERSION = "v45";
 const SHELL = `shell-${VERSION}`, DATA = `data-${VERSION}`, TILES = "tiles-v1";
-const SHELL_FILES = ["./", "index.html", "app.css?v=44", "app.js?v=44", "i18n.js?v=44", "manifest.webmanifest", "config.js?v=44", "ads.js?v=44", "privacy.html", "voorwaarden.html",
+const SHELL_FILES = ["./", "index.html", "app.css?v=45", "app.js?v=45", "i18n.js?v=45", "manifest.webmanifest", "config.js?v=45", "ads.js?v=45", "map3d.js?v=45", "privacy.html", "voorwaarden.html",
   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/fonts.css", "vendor/qrcode.js", "icons/logo.svg", "icons/icon-192.png", "icons/icon-512.png", "data/index.json?d4"];
 const TILE_HOSTS = ["server.arcgisonline.com", "tile.opentopomap.org", "tile.openstreetmap.org"];
 const MAX_TILES = 4000;
@@ -34,7 +34,8 @@ async function networkFirst(req){
 self.addEventListener("fetch", e => {
   const req = e.request; if(req.method !== "GET") return;
   const url = new URL(req.url);
-  if(TILE_HOSTS.some(h => url.hostname.endsWith(h))) return e.respondWith(cacheFirst(req, TILES, true));
+  if(TILE_HOSTS.some(h => url.hostname.endsWith(h)) || (url.hostname === "s3.amazonaws.com" && url.pathname.startsWith("/elevation-tiles-prod/")))
+    return e.respondWith(cacheFirst(req, TILES, true));   // ook de hoogtegegevens van de 3D-kaart
   if(url.origin !== location.origin) return;
   if(url.pathname.includes("/data/s")) return e.respondWith(cacheFirst(req, DATA));
   if(url.pathname.includes("/vendor/") || url.pathname.includes("/icons/")) return e.respondWith(cacheFirst(req, SHELL));

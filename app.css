@@ -47,7 +47,7 @@ symbol .fill{fill:currentColor;stroke:none}
 .splash.out{opacity:0;visibility:hidden}
 
 /* ---------- kaart ---------- */
-#map{position:fixed;inset:0;background:#1d2a22}
+#map{position:fixed;inset:0;z-index:0;background:#1d2a22}
 .leaflet-container{font-family:var(--f-ui)}
 .leaflet-control-attribution{font-size:10px;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.72)!important;border-radius:6px 0 0 0}
 .leaflet-control-attribution:hover{white-space:normal}
@@ -950,3 +950,24 @@ body.picking-home .leaflet-container{cursor:crosshair}
   .nav3d .fabs,.nav3d .speedo{bottom:calc(10px + var(--safe-b))}
 }
 @media (prefers-reduced-motion:reduce){.nav3d #map{transition:none}}
+
+/* ================= 3D-kaart (bergen) ================= */
+#map3d.map3d{position:fixed;inset:0;z-index:2;background:#E6EDF3}   /* id: wint van maplibre-gl.css (position:relative) */
+.three-btn{font:800 15px/1 var(--f-display);letter-spacing:.02em}
+.three-btn.on{background:var(--accent);color:#fff;border-color:transparent}
+.m3-loading .three-btn{animation:m3pulse 1s ease-in-out infinite}
+@keyframes m3pulse{50%{opacity:.45}}
+.map3d .pnum,.map3d .hut{display:none}
+.map3d.m3-nums .pnum{display:grid}
+.map3d.m3-huts .hut{display:grid}
+.map3d.m3-huts .hut-o{display:none}
+.map3d.m3-bus .hut-o{display:grid}
+.map3d .me-dot.m3-hide{display:none}
+.map3d .maplibregl-ctrl-attrib{font-size:10.5px}
+.m3-pop .maplibregl-popup-content{padding:0;border-radius:var(--r-lg);background:var(--surface);color:var(--ink);box-shadow:var(--sh-2);overflow:hidden}
+.m3-pop .maplibregl-popup-close-button{font-size:20px;width:30px;height:30px;color:var(--muted);z-index:2}
+/* navigatie met de 3D-kaart: de platte kaart niet kantelen, de 3D-kaart staat erover */
+.nav3d.gl3d #map{transform:none;inset:0;width:auto;height:auto;left:0;top:0}
+.nav3d.gl3d .pov-sky{display:none}
+.nav3d .maplibregl-ctrl-bottom-right{bottom:calc(var(--dash-h,170px) + 70px + var(--safe-b))}
+.nav3d .maplibregl-ctrl-bottom-left{bottom:calc(var(--dash-h,170px) + 12px + var(--safe-b))}
