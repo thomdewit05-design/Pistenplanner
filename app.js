@@ -321,6 +321,7 @@ let fitW = innerWidth, fitT = null;
 addEventListener("resize", () => {
   clearTimeout(fitT);
   fitT = setTimeout(() => {
+    if(POV.on){ povApply(true); return; }
     const changed = Math.abs(innerWidth - fitW) > 80; fitW = innerWidth;
     if(!changed || !S.area || S.follow) return;
     map.invalidateSize(); fitRoute();
@@ -701,11 +702,12 @@ function renderResult(){
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
-    <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
+    <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       <button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
       ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
+  $("povBtn")?.addEventListener("click", () => setPov(true));
   $("valleyBtn").onclick = e => valleyChoice(e.currentTarget);
   $("clearBtn").onclick = clearRoute;
   $("homeBtn")?.addEventListener("click", goHome);
@@ -775,7 +777,7 @@ function renderClosed(){
 
 // ================= kaart aantikken =================
 map.on("click", ev => {
-  if(!S.area) return;
+  if(!S.area || POV.on) return;
   if(S.pickHome){ setHome(ev.latlng.lat, ev.latlng.lng, S.pickHome); return; }
   const A = S.area, p0 = map.latLngToContainerPoint(ev.latlng);
   let bn = -1, bd = Infinity; const cands = [];
@@ -878,7 +880,7 @@ function startWatch(){
 function stopWatch(){
   setTimeout(renderSpeedo, 0);
   if(S.watch != null) navigator.geolocation.clearWatch(S.watch);
-  S.watch = null; S.pos = null; S.follow = false; keepAwake(false);
+  S.watch = null; S.pos = null; S.follow = false; keepAwake(false); povApply();
   $("locBtn").classList.remove("on","follow");
   meMarker?.remove(); meCircle?.remove(); meMarker = meCircle = null;
   update();
@@ -887,6 +889,7 @@ let firstFix = true;
 async function onPos(p){
   const first = !S.pos;
   S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, alt:p.coords.altitude};
+  POV.gps = {heading:p.coords.heading, speed:p.coords.speed};
   speedOnPos(p);
   const ll = [S.pos.lat, S.pos.lon];
   if(!meMarker){
@@ -911,7 +914,7 @@ async function onPos(p){
     } else S.offCount = 0;
   }
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
-  if(S.follow) showAt(ll);
+  if(S.follow) showAt(ll, POV.on ? povZoom() : undefined);
   updateNav();
   groupOnPos();
   diaryAdd(S.pos.lat, S.pos.lon, S.pos.acc, S.pos.alt);
@@ -945,15 +948,16 @@ function navState(){
   const L = S.steps[best.i].line; let rem = (1 - best.t) * best.seg;
   for(let k = best.k + 1; k < L.length-1; k++) rem += meters(...L[k], ...L[k+1]);
   // vlak bij het eind van een stap: alvast door naar de volgende
-  if(rem < 15 && best.i < S.steps.length-1){ best.i++; rem = S.steps[best.i].len; }
+  if(rem < 15 && best.i < S.steps.length-1){ best.i++; rem = S.steps[best.i].len; best.k = 0; best.t = 0; }
   S.navIdx = best.i;
-  return {i:best.i, rem, off:best.d};
+  return {i:best.i, rem, off:best.d, k:best.k, t:best.t};
 }
 function updateNav(){
   const ban = $("navBanner");
   document.querySelectorAll("ol.steps li.current").forEach(li => li.classList.remove("current"));
   const ns = S.follow ? navState() : null;
-  if(!ns){ ban.hidden = true; return; }
+  povHeading(ns);
+  if(!ns){ ban.hidden = true; renderDash(null); return; }
   const s = S.steps[ns.i], nx = S.steps[ns.i+1];
   const frac = s.len ? Math.min(1, ns.rem / s.len) : 0;
   const left = s.min * frac + S.steps.slice(ns.i+1).reduce((t, x) => t + x.min, 0);
@@ -962,7 +966,9 @@ function updateNav(){
   $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
   const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
-  $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)} · nog ${fmt(left)} · aankomst ${arrive}</span>`;
+  // in de 3D-weergave staan tijd en aankomst onderin; bovenin dan alleen waar je nu bent
+  $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)}${POV.on ? "" : ` · nog ${fmt(left)} · aankomst ${arrive}`}</span>`;
+  renderDash(ns, left, arrive);
   // liften gaan bijna dicht
   const nowM = new Date().getHours()*60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
   const liftAhead = S.steps.slice(ns.i).some(x => x.t==="l");
@@ -980,14 +986,139 @@ function updateNav(){
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
-  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); update(); window.ppAds?.native?.pause?.(); return; }
+  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
   if(!isSide()) setSheet(false);
-  if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 16));
+  povApply();
+  if(S.pos) showAt([S.pos.lat, S.pos.lon], POV.on ? povZoom() : Math.max(map.getZoom(), 16));
   else toast("Locatie zoeken…");
   update();
 }
+// ================= navigatieweergave (3D) =================
+// Tijdens het navigeren kantelt de kaart en draait hij mee met je richting, zoals een autonavigatie; onderin staan
+// aankomst, reistijd, afstand, wat er daarna komt en de volgende hut op je route.
+// De kaart wordt daarvoor groter dan het scherm (anders zie je bij het draaien lege hoeken). Pistes worden dan zonder
+// retina-scherpte en met minder marge getekend, anders worden de canvassen te groot voor een iPhone.
+const POV = {on:false, rot:0, gps:null, z:17};
+const RETINA = L.Browser.retina;
+try{ S.pov = localStorage.getItem("pp-pov") !== "0"; }catch(e){ S.pov = true; }
+// hoe ver kantelen en hoe groot de kaart moet zijn om het scherm tot bovenin te vullen, bij elke draaiing
+function povLayout(){
+  const vh = innerHeight, y = Math.round(vh * .62), T = y, B = vh - y, W = innerWidth / 2;
+  let best = null;
+  for(let deg = 45; deg >= 15; deg -= 5){
+    const a = deg * Math.PI / 180, sn = Math.sin(a), cs = Math.cos(a), p = Math.round(Math.max(1000, 1.8 * T));
+    if(p * cs - T * sn < 100) continue;
+    const yf = T * p / (p * cs - T * sn), xf = W * (p + yf * sn) / p;      // bovenrand van het scherm, op de kaart
+    const yn = B * p / (p * cs + B * sn), xn = W * Math.max(0, p - yn * sn) / p;
+    best = {tilt:deg, p, y, size:Math.ceil(2.08 * Math.max(Math.hypot(yf, xf), Math.hypot(yn, xn)))};
+    if(best.size <= 2800) break;
+  }
+  return best;
+}
+function povApply(relayout){
+  const want = !!(S.follow && S.pov && S.area), root = document.documentElement;
+  if(want === POV.on && !(want && relayout)) return;
+  if(want !== POV.on){
+    POV.on = want; document.body.classList.toggle("nav3d", want);
+    L.Browser.retina = want ? false : RETINA;
+    for(const r of [canvas, dimR, sunR, svgR]) r.options.padding = want ? .05 : .4;
+    map.getRenderer({options:{}}).options.padding = want ? .05 : .1;   // de standaardlaag van Leaflet (o.a. de nauwkeurigheidscirkel)
+    for(const h of ["dragging", "touchZoom", "doubleClickZoom", "scrollWheelZoom", "boxZoom", "keyboard"]) map[h]?.[want ? "disable" : "enable"]();
+    map.closePopup();
+  }
+  if(want){
+    const l = povLayout();
+    root.style.setProperty("--pov-size", l.size + "px"); root.style.setProperty("--pov-y", l.y + "px");
+    root.style.setProperty("--pov-p", l.p + "px"); root.style.setProperty("--pov-tilt", l.tilt + "deg");
+    root.style.setProperty("--pov-rot", (-POV.rot).toFixed(1) + "deg");
+  } else ["--pov-size", "--pov-y", "--pov-p", "--pov-tilt", "--pov-rot"].forEach(k => root.style.removeProperty(k));
+  $("povMe").hidden = !want;
+  map.invalidateSize({pan:false});
+  if(S.pos) want ? map.setView([S.pos.lat, S.pos.lon], povZoom(), {animate:false}) : S.follow && showAt([S.pos.lat, S.pos.lon]);
+  else if(!want && S.path?.length && !S.follow) fitRoute();
+  renderDash(null); updateNav(); renderSpeedo();
+}
+function setPov(on){
+  S.pov = on; try{ localStorage.setItem("pp-pov", on ? "1" : "0"); }catch(e){}
+  if(!on && !isSide()) setSheet(false);
+  povApply(); update();
+}
+// dichterbij als je langzaam gaat, verder vooruit kijken als je hard gaat
+function povZoom(){
+  const v = typeof SPD !== "undefined" ? SPD.kmh || 0 : 0;
+  if(v > 30) POV.z = 16; else if(v < 15) POV.z = 17;
+  return POV.z;
+}
+// punt m meter verder langs de route
+function aheadOn(ns, m){
+  let i = ns.i, L = S.steps[i].line, k = Math.min(ns.k || 0, L.length - 2);
+  let p = [L[k][0] + (L[k+1][0] - L[k][0]) * (ns.t || 0), L[k][1] + (L[k+1][1] - L[k][1]) * (ns.t || 0)];
+  const from = p;
+  for(let guard = 0; guard < 5000; guard++){
+    if(k + 1 >= L.length){ if(++i >= S.steps.length) break; L = S.steps[i].line; k = 0; continue; }
+    const q = L[k+1], d = meters(...p, ...q);
+    if(d >= m){ const f = d ? m / d : 0; p = [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f]; break; }
+    m -= d; p = q; k++;
+  }
+  return [from, p];
+}
+// kijkrichting: langs de route vooruit; van de route af (of zonder route) de richting van de GPS
+function povHeading(ns){
+  if(!POV.on) return;
+  let h = null;
+  if(ns && ns.off < 40){ const [a, b] = aheadOn(ns, 40); if(meters(...a, ...b) > 5) h = bearing(a, b); }
+  const g = POV.gps;
+  if(h == null && g && g.speed > 1.5 && g.heading != null && !isNaN(g.heading)) h = g.heading;
+  if(h == null) return;
+  const d = ((h - POV.rot) % 360 + 540) % 360 - 180;
+  if(Math.abs(d) < 4) return;    // niet bij elk wiebeltje draaien
+  POV.rot += d;
+  document.documentElement.style.setProperty("--pov-rot", (-POV.rot).toFixed(1) + "deg");
+}
+// eerste plek om te eten die op de rest van je route ligt
+function hutAhead(ns){
+  const A = S.area; if(!A?.huts?.length) return null;
+  const byNode = new Map();
+  for(const h of A.huts) if(isFood(h) && h.node != null && !byNode.has(h.node)) byNode.set(h.node, h);
+  if(!byNode.size) return null;
+  let d = -(S.steps[ns.i].len - ns.rem);
+  for(let j = ns.i; j < S.steps.length; j++) for(const it of S.steps[j].items){
+    d += it.e.len;
+    if(d > 15000) return null;
+    if(d >= 0 && byNode.has(it.to)) return {h:byNode.get(it.to), d};
+  }
+  return null;
+}
+function stepBadge(st){
+  if(st.t === "l") return `<span class="nd-badge lift">${I("lift")}</span>`;
+  if(st.t === "w") return `<span class="nd-badge walk">${I("walk")}</span>`;
+  return `<span class="nd-badge${isDark(st.e.diff) ? " dark" : ""}" style="background:${st.color}">${esc(st.e.ref) || I("ski")}</span>`;
+}
+function renderDash(ns, left, arrive){
+  const dash = $("navDash");
+  dash.hidden = !POV.on;
+  if(!POV.on) return;
+  if(!ns){
+    $("ndEta").textContent = $("ndLeft").textContent = $("ndKm").textContent = "–";
+    $("ndNext").innerHTML = ""; $("ndHut").hidden = true;
+  } else {
+    const rest = ns.rem + S.steps.slice(ns.i + 1).reduce((t, x) => t + x.len, 0);
+    $("ndEta").textContent = arrive; $("ndLeft").textContent = fmt(left); $("ndKm").textContent = km(rest);
+    // wat er na de volgende aanwijzing komt (die staat al groot bovenin)
+    let at = ns.rem + (S.steps[ns.i + 1]?.len || 0);
+    const later = S.steps.slice(ns.i + 2, ns.i + 4).map(st => { const li = `<li>${stepBadge(st)}<span class="nd-t">${esc(st.title)}</span><small><span>over</span> ${km(at)}</small></li>`; at += st.len; return li; });
+    $("ndNext").innerHTML = later.length ? `<li class="nd-lbl">Daarna</li>${later.join("")}` : "";
+    const ha = hutAhead(ns), hb = $("ndHut");
+    hb.hidden = !ha;
+    if(ha){ const k = HUT_KIND[ha.h.kind] || HUT_KIND.r;
+      hb.innerHTML = `<span class="hut hut-${ha.h.kind}">${I(k[1])}</span><span class="nd-t"><small>Volgende hut op je route</small><b>${esc(ha.h.name || k[0])}</b></span><small><span>over</span> ${km(ha.d)}</small>`; }
+  }
+  document.documentElement.style.setProperty("--dash-h", dash.offsetHeight + "px");
+}
+$("ndStop").onclick = () => { if(S.follow) toggleFollow(); };
+$("ndFlat").onclick = () => setPov(false);
 $("locBtn").onclick = () => {
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
   if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
@@ -2365,6 +2496,7 @@ $("liftClose").onchange = e => { if(e.target.value){ S.liftClose = e.target.valu
 // een punt in het midden van het zichtbare deel van de kaart zetten (niet achter het paneel)
 function showAt(ll, zoom){
   const z = zoom ?? map.getZoom(), sh = $("sheet");
+  if(POV.on){ map.setView(ll, z, {animate:true}); return; }   // in de 3D-weergave is het midden van de kaart jouw plek
   let dx = 0, dy = 0;
   if(LAND_MQ.matches || isSide()) dx = (sh.offsetWidth + 16) / 2;
   else if(!sh.classList.contains("open")) dy = -(sheetPeek()) / 2;

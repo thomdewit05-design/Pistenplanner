@@ -902,3 +902,51 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .ad-slot .ad-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
 .picker .ad-slot,.menu>.ad-slot{margin:8px 16px}
 #hutInfo .linkbtn{color:var(--accent);font-weight:700}
+
+/* ================= navigatieweergave (3D) ================= */
+/* de kaart wordt groter dan het scherm, gekanteld en gedraaid; het midden (jouw plek) staat op --pov-y */
+.pov-sky{display:none}
+.nav3d{background:linear-gradient(180deg,#4F86C6 0%,#8DB6E0 14%,#CFE1F1 26%,#E8EFF5 40%)}
+.nav3d #map{inset:auto;left:calc(50% - var(--pov-size) / 2);top:calc(var(--pov-y) - var(--pov-size) / 2);width:var(--pov-size);height:var(--pov-size);
+  transform:perspective(var(--pov-p)) rotateX(var(--pov-tilt)) rotate(var(--pov-rot));transform-origin:50% 50%;transition:transform .9s cubic-bezier(.3,.6,.4,1);will-change:transform;background:#dfe7ee}
+/* nevel aan de horizon: verbergt de verre, kleine kaartrand */
+.nav3d .pov-sky{display:block;position:fixed;z-index:997;left:0;right:0;top:0;height:30%;pointer-events:none;
+  background:linear-gradient(180deg,rgba(79,134,198,.95) 0%,rgba(141,182,224,.8) 35%,rgba(232,239,245,0) 100%)}
+.nav3d .topbar,.nav3d #sheet,.nav3d #layerMenu,.nav3d .draw-bar,.nav3d .me-dot{display:none}
+.nav3d .fabs > :not(#sosBtn){display:none}
+.nav3d .fabs{bottom:calc(var(--dash-h,170px) + 12px + var(--safe-b))}
+.nav3d .speedo{left:calc(10px + var(--safe-l));bottom:calc(var(--dash-h,170px) + 12px + var(--safe-b))}
+.nav3d .nav-banner{top:calc(10px + var(--safe-t));left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));max-width:560px;margin:0 auto}
+.pov-me{position:fixed;z-index:998;left:50%;top:var(--pov-y,62%);width:46px;height:46px;margin:-23px 0 0 -23px;pointer-events:none;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
+.pov-me svg{width:100%;height:100%;fill:var(--me);stroke:#fff;stroke-width:3;stroke-linejoin:round}
+.nav-dash{position:fixed;z-index:999;left:calc(8px + var(--safe-l));right:calc(8px + var(--safe-r));bottom:calc(8px + var(--safe-b));max-width:560px;margin:0 auto;
+  background:var(--navy);color:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-2);padding:10px 10px 8px;display:flex;flex-direction:column;gap:6px}
+.nd-row{display:flex;align-items:center;gap:8px}
+.nd-btn{flex:none;width:46px;height:46px;border-radius:50%;border:0;display:grid;place-items:center;background:rgba(255,255,255,.12);color:#fff;font:800 15px/1 var(--f-display);cursor:pointer}
+.nd-btn.stop{background:var(--danger)}
+.nd-btn .ic{width:22px;height:22px;stroke-width:2.6}
+.nd-stats{flex:1;display:grid;grid-template-columns:repeat(3,1fr);text-align:center;min-width:0}
+.nd-stats b{display:block;font:800 21px/1.1 var(--f-display);color:#fff;white-space:nowrap}
+.nd-stats div:first-child b{color:var(--route)}
+.nd-stats small{font-size:11.5px;color:#8FA3B8;text-transform:uppercase;letter-spacing:.04em}
+.nd-next{list-style:none;margin:0;padding:6px 2px 0;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:5px}
+.nd-next:empty{display:none}
+.nd-next li,.nd-hut{display:flex;align-items:center;gap:10px;font-size:14px;color:#DCE6F0;min-width:0}
+.nd-next li.nd-lbl{font-size:11.5px;color:#8FA3B8;text-transform:uppercase;letter-spacing:.04em}
+.nd-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nd-next small,.nd-hut > small{flex:none;color:#AFC0D3;font-size:13px}
+.nd-badge{flex:none;min-width:30px;height:26px;padding:0 6px;border-radius:8px;display:grid;place-items:center;font:800 13.5px/1 var(--f-display);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.nd-badge .ic{width:16px;height:16px}
+.nd-badge.lift{background:#fff;color:var(--p-lift)}
+.nd-badge.walk{background:rgba(255,255,255,.15)}
+.nd-hut{padding-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+.nd-hut .hut{flex:none;cursor:default;width:30px;height:30px}
+.nd-hut .nd-t small{display:block;font-size:11.5px;color:#8FA3B8;text-transform:uppercase;letter-spacing:.04em}
+.nd-hut .nd-t b{font-weight:600;color:#fff}
+@media (orientation:landscape) and (max-height:500px){
+  .nav3d .nav-banner{right:auto;width:min(46%,420px);margin:0}
+  .nav-dash{left:auto;width:min(46%,420px);margin:0;top:calc(8px + var(--safe-t));bottom:auto}
+  .nav3d .fabs,.nav3d .speedo{bottom:calc(10px + var(--safe-b))}
+}
+@media (prefers-reduced-motion:reduce){.nav3d #map{transition:none}}
