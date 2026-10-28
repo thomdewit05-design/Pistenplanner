@@ -246,14 +246,17 @@ function buildNumbers(){
   }
   numLabels = [...best.values()].map(e => ({e, at:e.pts[Math.floor(e.pts.length/2)]}));
 }
+let numFor = null;
 function drawNumbers(){
-  numLayer.clearLayers();
-  if(!S.area || !S.nums || !S.pistes || map.getZoom() < 14) return;
+  if(numFor !== numLabels){ numLayer.clearLayers(); numFor = numLabels; }
+  const on = S.area && S.nums && S.pistes && map.getZoom() >= 14;
   const b = map.getBounds().pad(.1); let n = 0;
-  for(const {e, at} of numLabels){
-    if(!b.contains(at) || ++n > 160) continue;
-    L.marker(at, {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null,
-      html:`<span class="pnum ${e.diff}" style="background:${DIFF[e.diff].col}">${esc(e.ref)}</span>`})}).addTo(numLayer);
+  for(const lab of numLabels){
+    const want = on && b.contains(lab.at) && ++n <= 160;
+    if(!want){ if(lab.m && numLayer.hasLayer(lab.m)) numLayer.removeLayer(lab.m); continue; }
+    lab.m ||= L.marker(lab.at, {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null,
+      html:`<span class="pnum ${lab.e.diff}" style="background:${DIFF[lab.e.diff].col}">${esc(lab.e.ref)}</span>`})});
+    if(!numLayer.hasLayer(lab.m)) lab.m.addTo(numLayer);
   }
 }
 map.on("zoomend moveend", drawNumbers);
@@ -1164,6 +1167,7 @@ function pick3d(lat, lon, edge, px){
   update();
 }
 $("threeBtn").onclick = () => { S.t3d = !S.t3d; save(); apply3d(); };
+$("ovBtn").onclick = () => M3.overview();
 map.on("moveend", () => M3.followLeaflet());
 
 $("locBtn").onclick = () => {
@@ -2342,20 +2346,25 @@ const HUT_KIND = {h:["Berghut","hut"], r:["Restaurant","food"], c:["Café","cup"
   p:["Skipaskassa","ticket"], v:["Skiverhuur","ski"], d:["Skidepot","locker"], s:["Skischool","school"], o:["Bushalte","bus"]};
 const SVC = "pvdso", isSvc = h => SVC.includes(h.kind), isFood = h => !isSvc(h);
 const hutLayer = L.layerGroup();
-function drawHuts(){
-  hutLayer.clearLayers(); M3.sync("huts");
-  const A = S.area; if(!A || !(S.hutsOn || S.svcOn) || map.getZoom() < 13){ hutLayer.remove(); return; }
+// bij elke verschuiving: alleen de knopjes toevoegen of weghalen die in of uit beeld gaan (aanmaken gebeurt één keer per hut)
+let hutArea = null;
+function drawHuts(hutsChanged){
+  const A = S.area;
+  if(hutsChanged !== false) M3.sync("huts");
+  if(hutArea !== A?.huts){ hutLayer.clearLayers(); hutArea = A?.huts; }
+  if(!A || !(S.hutsOn || S.svcOn) || map.getZoom() < 13){ hutLayer.remove(); return; }
   hutLayer.addTo(map);
   const b = map.getBounds().pad(.15), z = map.getZoom();
   for(const h of A.huts){
-    if(!b.contains([h.lat, h.lon])) continue;
-    if(isSvc(h) ? !S.svcOn : !S.hutsOn) continue;
-    if(h.kind === "o" && z < 14) continue;   // bushaltes pas van dichtbij, anders wordt de kaart te vol
-    const k = HUT_KIND[h.kind] || HUT_KIND.r;
-    const m = L.marker([h.lat, h.lon], {keyboard:false, zIndexOffset:300, title:h.name || k[0],
-      icon:L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,13], html:`<div class="hut hut-${h.kind}">${I(k[1])}</div>`})});
-    m.on("click", ev => { L.DomEvent.stopPropagation(ev); hutPopup(h); });
-    m.addTo(hutLayer);
+    const want = b.contains([h.lat, h.lon]) && (isSvc(h) ? S.svcOn : S.hutsOn) && !(h.kind === "o" && z < 14);   // bushaltes pas van dichtbij
+    if(!want){ if(h.m && hutLayer.hasLayer(h.m)) hutLayer.removeLayer(h.m); continue; }
+    if(!h.m){
+      const k = HUT_KIND[h.kind] || HUT_KIND.r;
+      h.m = L.marker([h.lat, h.lon], {keyboard:false, zIndexOffset:300, title:h.name || k[0],
+        icon:L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,13], html:`<div class="hut hut-${h.kind}">${I(k[1])}</div>`})});
+      h.m.on("click", ev => { L.DomEvent.stopPropagation(ev); hutPopup(h); });
+    }
+    if(!hutLayer.hasLayer(h.m)) h.m.addTo(hutLayer);
   }
 }
 function hutPopup(h){
@@ -2387,7 +2396,7 @@ function hutPopup(h){
     toast(b.dataset.a === "to" ? `Route naar ${h.name || k[0].toLowerCase()}.` : `${h.name || k[0]} toegevoegd als tussenstop.`);
   });
 }
-map.on("zoomend moveend", () => { if(S.area) drawHuts(); });
+map.on("zoomend moveend", () => { if(S.area) drawHuts(false); });
 map.on("zoomend", () => { if(S.area && !$("layerMenu").hidden) renderHutInfo(); });
 
 // Hutten en restaurants komen van de eigen site (data/h000.json ..., elke maand bijgewerkt door GitHub).
