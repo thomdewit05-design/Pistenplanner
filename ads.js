@@ -31,9 +31,10 @@
   // en niet voor wie Pro gekocht heeft. Eerst de toestemmingsvragen: Google (Europa) en Apple (volgen).
   const ios = ((window.PP_CONFIG || {}).ads || {}).ios || {};
   if(window.PP_STORE === "ios" && (ios.banner || ios.test)){
-    const TEST = "ca-app-pub-3940256099942544/2934735716";   // proefblok van Google
+    const TEST = "ca-app-pub-3940256099942544/2934735716";   // proefblok van Google (balk)
+    const TEST_FULL = "ca-app-pub-3940256099942544/4411468910";   // proefblok van Google (schermvullend)
     const call = (m, o) => window.Capacitor.nativePromise("AdMob", m, o || {});
-    const PANELS = ["picker", "diary", "menu"];
+    const PANELS = ["picker", "diary", "menu", "status", "group"];
     let ready = false, made = false, shown = false;
     const want = () => ready && !(typeof proActive === "function" && proActive()) && !(typeof S !== "undefined" && S.follow)
       && PANELS.some(id => { const el = document.getElementById(id); return el && !el.hidden; });
@@ -54,10 +55,25 @@
         if(c.privacyOptionsRequirementStatus === "REQUIRED"){ const b = document.getElementById("adPrivacy"); if(b) b.hidden = false; }
         try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); }catch(e){}
         if(c.canRequestAds === false) return;
-        ready = true; sync();
+        ready = true; sync(); prepFull();
       }catch(e){}
     }
-    window.ppAds.native = {sync, privacy:() => call("showPrivacyOptionsForm").catch(() => {})};
+    // schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar): hooguit eens per 15 minuten,
+    // niet in de eerste 10 minuten na het openen en nooit tijdens het navigeren of met Pro
+    const full = ios.interstitial || (!ios.banner && ios.test ? TEST_FULL : "");
+    let lastFull = Date.now() - 5*60e3, fullReady = false;
+    async function prepFull(){
+      if(!full || fullReady) return;
+      try{ await call("prepareInterstitial", {adId:full, isTesting:!ios.interstitial}); fullReady = true; }catch(e){}
+    }
+    async function pause(){
+      if(!ready || !full || (typeof proActive === "function" && proActive()) || (typeof S !== "undefined" && S.follow)) return;
+      if(Date.now() - lastFull < 15*60e3) return;
+      if(!fullReady) return prepFull();
+      lastFull = Date.now(); fullReady = false;
+      setTimeout(async () => { try{ await call("showInterstitial"); }catch(e){} prepFull(); }, 1200);
+    }
+    window.ppAds.native = {sync, pause, privacy:() => call("showPrivacyOptionsForm").catch(() => {})};
     const watch = () => {
       const obs = new MutationObserver(sync);
       PANELS.forEach(id => { const el = document.getElementById(id); if(el) obs.observe(el, {attributes:true, attributeFilter:["hidden"]}); });

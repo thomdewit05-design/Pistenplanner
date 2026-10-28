@@ -333,8 +333,10 @@ addEventListener("resize", () => {
 //   1 = ook met de lift omlaag en langere stukjes lopen, 2 = ook pistes één niveau hoger, 3 = alles (ook skiroutes)
 let RELAX = 0;
 const overLevel = e => { const lv = DIFF[e.diff].lvl; return lv===4 ? !S.free : lv > S.level; };
+// toeristische route naar het dal: geldt zolang de bestemming dezelfde blijft
+const tourOn = () => !!(S.tour && S.tour.to === S.to);
 function graph(bias){
-  const A = S.area, out = A.nodes.map(() => []), R = RELAX, sun = S.sunny && !S.night ? sunShade() : null;
+  const A = S.area, out = A.nodes.map(() => []), R = RELAX, sun = S.sunny && !S.night ? sunShade() : null, tour = tourOn();
   for(const e of A.edges){
     if(S.closed.has(e.i)) continue;
     const k = bias?.has(e.i) ? .05 : 1;
@@ -345,14 +347,15 @@ function graph(bias){
       const m = e.len / (DIFF[e.diff].spd * S.pace);
       const avoid = (S.noMogul && e.f.includes("m") ? 3 : 1) * (over ? (lv===4 ? 6 : 3) : 1)   // buckelpiste vermijden, boven je niveau alleen als het moet
                   * (sun && sun.alt > 2 && sun.v[e.i] < SUN_MIN ? 2.5 : 1);                    // zon opzoeken: schaduwpistes liever niet
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" ? m*DIFF[e.diff].pen : m)});
+      // toeristisch: de rustigste pistes, en een lange afdaling is juist mooi (pistes tellen lichter dan liften en lopen)
+      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" || tour ? m*DIFF[e.diff].pen : m) * (tour ? .7 : 1)});
     } else if(e.t==="l"){
       if(S.night && k===1 && !A.nightLifts.has(e.i)) continue;   // 's avonds alleen liften bij verlichte pistes
       const m = e.dur/60 + LIFT_WAIT;
-      const avoid = S.noDrag && DRAG.has(e.kind) ? 4 : 1;          // sleeplift vermijden: alleen als het niet anders kan
+      const avoid = (S.noDrag || tour) && DRAG.has(e.kind) ? 4 : 1;          // sleeplift vermijden: alleen als het niet anders kan
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)});
       // met de lift naar beneden kan, maar skiën heeft de voorkeur
-      if(e.down && (S.down || R >= 1)) out[e.b].push({to:e.a, e, rev:true, min:m, cost:m*1.5 + 10});
+      if(e.down && (S.down || R >= 1)) out[e.b].push({to:e.a, e, rev:true, min:m, cost:(m*1.5 + 10) * (tour ? 4 : 1)});
     } else {
       if(e.extra && R < 1) continue;
       const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, c = m * (e.extra ? 3 : 1.5);
@@ -645,7 +648,7 @@ function drawDim(){
 function renderExtra(){
   const x = $("extra"), parts = [];
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
-  if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}<span class="x">${I("close")}</span></button>`);
+  if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${tourOn() && S.tour.hut ? `${I("food")}Stop bij ${esc(S.tour.hut)}` : `${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}`}<span class="x">${I("close")}</span></button>`);
   if(S.lunch) parts.push(`<button type="button" class="chip route lunch-chip" data-k="lunch" title="Lunchstop weghalen">${I("food")}Lunch: ${esc(S.lunch.name)}${S.lunch.eta != null && S.lunchStep != null ? ` · ${hhmm(S.lunch.eta)}` : ""}<span class="x">${I("close")}</span></button>`);
   if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
   if(S.night) parts.unshift(`<button type="button" class="chip route night-chip" data-k="night" title="Avondskiën uitzetten">${I("moon")}Avondskiën · ${NIGHT_OPEN}–${NIGHT_CLOSE}<span class="x">${I("close")}</span></button>`);
@@ -700,10 +703,10 @@ function renderResult(){
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
-      <button type="button" class="btn ghost" id="valleyBtn" title="Snelste weg naar het dal">${I("down")}Naar het dal</button>
+      <button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
       ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
-  $("valleyBtn").onclick = toValley;
+  $("valleyBtn").onclick = e => valleyChoice(e.currentTarget);
   $("clearBtn").onclick = clearRoute;
   $("homeBtn")?.addEventListener("click", goHome);
   $("gSendBtn")?.addEventListener("click", sendPlan);
@@ -744,7 +747,7 @@ function renderResult(){
     + `<li class="end"><span class="node">${atHome ? I(home.kind === "auto" ? "car" : "bed") : I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div>${homeWalk > 40 ? `<div class="st-sub">Daarna nog ${km(homeWalk)} lopen</div>` : ""}</div><span></span></li></ol>`;
   $("lunchAdd")?.addEventListener("click", lunchForm);
   if(S.lunch) renderExtra();   // de lunchtijd is nu bekend
-  $("valley2")?.addEventListener("click", toValley);
+  $("valley2")?.addEventListener("click", () => toValley(false));
   bindProfile();
   $("openStatus2")?.addEventListener("click", openStatus);
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
@@ -977,7 +980,7 @@ function updateNav(){
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
-  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); update(); return; }
+  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); update(); window.ppAds?.native?.pause?.(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
   if(!isSide()) setSheet(false);
@@ -1126,8 +1129,34 @@ function routeTiming(){
   lunch(S.steps.length);
   return {end:t, planned, late, lastLift, close};
 }
-// snelste weg naar het laagste bereikbare punt (het dorp of het dal)
-function toValley(){
+// naar het dal: kiezen tussen de snelste weg en een toeristische route
+function valleyChoice(btn){
+  $("valleyPick")?.remove();
+  const box = document.createElement("div"); box.id = "valleyPick"; box.className = "valley-pick";
+  box.innerHTML = `<button type="button" data-v="fast">${I("down")}<span><b>Snelste weg</b><small>Zo vlug mogelijk naar beneden</small></span></button>
+    <button type="button" data-v="tour">${I("sun")}<span><b>Toeristische route</b><small>Rustige pistes, geen sleepliften, met een stop bij een hut</small></span></button>`;
+  btn.closest(".cta").after(box);
+  box.querySelectorAll("button").forEach(b => b.onclick = () => { box.remove(); toValley(b.dataset.v === "tour"); });
+}
+// een hut halverwege de afdaling, zonder al te grote omweg
+function tourHut(from, to, dist){
+  const A = S.area, fe = A.nodes[from].ele ?? 9999, te = A.nodes[to].ele ?? 0;
+  const direct = computePath(); if(!direct) return null;
+  const base = direct.reduce((t, x) => t + x.min, 0);
+  const huts = (A.huts || []).filter(h => isFood(h) && h.name && A.nodes[h.node] && dist[h.node] < Infinity && h.node !== to
+    && (A.nodes[h.node].ele ?? 0) < fe - 30 && (A.nodes[h.node].ele ?? 0) > te + 50);
+  huts.sort((a, b) => dist[a.node] - dist[b.node]);
+  let best = null;
+  for(const h of huts.slice(0, 6)){
+    S.via = h.node; const p = computePath(); S.via = null;
+    if(!p) continue;
+    const t = p.reduce((s, x) => s + x.min, 0);
+    if(t <= base * 1.8 + 10 && (!best || t < best.t)) best = {h, t};
+  }
+  return best && best.h;
+}
+// snelste (of toeristische) weg naar het laagste bereikbare punt (het dorp of het dal)
+function toValley(tour){
   const A = S.area; if(!A) return;
   let from = S.from;
   if(S.pos && (S.fromMe || S.follow)) from = nearestNode(S.pos.lat, S.pos.lon).n;
@@ -1151,8 +1180,12 @@ function toValley(){
   });
   if(!best){ toast("Vanaf hier is geen weg naar beneden gevonden."); return; }
   S.from = from; S.to = best.n; S.via = null; S.target = null; S.pick = "from"; S.planBy = null; S.wps = [];
+  S.tour = tour === true ? {to:best.n} : null;
+  const hut = S.tour ? tourHut(from, best.n, dist) : null;
+  if(hut){ S.via = hut.node; S.tour.hut = hut.name; }
   update(); fitRoute();
-  toast(`Naar het dal: ${lc(nodeLabel(best.n))}${best.e < 9999 ? `, ${best.e} m` : ""}`);
+  toast(S.tour ? (hut ? `Toeristisch naar het dal, met een stop bij ${hut.name}.` : "Toeristisch naar het dal, over de rustigste pistes.")
+               : `Naar het dal: ${lc(nodeLabel(best.n))}${best.e < 9999 ? `, ${best.e} m` : ""}`, 3500);
 }
 
 // ================= weer en sneeuw =================
@@ -1980,7 +2013,7 @@ function startRec(){
 function stopRec(){
   D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
   toast("Opname gestopt. Je dag is bewaard.");
-  diaryLive(); renderDiary();
+  diaryLive(); renderDiary(); window.ppAds?.native?.pause?.();
 }
 // winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
 const seasonOf = k => { const y = +k.slice(0,4), m = +k.slice(4,6); const a = m >= 7 ? y : y - 1; return `${a}–${String(a + 1).slice(2)}`; };
@@ -2710,7 +2743,7 @@ function clearRoute(){
   if(S.follow) toggleFollow();
   if(S.draw) stopDraw();
   map.closePopup();
-  S.from = null; S.to = null; S.via = null; S.target = null; S.wps = []; S.planBy = null; S.fromMe = false; S.pick = "from"; S.lunch = null;
+  S.from = null; S.to = null; S.via = null; S.target = null; S.wps = []; S.planBy = null; S.fromMe = false; S.pick = "from"; S.lunch = null; S.tour = null;
   profMarker?.remove(); profMarker = null;
   update(); setPeek();
   if(!isSide()) setSheet(false);

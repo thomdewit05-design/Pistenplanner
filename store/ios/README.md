@@ -100,7 +100,8 @@ en een skidagboek heeft, en dat de kaart werkt zonder account.
 
 ## Advertenties (Google AdMob)
 
-De gratis iPhone-app toont een advertentiebalk onderin zolang de skigebiedkiezer, het skidagboek of het menu open is;
+De gratis iPhone-app toont een advertentiebalk onderin zolang de skigebiedkiezer, het skidagboek, het menu, de liftstatus of de groep open is,
+en een schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar): hooguit eens per 15 minuten en niet in de eerste 10 minuten;
 nooit tijdens het navigeren en niet voor wie Pro gekocht heeft. Bij het eerste gebruik vraagt de app eerst om toestemming
 (de melding van Google voor Europa, daarna Apple's "Sta toe dat deze app je volgt"). Code: `ads.js`, instellingen in `config.js` onder `ads.ios`.
 
@@ -109,6 +110,7 @@ Zolang er geen eigen advertentieblok is ingevuld, toont de app **proefadvertenti
 1. Maak een account op [admob.google.com](https://admob.google.com) en voeg de app toe (iOS, "staat in de App Store": eerst nee, later koppelen).
 2. Je krijgt een **App-ID** (`ca-app-pub-…~…`). Zet die in GitHub als geheim **`ADMOB_APP_ID`** (Settings → Secrets and variables → Actions).
 3. Maak een advertentieblok van het type **Banner** en zet de ID (`ca-app-pub-…/…`) in `config.js` bij `ads.ios.banner`.
+   Maak ook een blok van het type **Interstitial** (schermvullend) en zet de ID bij `ads.ios.interstitial`.
 4. AdMob → **Privacy en berichten**: maak een GDPR-melding (Europa) en een IDFA-uitleg (iOS) aan en publiceer ze.
 5. Zet `app-ads.txt` op je website als AdMob daarom vraagt (dat werkt alleen in de hoofdmap van een eigen domein).
 6. Bouw een nieuwe versie (Actions → iOS-app → Naar TestFlight).
