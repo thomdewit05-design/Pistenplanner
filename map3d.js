@@ -91,10 +91,15 @@ const M3 = (() => {
         v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
     };
     const white = [1, 1, 1, .9], dark = [.08, .13, .17, 1], grey = [.6, .65, .7, 1], pole = [.25, .3, .36, 1];
+    const navy = [.06, .11, .16, .55], gold = [1, .77, 0, 1];
+    // liften op je route: net als de route op de grond geel met een donkere rand, maar dan langs de kabel
+    const onRoute = new Set((S.path || []).filter(x => aerial(x.e)).map(x => x.e.i));
     let half = 0;
     for(const pass of [0, 1]){ if(pass) half = v.length / FLOATS; for(const c of geo){
+      const r = onRoute.has(c.i);
       for(const [a, b] of c.pylons) quad(a, b, pass ? 1.6 : 3.4, pass ? pole : white);
-      for(let k = 1; k < c.line.length; k++) quad(c.line[k-1], c.line[k], pass ? 2.2 : 5, pass ? (c.closed ? grey : dark) : white);
+      for(let k = 1; k < c.line.length; k++)
+        quad(c.line[k-1], c.line[k], r ? (pass ? 7.5 : 12) : (pass ? 2.2 : 5), r ? (pass ? gold : navy) : pass ? (c.closed ? grey : dark) : white);
     } }
     const out = new Float32Array(v); out.half = half; return out;
   }
@@ -245,7 +250,8 @@ const M3 = (() => {
   }
   function routeData(){
     const A = S.area, f = [];
-    if(A && S.path?.length) f.push({type:"Feature", properties:{k:"p"}, geometry:{type:"MultiLineString", coordinates:S.path.map(s => s.e.pts.map(ll))}});
+    // stukken met een kabelbaan niet over de grond: die tekent de kabellaag in de lucht, in de kleur van de route
+    if(A && S.path?.length) f.push({type:"Feature", properties:{k:"p"}, geometry:{type:"MultiLineString", coordinates:S.path.filter(s => !aerial(s.e)).map(s => s.e.pts.map(ll))}});
     if(A && S.target) f.push({type:"Feature", properties:{k:"t"}, geometry:{type:"MultiLineString", coordinates:S.target.edges.map(i => A.edges[i].pts.map(ll))}});
     return {type:"FeatureCollection", features:f};
   }
@@ -311,7 +317,7 @@ const M3 = (() => {
     if(!gl || !styled) return;
     if(dirty.has("base")){ const bt = baseTiles(); gl.getSource("base")?.setTiles(bt.tiles); for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id)); }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
-    if(dirty.has("route")) gl.getSource("route").setData(routeData());
+    if(dirty.has("route")){ gl.getSource("route").setData(routeData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     dirty.clear();
   }
