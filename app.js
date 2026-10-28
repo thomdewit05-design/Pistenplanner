@@ -92,6 +92,7 @@ function applyBase(){
   baseLayers[S.base].bringToBack();
   ((S.base==="sat" || S.base==="winter") && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
   S.base==="winter" ? roadsLayer.addTo(map) : roadsLayer.remove();
+  if(M3.mode) for(const l of [...Object.values(baseLayers), labelLayer, roadsLayer]) l.remove();   // onder de 3D-kaart niets laden
   S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;

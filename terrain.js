@@ -131,10 +131,20 @@
   if(IS_WORKER){
     const ok = typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap === "function" && !!new OffscreenCanvas(1, 1).getContext("2d");
     self.postMessage({ready:ok});
-    self.onmessage = async ev => {
-      const {id, kind, z, x, y, r} = ev.data;
-      try{ const bmp = await make(kind, z, x, y, r); self.postMessage({id, bmp}, [bmp]); }
-      catch(e){ self.postMessage({id, err:String(e.message || e)}); }
+    // wachtrij: de nieuwste vraag eerst (dat is wat je nu ziet), hooguit drie tegelijk; afgebroken vragen vervallen
+    const queue = [];
+    let running = 0;
+    const pump = () => {
+      while(running < 3 && queue.length){
+        const {id, kind, z, x, y, r} = queue.pop(); running++;
+        make(kind, z, x, y, r).then(bmp => self.postMessage({id, bmp}, [bmp]), e => self.postMessage({id, err:String(e.message || e)}))
+          .finally(() => { running--; pump(); });
+      }
+    };
+    self.onmessage = ev => {
+      const m = ev.data;
+      if(m.cancel){ const i = queue.findIndex(j => j.id === m.cancel); if(i >= 0) queue.splice(i, 1); return; }
+      queue.push(m); pump();
     };
     return;
   }
@@ -160,8 +170,14 @@
     })();
   }
   window.PPterrain = {
-    async get(kind, z, x, y, r){
-      if(await startWorker()) return new Promise((ok, bad) => { const id = ++seq; wait.set(id, {ok, bad}); worker.postMessage({id, kind, z, x, y, r}); });
+    // signal (optioneel): een AbortSignal; een tegel die niet meer nodig is, wordt dan niet meer getekend
+    async get(kind, z, x, y, r, signal){
+      if(await startWorker()) return new Promise((ok, bad) => {
+        const id = ++seq;
+        if(signal?.aborted) return bad(new DOMException("afgebroken", "AbortError"));
+        wait.set(id, {ok, bad}); worker.postMessage({id, kind, z, x, y, r});
+        signal?.addEventListener("abort", () => { if(!wait.has(id)) return; wait.delete(id); worker.postMessage({cancel:id}); bad(new DOMException("afgebroken", "AbortError")); }, {once:true});
+      });
       return make(kind, z, x, y, r);      // geen worker mogelijk: hier rekenen
     }
   };
