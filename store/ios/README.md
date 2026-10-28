@@ -173,3 +173,13 @@ npm run ios
 npx cap open ios
 ```
 Kies in Xcode bij *Signing & Capabilities* je team en druk op ▶.
+
+## Navigatie op het toegangsscherm, Dynamic Island en Siri
+
+Sinds deze versie toont Skipilot tijdens het navigeren de volgende afslag op het toegangsscherm en in het Dynamic Island (Live Activity), ook als de telefoon op slot zit. Daarvoor gebruikt de app **locatie op de achtergrond**, alleen zolang de navigatie loopt (je ziet dan de blauwe balk of pijl bovenin).
+
+Apple vraagt bij de beoordeling waarom een app locatie op de achtergrond gebruikt. Zet bij **App Review Information → Notes** bijvoorbeeld:
+
+> Skipilot is a turn-by-turn navigation app for ski areas. While navigation is active, the app uses background location to keep the next turn, distance and arrival time up to date in a Live Activity on the Lock Screen and in the Dynamic Island, so skiers do not have to unlock their phone with gloves on. Background location is only used while the user has started navigation and stops as soon as navigation ends. To test: open a ski area (e.g. Zillertal Arena), plan a route, tap "Start navigation" and lock the phone.
+
+Siri en de app Opdrachten kennen vanzelf: "Navigeer naar het dal met Skipilot", "Navigeer naar de dichtstbijzijnde hut met Skipilot", "Navigeer naar mijn verblijf met Skipilot" en "Stop navigatie in Skipilot" (ook in het Engels en Duits).
