@@ -113,6 +113,7 @@ symbol .fill{fill:currentColor;stroke:none}
 /* ---------- paneel ---------- */
 .sheet{position:fixed;z-index:1000;left:0;right:0;bottom:0;max-height:90%;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -6px 30px rgba(15,27,42,.25);display:flex;flex-direction:column;transform:translateY(calc(100% - var(--sheet-peek,170px) - var(--safe-b)));transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .sheet.open{transform:none}
+.sheet.mini:not(.open) .peek>:not(:first-child){visibility:hidden}
 .sheet.dragging{transition:none}
 .handle{border:0;background:none;padding:10px 0 4px;cursor:grab;display:flex;justify-content:center;flex:none;touch-action:none}
 .handle span{width:40px;height:5px;border-radius:3px;background:var(--line)}
