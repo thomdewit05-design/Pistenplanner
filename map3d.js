@@ -241,7 +241,7 @@ const M3 = (() => {
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
-        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}
+        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}
       },
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
@@ -250,6 +250,8 @@ const M3 = (() => {
         {id:"roads", type:"raster", source:"roads", layout:{visibility:vis("roads")}, paint:{"raster-opacity":.8}},
         {id:"labels", type:"raster", source:"labels", layout:{visibility:vis("labels")}},
         {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
+        // aangetikte piste of lift: blauwe gloed eronder
+        {id:"sel-glow", type:"line", source:"sel", filter:["==", ["geometry-type"], "LineString"], layout:line, paint:{"line-color":"#1E88FF", "line-width":w(9, 16), "line-opacity":.45, "line-blur":2}},
         {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3.6, 8), "line-opacity":.75}},
         {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6)}},
         {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6), "line-dasharray":[2, 1.4]}},
@@ -264,6 +266,7 @@ const M3 = (() => {
         {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#FFC400", "line-width":w(4, 8.5)}},
         {id:"route-core", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(1.2, 2.5), "line-dasharray":[.2, 3]}},
         {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#fff", "line-width":w(1.5, 3), "line-dasharray":[3, 2.5]}},
+        {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
         // pistenummers en hutten als plaatjes in de kaart zelf (veel lichter dan losse HTML-knopjes die elk beeld opnieuw geplaatst worden)
         {id:"nums", type:"symbol", source:"nums", minzoom:12.5, layout:{"icon-image":["get", "img"], "icon-padding":1}},
         {id:"huts", type:"symbol", source:"huts", minzoom:12, filter:["!=", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":["interpolate", ["linear"], ["zoom"], 12, .75, 15, 1]}},
@@ -532,12 +535,29 @@ const M3 = (() => {
     const mpp = 40075016.686 * Math.cos(ev.lngLat.lat * Math.PI / 180) / (512 * 2 ** gl.getZoom());   // meters per pixel in het midden
     window.pick3d?.(ev.lngLat.lat, ev.lngLat.lng, hit ? hit.properties.i : null, mpp);
   }
+  // aangetikte piste of lift (lijnen [[lat, lon], …]) en de plek van de tik; null = niets
+  function select(lines, at){
+    if(!gl || !styled) return;
+    const f = [];
+    if(lines) for(const l of lines) f.push({type:"Feature", properties:{}, geometry:{type:"LineString", coordinates:l.map(ll)}});
+    if(lines !== null && at) f.push({type:"Feature", properties:{}, geometry:{type:"Point", coordinates:[at[1], at[0]]}});
+    gl.getSource("sel")?.setData({type:"FeatureCollection", features:f});
+  }
   function popup(latlng, div){
     pop?.remove();
     pop = new maplibregl.Popup({maxWidth:"280px", className:"pop-wrap m3-pop", focusAfterOpen:false}).setLngLat([latlng[1] ?? latlng.lng, latlng[0] ?? latlng.lat]).setDOMContent(div).addTo(gl);
+    // net als in 2D: schuif de kaart zodat het menu helemaal in beeld staat
+    const p = pop;
+    requestAnimationFrame(() => {
+      if(pop !== p || !p.isOpen()) return;
+      const r = p.getElement().getBoundingClientRect(), c = gl.getContainer().getBoundingClientRect();
+      const dx = r.left < c.left + 10 ? r.left - c.left - 10 : r.right > c.right - 10 ? r.right - c.right + 10 : 0;
+      const dy = r.top < c.top + 90 ? r.top - c.top - 90 : 0;
+      if(dx || dy) gl.panBy([dx, dy], {duration:250});
+    });
     return pop;
   }
 
-  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable,
+  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable, select,
           get mode(){ return mode; }, get failed(){ return failed; }, get gl(){ return gl; }};
 })();

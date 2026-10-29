@@ -831,24 +831,28 @@ map.on("click", ev => {
   if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; }
   update();
 });
+const nb = s => String(s).replace(/ /g, "\u00a0");
 function edgePopup(ei, latlng, nearNode){
   const ch = chainFrom(ei), e = ch.e, A = S.area;
   const drop = ch.kind==="r" ? (A.nodes[ch.start].ele ?? 0) - (A.nodes[ch.end].ele ?? 0) : (A.nodes[ch.end].ele ?? 0) - (A.nodes[ch.start].ele ?? 0);
-  const div = document.createElement("div"); div.className = "pop";
+  const div = document.createElement("div"); div.className = "pop pc";
   const node = ch.kind==="l" ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${I("lift")}</span>`
                              : `<span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
   const mins = ch.kind==="l" ? e.dur/60 : ch.len / DIFF[e.diff].spd;
   const top = ch.kind==="l" ? A.nodes[ch.end].ele : A.nodes[ch.start].ele;
-  div.innerHTML = `<div class="pop-head">${node}<div><b>${esc(uc(ch.label))}</b><small>${ch.kind==="l" ? uc(LIFT[e.kind]||"lift") : e.diff==="f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`}</small></div></div>
+  const kind = ch.kind==="l" ? uc(LIFT[e.kind]||"lift") : e.diff==="f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`;
+  // compact: naam met één regel feiten, daaronder de knoppen
+  div.innerHTML = `<div class="pc-head">${node}<div class="pc-title"><b>${esc(uc(ch.label.replace(/^(de|het) /, "")))}</b>
+      <small title="${top != null ? `Top ${top} m` : ""}">${kind} · ${nb(km(ch.len))} · ${ch.kind==="l" ? "↑" : "↓"} ${Math.abs(Math.round(drop))} m · ${nb(fmt(mins))}</small></div></div>
     ${ch.kind==="r" ? flagChips(flagsOf(ch.edges)) + sunNote(ch.edges) : ""}
-    <div class="pop-facts"><div><b>${km(ch.len)}</b><span>Lengte</span></div><div><b>${Math.abs(Math.round(drop))} m</b><span>${ch.kind==="l" ? "Stijgen" : "Dalen"}</span></div><div><b>${fmt(mins)}</b><span>${top!=null ? `Top ${top} m` : "Duur"}</span></div></div>
-    <div class="pop-btns">
-      <button type="button" class="primary" data-a="ski">${I(ch.kind==="l" ? "lift" : "ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
-      <button type="button" data-a="to">Hierheen</button>
-      <button type="button" data-a="from">Vertrek hier</button>
-      <button type="button" class="danger" data-a="close" style="grid-column:1/-1">${ch.kind==="l" ? "Lift" : "Piste"} afsluiten</button>
+    <div class="pc-btns">
+      <button type="button" class="pc-main" data-a="ski">${I(ch.kind==="l" ? "lift" : "ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
+      <button type="button" class="pc-ic danger" data-a="close" title="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten" aria-label="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>
+      <button type="button" data-a="from" title="Vertrek hier">${I("play")}<span>Vertrek hier</span></button>
+      <button type="button" data-a="to" title="Hierheen">${I("flag")}<span>Hierheen</span></button>
     </div>`;
-  const pop = openPop(latlng, div, {closeButton:true, autoPan:true, maxWidth:280, className:"pop-wrap"});
+  const pop = openPop(latlng, div, {closeButton:true, autoPan:true, maxWidth:262, className:"pop-wrap pc-wrap"});
+  selectOnMap(ch.edges, latlng, pop);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     const a = b.dataset.a;
     if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from==null) S.from = ch.start; }
@@ -859,6 +863,24 @@ function edgePopup(ei, latlng, nearNode){
     if(a==="ski") fitRoute();
   });
 }
+// wat je hebt aangetikt, blijft zichtbaar zolang het menu open is: de hele piste of lift blauw omlijnd en een punt op de plek
+map.createPane("sel").style.cssText = "z-index:395;pointer-events:none";
+const selR = L.svg({pane:"sel", padding:.4}), selLayer = L.layerGroup().addTo(map);
+let selPop = null;
+function selectOnMap(edges, latlng, pop){
+  clearSel(); selPop = pop;
+  const A = S.area, lines = (edges || []).map(i => A.edges[i].pts);
+  if(lines.length){
+    L.polyline(lines, {renderer:selR, interactive:false, color:"#1E88FF", weight:14, opacity:.35, lineCap:"round", lineJoin:"round"}).addTo(selLayer);
+    L.polyline(lines, {renderer:selR, interactive:false, color:"#1E88FF", weight:7, opacity:.55, lineCap:"round", lineJoin:"round"}).addTo(selLayer);
+  }
+  const ll = Array.isArray(latlng) ? latlng : [latlng.lat, latlng.lng];
+  L.marker(ll, {interactive:false, keyboard:false, zIndexOffset:900, icon:L.divIcon({className:"", iconSize:[22, 22], iconAnchor:[11, 11], html:'<div class="sel-dot"></div>'})}).addTo(selLayer);
+  M3.select?.(lines, ll);
+  const off = () => { if(selPop === pop) clearSel(); };
+  pop?.on?.(pop instanceof L.Popup ? "remove" : "close", off);
+}
+function clearSel(){ selLayer.clearLayers(); selPop = null; M3.select?.(null); }
 
 // ================= GPS en navigatie =================
 let wakeLock = null;
@@ -2652,6 +2674,7 @@ function hutPopup(h){
       ${isSvc(h) ? "" : `<button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>`}
     </div>`;
   const pop = openPop([h.lat, h.lon], div, {maxWidth:280, className:"pop-wrap"});
+  selectOnMap(null, [h.lat, h.lon], pop);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
     else{
