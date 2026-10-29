@@ -1277,9 +1277,19 @@ $("fromMe").onclick = () => {
 // ================= paneel =================
 const sheet = $("sheet");
 const sheetPeek = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sheet-peek")) || 170;
+// drie standen: open, half (de samenvatting) en klein (alleen de greep en de eerste regel, meer ruimte voor de kaart)
+let sheetMini = false;
+try{ sheetMini = localStorage.getItem("pp-sheet-mini") === "1"; }catch(e){}
 function setPeek(){
-  const h = $("peek").offsetHeight + 26 + 14;
-  document.documentElement.style.setProperty("--sheet-peek", Math.max(110, Math.min(h, 260)) + "px");
+  const pk = $("peek"), first = pk.firstElementChild, mini = sheetMini && !isSide();
+  const h = mini ? $("handle").offsetHeight + 4 + (first ? first.offsetHeight : 0) + 12
+             : pk.offsetHeight + 26 + 14;
+  document.documentElement.style.setProperty("--sheet-peek", (mini ? Math.max(44, Math.min(h, 110)) : Math.max(110, Math.min(h, 260))) + "px");
+  sheet.classList.toggle("mini", mini);
+}
+function setMini(on){
+  sheetMini = on; try{ localStorage.setItem("pp-sheet-mini", on ? "1" : "0"); }catch(e){}
+  setPeek();
 }
 function setSheet(open){ sheet.classList.toggle("open", open); }
 (() => {   // veeggebaar op de greep
@@ -1289,7 +1299,11 @@ function setSheet(open){ sheet.classList.toggle("open", open); }
     if(moved){ const full = window.innerHeight - sheet.offsetHeight; const top = Math.max(full, base + dy); sheet.style.transform = `translateY(${top - full}px)`; } });
   const end = e => { if(y0==null) return; sheet.classList.remove("dragging"); sheet.style.transform = "";
     const dy = e.clientY - y0; y0 = null;
-    if(!moved) setSheet(!sheet.classList.contains("open")); else setSheet(dy < 0); };
+    const open = sheet.classList.contains("open");
+    if(!moved){ if(open) setSheet(false); else if(sheetMini) setMini(false); else setSheet(true); return; }
+    if(dy < 0){ if(sheetMini && !open && dy > -220) setMini(false); else { setSheet(true); } }
+    else if(open) setSheet(false);
+    else if(!sheetMini) setMini(true); };
   h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
 })();
 
