@@ -46,15 +46,17 @@ enum Shared {
     }
 }
 
-// teksten in de taal van de app (nl, en, de)
+// teksten in de taal van de app (nl, en, de; fr en it waar een vertaling is meegegeven, anders Engels)
 struct Tr {
     let lang: String
     init(_ lang: String?) {
         let l = lang ?? Locale.current.language.languageCode?.identifier ?? "nl"
-        self.lang = ["nl", "en", "de"].contains(l) ? l : "en"
+        self.lang = ["nl", "en", "de", "fr", "it"].contains(l) ? l : "en"
     }
-    func t(_ nl: String, _ en: String, _ de: String) -> String { lang == "nl" ? nl : lang == "de" ? de : en }
-    var locale: Locale { Locale(identifier: lang == "nl" ? "nl_NL" : lang == "de" ? "de_DE" : "en_GB") }
+    func t(_ nl: String, _ en: String, _ de: String, fr: String? = nil, it: String? = nil) -> String {
+        switch lang { case "nl": return nl; case "de": return de; case "fr": return fr ?? en; case "it": return it ?? en; default: return en }
+    }
+    var locale: Locale { Locale(identifier: ["nl": "nl_NL", "de": "de_DE", "fr": "fr_FR", "it": "it_IT"][lang] ?? "en_GB") }
     func num(_ v: Double, digits: Int = 0) -> String {
         v.formatted(.number.precision(.fractionLength(digits)).locale(locale))
     }

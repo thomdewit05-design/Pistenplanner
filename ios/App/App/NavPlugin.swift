@@ -29,6 +29,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     private var steps: [Step] = []
     private var idx = 0
     private var dest = "", lang = "nl"
+    private var tap = true          // Apple Watch: tikje op je pols vlak voor een afslag
+    private var alerted = -1        // stap waarvoor dat tikje al gegeven is
     private var manager: CLLocationManager?
     private var lastPush = Date.distantPast
     private var lastKey: [Int]? = nil
@@ -60,10 +62,10 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
                         badge: s["badge"] as? String, color: s["color"] as? String)
         }
         guard !list.isEmpty else { return call.reject("Geen stappen") }
-        let d = call.getString("dest") ?? "", l = call.getString("lang") ?? "nl"
+        let d = call.getString("dest") ?? "", l = call.getString("lang") ?? "nl", t = call.getBool("tap") ?? true
         DispatchQueue.main.async {
-            self.steps = list; self.idx = 0; self.lastKey = nil
-            self.dest = d; self.lang = l
+            self.steps = list; self.idx = 0; self.lastKey = nil; self.alerted = -1
+            self.dest = d; self.lang = l; self.tap = t
             self.startLocation()
             self.push(self.manager?.location, force: true)
             call.resolve(["live": self.liveEnabled()])
@@ -167,11 +169,16 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         lastKey = key; lastPush = now
         let s = steps[idx], last = idx == steps.count - 1
         let leftMin = s.min * frac + steps[(idx + 1)...].reduce(0) { $0 + $1.min }
+        // vlak voor de afslag (of bij aankomst) één melding: op de Apple Watch een tikje op je pols, op de iPhone een geluidje
+        let arrived = last && dist < 30
+        let alert = tap && alerted != idx && (arrived || (!last && dist <= 120))
+        if alert { alerted = idx }
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             updateLive(NavAttributes.ContentState(dist: dist, instruction: s.next, icon: last ? "flag.checkered" : s.icon,
                                                   current: s.title, eta: now.addingTimeInterval(leftMin * 60),
-                                                  badge: s.badge, color: s.color, arrived: last && dist < 30))
+                                                  badge: s.badge, color: s.color, arrived: arrived),
+                       alert: alert ? (arrived ? s.next : "\(Int((dist / 10).rounded() * 10)) m", s.next) : nil)
         }
         #endif
     }
@@ -185,10 +192,15 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     }
     #if canImport(ActivityKit)
     @available(iOS 16.2, *)
-    private func updateLive(_ state: NavAttributes.ContentState) {
+    private func updateLive(_ state: NavAttributes.ContentState, alert: (String, String)? = nil) {
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(180))
         if let a = activity as? Activity<NavAttributes> {
-            Task { await a.update(content) }
+            if let al = alert {
+                let cfg = AlertConfiguration(title: LocalizedStringResource(stringLiteral: al.0), body: LocalizedStringResource(stringLiteral: al.1), sound: .default)
+                Task { await a.update(content, alertConfiguration: cfg) }
+            } else {
+                Task { await a.update(content) }
+            }
         } else if ActivityAuthorizationInfo().areActivitiesEnabled {
             activity = try? Activity.request(attributes: NavAttributes(dest: dest, lang: lang), content: content, pushType: nil)
         }

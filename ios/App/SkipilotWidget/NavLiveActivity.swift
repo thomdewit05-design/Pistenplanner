@@ -48,42 +48,82 @@ struct NavLockView: View {
     }
 }
 
+// Apple Watch (watchOS 11 en nieuwer): de Live Activity komt vanzelf in de Smart Stack van het horloge.
+// Daar is weinig ruimte, dus een eigen indeling: grote pijl, afstand en de aanwijzing in één regel.
+struct NavWatchView: View {
+    let state: NavAttributes.ContentState
+    let attr: NavAttributes
+    var body: some View {
+        let tr = Tr(attr.lang)
+        HStack(spacing: 8) {
+            Image(systemName: state.arrived ? "flag.checkered" : state.icon)
+                .font(.system(size: 26, weight: .bold)).foregroundStyle(gold).frame(width: 34)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(state.arrived ? tr.t("Je bent er", "Arrived", "Du bist da", fr: "Arrivé", it: "Arrivato") : tr.distance(state.dist))
+                    .font(.system(size: 22, weight: .bold, design: .rounded)).foregroundStyle(.white).monospacedDigit()
+                Text(state.instruction).font(.system(size: 13, weight: .semibold)).lineLimit(2).minimumScaleFactor(0.75).foregroundStyle(.white.opacity(0.9))
+                HStack(spacing: 4) {
+                    NavBadge(state: state)
+                    Text(state.eta, style: .time).font(.system(size: 11, weight: .medium)).foregroundStyle(soft)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 6)
+    }
+}
+
+// op het toegangsscherm de gewone indeling, op het horloge (.small) de compacte
+struct NavFamilyView: View {
+    @Environment(\.activityFamily) var family
+    let state: NavAttributes.ContentState
+    let attr: NavAttributes
+    var body: some View {
+        if family == .small { NavWatchView(state: state, attr: attr) } else { NavLockView(state: state, attr: attr) }
+    }
+}
+
 struct NavLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NavAttributes.self) { ctx in
-            NavLockView(state: ctx.state, attr: ctx.attributes)
+            NavFamilyView(state: ctx.state, attr: ctx.attributes)
                 .activityBackgroundTint(navy)
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { ctx in
-            let tr = Tr(ctx.attributes.lang), s = ctx.state
-            return DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: s.icon).font(.system(size: 30, weight: .bold)).foregroundStyle(gold).padding(.leading, 6)
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text(s.arrived ? "✓" : tr.distance(s.dist)).font(.title2.weight(.bold)).foregroundStyle(.white).padding(.trailing, 6)
-                }
-                DynamicIslandExpandedRegion(.center) {
-                    Text(s.instruction).font(.headline).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(.white)
-                }
-                DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 6) {
-                        NavBadge(state: s)
-                        Text(s.current).lineLimit(1)
-                        Spacer(minLength: 0)
-                        Text(tr.t("aankomst", "arrival", "Ankunft"))
-                        Text(s.eta, style: .time).foregroundStyle(gold)
-                    }
-                    .font(.caption).foregroundStyle(soft)
-                }
-            } compactLeading: {
-                Image(systemName: s.icon).foregroundStyle(gold)
-            } compactTrailing: {
-                Text(tr.distance(s.dist)).font(.caption.weight(.semibold)).monospacedDigit()
-            } minimal: {
-                Image(systemName: s.icon).foregroundStyle(gold)
-            }
-            .keylineTint(gold)
+            NavLiveActivity.island(ctx)
         }
+        .supplementalActivityFamilies([.small])   // ook in de Smart Stack van de Apple Watch
+    }
+
+    static func island(_ ctx: ActivityViewContext<NavAttributes>) -> DynamicIsland {
+        let tr = Tr(ctx.attributes.lang), s = ctx.state
+        return DynamicIsland {
+            DynamicIslandExpandedRegion(.leading) {
+                Image(systemName: s.icon).font(.system(size: 30, weight: .bold)).foregroundStyle(gold).padding(.leading, 6)
+            }
+            DynamicIslandExpandedRegion(.trailing) {
+                Text(s.arrived ? "✓" : tr.distance(s.dist)).font(.title2.weight(.bold)).foregroundStyle(.white).padding(.trailing, 6)
+            }
+            DynamicIslandExpandedRegion(.center) {
+                Text(s.instruction).font(.headline).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(.white)
+            }
+            DynamicIslandExpandedRegion(.bottom) {
+                HStack(spacing: 6) {
+                    NavBadge(state: s)
+                    Text(s.current).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text(tr.t("aankomst", "arrival", "Ankunft"))
+                    Text(s.eta, style: .time).foregroundStyle(gold)
+                }
+                .font(.caption).foregroundStyle(soft)
+            }
+        } compactLeading: {
+            Image(systemName: s.icon).foregroundStyle(gold)
+        } compactTrailing: {
+            Text(tr.distance(s.dist)).font(.caption.weight(.semibold)).monospacedDigit()
+        } minimal: {
+            Image(systemName: s.icon).foregroundStyle(gold)
+        }
+        .keylineTint(gold)
     }
 }
