@@ -12,7 +12,7 @@ const M3 = (() => {
   const DEM_ATTR = 'Hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Mapzen Terrain Tiles</a>';
   const EMPTY = {type:"FeatureCollection", features:[]}, EXAG = 1.3;
   const HANDLERS = ["dragPan", "dragRotate", "scrollZoom", "touchZoomRotate", "doubleClickZoom", "keyboard", "touchPitch", "boxZoom"];
-  let gl = null, mode = null, loading = null, failed = false, styled = false, dirty = new Set(), flushT = null;
+  let gl = null, mode = null, loading = null, failed = false, styled = false, dirty = new Set(), flushT = null, hdOn = false;
   let me = null, pop = null, proto = false;
   const SCALE = 2;   // plaatjes voor pistenummers en hutten op dubbele resolutie
   const HUT_COL = {h:"#7A2E0E", r:"#8A4B12", f:"#8A4B12", c:"#6B3FA0", b:"#6B3FA0", p:"#1F5FCC", v:"#0F7A6B", d:"#4A5A6E", s:"#C2410C", o:"#15803D"};
@@ -35,8 +35,10 @@ const M3 = (() => {
   // Scherp op een retinascherm: MapLibre toont een tegel van 256 px op 256 schermpunten, dus op een iPhone (2-3x) wazig.
   // Met tileSize 128 haalt hij tegels van één zoomniveau dieper; de winterkaart tekenen we zelf op 512 px.
   const RETINA = (devicePixelRatio || 1) > 1.5, TS = RETINA ? 128 : 256;
-  const baseSource = () => { const bt = baseTiles();
-    return {type:"raster", tiles:bt.tiles, tileSize:S.base === "winter" ? 256 : TS, maxzoom:bt.maxzoom, attribution:bt.attribution}; };
+  // Eerst gewone tegels van 256 (vier keer minder, dus snel beeld) en daarna de scherpe erover (laag "basehd").
+  const hd = () => RETINA && S.base !== "winter";
+  const baseSource = (size = 256) => { const bt = baseTiles();
+    return {type:"raster", tiles:bt.tiles, tileSize:size, maxzoom:bt.maxzoom, attribution:bt.attribution}; };
   function baseTiles(){
     if(S.base === "winter") return {tiles:[WINTER], maxzoom:17, attribution:baseLayers.winter.options.attribution};
     const b = baseLayers[S.base], o = b.options, url = b._url.replace("{r}", "");
@@ -236,7 +238,7 @@ const M3 = (() => {
     return {
       version:8,
       sources:{
-        base:baseSource(),
+        base:baseSource(), basehd:baseSource(TS),
         labels:{type:"raster", tiles:[LABELS], tileSize:TS, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:TS, maxzoom:18},
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
@@ -246,6 +248,7 @@ const M3 = (() => {
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
         {id:"base", type:"raster", source:"base", paint:{"raster-fade-duration":150}},
+        {id:"basehd", type:"raster", source:"basehd", layout:{visibility:"none"}, paint:{"raster-fade-duration":250}},
         // reliëfschaduw alleen op terrein- en gewone kaart; een satellietfoto heeft zelf al schaduw
         {id:"roads", type:"raster", source:"roads", layout:{visibility:vis("roads")}, paint:{"raster-opacity":.8}},
         {id:"labels", type:"raster", source:"labels", layout:{visibility:vis("labels")}},
@@ -398,9 +401,9 @@ const M3 = (() => {
     if(!gl || !styled) return;
     if(dirty.has("base")){
       const paint = {"raster-fade-duration":150};
-      if(gl.getLayer("base")) gl.removeLayer("base");
-      if(gl.getSource("base")) gl.removeSource("base");
+      for(const id of ["basehd", "base"]){ if(gl.getLayer(id)) gl.removeLayer(id); if(gl.getSource(id)) gl.removeSource(id); }
       gl.addSource("base", baseSource()); gl.addLayer({id:"base", type:"raster", source:"base", paint}, "roads");
+      gl.addSource("basehd", baseSource(TS)); gl.addLayer({id:"basehd", type:"raster", source:"basehd", layout:{visibility:hd() && hdOn ? "visible" : "none"}, paint:{"raster-fade-duration":250}}, "roads");
       for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id));
     }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
@@ -426,12 +429,16 @@ const M3 = (() => {
       pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
       canvasContextAttributes:{antialias:true}});   // gladde randen van pistes, kabels en bergkammen
     styled = false;
-    gl.on("load", () => {
+    // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes
+    gl.once("style.load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd
       styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks"]); flush(); ovCheck();
       el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
     gl.on("moveend", ovCheck);
+    // zodra het eerste beeld staat: de scherpe tegels erover laten komen
+    hdOn = false;
+    gl.once("idle", () => { hdOn = true; if(hd() && gl.getLayer("basehd")) gl.setLayoutProperty("basehd", "visibility", "visible"); });
     gl.on("render", guardElevation);
     gl.on("idle", () => { if(cableGeo && Date.now() - cableBuilt > 1500){ cableGeo = null; gl.triggerRepaint(); } });
     gl.on("error", ev => { if(String(ev?.error?.message || "").includes("WebGL")) failGl(); });

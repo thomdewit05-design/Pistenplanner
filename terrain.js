@@ -169,11 +169,11 @@
   if(IS_WORKER){
     const ok = typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap === "function" && !!new OffscreenCanvas(1, 1).getContext("2d");
     self.postMessage({ready:ok});
-    // wachtrij: de nieuwste vraag eerst (dat is wat je nu ziet), hooguit drie tegelijk; afgebroken vragen vervallen
+    // wachtrij: de nieuwste vraag eerst (dat is wat je nu ziet), hooguit zes tegelijk (meestal wachten ze op het netwerk); afgebroken vragen vervallen
     const queue = [];
     let running = 0;
     const pump = () => {
-      while(running < 3 && queue.length){
+      while(running < 6 && queue.length){
         const {id, kind, z, x, y, r} = queue.pop(); running++;
         make(kind, z, x, y, r).then(bmp => self.postMessage({id, bmp}, [bmp]), e => self.postMessage({id, err:String(e.message || e)}))
           .finally(() => { running--; pump(); });
@@ -208,6 +208,7 @@
     })();
   }
   window.PPterrain = {
+    warm: () => startWorker(),   // de worker alvast opstarten, zodat de eerste 3D-tegel niet hoeft te wachten
     // signal (optioneel): een AbortSignal; een tegel die niet meer nodig is, wordt dan niet meer getekend
     async get(kind, z, x, y, r, signal){
       if(await startWorker()) return new Promise((ok, bad) => {
