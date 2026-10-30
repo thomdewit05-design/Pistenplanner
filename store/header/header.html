@@ -1,7 +1,8 @@
 <!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../vendor/fonts.css">
 <style>
-html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#0D2F7A}
-.wrap{position:relative;width:1920px;height:1080px}
+html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#0D2F7A}
+.wrap{position:relative;width:100vw;height:100vh}
+svg.art{width:100%;height:100%}
 svg.art{position:absolute;inset:0}
 .txt{position:absolute;left:120px;top:150px;width:860px;color:#fff;font-family:Barlow,sans-serif}
 .brand{display:flex;align-items:center;gap:26px}
@@ -13,8 +14,18 @@ h1 em{font-style:normal;color:#FFC400}
 p{font:500 40px/1.35 Barlow;margin:34px 0 0;color:rgba(255,255,255,.92);max-width:780px}
 .chips{display:flex;gap:16px;margin-top:48px;flex-wrap:wrap}
 .chip{font:600 30px/1 Barlow;padding:16px 26px;border-radius:999px;background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.35);backdrop-filter:blur(8px)}
+/* breed formaat (3840x1646): alles iets kleiner en hoger, zodat het in de lagere strook past */
+.wide .txt{top:70px;left:140px;width:980px}
+.wide{background:linear-gradient(180deg,#4C97FF 0%,#1F5FD6 55%,#0D2F7A 100%)}
+.wide .wrap::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9.5%;background:linear-gradient(180deg,#fff,#D6E4F7);border-radius:60% 40% 0 0/50% 40% 0 0;z-index:0}
+.wide svg.art{z-index:1}.wide .txt{z-index:2}
+.wide .brand .lg,.wide .brand .lg svg{width:96px;height:96px}
+.wide .brand b{font-size:72px}
+.wide h1{font-size:104px;margin-top:34px}
+.wide p{font-size:34px;margin-top:22px}
+.wide .chips{margin-top:28px}.wide .chip{font-size:26px;padding:12px 22px}
 </style></head><body><div class="wrap">
-<svg class="art" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+<svg class="art" viewBox="0 0 1920 1080" preserveAspectRatio="xMaxYMax slice" xmlns="http://www.w3.org/2000/svg">
 <defs>
  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4C97FF"/><stop offset=".55" stop-color="#1F5FD6"/><stop offset="1" stop-color="#0D2F7A"/></linearGradient>
  <radialGradient id="sun" cx="1630" cy="190" r="420" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".25" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
@@ -27,7 +38,7 @@ p{font:500 40px/1.35 Barlow;margin:34px 0 0;color:rgba(255,255,255,.92);max-widt
 <rect width="1920" height="1080" fill="url(#sun)"/>
 <circle cx="1630" cy="190" r="54" fill="#fff" opacity=".9"/>
 <!-- verre bergen -->
-<path d="M820 760 L980 560 L1060 640 L1180 470 L1290 600 L1400 520 L1540 650 L1650 560 L1800 690 L1920 600 L1920 1080 L820 1080Z" fill="url(#far)" opacity=".75"/>
+<path d="M520 1080 L820 760 L980 560 L1060 640 L1180 470 L1290 600 L1400 520 L1540 650 L1650 560 L1800 690 L1920 600 L1920 1080 L820 1080Z" fill="url(#far)" opacity=".75"/>
 <path d="M980 560 L1010 600 L995 610 L1030 650 L1060 640Z M1180 470 L1215 520 L1196 530 L1240 560 L1290 600 L1230 590Z M1650 560 L1690 600 L1672 612 L1720 640Z" fill="#fff" opacity=".55"/>
 <!-- grote top -->
 <g filter="url(#soft)">
@@ -65,10 +76,11 @@ p{font:500 40px/1.35 Barlow;margin:34px 0 0;color:rgba(255,255,255,.92);max-widt
  <div class="chips" id="chips"></div>
 </div></div>
 <script>
-const T = {nl:{h:'Nooit meer<br>verdwalen op<br>de <em>piste</em>.', s:'Routes, gesproken navigatie en 3D-bergen in meer dan 1.800 skigebieden.', c:['Dagroute','Apple Watch','Ook offline']},
-           en:{h:'Never get<br>lost on the<br><em>slopes</em> again.', s:'Routes, spoken navigation and 3D mountains in more than 1,800 ski areas.', c:['Daily route','Apple Watch','Works offline']}};
-const L = T[location.hash.slice(1) || 'nl'];
-document.getElementById('h1').innerHTML = L.h; document.getElementById('sub').textContent = L.s;
+const T = {nl:{h:'Nooit meer<br>verdwalen op<br>de <em>piste</em>.', hw:'Nooit meer verdwalen<br>op de <em>piste</em>.', s:'Routes, gesproken navigatie en 3D-bergen in meer dan 1.800 skigebieden.', c:['Dagroute','Apple Watch','Ook offline']},
+           en:{h:'Never get<br>lost on the<br><em>slopes</em> again.', hw:'Never get lost on<br>the <em>slopes</em> again.', s:'Routes, spoken navigation and 3D mountains in more than 1,800 ski areas.', c:['Daily route','Apple Watch','Works offline']}};
+const [lang, fmt] = (location.hash.slice(1) || 'nl').split('-'); const L = T[lang];
+if(fmt === 'wide'){ document.body.classList.add('wide'); document.querySelector('svg.art').setAttribute('preserveAspectRatio', 'xMaxYMax meet'); }
+document.getElementById('h1').innerHTML = fmt === 'wide' ? L.hw : L.h; document.getElementById('sub').textContent = L.s;
 document.getElementById('chips').innerHTML = L.c.map(c => '<span class="chip">' + c + '</span>').join('');
 const NS = 'http://www.w3.org/2000/svg', r = document.getElementById('route2'), len = r.getTotalLength(), g = document.getElementById('chev');
 for(let d = 70; d < len - 60; d += 78){ const a = r.getPointAtLength(d), b = r.getPointAtLength(d + 2), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
