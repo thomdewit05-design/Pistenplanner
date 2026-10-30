@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="fonts.css">
+<style>
+html,body{margin:0;width:1290px;height:2796px;overflow:hidden}
+.bg{position:absolute;inset:0;background:linear-gradient(180deg,#4C97FF 0%,#1F5FD6 45%,#0D2F7A 100%)}
+.bg::after{content:"";position:absolute;inset:0;background:radial-gradient(900px 500px at 85% 6%,rgba(255,255,255,.28),transparent 70%)}
+.cap{position:absolute;left:90px;right:90px;top:150px;text-align:center;color:#fff}
+.cap h1{margin:0;font:800 132px/1.0 'Barlow Condensed','Noto Sans CJK SC','Noto Sans CJK JP',sans-serif;letter-spacing:.005em;text-shadow:0 6px 28px rgba(5,20,60,.3)}
+.cap p{margin:34px 0 0;font:500 50px/1.3 Barlow,'Noto Sans CJK SC',sans-serif;color:rgba(255,255,255,.92)}
+.cjk .cap h1{font-family:'Noto Sans CJK SC','Noto Sans CJK JP',sans-serif;font-weight:800;font-size:116px;letter-spacing:.02em}
+.ru .cap h1{font-family:'Noto Sans',Arial,sans-serif;font-weight:800;font-size:108px;letter-spacing:-.01em}
+.ru .cap p,.cjk .cap p{font-family:'Noto Sans','Noto Sans CJK SC',Arial,sans-serif;font-weight:500;font-size:46px}
+.phone{position:absolute;left:50%;transform:translateX(-50%);width:980px;top:600px;border-radius:132px;background:#0B1220;padding:24px;box-shadow:0 40px 120px rgba(5,20,60,.5),inset 0 0 0 3px rgba(255,255,255,.12)}
+.phone img{display:block;width:932px;border-radius:108px}
+.island{position:absolute;left:50%;top:52px;transform:translateX(-50%);width:250px;height:72px;border-radius:40px;background:#000}
+</style></head><body><div class="bg"></div>
+<div class="cap"><h1 id="h"></h1><p id="s"></p></div>
+<div class="phone"><img id="img"></div>
+<script>
+const q = new URLSearchParams(location.search), lang = q.get('l'), n = +q.get('n');
+fetch('captions.json').then(r => r.json()).then(C => {
+  const [h, s] = C[lang][n]; document.getElementById('h').textContent = h; document.getElementById('s').textContent = s;
+  if(['zh','ja'].includes(lang)) document.body.classList.add('cjk'); if(lang === 'ru') document.body.classList.add('ru');
+  const img = document.getElementById('img'); img.onload = () => document.body.dataset.ready = 1; img.src = `${lang}-${'abc'[n]}.png`;
+});
+</script></body></html>

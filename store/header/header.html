@@ -1,0 +1,94 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#0D2F7A}
+.wrap{position:relative;width:100vw;height:100vh}
+svg.art{width:100%;height:100%}
+svg.art{position:absolute;inset:0}
+.txt{position:absolute;left:120px;top:150px;width:860px;color:#fff;font-family:Barlow,sans-serif}
+.brand{display:flex;align-items:center;gap:26px}
+.brand .lg{width:128px;height:128px;filter:drop-shadow(0 14px 30px rgba(5,20,60,.45))}
+.brand .lg svg{width:128px;height:128px}
+.brand b{font:800 92px/1 'Barlow Condensed';letter-spacing:.01em}
+h1{font:800 124px/.98 'Barlow Condensed';margin:64px 0 0;letter-spacing:.005em;text-shadow:0 6px 30px rgba(5,20,60,.35)}
+h1 em{font-style:normal;color:#FFC400}
+p{font:500 40px/1.35 Barlow;margin:34px 0 0;color:rgba(255,255,255,.92);max-width:780px}
+.chips{display:flex;gap:16px;margin-top:48px;flex-wrap:wrap}
+.chip{font:600 30px/1 Barlow;padding:16px 26px;border-radius:999px;background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.35);backdrop-filter:blur(8px)}
+/* breed formaat (3840x1646): alles iets kleiner en hoger, zodat het in de lagere strook past */
+.wide .txt{top:70px;left:140px;width:980px}
+.wide{background:linear-gradient(180deg,#4C97FF 0%,#1F5FD6 55%,#0D2F7A 100%)}
+.wide .wrap::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9.5%;background:linear-gradient(180deg,#fff,#D6E4F7);border-radius:60% 40% 0 0/50% 40% 0 0;z-index:0}
+.wide svg.art{z-index:1}.wide .txt{z-index:2}
+.wide .brand .lg,.wide .brand .lg svg{width:96px;height:96px}
+.wide .brand b{font-size:72px}
+.wide h1{font-size:104px;margin-top:34px}
+.wide p{font-size:34px;margin-top:22px}
+.wide .chips{margin-top:28px}.wide .chip{font-size:26px;padding:12px 22px}
+</style></head><body><div class="wrap">
+<svg class="art" viewBox="0 0 1920 1080" preserveAspectRatio="xMaxYMax slice" xmlns="http://www.w3.org/2000/svg">
+<defs>
+ <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4C97FF"/><stop offset=".55" stop-color="#1F5FD6"/><stop offset="1" stop-color="#0D2F7A"/></linearGradient>
+ <radialGradient id="sun" cx="1630" cy="190" r="420" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".25" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+ <linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DCE9FB"/><stop offset="1" stop-color="#93B3E6"/></linearGradient>
+ <linearGradient id="far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DC0F7"/><stop offset="1" stop-color="#5E8FE0"/></linearGradient>
+ <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D6E4F7"/></linearGradient>
+ <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0A2460" flood-opacity=".35"/></filter>
+</defs>
+<rect width="1920" height="1080" fill="url(#sky)"/>
+<rect width="1920" height="1080" fill="url(#sun)"/>
+<circle cx="1630" cy="190" r="54" fill="#fff" opacity=".9"/>
+<!-- verre bergen -->
+<path d="M520 1080 L820 760 L980 560 L1060 640 L1180 470 L1290 600 L1400 520 L1540 650 L1650 560 L1800 690 L1920 600 L1920 1080 L820 1080Z" fill="url(#far)" opacity=".75"/>
+<path d="M980 560 L1010 600 L995 610 L1030 650 L1060 640Z M1180 470 L1215 520 L1196 530 L1240 560 L1290 600 L1230 590Z M1650 560 L1690 600 L1672 612 L1720 640Z" fill="#fff" opacity=".55"/>
+<!-- grote top -->
+<g filter="url(#soft)">
+ <path d="M1040 1080 L1420 300 L1860 1080Z" fill="#FFFFFF"/>
+ <path d="M1420 300 L1860 1080 L1500 1080 L1478 820 L1512 650 L1460 470Z" fill="url(#shade)"/>
+ <path d="M1420 300 L1380 380 L1400 378 L1365 450 L1395 440 L1350 540" fill="none" stroke="#C9DBF4" stroke-width="6" stroke-linecap="round" opacity=".9"/>
+</g>
+<!-- tweede top links -->
+<path d="M760 1080 L1010 640 L1110 760 L1180 700 L1330 1080Z" fill="#F4F8FD"/>
+<path d="M1010 640 L1060 700 L1035 712 L1110 760 L1080 1080 L1050 820Z" fill="#C7D9F3" opacity=".9"/>
+<!-- kabelbaan -->
+<path id="cable" d="M890 1000 Q1150 760 1395 420" fill="none" stroke="#0F1B2A" stroke-width="3.5" opacity=".75"/>
+<g fill="#0F1B2A">
+ <rect x="1005" y="845" width="6" height="90" opacity=".8"/><rect x="990" y="845" width="36" height="5" opacity=".8"/>
+ <rect x="1205" y="660" width="6" height="110" opacity=".8"/><rect x="1190" y="660" width="36" height="5" opacity=".8"/>
+</g>
+<g id="cabins"></g>
+<!-- de route -->
+<path id="route" d="M1430 340 C1560 420 1560 520 1440 575 C1300 640 1290 720 1430 790 C1560 850 1540 930 1420 990" fill="none" stroke="#0D2F7A" stroke-opacity=".25" stroke-width="34" stroke-linecap="round"/>
+<path id="route2" d="M1430 340 C1560 420 1560 520 1440 575 C1300 640 1290 720 1430 790 C1560 850 1540 930 1420 990" fill="none" stroke="#FFC400" stroke-width="22" stroke-linecap="round"/>
+<g id="chev"></g>
+<!-- start en vlag -->
+<circle cx="1430" cy="340" r="17" fill="#fff" stroke="#FFC400" stroke-width="8"/>
+<g transform="translate(1420 990)" filter="url(#soft)"><path d="M0 0 C-30 -40 -42 -58 -42 -78 A42 42 0 1 1 42 -78 C42 -58 30 -40 0 0Z" fill="#FFC400" stroke="#0F1B2A" stroke-width="5"/><path d="M-12 -98 V-54 M-12 -98 H16 L8 -88 L16 -78 H-12" fill="#0F1B2A" stroke="#0F1B2A" stroke-width="5" stroke-linejoin="round"/></g>
+<!-- toplabel -->
+<g transform="translate(1440 250)"><rect x="-8" y="-40" width="190" height="56" rx="28" fill="#fff" opacity=".92"/><path d="M20 4 L36 -26 L52 4Z" fill="#3A2E25"/><text x="64" y="0" font-family="Barlow" font-weight="700" font-size="30" fill="#1F2A36">2.501 m</text></g>
+<!-- bomen en voorgrond -->
+<path d="M0 1080 L0 990 Q300 930 620 975 Q900 1010 1180 965 Q1500 915 1920 985 L1920 1080Z" fill="url(#ground)"/>
+<g fill="#16305E" id="trees"></g>
+</svg>
+<div class="txt">
+ <div class="brand"><div class="lg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Skipilot">   <defs>     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4C97FF"/><stop offset=".55" stop-color="#1F5FD6"/><stop offset="1" stop-color="#0D2F7A"/></linearGradient>     <linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DCE9FB"/><stop offset="1" stop-color="#9FBDEA"/></linearGradient>     <clipPath id="r"><rect width="100" height="100" rx="22"/></clipPath>   </defs>   <g clip-path="url(#r)">     <rect width="100" height="100" fill="url(#sky)"/>     <polygon points="-4,72 18,52 30,61 44,47 60,58 76,44 104,66 104,104 -4,104" fill="#7FAAF0" opacity=".45"/>     <polygon points="-6,106 50,18 106,106" fill="#FFFFFF"/>     <polygon points="50,18 106,106 64,106 58,74 63,56 55,40" fill="url(#shade)"/>     <path d="M58 30 C74 40 72 52 54 58 C34 65 34 76 50 81.4" fill="none" stroke="#0D2F7A" stroke-opacity=".2" stroke-width="12" stroke-linecap="round"/>     <path d="M58 30 C74 40 72 52 54 58 C34 65 34 76 50 81.4" fill="none" stroke="#FFC400" stroke-width="8" stroke-linecap="round"/>     <path d="M53.8 73.2 L65.6 86.5 L48.2 90.2 Z" fill="#FFC400" stroke="#FFC400" stroke-width="2.5" stroke-linejoin="round"/>   </g> </svg> </div><b>Skipilot</b></div>
+ <h1 id="h1"></h1>
+ <p id="sub"></p>
+ <div class="chips" id="chips"></div>
+</div></div>
+<script>
+const T = {nl:{h:'Nooit meer<br>verdwalen op<br>de <em>piste</em>.', hw:'Nooit meer verdwalen<br>op de <em>piste</em>.', s:'Routes, gesproken navigatie en 3D-bergen in meer dan 1.800 skigebieden.', c:['Dagroute','Apple Watch','Ook offline']},
+           en:{h:'Never get<br>lost on the<br><em>slopes</em> again.', hw:'Never get lost on<br>the <em>slopes</em> again.', s:'Routes, spoken navigation and 3D mountains in more than 1,800 ski areas.', c:['Daily route','Apple Watch','Works offline']}};
+const [lang, fmt] = (location.hash.slice(1) || 'nl').split('-'); const L = T[lang];
+if(fmt === 'wide'){ document.body.classList.add('wide'); document.querySelector('svg.art').setAttribute('preserveAspectRatio', 'xMaxYMax meet'); }
+document.getElementById('h1').innerHTML = fmt === 'wide' ? L.hw : L.h; document.getElementById('sub').textContent = L.s;
+document.getElementById('chips').innerHTML = L.c.map(c => '<span class="chip">' + c + '</span>').join('');
+const NS = 'http://www.w3.org/2000/svg', r = document.getElementById('route2'), len = r.getTotalLength(), g = document.getElementById('chev');
+for(let d = 70; d < len - 60; d += 78){ const a = r.getPointAtLength(d), b = r.getPointAtLength(d + 2), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  const p = document.createElementNS(NS, 'path'); p.setAttribute('d', 'M-6 -8 L4 0 L-6 8'); p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#0F1B2A'); p.setAttribute('stroke-width', '5'); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round');
+  p.setAttribute('transform', 'translate(' + a.x + ' ' + a.y + ') rotate(' + ang + ')'); g.appendChild(p); }
+const c = document.getElementById('cable'), cl = c.getTotalLength(), cg = document.getElementById('cabins');
+[.3, .62].forEach(f => { const q = c.getPointAtLength(cl * f); cg.innerHTML += '<g transform="translate(' + q.x + ' ' + q.y + ')"><path d="M0 0 V18" stroke="#0F1B2A" stroke-width="3"/><rect x="-17" y="18" width="34" height="30" rx="7" fill="#E5484D" stroke="#0F1B2A" stroke-width="3"/><rect x="-11" y="24" width="22" height="9" rx="2" fill="#CFE3FF"/></g>'; });
+const tg = document.getElementById('trees'); let s = 7;
+const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+for(let i = 0; i < 26; i++){ const x = 640 + rnd() * 1280, y = 990 + rnd() * 70, h = 40 + rnd() * 55; tg.innerHTML += '<path d="M' + x + ' ' + (y - h) + ' L' + (x + h * .38) + ' ' + y + ' L' + (x - h * .38) + ' ' + y + 'Z" opacity="' + (.75 + rnd() * .25) + '"/>'; }
+</script></body></html>
