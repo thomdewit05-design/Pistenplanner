@@ -1222,6 +1222,13 @@ $("ndFlat").onclick = () => setPov(false);
 // ================= 3D-kaart (bergen) =================
 // Knop 3D: de kaart met echte hoogtes, om rond te kijken. Plannen werkt gewoon (tikken op pistes, liften, hutten);
 // route tekenen gaat op de platte kaart. Tijdens het navigeren neemt de navigatieweergave het over.
+// de 3D-bibliotheek alvast laden als de app even niets doet, zodat de 3D-knop meteen werkt
+function prefetch3d(){
+  if(!M3.supported || M3.failed || M3.loaded()) return;
+  const go = () => M3.load().catch(() => {});
+  (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go, {timeout:6000});
+  PPterrain.warm?.();
+}
 function apply3d(){
   const want = !!(S.t3d && M3.supported && !M3.failed && !POV.on && !S.draw);
   $("threeBtn").hidden = !M3.supported || M3.failed;
@@ -3586,6 +3593,7 @@ document.querySelectorAll("#langSeg button").forEach(b => {
 // ================= start =================
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
 applyBase(); update(); setPeek(); $("threeBtn").hidden = !M3.supported;
+setTimeout(prefetch3d, 3000);
 (async () => {
   try{ const r = await fetch(`data/index.json?${DATA_V}`); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
   catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
