@@ -100,8 +100,8 @@ en een skidagboek heeft, en dat de kaart werkt zonder account.
 
 ## Advertenties (Google AdMob)
 
-De gratis iPhone-app toont een advertentiebalk onderin zolang de skigebiedkiezer, het skidagboek, het menu, de liftstatus of de groep open is,
-en een schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar): hooguit eens per 15 minuten en niet in de eerste 10 minuten;
+De gratis iPhone-app toont een advertentiebalk onderin zolang de skigebiedkiezer, de routebeschrijving (paneel helemaal open), het skidagboek, het menu, de liftstatus of de groep open is,
+en een schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar, ander skigebied gekozen): hooguit eens per 15 minuten en niet in de eerste 10 minuten;
 nooit tijdens het navigeren en niet voor wie Pro gekocht heeft. Bij het eerste gebruik vraagt de app eerst om toestemming
 (de melding van Google voor Europa, daarna Apple's "Sta toe dat deze app je volgt"). Code: `ads.js`, instellingen in `config.js` onder `ads.ios`.
 

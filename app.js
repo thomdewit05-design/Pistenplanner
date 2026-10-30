@@ -1,5 +1,30 @@
 "use strict";
 const $ = id => document.getElementById(id);
+// ---- animaties: panelen en menu's schuiven in beeld en weer weg ----
+// Panelen gaan overal open en dicht met el.hidden; hier krijgt elk paneel een eigen "hidden" die bij sluiten eerst
+// de weg-animatie afspeelt en dan pas echt verbergt. Code die el.hidden leest ziet meteen de nieuwe stand.
+const HIDDEN = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "hidden");
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function animHidden(el, ms = 220){
+  if(!el) return;
+  let want = el.hasAttribute("hidden"), timer = 0;
+  Object.defineProperty(el, "hidden", {configurable:true, get(){ return want; }, set(v){
+    v = !!v; if(v === want) return; want = v; clearTimeout(timer);
+    if(!v){ el.classList.remove("closing"); HIDDEN.set.call(el, false); return; }
+    if(calm()){ HIDDEN.set.call(el, true); return; }
+    el.classList.add("closing");
+    timer = setTimeout(() => { el.classList.remove("closing"); if(want) HIDDEN.set.call(el, true); }, ms);
+  }});
+}
+// een los venster (zoals bij hotel of Pro) weghalen met een animatie
+function animRemove(el, ms = 200){
+  if(!el?.isConnected) return;
+  if(calm()){ el.remove(); return; }
+  el.removeAttribute("id"); el.querySelectorAll("[id]").forEach(x => x.removeAttribute("id"));   // een nieuw venster mag meteen dezelfde namen gebruiken
+  el.classList.add("closing"); setTimeout(() => el.remove(), ms);
+}
+
+["picker", "status", "group", "diary", "menu", "sos", "layerMenu"].forEach(id => animHidden($(id), id === "layerMenu" ? 160 : 220));
 const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco",
                  ES:"Spanje", AD:"Andorra", NO:"Noorwegen", SE:"Zweden", FI:"Finland", US:"Verenigde Staten", CA:"Canada"};
 const REGIONS = [["alpen","Alpen"], ["pyreneeen","Pyreneeën"], ["scandinavie","Scandinavië"], ["noord-amerika","Noord-Amerika"]];
@@ -17,19 +42,23 @@ const flagChips = fl => fl.length ? `<div class="flags">${fl.map(x => `<span cla
 const LIFT = {chair_lift:"stoeltjeslift", gondola:"gondel", cable_car:"kabelbaan", "t-bar":"sleeplift", "j-bar":"sleeplift",
               platter:"schotellift", drag_lift:"sleeplift", rope_tow:"touwlift", magic_carpet:"lopende band", mixed_lift:"combibaan",
               funicular:"kabeltrein", lift:"lift"};
+// eigen icoon per soort lift (gondel, stoeltjeslift, sleeplift, kabelbaan, lopende band, kabeltrein)
+const LIFT_IC = {chair_lift:"chair", mixed_lift:"chair", cable_car:"cablecar", funicular:"train", magic_carpet:"carpet",
+                 "t-bar":"drag", "j-bar":"drag", platter:"drag", drag_lift:"drag", rope_tow:"drag"};
+const liftIc = kind => I(LIFT_IC[kind] || "lift");
 const DRAG = new Set(["t-bar","j-bar","platter","drag_lift","rope_tow","magic_carpet"]);
 const LIFT_WAIT = 2, WALK_SPD = 60;          // min wachten per lift, m/min lopen
 const OFF_ROUTE = 120;                        // m van de route af = opnieuw plannen
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, svcOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, svcOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, board:false, peaksOn:true, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", t3d:!!s.t3d, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -95,7 +124,7 @@ function applyBase(){
   if(M3.mode) for(const l of [...Object.values(baseLayers), labelLayer, roadsLayer]) l.remove();   // onder de 3D-kaart niets laden
   S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
-  $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums;
+  $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums; $("showPeaks").checked = S.peaksOn;
   if(typeof drawNumbers === "function") drawNumbers();
   M3.sync("base", "pistes");
   save();
@@ -167,6 +196,7 @@ async function openArea(id, opts={}){
   for(const e of raw.e){
     let nm = raw.t[e[3]]||"", ref = e[4] === nm ? "" : e[4];
     if(!ref && /^\d{1,3}[a-z]?$/i.test(nm)){ ref = nm; nm = ""; }   // naam die eigenlijk een pistenummer is
+    if(ref.length > 5){ if(!nm) nm = ref; ref = ""; }   // lang "nummer" (bv. een lijst rondes): als naam tonen, past niet in het rondje
     // land per piste/lift (leeg = hetzelfde land als het skigebied)
     if(e[0]==="r") edges.push({t:"r", a:e[1], b:e[2], name:nm, ref, diff:e[5], len:e[6], drop:e[7], pts:geo(e[8]), cc:e[9] || row[2], f:e[10] || ""});
     else edges.push({t:"l", a:e[1], b:e[2], name:nm, ref, kind:e[5], len:e[6], dur:e[7], pts:geo(e[8]), down:!!e[9], cc:e[10] || row[2]});
@@ -216,10 +246,11 @@ async function openArea(id, opts={}){
   S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
   $("brandRegion").textContent = regionName(row[12]);
   $("areaStats").textContent = S.area.statsTxt;
-  drawPistes(); buildNumbers(); drawHuts(); loadHuts();
+  $("ticketCard").href = ticketUrl(); $("ticketCard").hidden = false;
+  drawPistes(); buildNumbers(); drawHuts(); loadHuts(); peakLayer.clearLayers(); loadPeaks();
   if(!opts.keepView) fitArea(!!$("splash") && !$("splash").classList.contains("out"));
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
-  else { defaultRoute(); S.pick = "from"; }
+  else { S.from = S.to = null; S.lunch = null; S.tour = null; S.pick = "from"; }   // nieuw gebied: een kale kaart, geen voorgestelde route
   try{ history.replaceState(null, "", "#" + id); }catch(e){}
   save(); update();
   if(!opts.keepView && S.path?.length){   // op de route inzoomen; die is interessanter dan het hele gebied
@@ -228,6 +259,7 @@ async function openArea(id, opts={}){
   drawNumbers();
   setTimeout(hideSplash, 250);
   loadWeather(); widgetArea();
+  if(!opts.keepView && (S.opened = (S.opened || 0) + 1) > 1) window.ppAds?.native?.pause?.();   // ander gebied gekozen: een natuurlijke pauze
 }
 // ---- widgets op het beginscherm (iOS-app) ----
 // de app geeft het skigebied en de skidag door; het weer haalt de widget zelf op, zodat hij ook bijblijft als de app dicht is
@@ -354,6 +386,13 @@ let RELAX = 0;
 const overLevel = e => { const lv = DIFF[e.diff].lvl; return lv===4 ? !S.free : lv > S.level; };
 // toeristische route naar het dal: geldt zolang de bestemming dezelfde blijft
 const tourOn = () => !!(S.tour && S.tour.to === S.to);
+// hoe vlak een stuk piste is voor een snowboarder: 2 = vlak of omhoog (steppen), 1 = net genoeg verval, 0 = prima
+// korte stukjes (< 60 m) glijd je zo over
+function boardFlat(e){
+  if(e.len < 60) return 0;
+  const g = (e.drop || 0) / e.len;
+  return g < .04 ? 2 : g < .07 ? 1 : 0;
+}
 function graph(bias){
   const A = S.area, out = A.nodes.map(() => []), R = RELAX, sun = S.sunny && !S.night ? sunShade() : null, tour = tourOn();
   for(const e of A.edges){
@@ -363,21 +402,24 @@ function graph(bias){
       const lv = DIFF[e.diff].lvl, over = k===1 && overLevel(e);
       if(over && !(R >= 3 || (R >= 2 && lv !== 4 && lv <= S.level + 1))) continue;
       if(S.night && k===1 && !e.f.includes("l")) continue;          // avondskiën: alleen verlichte pistes
-      const m = e.len / (DIFF[e.diff].spd * S.pace);
+      // snowboard: vlakke en licht oplopende stukken kosten veel tijd en moeite (steppen of lopen)
+      const fl = S.board ? boardFlat(e) : 0;
+      const m = e.len / (DIFF[e.diff].spd * S.pace) * (fl === 2 ? 3 : fl === 1 ? 1.6 : 1);
       const avoid = (S.noMogul && e.f.includes("m") ? 3 : 1) * (over ? (lv===4 ? 6 : 3) : 1)   // buckelpiste vermijden, boven je niveau alleen als het moet
+                  * (fl === 2 ? 3 : fl === 1 ? 1.4 : 1)
                   * (sun && sun.alt > 2 && sun.v[e.i] < SUN_MIN ? 2.5 : 1);                    // zon opzoeken: schaduwpistes liever niet
       // toeristisch: de rustigste pistes, en een lange afdaling is juist mooi (pistes tellen lichter dan liften en lopen)
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" || tour ? m*DIFF[e.diff].pen : m) * (tour ? .7 : 1)});
     } else if(e.t==="l"){
       if(S.night && k===1 && !A.nightLifts.has(e.i)) continue;   // 's avonds alleen liften bij verlichte pistes
       const m = e.dur/60 + LIFT_WAIT;
-      const avoid = (S.noDrag || tour) && DRAG.has(e.kind) ? 4 : 1;          // sleeplift vermijden: alleen als het niet anders kan
+      const avoid = (S.noDrag || tour) && DRAG.has(e.kind) ? 4 : S.board && DRAG.has(e.kind) && e.kind !== "magic_carpet" ? 3 : 1;   // sleeplift vermijden: alleen als het niet anders kan
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)});
       // met de lift naar beneden kan, maar skiën heeft de voorkeur
       if(e.down && (S.down || R >= 1)) out[e.b].push({to:e.a, e, rev:true, min:m, cost:(m*1.5 + 10) * (tour ? 4 : 1)});
     } else {
       if(e.extra && R < 1) continue;
-      const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, c = m * (e.extra ? 3 : 1.5);
+      const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, c = m * (e.extra ? 3 : 1.5) * (S.board ? 2 : 1);   // met een plank lopen is zwaarder
       out[e.a].push({to:e.b, e, rev:false, min:m, cost:c}); out[e.b].push({to:e.a, e, rev:true, min:m, cost:c});
     }
   }
@@ -572,7 +614,7 @@ function buildSteps(path){
   out.forEach((st, i) => {
     const e = st.e, prev = out[i-1];
     if(st.t==="l"){
-      st.cls = "lift"; st.node = `<span class="node">${I("lift")}</span>`; st.icon = "lift";
+      st.cls = "lift"; st.node = `<span class="node">${liftIc(e.kind)}</span>`; st.icon = "lift";
       st.title = `${st.rev ? "Ga met" : "Neem"} ${liftLabel(e)}${st.rev ? " naar beneden" : ""}`;
       const ele = S.area.nodes[st.end].ele;
       st.sub = `${uc(LIFT[e.kind]||"lift")} · ${km(e.len)} · ${st.rev ? "naar het dalstation" : "naar het bergstation"}${ele!=null ? ` op ${ele} m` : ""}`;
@@ -601,6 +643,7 @@ function buildSteps(path){
 function update(){
   document.querySelectorAll("#level button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v===S.level)));
   document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v===S.mode)));
+  document.querySelectorAll("#gear button").forEach(b => b.setAttribute("aria-pressed", String((b.dataset.v==="board")===S.board))); $("gearHint").hidden = !S.board;
   $("free").checked = S.free; $("down").checked = S.down; $("voice").checked = S.voice;
   $("fromMe").classList.toggle("on", S.fromMe);
   $("pickHint").innerHTML = `Tik op een <strong>piste</strong> om hem te skiën, of op een punt om ${S.pick==="from" ? "het <strong>vertrekpunt (A)</strong>" : "de <strong>bestemming (B)</strong>"} te kiezen.`;
@@ -612,7 +655,7 @@ function update(){
     S.to = wpEnd(S.wps[S.wps.length-1]);
   } else if(S.target) S.to = S.target.end;
   if(document.activeElement !== $("from")) $("from").value = tr(S.from!=null ? (S.fromMe ? "Mijn locatie (" + lc(nodeLabel(S.from)) + ")" : nodeLabel(S.from)) : "");
-  if(document.activeElement !== $("to")) $("to").value = tr(S.wps.length ? `Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}` : S.target ? `Skiën: ${S.target.label}`
+  if(document.activeElement !== $("to")) $("to").value = tr(S.wps.length && dayRouteOn() ? "Dagroute van vandaag" : S.wps.length ? `Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}` : S.target ? `Skiën: ${S.target.label}`
     : S.to!=null && S.to===S.from && S.via!=null ? "Terug naar het vertrekpunt" : S.to!=null ? nodeLabel(S.to) : "");
   renderExtra();
 
@@ -628,15 +671,17 @@ function update(){
     const lines = path.map(s => s.e.pts);
     L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:13, opacity:.45, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
     L.polyline(lines, {renderer:svgR, interactive:false, color:"#FFC400", weight:8, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2.5, dashArray:"1 9", lineCap:"round", className:"route-core"}).addTo(routeLayer);
+    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2, opacity:.55, lineCap:"round"}).addTo(routeLayer);
     if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.95, dashArray:"10 8"}).addTo(routeLayer);
   }
-  S.wps.forEach((w, i) => {
+  const day = S.wps.length && dayRouteOn();   // dagroute: geen genummerde punten, alleen begin en eind
+  if(!day) S.wps.forEach((w, i) => {
     const n = wpStart(w), p = A.nodes[n];
     L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="wpn${w.k==="p" ? " p" : ""}${i===0 ? " first" : ""}">${i+1}</div>`, iconSize:[26,26], iconAnchor:[13,13]}),
       keyboard:false, interactive:false, zIndexOffset:600 + i}).addTo(markLayer);
   });
-  const pins = S.wps.length ? [[S.wps.length > 1 ? S.to : null, "b", I("flag")]]
+  const pins = day ? [[S.from,"a","<span></span>"],[S.to !== S.from ? S.to : null, "b", I("flag")]]
+    : S.wps.length ? [[S.wps.length > 1 ? S.to : null, "b", I("flag")]]
     : [[S.from,"a","<span></span>"],[S.via,"v",I("loop")],[S.target ? S.target.start : null,"v",I("ski")],[S.to,"b",I("flag")]];
   for(const [n, cls, html] of pins){
     if(n==null || (cls==="a" && S.fromMe && S.pos) || (cls==="b" && S.to===S.from && S.via!=null)) continue;
@@ -646,6 +691,7 @@ function update(){
   }
   if(S.lunch && S.lunchStep != null){ const p = A.nodes[S.lunch.n];
     L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin v lunch-pin">${I("food")}</div>`, iconSize:[26,26], iconAnchor:[13,31]}), keyboard:false, interactive:false, zIndexOffset:400}).addTo(markLayer); }
+  drawArrows();
   renderResult();
   renderClosed();
   updateNav();
@@ -671,14 +717,16 @@ function renderExtra(){
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
   if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${tourOn() && S.tour.hut ? `${I("food")}Stop bij ${esc(S.tour.hut)}` : `${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}`}<span class="x">${I("close")}</span></button>`);
   if(S.lunch) parts.push(`<button type="button" class="chip route lunch-chip" data-k="lunch" title="Lunchstop weghalen">${I("food")}Lunch: ${esc(S.lunch.name)}${S.lunch.eta != null && S.lunchStep != null ? ` · ${hhmm(S.lunch.eta)}` : ""}<span class="x">${I("close")}</span></button>`);
-  if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
+  if(S.wps.length && dayRouteOn()) parts.push(`<button type="button" class="chip route day-chip" data-k="wps" title="Dagroute wissen">${I("sun")}Dagroute van vandaag · ${S.wps.filter(w => w.k === "p").length} pistes<span class="x">${I("close")}</span></button><button type="button" class="chip" data-k="reroll" title="Een andere dagroute">${I("loop")}Andere</button>`);
+  else if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
   if(S.night) parts.unshift(`<button type="button" class="chip route night-chip" data-k="night" title="Avondskiën uitzetten">${I("moon")}Avondskiën · ${NIGHT_OPEN}–${NIGHT_CLOSE}<span class="x">${I("close")}</span></button>`);
   if(S.planBy) parts.unshift(`<button type="button" class="chip route group-chip" data-k="planby" title="Niet meer tonen">${I("group")}Route van ${esc(S.planBy)}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
   x.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.k==="night"){ setNight(false); return; }
+    if(b.dataset.k==="reroll"){ dayRoute((S.day?.extra || 0) + 1); return; }
     if(b.dataset.k==="lunch"){ S.lunch = null; }
-    else if(b.dataset.k==="wps"){ S.wps = []; S.to = null; if(S.draw) renderDrawBar(); }
+    else if(b.dataset.k==="wps"){ S.wps = []; S.to = null; S.from = null; S.lunch = null; S.day = null; if(S.draw) renderDrawBar(); }
     else if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
     update();
   });
@@ -688,9 +736,9 @@ function renderResult(){
   const res = $("result"), peek = $("peek");
   if(S.from==null || S.to==null){
     res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`;
-    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Geen route" : "Kies je bestemming"}</b>${S.from==null ? "Tik op de kaart op je vertrekpunt, tik een piste aan, of laat de app een rondje voorstellen." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
-      <div class="cta"><button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button><button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button>${homeBtnHtml(true)}</div></div>`;
-    $("suggestBtn").onclick = () => { defaultRoute(); update(); fitRoute(); };
+    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Waar wil je heen?" : "Kies je bestemming"}</b>${S.from==null ? "Tik een piste of een punt op de kaart aan, of neem de dagroute van vandaag." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
+      <div class="cta">${S.from==null ? `<button type="button" class="btn primary day-btn" id="dayBtn">${I("sun")}Dagroute van vandaag</button>` : ""}<button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button>${ticketBtnHtml()}${homeBtnHtml(true)}</div></div>`;
+    $("dayBtn")?.addEventListener("click", () => dayRoute());
     $("homeBtn")?.addEventListener("click", goHome); $("homeSet")?.addEventListener("click", homeMenu);
     $("drawBtn2").onclick = startDraw;
     return setPeek();
@@ -721,7 +769,7 @@ function renderResult(){
   const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       <button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
@@ -836,7 +884,7 @@ function edgePopup(ei, latlng, nearNode){
   const ch = chainFrom(ei), e = ch.e, A = S.area;
   const drop = ch.kind==="r" ? (A.nodes[ch.start].ele ?? 0) - (A.nodes[ch.end].ele ?? 0) : (A.nodes[ch.end].ele ?? 0) - (A.nodes[ch.start].ele ?? 0);
   const div = document.createElement("div"); div.className = "pop pc";
-  const node = ch.kind==="l" ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${I("lift")}</span>`
+  const node = ch.kind==="l" ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${liftIc(e.kind)}</span>`
                              : `<span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
   const mins = ch.kind==="l" ? e.dur/60 : ch.len / DIFF[e.diff].spd;
   const top = ch.kind==="l" ? A.nodes[ch.end].ele : A.nodes[ch.start].ele;
@@ -846,7 +894,7 @@ function edgePopup(ei, latlng, nearNode){
       <small title="${top != null ? `Top ${top} m` : ""}">${kind} · ${nb(km(ch.len))} · ${ch.kind==="l" ? "↑" : "↓"} ${Math.abs(Math.round(drop))} m · ${nb(fmt(mins))}</small></div></div>
     ${ch.kind==="r" ? flagChips(flagsOf(ch.edges)) + sunNote(ch.edges) : ""}
     <div class="pc-btns">
-      <button type="button" class="pc-main" data-a="ski">${I(ch.kind==="l" ? "lift" : "ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
+      <button type="button" class="pc-main" data-a="ski">${ch.kind==="l" ? liftIc(e.kind) : I("ski")}${ch.kind==="l" ? "Neem deze lift" : "Ski deze piste"}</button>
       <button type="button" class="pc-ic danger" data-a="close" title="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten" aria-label="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>
       <button type="button" data-a="from" title="Vertrek hier">${I("play")}<span>Vertrek hier</span></button>
       <button type="button" data-a="to" title="Hierheen">${I("flag")}<span>Hierheen</span></button>
@@ -1144,7 +1192,7 @@ function hutAhead(ns){
   return null;
 }
 function stepBadge(st){
-  if(st.t === "l") return `<span class="nd-badge lift">${I("lift")}</span>`;
+  if(st.t === "l") return `<span class="nd-badge lift">${liftIc(st.e.kind)}</span>`;
   if(st.t === "w") return `<span class="nd-badge walk">${I("walk")}</span>`;
   return `<span class="nd-badge${isDark(st.e.diff) ? " dark" : ""}" style="background:${st.color}">${esc(st.e.ref) || I("ski")}</span>`;
 }
@@ -1276,11 +1324,14 @@ $("fromMe").onclick = () => {
 
 // ================= paneel =================
 const sheet = $("sheet");
-const sheetPeek = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sheet-peek")) || 170;
+const sheetPeek = () => { if(peekRaf){ cancelAnimationFrame(peekRaf); peekRaf = 0; setPeekNow(); } return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sheet-peek")) || 170; };
 // drie standen: open, half (de samenvatting) en klein (alleen de greep en de eerste regel, meer ruimte voor de kaart)
 let sheetMini = false;
 try{ sheetMini = localStorage.getItem("pp-sheet-mini") === "1"; }catch(e){}
-function setPeek(){
+// meten kost een volledige herberekening van de opmaak: één keer per beeld, na alle wijzigingen
+let peekRaf = 0;
+function setPeek(){ if(!peekRaf) peekRaf = requestAnimationFrame(() => { peekRaf = 0; setPeekNow(); }); }
+function setPeekNow(){
   const pk = $("peek"), first = pk.firstElementChild, mini = sheetMini && !isSide();
   const h = mini ? $("handle").offsetHeight + 4 + (first ? first.offsetHeight : 0) + 12
              : pk.offsetHeight + 26 + 14;
@@ -1347,6 +1398,7 @@ document.querySelectorAll("input[name=base]").forEach(r => r.onchange = () => { 
 $("showPistes").onchange = e => { S.pistes = e.target.checked; applyBase(); };
 $("showLabels").onchange = e => { S.labels = e.target.checked; applyBase(); };
 $("showNums").onchange = e => { S.nums = e.target.checked; applyBase(); };
+$("showPeaks").onchange = e => { S.peaksOn = e.target.checked; save(); drawPeaks(); M3.sync("peaks"); };
 $("showHuts").onchange = e => {
   S.hutsOn = e.target.checked; save(); drawHuts(); renderHutInfo();
   const A = S.area; if(!S.hutsOn || !A) return;
@@ -1357,6 +1409,7 @@ $("showHuts").onchange = e => {
 $("showHuts").checked = S.hutsOn;
 document.querySelectorAll("#level button").forEach(b => b.onclick = () => { S.level = +b.dataset.v; update(); });
 document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.v; update(); });
+document.querySelectorAll("#gear button").forEach(b => b.onclick = () => { S.board = b.dataset.v === "board"; update(); });
 $("free").onchange = e => { S.free = e.target.checked; update(); };
 $("down").onchange = e => { S.down = e.target.checked; update(); };
 function setVoice(on, from){
@@ -1796,7 +1849,7 @@ function renderStatus(){
   list.sort(stTab==="l" ? (a, b) => groupName(a).localeCompare(groupName(b), "nl") : (a, b) => num(a) - num(b) || groupName(a).localeCompare(groupName(b), "nl"));
   $("statusList").innerHTML = list.map(g => {
     const off = g.edges.some(i => S.closed.has(i)), risk = g.t==="l" && g.edges.some(i => R?.lifts.has(i));
-    const node = g.t==="l" ? `<span class="node liftnode">${I("lift")}</span>` : `<span class="node${g.isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
+    const node = g.t==="l" ? `<span class="node liftnode">${liftIc(g.e.kind)}</span>` : `<span class="node${isDark(g.e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>`;
     const fl = g.t==="r" ? flagsOf(g.edges).filter(x => x !== "g").map(x => FLAG[x][0].toLowerCase()) : [];
     const meta = g.t==="l" ? `${uc(LIFT[g.e.kind]||"lift")} · ${km(g.len)}${g.top!=null && g.top >= 0 ? ` · tot ${g.top} m` : ""}` : `${uc(DIFF[g.e.diff].nl)} · ${km(g.len)}${fl.length ? " · " + fl.join(" · ") : ""}`;
     return `<li class="${off ? "off" : ""}" data-k="${esc(g.key)}">${node}<span><span class="st-name">${esc(groupName(g))}</span><span class="st-meta">${meta}</span>${risk && !off ? `<span class="risk-tag">${I("wind")}Mogelijk dicht door wind</span>` : ""}</span>
@@ -2574,10 +2627,20 @@ function profileData(){
   return {pts, total:d, stepOf};
 }
 let PROF = null;
+let profCache = {key:"", html:"", pd:null}, resultW = 0;
 function profileHtml(){
+  // zelfde route en breedte: het hoogteprofiel van de vorige keer (opnieuw tekenen kost veel)
+  const W0 = resultW || ($("result").clientWidth || 360), key = `${S.sig}|${W0}|${S.lunchStep}|${LANG}`;
+  if(key === profCache.key){ PROF = profCache.pd; return profCache.html; }
+  const html = profileHtmlNow(W0);
+  profCache = {key, html, pd:PROF};
+  return html;
+}
+if(window.ResizeObserver) new ResizeObserver(es => { resultW = es[0].target.clientWidth; }).observe($("result"));
+function profileHtmlNow(W0){
   const pd = profileData(); PROF = pd;
   if(!pd) return "";
-  const W = Math.max(260, ($("result").clientWidth || 360)), H = 120, padL = 40, padR = 8, padT = 10, padB = 20;
+  const W = Math.max(260, W0), H = 120, padL = 40, padR = 8, padT = 10, padB = 20;
   const eles = pd.pts.map(p => p.ele), lo = Math.min(...eles), hi = Math.max(...eles);
   const span = Math.max(50, hi - lo), y0 = lo - span*0.08, y1 = hi + span*0.08;
   const X = d => padL + (W - padL - padR) * d / pd.total, Y = e => padT + (H - padT - padB) * (1 - (e - y0)/(y1 - y0));
@@ -3002,7 +3065,7 @@ function lunchForm(){
   $("lfGo").onclick = () => planLunch($("lfAt").value || "12:30", +$("lfDur").value || 60);
   $("lfCancel").onclick = () => update();
 }
-function planLunch(at, dur){
+function planLunch(at, dur, quiet){
   const A = S.area, huts = (A.huts || []).filter(h => A.nodes[h.node] && isFood(h));
   S.lunchPref = {at, dur};
   if(!S.path || !S.path.length){ toast("Kies eerst een route, dan zoekt de app een plek voor de lunch."); return; }
@@ -3016,17 +3079,173 @@ function planLunch(at, dur){
   const keep = S.lunch; let best = null;
   for(const {h} of cands){
     S.lunch = {n:h.node, at, dur};
-    const p = computePath(); if(!p || S.lunchAt == null) continue;
+    const p = computePath(); if(!p || S.lunchAt == null || (quiet && S.relax)) continue;
     const eta = t0 + p.slice(0, S.lunchAt).reduce((t, x) => t + x.min, 0), extra = p.reduce((t, x) => t + x.min, 0) - base;
     const score = Math.abs(eta - want) + .6 * Math.max(0, extra) + (h.kind === "b" || h.kind === "f" ? 15 : 0) + (h.name ? 0 : 20);
     if(!best || score < best.score) best = {h, score, eta};
   }
-  if(!best){ S.lunch = keep; update(); toast("Geen hut of restaurant gevonden die in je route past."); return; }
+  if(!best){ S.lunch = keep; update(); if(!quiet) toast("Geen hut of restaurant gevonden die in je route past."); return; }
   const k = HUT_KIND[best.h.kind] || HUT_KIND.r;
   S.lunch = {n:best.h.node, at, dur, name:best.h.name || k[0], kind:best.h.kind};
-  update(); fitRoute();
+  update(); if(quiet) return; fitRoute();
   const eta = S.lunch.eta ?? best.eta;
   toast(Math.abs(eta - want) > 30 ? `Lunch bij ${S.lunch.name} rond ${hhmm(eta)}. Dichter bij ${at} lukt niet met deze route.` : `Lunch bij ${S.lunch.name} rond ${hhmm(eta)}.`, 4000);
+}
+
+// ================= pijltjes op de route =================
+// Om de zoveel pixels een punthaak in de rijrichting; ze lichten na elkaar op, zodat je ziet welke kant de route op gaat.
+const arrowLayer = L.layerGroup().addTo(map);
+function drawArrows(){
+  arrowLayer.clearLayers();
+  if(!S.path?.length || M3.mode) return;
+  const z = map.getZoom(), gap = z >= 16 ? 78 : z >= 14 ? 62 : 48, view = map.getPixelBounds(), pad = 40;
+  const inView = p => p.x > view.min.x - pad && p.x < view.max.x + pad && p.y > view.min.y - pad && p.y < view.max.y + pad;
+  let next = gap / 2, run = 0, prev = null, n = 0;
+  for(const s of S.path){
+    const pts = s.rev ? [...s.e.pts].reverse() : s.e.pts;
+    for(const ll of pts){
+      const p = map.project(ll, z);
+      if(prev){
+        const dx = p.x - prev.x, dy = p.y - prev.y, d = Math.hypot(dx, dy);
+        while(d && next <= run + d){
+          const t = (next - run) / d, at = L.point(prev.x + dx * t, prev.y + dy * t);
+          if(inView(at)){
+            const ang = Math.atan2(dy, dx) * 180 / Math.PI, k = Math.round(next / gap);
+            L.marker(map.unproject(at, z), {interactive:false, keyboard:false, zIndexOffset:-1000, icon:L.divIcon({className:"", iconSize:[18, 18], iconAnchor:[9, 9],
+              html:`<div class="rarrow" style="transform:rotate(${ang.toFixed(0)}deg)"><i style="animation-delay:${(-(1.6 - (k * .2) % 1.6)).toFixed(2)}s"></i></div>`})}).addTo(arrowLayer);
+            if(++n > 260) return;
+          }
+          next += gap;
+        }
+        run += d;
+      }
+      prev = p;
+    }
+  }
+}
+map.on("zoomend moveend", () => { if(S.path?.length) drawArrows(); });
+
+// ================= bergtoppen =================
+// Toppen met naam en hoogte uit OpenStreetMap, per gebied lang bewaard (bergen veranderen niet).
+// Op de kaart alleen de hoogste die in beeld passen, zodat het niet druk wordt.
+const PEAK_TTL = 120 * 864e5;
+map.createPane("peaks").style.cssText = "z-index:440;pointer-events:none";
+const peakLayer = L.layerGroup().addTo(map);
+async function loadPeaks(){
+  const A = S.area; if(!A) return;
+  const key = `pp-peaks:${A.id}`;
+  let c = null; try{ c = JSON.parse(localStorage.getItem(key) || "null"); }catch(e){}
+  if(c){ A.peaks = c.p; drawPeaks(); M3.sync("peaks"); if(Date.now() - c.t < PEAK_TTL) return; }
+  if(!navigator.onLine) return;
+  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
+  const bb = `${(Math.min(...lats) - .03).toFixed(4)},${(Math.min(...lons) - .04).toFixed(4)},${(Math.max(...lats) + .03).toFixed(4)},${(Math.max(...lons) + .04).toFixed(4)}`;
+  const q = `[out:json][timeout:40];node["natural"~"^(peak|volcano)$"]["ele"](${bb});out;`;
+  for(const url of OVERPASS){
+    try{
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 45000);
+      const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}, signal:ctl.signal});
+      clearTimeout(timer);
+      if(!r.ok) continue;
+      const j = await r.json(); if(/error|timed out/i.test(j.remark || "")) continue;
+      const p = (j.elements || []).map(el => { const t = el.tags || {}, ele = parseFloat(String(t.ele).replace(",", "."));
+        return isFinite(ele) && ele > 300 && ele < 9000 ? [+el.lat.toFixed(5), +el.lon.toFixed(5), Math.round(ele), (t.name || "").slice(0, 40)] : null; })
+        .filter(Boolean).sort((x, y) => y[2] - x[2]).slice(0, 400);
+      try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), p})); }catch(e){}
+      if(S.area === A){ A.peaks = p; drawPeaks(); M3.sync("peaks"); }
+      return;
+    }catch(e){}
+  }
+}
+// de toppen die nu in beeld komen: hoogste eerst, en niet te dicht op elkaar
+function visiblePeaks(max = 18, gap = 95){
+  const A = S.area; if(!A?.peaks || !S.peaksOn || map.getZoom() < 11) return [];
+  const b = map.getBounds().pad(.05), out = [];
+  for(const pk of A.peaks){
+    if(!b.contains([pk[0], pk[1]])) continue;
+    const pt = map.latLngToContainerPoint([pk[0], pk[1]]);
+    if(out.some(o => Math.abs(o.pt.x - pt.x) < gap && Math.abs(o.pt.y - pt.y) < 40)) continue;
+    out.push({pk, pt}); if(out.length >= max) break;
+  }
+  return out;
+}
+function drawPeaks(){
+  peakLayer.clearLayers();
+  if(M3.mode) return;
+  for(const {pk} of visiblePeaks()){
+    const [lat, lon, ele, name] = pk;
+    L.marker([lat, lon], {pane:"peaks", interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null, iconAnchor:[0, 0],
+      html:`<div class="peak"><i></i>${name ? `<b>${esc(name)}</b>` : ""}<span>${ele.toLocaleString(LOCALE)} m</span></div>`})}).addTo(peakLayer);
+  }
+}
+map.on("zoomend moveend", () => { if(S.area) drawPeaks(); });
+
+// ================= dagroute =================
+// Elke dag (per skigebied) een andere kant-en-klare dag: vanaf je hotel of het dalstation langs een handvol mooie pistes
+// van jouw niveau, verspreid over het gebied, met een lunchstop in een hut rond half één en weer terug.
+const wpsSig = () => JSON.stringify(S.wps.map(w => w.k === "p" ? "p" + w.ei : "n" + w.n));
+const dayRouteOn = () => !!(S.day && S.day.key === wpsSig());
+function seeded(str){   // eenvoudige voorspelbare toevalsgenerator, zodat dezelfde dag dezelfde route geeft
+  let h = 1779033703 ^ str.length;
+  for(let i = 0; i < str.length; i++){ h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+  return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+}
+function dayRoute(extra = 0){
+  const A = S.area; if(!A) return;
+  if(S.follow) toggleFollow();
+  const {nodes, edges} = A, today = new Date().toISOString().slice(0, 10), rnd = seeded(today + A.id + ":" + extra);
+  S.target = null; S.via = null; S.lunch = null; S.tour = null; S.planBy = null; S.wps = []; S.fromMe = false; S.pick = "from";
+  // vertrek: je hotel of auto als je die bewaard hebt, anders het dalstation vanwaar je het meeste kunt bereiken
+  const out = graph(); let start = homeNode(), dist = start != null ? dijkstra(start, null, out).dist : null;
+  if(start == null || dist.filter(d => d < Infinity).length < nodes.length * .2){
+    const lifts = edges.filter(e => e.t==="l"), bottoms = [...new Set(lifts.map(e => e.a))].sort((x, y) => (nodes[x].ele ?? 1e9) - (nodes[y].ele ?? 1e9)).slice(0, 30);
+    let best = null;
+    for(const b of bottoms){ const d = dijkstra(b, null, out).dist; let c = 0; for(const x of d) if(x < Infinity) c++; if(!best || c > best.c) best = {b, c, d}; }
+    if(!best){ toast("Voor dit gebied lukt geen dagroute."); return; }
+    start = best.b; dist = best.d;
+  }
+  // kandidaten: hele pistes (met naam of nummer) van jouw niveau, die je kunt bereiken en die de moeite waard zijn
+  const seen = new Set(), cands = [];
+  for(const e of edges){
+    if(e.t!=="r" || !(e.name || e.ref) || overLevel(e) || S.closed.has(e.i) || dist[e.a] === Infinity || seen.has(e.key)) continue;
+    seen.add(e.key);
+    const ch = chainFrom(e.i); if(ch.len < 500) continue;
+    const drop = (nodes[ch.start].ele ?? 0) - (nodes[ch.end].ele ?? 0);
+    if(drop < 120 || (S.board && ch.edges.some(i => boardFlat(edges[i]) === 2 && edges[i].len > 150))) continue;
+    const mid = edges[ch.edges[Math.floor(ch.edges.length / 2)]].pts[0];
+    cands.push({ei:e.i, ch, mid, w:(drop / 100 + ch.len / 1000) * (.5 + rnd())});
+  }
+  if(!cands.length){ toast("Voor dit gebied lukt geen dagroute met jouw niveau."); return; }
+  const {t:t0, close} = startTime(), budget = Math.max(60, Math.min(330, close - 30 - t0));
+  // kies om de beurt een piste: zwaar gewogen naar mooi en ver van de pistes die er al in zitten (zo zie je het hele gebied)
+  const pick = [], used = new Set();
+  const far = c => pick.length ? Math.min(...pick.map(p => meters(p.mid[0], p.mid[1], c.mid[0], c.mid[1]))) : 1000;
+  // terug naar het begin; lukt dat niet zonder pistes boven je niveau, dan eindigt de dag onderaan de laatste piste
+  const build = (list, back = true) => [{k:"n", n:start}, ...list.map(c => ({k:"p", ei:c.ei})), ...(back ? [{k:"n", n:start}] : [])];
+  let back = true;
+  let path = null, mins = 0;
+  for(let round = 0; round < 12 && mins < budget * .8; round++){
+    const pool = cands.filter(c => !used.has(c.ei)); if(!pool.length) break;
+    pool.forEach(c => c.s = c.w * Math.min(3, .4 + far(c) / 1500) * (.6 + .8 * rnd()));
+    const c = pool.sort((x, y) => y.s - x.s)[0]; used.add(c.ei);
+    // in de volgorde waarin je ze het makkelijkst na elkaar skiet: steeds de dichtstbijzijnde volgende
+    const list = [...pick, c], order = []; let cur = start, left = [...list];
+    while(left.length){ const d = dijkstra(cur, null, out).dist; left.sort((x, y) => d[x.ch.start] - d[y.ch.start]); const n = left.shift(); order.push(n); cur = n.ch.end; }
+    S.wps = build(order); let p = computePath(), b = true;
+    if(p && S.relax){ S.wps = build(order, false); const q = computePath(); if(q && !S.relax){ p = q; b = false; } }
+    if(!p || (S.relax && round < 8)) continue;   // liever niets boven je niveau of buiten je instellingen
+    const m = p.reduce((t, x) => t + x.min, 0);
+    if(m > budget * 1.1 && pick.length) continue;
+    pick.length = 0; pick.push(...order); path = p; mins = m; back = b;
+  }
+  if(!pick.length){ S.wps = []; update(); toast("Voor dit gebied lukt geen dagroute."); return; }
+  S.wps = build(pick, back);
+  S.day = {key:wpsSig(), extra};
+  update();
+  // lunch rond half één, als je dag daar overheen loopt
+  if(t0 < toMin("12:15") && t0 + mins > toMin("12:15") && (A.huts || []).some(isFood)) planLunch("12:30", 60, true);
+  S.day.key = wpsSig();
+  update(); fitRoute();
+  toast(`Dagroute: ${pick.length} pistes${S.lunch ? `, lunch bij ${S.lunch.name}` : ""}. Morgen weer een andere.`, 4000);
 }
 
 // ================= hotel of auto =================
@@ -3034,14 +3253,22 @@ function planLunch(at, dur){
 const homeAll = () => { try{ return JSON.parse(localStorage.getItem("pp-home") || "{}"); }catch(e){ return {}; } };
 const getHome = () => S.area ? homeAll()[S.area.id] || null : null;
 const homeNode = () => { const h = getHome(); return h ? nearestNode(h.lat, h.lon).n : null; };
+// skipas kopen: de ticketshop van het gebied (via een zoekopdracht, die vindt de juiste webshop ook als die op een eigen adres staat)
+function ticketUrl(){
+  const r = S.area?.row; if(!r) return "";
+  return `https://www.google.com/search?q=${encodeURIComponent(`${r[1]} skipass online kopen tickets`)}`;
+}
+function ticketBtnHtml(){
+  return S.area ? `<a class="btn ghost" id="ticketBtn" href="${esc(ticketUrl())}" target="_blank" rel="noopener">${I("ticket")}Skipas kopen</a>` : "";
+}
 function homeBtnHtml(empty){
   const h = getHome();
   if(h) return `<button type="button" class="btn ghost" id="homeBtn" title="Route naar je ${h.kind === "auto" ? "auto" : "hotel"}">${I(h.kind === "auto" ? "car" : "bed")}${h.kind === "auto" ? "Naar je auto" : "Naar je hotel"}</button>`;
   return empty ? `<button type="button" class="linkbtn home-set" id="homeSet">${I("bed")}Hotel of auto bewaren</button>` : "";
 }
-function setHome(lat, lon, kind){
+function setHome(lat, lon, kind, name){
   S.pickHome = null; document.body.classList.remove("picking-home");
-  const all = homeAll(); all[S.area.id] = {lat:+lat.toFixed(5), lon:+lon.toFixed(5), kind, t:Date.now()};
+  const all = homeAll(); all[S.area.id] = {lat:+lat.toFixed(5), lon:+lon.toFixed(5), kind, t:Date.now(), ...(name ? {name} : {})};
   try{ localStorage.setItem("pp-home", JSON.stringify(all)); }catch(e){}
   const nn = nearestNode(lat, lon);
   toast(`${kind === "auto" ? "Je auto" : "Je hotel"} is bewaard${nn.d > 60 ? `, ${km(nn.d)} van de dichtstbijzijnde piste of lift` : ""}.`, 3500);
@@ -3065,15 +3292,17 @@ function homeMenu(){
   if(!S.area) return;
   const h = getHome(), div = document.createElement("div"); div.id = "homePop"; div.className = "home-pop"; div.setAttribute("role", "dialog");
   let kind = h?.kind || "hotel";
-  div.innerHTML = `<div class="hp-head"><b>Waar wil je vanavond terug zijn?</b><button type="button" class="close-btn" id="hpClose" aria-label="Sluiten">${I("close")}</button></div>
+  div.innerHTML = `<div class="hp-head"><b>Waar verblijf je?</b><button type="button" class="close-btn" id="hpClose" aria-label="Sluiten">${I("close")}</button></div>
     <div class="seg" id="hpKind"><button type="button" data-v="hotel">${I("bed")}Hotel</button><button type="button" data-v="auto">${I("car")}Auto</button></div>
-    <div class="hp-btns"><button type="button" class="btn primary" id="hpHere">${I("locate")}Mijn huidige locatie</button><button type="button" class="btn ghost" id="hpMap">${I("flag")}Tik op de kaart</button>
+    <form class="hp-addr" id="hpAddr" role="search"><input type="search" id="hpQ" placeholder="Adres of naam van je hotel" autocomplete="street-address" aria-label="Adres van je verblijf"><button type="submit" class="btn primary" aria-label="Zoeken">${I("search")}</button></form>
+    <ul class="hp-res" id="hpRes" hidden></ul>
+    <div class="hp-btns"><button type="button" class="btn ghost" id="hpHere">${I("locate")}Mijn huidige locatie</button><button type="button" class="btn ghost" id="hpMap">${I("flag")}Tik op de kaart</button>
     ${h ? `<button type="button" class="btn ghost" id="hpGo">${I("route")}Route erheen</button><button type="button" class="btn ghost" id="hpDel">${I("trash")}Wissen</button>` : ""}</div>
-    <p class="m-hint">${h ? "Al bewaard. Kies opnieuw om de plek te veranderen." : "Bewaar 's ochtends waar je logeert of geparkeerd staat. Aan het eind van de dag brengt één knop je terug."}</p>`;
+    <p class="m-hint">${h ? `Bewaard${h.name ? `: ${esc(h.name)}` : ""}. Kies opnieuw om de plek te veranderen.` : "Vul het adres van je hotel of appartement in, of waar je auto staat. De dagroute begint daar, en aan het eind van de dag brengt één knop je terug."}</p>`;
   document.body.appendChild(div);
   const seg = () => div.querySelectorAll("#hpKind button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === kind)));
   seg(); div.querySelectorAll("#hpKind button").forEach(b => b.onclick = () => { kind = b.dataset.v; seg(); });
-  const close = () => div.remove();
+  const close = () => animRemove(div);
   $("hpClose").onclick = close;
   $("hpHere").onclick = () => {
     if(S.pos){ close(); setHome(S.pos.lat, S.pos.lon, kind); return; }
@@ -3083,6 +3312,23 @@ function homeMenu(){
   };
   $("hpMap").onclick = () => { close(); S.pickHome = kind; document.body.classList.add("picking-home"); if(!isSide()) setSheet(false); toast(`Tik op de kaart waar je ${kind === "auto" ? "auto staat" : "hotel is"}.`, 4000); };
   $("hpGo")?.addEventListener("click", () => { close(); goHome(); });
+  // adres zoeken (OpenStreetMap via Photon), dicht bij het skigebied eerst
+  $("hpAddr").onsubmit = async ev => {
+    ev.preventDefault();
+    const q = $("hpQ").value.trim(), res = $("hpRes"); if(q.length < 3) return;
+    res.hidden = false; res.innerHTML = `<li class="m-hint">Zoeken…</li>`;
+    const r = S.area.row, lang = ["de", "en", "fr"].includes(LANG) ? LANG : "default";
+    try{
+      const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lat=${r[5]}&lon=${r[4]}&limit=6&lang=${lang}`)).json();
+      const list = (j.features || []).map(f => { const p = f.properties || {}, [lon, lat] = f.geometry.coordinates;
+        return {lat, lon, d:meters(lat, lon, r[5], r[4]), t:p.name || [p.street, p.housenumber].filter(Boolean).join(" ") || p.city || q,
+                sub:[p.name && p.street ? [p.street, p.housenumber].filter(Boolean).join(" ") : "", p.postcode, p.city || p.town || p.village, p.country].filter(Boolean).join(", ")}; })
+        .filter(x => x.d < 60000).sort((x, y) => x.d - y.d);
+      res.innerHTML = list.length ? list.map((x, i) => `<li><button type="button" data-i="${i}"><b>${esc(x.t)}</b><small>${esc(x.sub)} · ${km(x.d)}</small></button></li>`).join("")
+        : `<li class="m-hint">Niets gevonden in de buurt van ${esc(r[1])}. Probeer een ander adres, of tik op de kaart.</li>`;
+      res.querySelectorAll("button[data-i]").forEach(b => b.onclick = () => { const x = list[+b.dataset.i]; close(); setHome(x.lat, x.lon, kind, x.t); map.panTo([x.lat, x.lon]); });
+    }catch(e){ res.innerHTML = `<li class="m-hint">Zoeken lukt nu niet. Geen verbinding? Tik dan op de kaart waar je verblijf is.</li>`; }
+  };
   $("hpDel")?.addEventListener("click", () => { close(); clearHome(); });
 }
 function goHome(){
@@ -3213,7 +3459,7 @@ function openPro(f){
     <p class="pro-links"><a href="privacy.html" target="_blank" rel="noopener">Privacyverklaring</a> · <a href="voorwaarden.html" target="_blank" rel="noopener">Voorwaarden</a></p>
   </div>`;
   document.body.appendChild(div);
-  const close = () => div.remove();
+  const close = () => animRemove(div);
   $("proClose").onclick = close;
   div.addEventListener("click", e => { if(e.target === div) close(); });
   $("proAct")?.addEventListener("click", () => proActivate($("proKey").value));
@@ -3254,6 +3500,14 @@ function applyTheme(){
 }
 applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
+// stijl: iOS (strak, systeemletter, matglas) of de klassieke Skipilot-stijl met pisteborden-letter
+function applyStyle(){
+  let s = "ios"; try{ s = localStorage.getItem("pp-style") || "ios"; }catch(e){}
+  document.documentElement.classList.toggle("ios", s !== "classic");
+  document.querySelectorAll("#styleSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === s)));
+}
+applyStyle();
+document.querySelectorAll("#styleSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-style", b.dataset.v); }catch(e){} applyStyle(); });
 function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
   $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("sunny").checked = S.sunny; $("nightToggle").checked = S.night;

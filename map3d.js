@@ -241,7 +241,7 @@ const M3 = (() => {
         dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
-        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}
+        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
       },
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
@@ -262,10 +262,14 @@ const M3 = (() => {
         {id:"drag", type:"line", source:"pistes", filter:["==", ["get", "k"], "drag"], layout:line, paint:{"line-color":"#14202B", "line-width":w(1, 1.8), "line-dasharray":[2.5, 2]}},
         {id:"closed", type:"line", source:"pistes", filter:["==", ["get", "k"], "closed"], layout:line, paint:{"line-color":"#9AA7B2", "line-width":w(1.5, 3), "line-dasharray":[1, 3]}},
         {id:"station", type:"circle", source:"pistes", filter:["==", ["get", "k"], "st"], paint:{"circle-radius":w(1.5, 3.5), "circle-color":"#14202B", "circle-stroke-color":"#fff", "circle-stroke-width":1.5, "circle-pitch-alignment":"map"}},
+        // bergtoppen met naam en hoogte (de hoogste eerst; wat overlapt valt weg)
+        {id:"peaks", type:"symbol", source:"peaks", minzoom:10.5, layout:{"icon-image":["get", "img"], "icon-anchor":"top", "icon-offset":[0, -7], "symbol-sort-key":["get", "o"], "icon-padding":6}},
         {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(7, 14), "line-opacity":.45}},
         {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#FFC400", "line-width":w(4, 8.5)}},
         {id:"route-core", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(1.2, 2.5), "line-dasharray":[.2, 3]}},
         {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#fff", "line-width":w(1.5, 3), "line-dasharray":[3, 2.5]}},
+        // pijltjes in de rijrichting op de route
+        {id:"route-arrows", type:"symbol", source:"route", filter:["==", ["get", "k"], "p"], minzoom:12, layout:{"symbol-placement":"line", "symbol-spacing":["interpolate", ["linear"], ["zoom"], 12, 60, 16, 110], "icon-image":"route-arrow", "icon-size":["interpolate", ["linear"], ["zoom"], 12, .6, 16, 1], "icon-rotation-alignment":"map", "icon-pitch-alignment":"map", "icon-allow-overlap":true, "icon-ignore-placement":true}},
         {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
         // pistenummers en hutten als plaatjes in de kaart zelf (veel lichter dan losse HTML-knopjes die elk beeld opnieuw geplaatst worden)
         {id:"nums", type:"symbol", source:"nums", minzoom:12.5, layout:{"icon-image":["get", "img"], "icon-padding":1}},
@@ -295,7 +299,7 @@ const M3 = (() => {
   function routeData(){
     const A = S.area, f = [];
     // stukken met een kabelbaan niet over de grond: die tekent de kabellaag in de lucht, in de kleur van de route
-    if(A && S.path?.length) f.push({type:"Feature", properties:{k:"p"}, geometry:{type:"MultiLineString", coordinates:S.path.filter(s => !aerial(s.e)).map(s => s.e.pts.map(ll))}});
+    if(A && S.path?.length) f.push({type:"Feature", properties:{k:"p"}, geometry:{type:"MultiLineString", coordinates:S.path.filter(s => !aerial(s.e)).map(s => (s.rev ? [...s.e.pts].reverse() : s.e.pts).map(ll))}});
     if(A && S.target) f.push({type:"Feature", properties:{k:"t"}, geometry:{type:"MultiLineString", coordinates:S.target.edges.map(i => A.edges[i].pts.map(ll))}});
     return {type:"FeatureCollection", features:f};
   }
@@ -323,6 +327,39 @@ const M3 = (() => {
     x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(ref, 2 + w / 2, 2 + hgt / 2 + .5);
     gl.addImage(id, x.getImageData(0, 0, c.width, c.height), {pixelRatio:SCALE});
     return id;
+  }
+  // pijltje voor op de route: donkere punthaak met witte rand, wijst naar rechts (de lijnrichting)
+  function arrowImage(){
+    if(gl.hasImage("route-arrow")) return;
+    const c = document.createElement("canvas"), s = 18 * SCALE, x = c.getContext("2d"); c.width = c.height = s;
+    x.scale(SCALE, SCALE); x.lineCap = "round"; x.lineJoin = "round";
+    const hook = () => { x.beginPath(); x.moveTo(6, 4); x.lineTo(12, 9); x.lineTo(6, 14); };
+    x.strokeStyle = "#fff"; x.lineWidth = 5; hook(); x.stroke();
+    x.strokeStyle = "#0F1B2A"; x.lineWidth = 2.6; hook(); x.stroke();
+    gl.addImage("route-arrow", x.getImageData(0, 0, s, s), {pixelRatio:SCALE});
+  }
+  // bergtop: driehoekje met naam en hoogte eronder, met een witte rand zodat het op elke ondergrond leesbaar is
+  function peakImage(name, ele){
+    const id = `peak-${name}-${ele}`;
+    if(gl.hasImage(id)) return id;
+    const c = document.createElement("canvas"), x = c.getContext("2d"), fb = `700 11.5px ${UIFONT}`, fs = `600 10.5px ${UIFONT}`, hTxt = `${ele.toLocaleString(LOCALE)} m`;
+    x.font = fb; const w1 = name ? x.measureText(name).width : 0; x.font = fs; const w2 = x.measureText(hTxt).width;
+    const W = Math.ceil(Math.max(w1, w2, 12)) + 8, H = name ? 40 : 27;
+    c.width = W * SCALE; c.height = H * SCALE; x.scale(SCALE, SCALE);
+    x.fillStyle = "#3A2E25"; x.strokeStyle = "#fff"; x.lineWidth = 2; x.lineJoin = "round";
+    x.beginPath(); x.moveTo(W / 2, 1.5); x.lineTo(W / 2 + 6, 10.5); x.lineTo(W / 2 - 6, 10.5); x.closePath(); x.stroke(); x.fill();
+    x.textAlign = "center"; x.textBaseline = "top"; x.lineWidth = 3; x.strokeStyle = "rgba(255,255,255,.95)";
+    let y = 13;
+    if(name){ x.font = fb; x.strokeText(name, W / 2, y); x.fillStyle = "#1F2A36"; x.fillText(name, W / 2, y); y += 13.5; }
+    x.font = fs; x.strokeText(hTxt, W / 2, y); x.fillStyle = "#3E4C5B"; x.fillText(hTxt, W / 2, y);
+    gl.addImage(id, x.getImageData(0, 0, c.width, c.height), {pixelRatio:SCALE});
+    return id;
+  }
+  const UIFONT = getComputedStyle(document.documentElement).getPropertyValue("--f-ui").trim() || "system-ui, sans-serif";
+  function peaksData(){
+    const A = S.area; if(!A?.peaks || !S.peaksOn) return EMPTY;
+    return {type:"FeatureCollection", features:A.peaks.slice(0, 160).map(([lat, lon, ele, name], i) =>
+      ({type:"Feature", properties:{img:peakImage(name, ele), o:i}, geometry:{type:"Point", coordinates:[lon, lat]}}))};
   }
   const hutWait = {};
   // het hut-icoon zoals op de platte kaart: wit rondje met gekleurde rand en het symbool uit index.html
@@ -369,6 +406,7 @@ const M3 = (() => {
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("route")){ gl.getSource("route").setData(routeData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
+    if(dirty.has("peaks")) gl.getSource("peaks").setData(peaksData());
     dirty.clear();
   }
   // wat er op de platte kaart veranderd is: "pistes", "route", "huts" of "base"
@@ -390,7 +428,7 @@ const M3 = (() => {
     styled = false;
     gl.on("load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd
-      styled = true; dirty = new Set(["pistes", "route", "huts"]); flush(); ovCheck();
+      styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks"]); flush(); ovCheck();
       el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
     gl.on("moveend", ovCheck);

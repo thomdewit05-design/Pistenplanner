@@ -67,8 +67,32 @@
   // grijze rots, want daar blijft geen sneeuw liggen; lage dalen iets groenig-grijs; water lichtblauw.
   const mix = (a, b, t) => a + (b - a) * t;
   const LIGHT = (() => { const az = 315 * Math.PI / 180, alt = 40 * Math.PI / 180; return [Math.cos(alt) * Math.sin(az), Math.cos(alt) * Math.cos(az), Math.sin(alt)]; })();
+  // Dorpen: de OpenStreetMap-tegel van dezelfde plek, waarvan we alleen de bebouwing (woonwijken en gebouwen) overnemen,
+  // herkend aan hun vaste kleuren. Zo staan dorpen als warmgrijze vlekken met huizen in de sneeuw.
+  const OSM_MAX = 18, VILLAGE = [[224, 223, 223, .38], [217, 208, 201, .85], [196, 182, 171, .9], [242, 218, 217, .38], [235, 219, 232, .3]];
+  async function villages(z, x, y, S){
+    if(z < 12) return null;
+    const zz = Math.min(z, OSM_MAX), f = 2 ** (z - zz), px = Math.floor(x / f), py = Math.floor(y / f);
+    const res = await fetch(`https://tile.openstreetmap.org/${zz}/${px}/${py}.png`);
+    if(!res.ok) return null;
+    const bmp = await bitmap(await res.blob()), cx = canvas2d(S, S), part = bmp.width / f;
+    cx.imageSmoothingEnabled = true;
+    cx.drawImage(bmp, (x - px * f) * part, (y - py * f) * part, part, part, 0, 0, S, S); bmp.close?.();
+    const d = cx.getImageData(0, 0, S, S).data, w = new Float32Array(S * S);
+    let any = false;
+    for(let i = 0, p = 0; i < w.length; i++, p += 4){
+      let best = 0;
+      for(const [R, G, B, s] of VILLAGE){
+        const dd = Math.abs(d[p] - R) + Math.abs(d[p+1] - G) + Math.abs(d[p+2] - B);
+        if(dd < 14) best = Math.max(best, s * (1 - dd / 14));
+      }
+      if(best){ w[i] = best; any = true; }
+    }
+    return any ? w : null;
+  }
   async function winter(z, x, y, r = 1){
     const S = 256 * r, zd = Math.min(DEM_MAX, z + Math.log2(r)), sc = 2 ** (z - zd) * r;   // sc = uitvoerpixels per hoogtepixel
+    const vil = villages(z, x, y, S).catch(() => null);
     // welke hoogtetegels zijn nodig (met één pixel rand, dus soms de buren)
     const gx0 = Math.floor(((x * 256) - 2) * r / sc), gx1 = Math.floor(((x * 256) + 258) * r / sc);
     const gy0 = Math.floor(((y * 256) - 2) * r / sc), gy1 = Math.floor(((y * 256) + 258) * r / sc);
@@ -127,6 +151,11 @@
         }
       }
       const p = (j * S + i) * 4; o[p] = R; o[p+1] = G; o[p+2] = B; o[p+3] = 255;
+    }
+    const vw = await vil;
+    if(vw) for(let i = 0, p = 0; i < vw.length; i++, p += 4){
+      const m = vw[i]; if(!m) continue;
+      o[p] = mix(o[p], 138, m); o[p+1] = mix(o[p+1], 118, m); o[p+2] = mix(o[p+2], 104, m);
     }
     return out;
   }

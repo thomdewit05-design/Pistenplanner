@@ -277,8 +277,10 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .me-dot{width:20px;height:20px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px color-mix(in srgb,var(--me) 28%,transparent),0 2px 8px rgba(0,0,0,.4)}
 .pnum{display:grid;place-items:center;min-width:22px;height:18px;padding:0 4px;border-radius:5px;font:800 12px/1 var(--f-display);color:#fff;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);white-space:nowrap;transform:translate(-50%,-50%);width:max-content}
 .pnum.s{color:#fff}
-.route-core{animation:flow 1.1s linear infinite}
-@keyframes flow{to{stroke-dashoffset:-16}}
+/* pijltjes op de route: lichten na elkaar op in de rijrichting */
+.rarrow{width:18px;height:18px;display:grid;place-items:center;pointer-events:none}
+.rarrow i{width:8px;height:8px;border:solid #0F1B2A;border-width:0 3px 3px 0;transform:rotate(-45deg);filter:drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);animation:rflow 1.6s ease-in-out infinite;opacity:.55}
+@keyframes rflow{0%,100%{opacity:.45;translate:-2px 0}35%{opacity:1;translate:2px 0}}
 
 .pop-wrap .leaflet-popup-content-wrapper{border-radius:var(--r-lg);box-shadow:var(--sh-2);background:var(--surface);color:var(--ink);padding:0}
 .pop-wrap .leaflet-popup-tip{background:var(--surface)}
@@ -301,7 +303,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .toast{position:fixed;z-index:3000;left:50%;top:calc(84px + var(--safe-t));transform:translate(-50%,-6px);background:var(--navy);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--sh-2)}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
-@media (prefers-reduced-motion:reduce){.route-core,.splash-bar span{animation:none}.sheet,.fabs,.toast,.splash{transition:none}}
+@media (prefers-reduced-motion:reduce){.rarrow i,.splash-bar span{animation:none}.sheet,.fabs,.toast,.splash{transition:none}}
 
 /* ---------- weer en sneeuw ---------- */
 .wx{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 7%,var(--surface)),var(--surface) 70%)}
@@ -736,6 +738,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .m-list .switch+.switch{border-top:1px solid var(--line-2)}
 /* iOS-app: ruimte voor de advertentiebalk onderin */
 body.admob .picker{padding-bottom:calc(70px + var(--safe-b))}
+body.admob .sheet.open .sheet-body{padding-bottom:calc(76px + var(--safe-b))}
 .valley-pick{display:flex;flex-direction:column;gap:6px;margin:8px 0 2px}
 .valley-pick button{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
 .valley-pick button .ic{width:20px;height:20px;flex:none;color:var(--accent)}
@@ -1023,9 +1026,9 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .m3-pop .pop{padding:10px 12px 11px}
 .pc-head{display:flex;gap:9px;align-items:center;padding-right:16px}
 .pc-head .node{flex:none;width:28px;height:24px;font-size:13px;border-radius:7px}
-.pc-title{min-width:0;display:flex;flex-direction:column}
-.pc-title b{font:700 16px/1.15 var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pc-title small{color:var(--muted);font-size:12px;line-height:1.3}
+.pc-title{min-width:0;flex:1;display:flex;flex-direction:column}
+.pc-title b{font:700 16px/1.15 var(--f-display);overflow-wrap:anywhere;display:block;max-height:3.45em;overflow:hidden}
+.pc-title small{color:var(--muted);font-size:12px;line-height:1.3;overflow-wrap:anywhere}
 .pc .flags{margin:7px 0 0;gap:4px}
 .pc .flag{font-size:11px;padding:2px 6px}
 .pc .pop-sun{margin:6px 0 0;font-size:12px}
@@ -1041,3 +1044,126 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .sel-dot{width:22px;height:22px;border-radius:50%;background:#1E88FF;border:3px solid #fff;box-shadow:0 0 0 0 rgba(30,136,255,.5),0 1px 5px rgba(0,0,0,.35);animation:selpulse 1.6s ease-out infinite;box-sizing:border-box}
 @keyframes selpulse{0%{box-shadow:0 0 0 0 rgba(30,136,255,.55),0 1px 5px rgba(0,0,0,.35)}100%{box-shadow:0 0 0 14px rgba(30,136,255,0),0 1px 5px rgba(0,0,0,.35)}}
 @media (prefers-reduced-motion:reduce){.sel-dot{animation:none}}
+.m3-pop .pc{width:236px;max-width:100%}
+
+/* ================= skipas kopen ================= */
+.ticket-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);color:var(--ink);text-decoration:none;background:var(--surface)}
+.ticket-card>.ic:first-child{color:var(--accent)}
+.ticket-card span{flex:1;min-width:0;display:flex;flex-direction:column}
+.ticket-card small{color:var(--muted);font-size:12.5px}
+.ticket-card .go{width:16px;height:16px;color:var(--faint)}
+.peek-empty .cta a.btn{text-decoration:none}
+
+/* adres van je verblijf zoeken */
+.hp-addr{display:flex;gap:8px;margin:10px 0 6px}
+.hp-addr input{flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:var(--r-md);padding:0 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.hp-addr .btn{width:46px;padding:0;justify-content:center;flex:none}
+.hp-res{list-style:none;margin:0 0 8px;padding:0;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-md)}
+.hp-res li+li{border-top:1px solid var(--line-2)}
+.hp-res li.m-hint{padding:10px 12px;margin:0}
+.hp-res button{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;border:0;background:none;padding:9px 12px;cursor:pointer;color:var(--ink)}
+.hp-res small{color:var(--muted);font-size:12px}
+.peek-empty .cta .btn.ghost{flex:1 1 40%;min-width:0}
+
+/* bergtoppen met hoogte */
+.peak{position:absolute;transform:translate(-50%,-7px);display:flex;flex-direction:column;align-items:center;white-space:nowrap;pointer-events:none;color:#1F2A36;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px rgba(255,255,255,.9)}
+.peak i{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid #3A2E25;filter:drop-shadow(0 0 1.5px #fff)}
+.peak b{font:700 11.5px/1.15 var(--f-ui);margin-top:2px}
+.peak span{font:600 10.5px/1.1 var(--f-ui);color:#3E4C5B}
+
+/* ================= animaties van panelen en menu's ================= */
+.picker:not([hidden]),.sos:not([hidden]){animation:panelIn .32s cubic-bezier(.2,.8,.2,1)}
+.picker.closing,.sos.closing{animation:panelOut .22s cubic-bezier(.4,0,1,1) forwards;pointer-events:none}
+@keyframes panelIn{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
+@keyframes panelOut{to{transform:translateY(36px);opacity:0}}
+.layer-menu:not([hidden]){animation:popIn .2s cubic-bezier(.2,.8,.2,1);transform-origin:top right}
+.layer-menu.closing{animation:popOut .16s ease-in forwards;pointer-events:none}
+@keyframes popIn{from{transform:scale(.92) translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+@keyframes popOut{to{transform:scale(.94) translateY(-4px);opacity:0}}
+.home-pop{animation:panelIn .28s cubic-bezier(.2,.8,.2,1)}
+.home-pop.closing,.pro-dlg.closing{animation:panelOut .2s ease-in forwards;pointer-events:none}
+.pro-dlg{animation:fadeIn .22s ease-out}
+@keyframes fadeIn{from{opacity:0}}
+.leaflet-popup.pop-wrap{animation:popUp .2s cubic-bezier(.2,.8,.2,1)}
+@keyframes popUp{from{opacity:0;translate:0 8px}}
+@media (prefers-reduced-motion:reduce){.picker,.sos,.layer-menu,.home-pop,.pro-dlg,.leaflet-popup.pop-wrap{animation:none!important}}
+
+/* ================= iOS-stijl =================
+   Standaard. Strakker: de systeemletter van de iPhone (SF Pro), matglas met veel blur, dunne scheidingslijnen,
+   iOS-schakelaars (groen), iOS-segmenten en kopjes zonder hoofdletters. Menu > Weergave > Stijl > Klassiek zet het terug. */
+.ios{
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,system-ui,sans-serif;
+  --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Segoe UI",Roboto,system-ui,sans-serif;
+  --accent:#007AFF; --me:#007AFF; --ok:#34C759; --danger:#FF3B30;
+  --ink:#000; --muted:rgba(60,60,67,.62); --faint:rgba(60,60,67,.45); --line:rgba(60,60,67,.16); --line-2:rgba(60,60,67,.1);
+  --bg:#F2F2F7; --glass:rgba(255,255,255,.72); --glass-line:rgba(0,0,0,.06);
+  --r-lg:14px; --r-md:12px; --r-sm:9px;
+  --sh-1:0 1px 1px rgba(0,0,0,.04),0 2px 10px rgba(0,0,0,.1); --sh-2:0 10px 34px rgba(0,0,0,.18);
+}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){
+  --accent:#0A84FF; --me:#0A84FF; --ok:#30D158; --danger:#FF453A;
+  --ink:#fff; --muted:rgba(235,235,245,.62); --faint:rgba(235,235,245,.42); --line:rgba(84,84,88,.6); --line-2:rgba(84,84,88,.35);
+  --surface:#1C1C1E; --bg:#000; --glass:rgba(30,30,32,.72); --glass-line:rgba(255,255,255,.08)}}
+.ios[data-theme=dark]{
+  --accent:#0A84FF; --me:#0A84FF; --ok:#30D158; --danger:#FF453A;
+  --ink:#fff; --muted:rgba(235,235,245,.62); --faint:rgba(235,235,245,.42); --line:rgba(84,84,88,.6); --line-2:rgba(84,84,88,.35);
+  --surface:#1C1C1E; --bg:#000; --glass:rgba(30,30,32,.72); --glass-line:rgba(255,255,255,.08)}
+.ios body{font-size:15px;letter-spacing:-.01em}
+/* matglas: knoppen, bovenbalk en paneel */
+.ios .glass{background:var(--glass);backdrop-filter:saturate(180%) blur(22px);-webkit-backdrop-filter:saturate(180%) blur(22px);border:.5px solid var(--glass-line);box-shadow:var(--sh-1)}
+.ios .fab{width:44px;height:44px;border-radius:12px}
+.ios .fab .ic{width:21px;height:21px;stroke-width:1.9}
+.ios .area-btn{border-radius:14px}
+.ios .area-txt small{font:600 11px/1 var(--f-ui);letter-spacing:.02em;text-transform:none;color:var(--muted)}
+.ios .area-txt b{font:700 18px/1.1 var(--f-display);letter-spacing:-.02em}
+.ios .sheet{background:var(--glass);backdrop-filter:saturate(180%) blur(28px);-webkit-backdrop-filter:saturate(180%) blur(28px);border-radius:16px 16px 0 0;box-shadow:0 -1px 0 var(--glass-line),0 -8px 30px rgba(0,0,0,.12)}
+.ios .handle span{width:36px;height:5px;border-radius:3px;background:rgba(60,60,67,.3)}
+.ios .eta b{font:700 32px/1 var(--f-display);letter-spacing:-.03em}
+.ios .stat{background:rgba(118,118,128,.12);font-weight:600}
+/* knoppen: gevuld blauw voor de hoofdactie, licht getint voor de rest (zoals in iOS) */
+.ios .btn{border:0;border-radius:12px;background:rgba(118,118,128,.12);font-weight:600;font-size:16px;letter-spacing:-.01em;padding:12px 16px}
+.ios .btn.ghost{background:rgba(118,118,128,.12);color:var(--accent)}
+.ios .btn.ghost .ic{color:var(--accent)}
+.ios .btn.primary{background:var(--accent);color:#fff;box-shadow:none}
+.ios .btn.primary .ic{color:#fff}
+.ios[data-theme=dark] .btn.primary,.ios[data-theme=dark] .btn.primary .ic{color:#fff}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .btn.primary{background:var(--accent);color:#fff}.ios:not([data-theme=light]) .btn.primary .ic{color:#fff}}
+.ios[data-theme=dark] .btn.primary{background:var(--accent)}
+.ios .btn:active{transform:none;opacity:.7}
+.ios .btn.stop{background:var(--danger)}
+/* chips en invoer */
+.ios .chip{border:0;background:rgba(118,118,128,.12);font-weight:600}
+.ios .chip[aria-pressed="true"]{background:var(--accent);color:#fff}
+.ios .od{border:0;background:var(--surface);box-shadow:0 0 0 .5px var(--line)}
+.ios .od input{font:500 16px var(--f-ui)}
+/* schakelaars en segmenten zoals in Instellingen */
+.ios .switch i{width:51px;height:31px;border-radius:16px;background:rgba(120,120,128,.16)}
+.ios .switch i::after{top:2px;left:2px;width:27px;height:27px;box-shadow:0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06)}
+.ios .switch input:checked + i{background:var(--ok)}
+.ios .switch input:checked + i::after{transform:translateX(20px)}
+.ios .seg{background:rgba(118,118,128,.12);border-radius:9px;padding:2px;gap:2px}
+.ios .seg button{border-radius:7px;font-weight:500;color:var(--ink);font-size:13.5px;padding:7px 4px}
+.ios .seg button[aria-pressed="true"]{background:var(--surface);font-weight:600;box-shadow:0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04)}
+/* kopjes zonder hoofdletters */
+.ios .label{font:600 13px/1.2 var(--f-ui);letter-spacing:0;text-transform:none;color:var(--muted)}
+.ios .picker h2{font:700 30px/1.05 var(--f-display);letter-spacing:-.025em}
+.ios .menu-head h2{font:700 26px/1 var(--f-display);text-transform:none;letter-spacing:-.02em}
+.ios .m-sec h3{font:700 20px/1.15 var(--f-display);text-transform:none;letter-spacing:-.02em}
+.ios .m-sec{border-bottom:.5px solid var(--line)}
+/* kaart-menu (lagen) en vensters */
+.ios .layer-menu{background:var(--glass);backdrop-filter:saturate(180%) blur(28px);-webkit-backdrop-filter:saturate(180%) blur(28px);border:.5px solid var(--glass-line)}
+.ios .pop-wrap .leaflet-popup-content-wrapper,.ios .pop-wrap .leaflet-popup-tip{background:var(--glass);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px)}
+.ios .pc-title b{font-weight:700;letter-spacing:-.02em}
+.ios .pc-btns button{border:0;background:rgba(118,118,128,.12);color:var(--accent);font-weight:600}
+.ios .pc-btns .pc-main{background:var(--accent);color:#fff}
+.ios .pc-btns .pc-main .ic{color:#fff}
+.ios .pc-btns .danger{color:var(--danger)}
+.ios .ticket-card,.ios .diary-card{border:0;box-shadow:0 0 0 .5px var(--line)}
+.ios .ticket-card{background:var(--surface)}
+.ios .toast{background:rgba(30,30,32,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;font-weight:500}
+
+/* talen: vijf keuzes, stem zes */
+.seg.six{grid-template-columns:repeat(6,1fr)}
+.seg.lang5{grid-template-columns:repeat(6,1fr)}
+.seg.lang5 button{grid-column:span 2}
+.seg.lang5 button:nth-child(4){grid-column:2/span 2}

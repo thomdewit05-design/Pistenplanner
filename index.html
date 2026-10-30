@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Skipilot">
+<script>try{if(localStorage.getItem("pp-style")!=="classic")document.documentElement.classList.add("ios")}catch(e){document.documentElement.classList.add("ios")}</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/logo.svg">
 <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
@@ -18,7 +19,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=54">
+<link rel="stylesheet" href="app.css?v=55">
 </head>
 <body>
 <!-- iconenset -->
@@ -33,6 +34,12 @@
     <symbol id="i-nav" viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2-8-8-2Z" class="fill"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-lift" viewBox="0 0 24 24"><path d="M2 5.5 22 2"/><path d="M12 4v4"/><rect x="5.5" y="8" width="13" height="12" rx="2.5"/><path d="M5.5 13.5h13"/></symbol>
+    <symbol id="i-chair" viewBox="0 0 24 24"><path d="M2 5.5 22 2"/><path d="M12 4v9"/><path d="M6.5 13h11"/><path d="M7 13v4.5h10.5"/><path d="M7 9.5v3.5"/></symbol>
+    <symbol id="i-drag" viewBox="0 0 24 24"><path d="M2 5.5 22 2"/><path d="M12 4v12"/><path d="M8 16h8"/><path d="M4 21.5 20 19"/></symbol>
+    <symbol id="i-cablecar" viewBox="0 0 24 24"><path d="M2 4.5 22 1"/><path d="M2 7 22 3.5"/><path d="M12 5.5v2.5"/><path d="M5 8h14l-1.5 13h-11z"/><path d="M5.7 13.5h12.6"/></symbol>
+    <symbol id="i-carpet" viewBox="0 0 24 24"><rect x="2" y="13" width="20" height="6" rx="3"/><circle cx="5" cy="16" r="1"/><circle cx="19" cy="16" r="1"/><path d="m9 9 3-3 3 3"/></symbol>
+    <symbol id="i-train" viewBox="0 0 24 24"><path d="M3 21 21 9"/><path d="M6 11.5 15 5.5l3 4.5-9 6z"/><path d="m10 14-1 3m7-7 1 3"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="9" y="1.5" width="6" height="21" rx="3" transform="rotate(35 12 12)"/><path d="m9.2 9.6 3.4 2.4m-1.8 2.2 3.4 2.4"/></symbol>
     <symbol id="i-ski" viewBox="0 0 24 24"><circle cx="15" cy="4" r="2"/><path d="m5 9 5-1.5 3.5 3-3.5 4 4.5 3"/><path d="m2.5 16.5 17 5"/></symbol>
     <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13.5" cy="4" r="2"/><path d="m10 21 2.2-6.5 3 2.5v4"/><path d="m12.2 14.5-1-5 4 1.2 2.3 3"/><path d="m11.2 9.5-3.2 2.2-1 3.3"/></symbol>
     <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 3.5V8h-4.5"/></symbol>
@@ -138,6 +145,7 @@
   <p class="sun-info" id="sunInfo" hidden></p>
   <label class="switch"><span>Avondskiën</span><input type="checkbox" id="nightToggle2"><i></i></label>
   <label class="switch"><span>Plaatsnamen</span><input type="checkbox" id="showLabels" checked><i></i></label>
+  <label class="switch"><span>Bergtoppen met hoogte</span><input type="checkbox" id="showPeaks" checked><i></i></label>
   <div id="offlineBox" class="offline-box"></div>
 </div>
 
@@ -219,6 +227,12 @@
         <span class="rec-pill" id="diaryRecPill" hidden><svg class="ic"><use href="#i-rec"/></svg>Opname</span>
       </button>
     </section>
+
+    <a class="ticket-card" id="ticketCard" href="#" target="_blank" rel="noopener" hidden>
+      <svg class="ic"><use href="#i-ticket"/></svg>
+      <span><b>Skipas kopen</b><small id="ticketMini">Online in de ticketshop, vaak goedkoper dan aan de kassa</small></span>
+      <svg class="ic go"><use href="#i-link"/></svg>
+    </a>
 
     <details class="wx" id="wx" open>
       <summary id="wxSum"><span class="wx-loading">Weer laden…</span></summary>
@@ -366,6 +380,12 @@
 
   <section class="m-sec">
     <h3><svg class="ic"><use href="#i-ski"/></svg>Skiën</h3>
+    <p class="label">Je gaat op</p>
+    <div class="seg two" id="gear">
+      <button type="button" data-v="ski"><svg class="ic"><use href="#i-ski"/></svg>Ski's</button>
+      <button type="button" data-v="board"><svg class="ic"><use href="#i-board"/></svg>Snowboard</button>
+    </div>
+    <p class="m-hint" id="gearHint" hidden>Met een snowboard zoekt de route pistes met genoeg verval: zo min mogelijk vlakke stukken waar je moet steppen, en liever geen sleeplift.</p>
     <p class="label">Jouw niveau</p>
     <div class="seg" id="level">
       <button type="button" data-v="1"><span class="sw" style="background:var(--p-blue)"></span>Makkelijk</button>
@@ -401,11 +421,13 @@
       <label class="switch"><span>Gesproken aanwijzingen</span><input type="checkbox" id="voice" checked><i></i></label>
       <div class="voice-opts" id="voiceOpts">
         <p class="label">Taal van de stem</p>
-        <div class="seg four" id="voiceLangSeg" data-notr>
+        <div class="seg six" id="voiceLangSeg" data-notr>
           <button type="button" data-v="">App</button>
           <button type="button" data-v="nl" lang="nl">NL</button>
           <button type="button" data-v="en" lang="en">EN</button>
           <button type="button" data-v="de" lang="de">DE</button>
+          <button type="button" data-v="fr" lang="fr">FR</button>
+          <button type="button" data-v="it" lang="it">IT</button>
         </div>
         <p class="label">Stem</p>
         <div class="voice-pick"><select id="voicePick" aria-label="Stem"></select><button type="button" class="btn ghost" id="voiceTest"><svg class="ic"><use href="#i-sound"/></svg>Probeer</button></div>
@@ -434,11 +456,18 @@
       <button type="button" data-v="light">Licht</button>
       <button type="button" data-v="dark">Donker</button>
     </div>
+    <p class="label">Stijl</p>
+    <div class="seg two" id="styleSeg">
+      <button type="button" data-v="ios">iOS</button>
+      <button type="button" data-v="classic">Klassiek</button>
+    </div>
     <p class="label">Taal</p>
-    <div class="seg" id="langSeg" data-notr>
+    <div class="seg lang5" id="langSeg" data-notr>
       <button type="button" data-v="nl" lang="nl">Nederlands</button>
       <button type="button" data-v="en" lang="en">English</button>
       <button type="button" data-v="de" lang="de">Deutsch</button>
+      <button type="button" data-v="fr" lang="fr">Français</button>
+      <button type="button" data-v="it" lang="it">Italiano</button>
     </div>
     <button type="button" class="m-link" id="menuLayers"><svg class="ic"><use href="#i-layers"/></svg>Kaartweergave en lagen</button>
   </section>
@@ -501,13 +530,13 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=54"></script>
-<script src="ads.js?v=54"></script>
+<script src="config.js?v=55"></script>
+<script src="ads.js?v=55"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=54"></script>
-<script src="terrain.js?v=54"></script>
-<script src="map3d.js?v=54"></script>
-<script src="app.js?v=54"></script>
+<script src="i18n.js?v=55"></script>
+<script src="terrain.js?v=55"></script>
+<script src="map3d.js?v=55"></script>
+<script src="app.js?v=55"></script>
 </body>
 </html>

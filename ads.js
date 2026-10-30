@@ -36,8 +36,10 @@
     const call = (m, o) => window.Capacitor.nativePromise("AdMob", m, o || {});
     const PANELS = ["picker", "diary", "menu", "status", "group"];
     let ready = false, made = false, shown = false;
+    // ook als het routepaneel helemaal open staat (je leest dan de routebeschrijving, de kaart is toch bedekt)
+    const sheetOpen = () => document.getElementById("sheet")?.classList.contains("open");
     const want = () => ready && !(typeof proActive === "function" && proActive()) && !(typeof S !== "undefined" && S.follow)
-      && PANELS.some(id => { const el = document.getElementById(id); return el && !el.hidden; });
+      && (sheetOpen() || PANELS.some(id => { const el = document.getElementById(id); return el && !el.hidden; }));
     async function sync(){
       const on = want(); if(on === shown) return; shown = on;
       document.body.classList.toggle("admob", on);
@@ -58,7 +60,7 @@
         ready = true; sync(); prepFull();
       }catch(e){}
     }
-    // schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar): hooguit eens per 15 minuten,
+    // schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar, ander skigebied gekozen): hooguit eens per 15 minuten,
     // niet in de eerste 10 minuten na het openen en nooit tijdens het navigeren of met Pro
     const full = ios.interstitial || (!ios.banner && ios.test ? TEST_FULL : "");
     let lastFull = Date.now() - 5*60e3, fullReady = false;
@@ -77,6 +79,7 @@
     const watch = () => {
       const obs = new MutationObserver(sync);
       PANELS.forEach(id => { const el = document.getElementById(id); if(el) obs.observe(el, {attributes:true, attributeFilter:["hidden"]}); });
+      const sh = document.getElementById("sheet"); if(sh) obs.observe(sh, {attributes:true, attributeFilter:["class"]});
       setTimeout(start, 2500);   // eerst de app laten zien, dan pas de toestemmingsvragen
     };
     if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch); else watch();
