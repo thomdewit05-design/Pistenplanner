@@ -3507,14 +3507,6 @@ function applyTheme(){
 }
 applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
-// stijl: iOS (strak, systeemletter, matglas) of de klassieke Skipilot-stijl met pisteborden-letter
-function applyStyle(){
-  let s = "ios"; try{ s = localStorage.getItem("pp-style") || "ios"; }catch(e){}
-  document.documentElement.classList.toggle("ios", s !== "classic");
-  document.querySelectorAll("#styleSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === s)));
-}
-applyStyle();
-document.querySelectorAll("#styleSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-style", b.dataset.v); }catch(e){} applyStyle(); });
 function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
   $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("watchTap").checked = S.watchTap; $("watchRow").hidden = window.PP_STORE !== "ios"; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("sunny").checked = S.sunny; $("nightToggle").checked = S.night;

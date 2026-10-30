@@ -1089,8 +1089,8 @@ body.picking-home .leaflet-container{cursor:crosshair}
 @media (prefers-reduced-motion:reduce){.picker,.sos,.layer-menu,.home-pop,.pro-dlg,.leaflet-popup.pop-wrap{animation:none!important}}
 
 /* ================= iOS-stijl =================
-   Standaard. Strakker: de systeemletter van de iPhone (SF Pro), matglas met veel blur, dunne scheidingslijnen,
-   iOS-schakelaars (groen), iOS-segmenten en kopjes zonder hoofdletters. Menu > Weergave > Stijl > Klassiek zet het terug. */
+   De stijl van de app. Strak: de systeemletter van de iPhone (SF Pro), matglas met veel blur, dunne scheidingslijnen,
+   iOS-schakelaars (groen), iOS-segmenten en kopjes zonder hoofdletters. */
 .ios{
   --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,system-ui,sans-serif;
   --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Segoe UI",Roboto,system-ui,sans-serif;
