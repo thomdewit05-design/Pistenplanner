@@ -35,7 +35,12 @@
     const TEST_FULL = "ca-app-pub-3940256099942544/4411468910";   // proefblok van Google (schermvullend)
     const call = (m, o) => window.Capacitor.nativePromise("AdMob", m, o || {});
     const PANELS = ["picker", "diary", "menu", "status", "group"];
-    let ready = false, made = false, shown = false;
+    let ready = false, made = false, shown = false, retryT = 0;
+    // waarom er wel of geen advertentie is, zichtbaar in het menu (anders zie je niet of het aan Google of aan de app ligt)
+    let state = "Starten…";
+    const setState = s => { state = s; const el = document.getElementById("adState"); if(el){ el.hidden = false; el.textContent = "Advertenties: " + s; } };
+    const plugin = () => window.Capacitor?.Plugins?.AdMob;
+    const NO_AD = {0:"interne fout bij Google", 1:"ongeldig verzoek (klopt het advertentieblok-ID?)", 2:"geen netwerk", 3:"Google heeft nog geen advertentie voor deze app (gebruikelijk bij een nieuwe app of zolang de app in AdMob wordt beoordeeld)", 8:"de app-ID in AdMob past niet bij dit advertentieblok"};
     // ook als het routepaneel helemaal open staat (je leest dan de routebeschrijving, de kaart is toch bedekt)
     const sheetOpen = () => document.getElementById("sheet")?.classList.contains("open");
     const want = () => ready && !(typeof proActive === "function" && proActive()) && !(typeof S !== "undefined" && S.follow)
@@ -46,19 +51,33 @@
       try{
         if(on && !made){ made = true; await call("showBanner", {adId:ios.banner || TEST, adSize:"ADAPTIVE_BANNER", position:"BOTTOM_CENTER", margin:0, isTesting:!ios.banner}); }
         else await call(on ? "resumeBanner" : "hideBanner");
-      }catch(e){}
+      }catch(e){ made = false; shown = false; setState("de balk kon niet starten (" + (e?.message || e) + ")"); }
     }
     async function start(){
-      if(typeof proActive === "function" && proActive()) return;   // Pro gekocht: geen advertenties, dus ook geen vragen
+      if(typeof proActive === "function" && proActive()){ setState("uit, want je hebt Skipilot Pro"); return; }   // Pro gekocht: geen advertenties, dus ook geen vragen
       try{
+        // meldingen van de advertenties zelf: geladen of waarom niet; bij "geen advertentie" over een minuut opnieuw
+        const p = plugin();
+        p?.addListener?.("bannerAdLoaded", () => setState(ios.banner ? "aan" : "aan (proefadvertenties)"));
+        p?.addListener?.("bannerAdFailedToLoad", e => {
+          setState(`geen balk: ${NO_AD[e?.code] || e?.message || "onbekende fout"}${e?.code != null ? ` (code ${e.code})` : ""}`);
+          made = false; shown = false; clearTimeout(retryT);
+          call("removeBanner").catch(() => {}).finally(() => { retryT = setTimeout(sync, 60000); });
+        });
         await call("initialize", {initializeForTesting:!ios.banner});
         let c = await call("requestConsentInfo");
         if(c.status === "REQUIRED" && c.isConsentFormAvailable) c = await call("showConsentForm");
         if(c.privacyOptionsRequirementStatus === "REQUIRED"){ const b = document.getElementById("adPrivacy"); if(b) b.hidden = false; }
         try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); }catch(e){}
-        if(c.canRequestAds === false) return;
+        if(c.canRequestAds === false){
+          setState(c.status === "REQUIRED" && !c.isConsentFormAvailable
+            ? "geen toestemmingsmelding gevonden. Publiceer in AdMob onder Privacy en berichten een GDPR-melding voor Europa."
+            : `nog geen toestemming (status ${c.status})`);
+          return;
+        }
+        setState("wachten op een advertentie…");
         ready = true; sync(); prepFull();
-      }catch(e){}
+      }catch(e){ setState("starten mislukt (" + (e?.message || e) + ")"); }
     }
     // schermvullende advertentie bij een natuurlijke pauze (navigatie gestopt, skidag klaar, ander skigebied gekozen): hooguit eens per 15 minuten,
     // niet in de eerste 10 minuten na het openen en nooit tijdens het navigeren of met Pro
@@ -66,7 +85,8 @@
     let lastFull = Date.now() - 5*60e3, fullReady = false;
     async function prepFull(){
       if(!full || fullReady) return;
-      try{ await call("prepareInterstitial", {adId:full, isTesting:!ios.interstitial}); fullReady = true; }catch(e){}
+      try{ await call("prepareInterstitial", {adId:full, isTesting:!ios.interstitial}); fullReady = true; }
+      catch(e){ setTimeout(prepFull, 120000); }   // nog geen schermvullende advertentie: later opnieuw
     }
     async function pause(){
       if(!ready || !full || (typeof proActive === "function" && proActive()) || (typeof S !== "undefined" && S.follow)) return;
