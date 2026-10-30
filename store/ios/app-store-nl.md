@@ -69,4 +69,4 @@ Skipilot is a ski navigation app. No login is required.
 To test: tap the ski area name at the top, search for "Zillertal Arena" (or any other area), then tap two points on the map to plan a route and tap "Start navigatie" (Start navigation). Language can be switched to English in the menu (top left) under Taal / Language.
 All run and lift data for 1,800+ ski areas is bundled in the app, so route planning and turn-by-turn voice navigation work offline on the mountain. Location is only used while navigating or recording the ski diary. The app includes two home screen widgets (ski area weather and ski day stats).
 Group location sharing is optional and only active when the user creates or joins a group.
-The free app shows a Google AdMob banner in the ski area list, the ski diary and the menu (never during navigation), after the Google consent form and the App Tracking Transparency prompt.
+The free app shows a Google AdMob banner in the ski area list, the route details, the ski diary and the menu, and occasionally a full-screen ad at a natural pause (never during navigation), after the Google consent form and the App Tracking Transparency prompt.
