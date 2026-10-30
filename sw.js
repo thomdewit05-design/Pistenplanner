@@ -1,5 +1,5 @@
 // Service worker: app en kaartdata offline beschikbaar, satelliettegels die je bekeken hebt ook.
-const VERSION = "v57";
+const VERSION = "v58";
 const SHELL = `shell-${VERSION}`, DATA = `data-${VERSION}`, TILES = "tiles-v1";
 const SHELL_FILES = ["./", "index.html", "app.css?v=53", "app.js?v=53", "i18n.js?v=53", "manifest.webmanifest", "config.js?v=53", "ads.js?v=53", "map3d.js?v=53", "terrain.js?v=53", "icons/winter.png", "privacy.html", "voorwaarden.html",
   "vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "vendor/fonts.css", "vendor/qrcode.js", "icons/logo.svg", "icons/icon-192.png", "icons/icon-512.png", "data/index.json?d4"];
