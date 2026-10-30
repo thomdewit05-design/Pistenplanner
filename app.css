@@ -1162,8 +1162,3 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .ios .ticket-card{background:var(--surface)}
 .ios .toast{background:rgba(30,30,32,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;font-weight:500}
 
-/* talen: vijf keuzes, stem zes */
-.seg.six{grid-template-columns:repeat(6,1fr)}
-.seg.lang5{grid-template-columns:repeat(6,1fr)}
-.seg.lang5 button{grid-column:span 2}
-.seg.lang5 button:nth-child(4){grid-column:2/span 2}

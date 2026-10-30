@@ -1428,7 +1428,7 @@ function syncVoice(){
   const b = $("navVoice"), lab = S.voice ? "Gesproken aanwijzingen uitzetten" : "Gesproken aanwijzingen aanzetten";
   b.setAttribute("aria-pressed", String(S.voice)); b.setAttribute("aria-label", lab); b.title = lab;
   b.querySelector("use").setAttribute("href", S.voice ? "#i-sound" : "#i-mute");
-  document.querySelectorAll("#voiceLangSeg button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === S.voiceLang)));
+  $("voiceLangSel").value = S.voiceLang || "";
   fillVoices();
 }
 // de stemmen van het toestel in de gekozen taal; op iOS en Android komen ze soms pas na een tel binnen
@@ -1443,7 +1443,7 @@ function fillVoices(){
 if("speechSynthesis" in window) speechSynthesis.addEventListener?.("voiceschanged", fillVoices);
 $("voice").onchange = e => setVoice(e.target.checked);
 $("navVoice").onclick = () => setVoice(!S.voice, "nav");
-document.querySelectorAll("#voiceLangSeg button").forEach(b => b.onclick = () => { S.voiceLang = b.dataset.v; S.voiceName = ""; save(); syncVoice(); });
+$("voiceLangSel").onchange = e => { S.voiceLang = e.target.value; S.voiceName = ""; save(); syncVoice(); };
 $("voicePick").onchange = e => { S.voiceName = e.target.value; save(); };
 $("adPrivacy").onclick = () => window.ppAds?.native?.privacy();
 $("voiceTest").onclick = () => say("Over 200 meter: neem de stoeltjeslift.", true);
@@ -3585,10 +3585,8 @@ $("setName").onchange = e => { const v = e.target.value.trim().slice(0, 20); if(
 
 // ================= taal =================
 i18nStart();
-document.querySelectorAll("#langSeg button").forEach(b => {
-  b.setAttribute("aria-pressed", String(b.dataset.v === LANG));
-  b.onclick = () => { if(b.dataset.v !== LANG) setLang(b.dataset.v); };
-});
+$("langSel").value = LANG;
+$("langSel").onchange = e => { if(e.target.value !== LANG) setLang(e.target.value); };
 
 // ================= start =================
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
