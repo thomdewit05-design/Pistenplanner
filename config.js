@@ -48,8 +48,8 @@ window.PP_CONFIG = {
     // iOS-app: Google AdMob (zie store/ios/README.md). Een balk onderin bij de skigebiedkiezer, het dagboek en het menu,
     // nooit tijdens het navigeren en niet voor wie Pro gekocht heeft.
     ios: {
-      banner: "",         // advertentieblok-ID uit AdMob, bijvoorbeeld "ca-app-pub-1234567890123456/1234567890"
-      interstitial: "",   // schermvullende advertentie na het navigeren of na je skidag (hooguit eens per 15 minuten)
+      banner: "ca-app-pub-2889563354210788/5132755133",   // advertentieblok-ID uit AdMob, bijvoorbeeld "ca-app-pub-1234567890123456/1234567890"
+      interstitial: "ca-app-pub-2889563354210788/2806421807",   // schermvullende advertentie na het navigeren of na je skidag (hooguit eens per 15 minuten)
       test: true          // zolang banner leeg is: proefadvertenties van Google laten zien; op false zetten = geen advertenties
     }
   },
