@@ -101,6 +101,7 @@ const placeOrSelf = s => placeT(s) || pisteT(s);
 // ---------- losse teksten ----------
 const EXACT = {
 en:{
+ "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: tap on your wrist before a turn",
  "Alle skigebieden op de website":"All ski areas on the website",
  "Je gaat op":"You ride", "Ski's":"Skis", "Snowboard":"Snowboard", "Met een snowboard zoekt de route pistes met genoeg verval: zo min mogelijk vlakke stukken waar je moet steppen, en liever geen sleeplift.":"On a snowboard the route looks for runs with enough slope: as few flat stretches as possible where you have to skate, and no drag lifts if it can be avoided.",
  "Bergtoppen met hoogte":"Peaks with altitude", "Stijl":"Style", "Klassiek":"Classic", "Skipas kopen":"Buy a ski pass", "Online in de ticketshop, vaak goedkoper dan aan de kassa":"Online in the ticket shop, often cheaper than at the counter",
@@ -250,6 +251,7 @@ en:{
  "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Oct 2026. Times are estimates. Always follow the signs and closures on site.", "Liftstatus vandaag":"Lift status today", "Skiën in een groep":"Skiing as a group", "Mijn locatie (noodgeval)":"My location (emergency)",
 },
 de:{
+ "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: Tippen am Handgelenk vor einer Abzweigung",
  "Alle skigebieden op de website":"Alle Skigebiete auf der Website",
  "Je gaat op":"Du fährst mit", "Ski's":"Ski", "Snowboard":"Snowboard", "Met een snowboard zoekt de route pistes met genoeg verval: zo min mogelijk vlakke stukken waar je moet steppen, en liever geen sleeplift.":"Mit dem Snowboard sucht die Route Pisten mit genug Gefälle: so wenig flache Stücke wie möglich, an denen du schieben musst, und möglichst keine Schlepplifte.",
  "Bergtoppen met hoogte":"Gipfel mit Höhe", "Stijl":"Stil", "Klassiek":"Klassisch", "Skipas kopen":"Skipass kaufen", "Online in de ticketshop, vaak goedkoper dan aan de kassa":"Online im Ticketshop, oft günstiger als an der Kasse",
@@ -399,6 +401,7 @@ de:{
  "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Okt. 2026. Zeiten sind Schätzungen. Beachte immer die Schilder und Sperrungen vor Ort.", "Liftstatus vandaag":"Liftstatus heute", "Skiën in een groep":"Gemeinsam Skifahren", "Mijn locatie (noodgeval)":"Mein Standort (Notfall)",
 },
 fr:{
+ "Apple Watch: tikje op je pols voor een afslag":"Apple Watch : une touche au poignet avant un virage",
  "Alle skigebieden op de website":"Tous les domaines sur le site web",
  "Groene piste":"Piste verte", "Blauwe piste":"Piste bleue", "Rode piste":"Piste rouge", "Zwarte piste":"Piste noire", "Ongemarkeerde piste":"Piste non balisée", "Dubbelzwarte piste":"Piste double noire",
  "Je gaat op":"Tu skies en", "Ski's":"Skis", "Snowboard":"Snowboard",
@@ -635,6 +638,7 @@ fr:{
  "Skiën in een groep":"Skier en groupe", "Mijn locatie (noodgeval)":"Ma position (urgence)"
 },
 it:{
+ "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: un tocco al polso prima di una svolta",
  "Alle skigebieden op de website":"Tutti i comprensori sul sito web",
  "Groene piste":"Pista verde", "Blauwe piste":"Pista blu", "Rode piste":"Pista rossa", "Zwarte piste":"Pista nera", "Ongemarkeerde piste":"Pista non segnata", "Dubbelzwarte piste":"Pista doppia nera",
  "Je gaat op":"Scii con", "Ski's":"Sci", "Snowboard":"Snowboard",
