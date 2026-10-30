@@ -39,7 +39,8 @@ jobs:
           set -o pipefail
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
             -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -60; tail -n 40 build.log; exit 1; }
+          tail -n 40 build.log
       # niet-ondertekend .ipa-bestand voor de iPhone, om zelf te installeren met bijvoorbeeld Sideloadly (zie store/ios/README.md)
       - name: Niet-ondertekend .ipa-bestand maken
         if: ${{ !inputs.upload }}

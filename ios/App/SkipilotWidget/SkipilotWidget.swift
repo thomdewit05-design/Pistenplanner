@@ -595,6 +595,6 @@ struct SkipilotWidgets: WidgetBundle {
     var body: some Widget {
         AreaWidget()
         DayWidget()
-        if #available(iOS 18.0, *) { NavLiveActivityWatch() } else { NavLiveActivity() }
+        NavLiveActivity()
     }
 }

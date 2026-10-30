@@ -74,7 +74,6 @@ struct NavWatchView: View {
 }
 
 // op het toegangsscherm de gewone indeling, op het horloge (.small) de compacte
-@available(iOS 18.0, *)
 struct NavFamilyView: View {
     @Environment(\.activityFamily) var family
     let state: NavAttributes.ContentState
@@ -84,8 +83,7 @@ struct NavFamilyView: View {
     }
 }
 
-@available(iOS 18.0, *)
-struct NavLiveActivityWatch: Widget {
+struct NavLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NavAttributes.self) { ctx in
             NavFamilyView(state: ctx.state, attr: ctx.attributes)
@@ -94,19 +92,7 @@ struct NavLiveActivityWatch: Widget {
         } dynamicIsland: { ctx in
             NavLiveActivity.island(ctx)
         }
-        .supplementalActivityFamilies([.small])
-    }
-}
-
-struct NavLiveActivity: Widget {
-    var body: some WidgetConfiguration {
-        ActivityConfiguration(for: NavAttributes.self) { ctx in
-            NavLockView(state: ctx.state, attr: ctx.attributes)
-                .activityBackgroundTint(navy)
-                .activitySystemActionForegroundColor(.white)
-        } dynamicIsland: { ctx in
-            NavLiveActivity.island(ctx)
-        }
+        .supplementalActivityFamilies([.small])   // ook in de Smart Stack van de Apple Watch
     }
 
     static func island(_ ctx: ActivityViewContext<NavAttributes>) -> DynamicIsland {
