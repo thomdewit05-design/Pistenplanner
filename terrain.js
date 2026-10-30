@@ -70,12 +70,18 @@
   // Dorpen: de OpenStreetMap-tegel van dezelfde plek, waarvan we alleen de bebouwing (woonwijken en gebouwen) overnemen,
   // herkend aan hun vaste kleuren. Zo staan dorpen als warmgrijze vlekken met huizen in de sneeuw.
   const OSM_MAX = 18, VILLAGE = [[224, 223, 223, .38], [217, 208, 201, .85], [196, 182, 171, .9], [242, 218, 217, .38], [235, 219, 232, .3]];
+  const osmCache = new Map();
   async function villages(z, x, y, S){
     if(z < 12) return null;
     const zz = Math.min(z, OSM_MAX), f = 2 ** (z - zz), px = Math.floor(x / f), py = Math.floor(y / f);
-    const res = await fetch(`https://tile.openstreetmap.org/${zz}/${px}/${py}.png`);
-    if(!res.ok) return null;
-    const bmp = await bitmap(await res.blob()), cx = canvas2d(S, S), part = bmp.width / f;
+    const key = `${zz}/${px}/${py}`;
+    let src = osmCache.get(key);
+    if(!src){
+      src = fetch(`https://tile.openstreetmap.org/${key}.png`).then(r => r.ok ? r.blob() : null).catch(() => null);
+      osmCache.set(key, src); if(osmCache.size > 60) osmCache.delete(osmCache.keys().next().value);
+    }
+    const blob = await src; if(!blob) return null;
+    const bmp = await bitmap(blob), cx = canvas2d(S, S), part = bmp.width / f;
     cx.imageSmoothingEnabled = true;
     cx.drawImage(bmp, (x - px * f) * part, (y - py * f) * part, part, part, 0, 0, S, S); bmp.close?.();
     const d = cx.getImageData(0, 0, S, S).data, w = new Float32Array(S * S);
@@ -91,7 +97,9 @@
     return any ? w : null;
   }
   async function winter(z, x, y, r = 1){
-    const S = 256 * r, zd = Math.min(DEM_MAX, z + Math.log2(r)), sc = 2 ** (z - zd) * r;   // sc = uitvoerpixels per hoogtepixel
+    // hoogte van hetzelfde zoomniveau, ook voor een scherpe tegel (r = 2): de hoogtegegevens zelf zijn niet fijner dan ~10-30 m,
+    // dus een niveau dieper gaf geen beter beeld maar wel vier keer zoveel tegels om op te halen
+    const S = 256 * r, zd = Math.min(DEM_MAX, z), sc = 2 ** (z - zd) * r;   // sc = uitvoerpixels per hoogtepixel
     const vil = villages(z, x, y, S).catch(() => null);
     // welke hoogtetegels zijn nodig (met één pixel rand, dus soms de buren)
     const gx0 = Math.floor(((x * 256) - 2) * r / sc), gx1 = Math.floor(((x * 256) + 258) * r / sc);
@@ -104,11 +112,18 @@
     const any = [...tiles.values()].find(Boolean);
     if(!any) throw new Error("geen hoogtegegevens");
     const N = 2 ** zd * 256;
-    const at = (gx, gy) => {       // hoogte op hoogtepixel (geheel getal), met tegels als één grote kaart
-      gy = Math.min(N - 1, Math.max(0, gy)); const tx = Math.floor(gx / 256), ty = Math.floor(gy / 256);
-      const t = tiles.get(`${tx}/${ty}`) || any;
-      return t.h[(gy - ty * 256) * t.w + (((gx - tx * 256) % 256) + 256) % 256];
-    };
+    // de benodigde hoogtepixels één keer in een plat raster zetten (per pixel in de tegels zoeken was het trage deel)
+    const W0x = gx0 - 1, W0y = gy0 - 1, Ww = gx1 - gx0 + 4, Wh = gy1 - gy0 + 4, Wa = new Float32Array(Ww * Wh);
+    for(let j = 0; j < Wh; j++){
+      const gy = Math.min(N - 1, Math.max(0, W0y + j)), ty = Math.floor(gy / 256), ry = gy - ty * 256;
+      let i = 0;
+      while(i < Ww){
+        const gx = W0x + i, tx = Math.floor(gx / 256), t = tiles.get(`${tx}/${ty}`) || any, row = ry * t.w;
+        const end = Math.min(Ww, (tx + 1) * 256 - W0x);
+        for(; i < end; i++){ const lx = W0x + i - tx * 256; Wa[j * Ww + i] = t.h[row + ((lx % 256) + 256) % 256]; }
+      }
+    }
+    const at = (gx, gy) => Wa[(gy - W0y) * Ww + (gx - W0x)];   // hoogte op hoogtepixel (geheel getal)
     // hoogte per uitvoerpixel, met een rand van 1 (bilineair tussen hoogtepixels)
     const E = S + 2, hh = new Float32Array(E * E);
     for(let j = -1; j <= S; j++){
@@ -130,9 +145,10 @@
       // Horn: helling oost-west en noord-zuid
       const a = hh[k - E - 1], b = hh[k - E], c = hh[k - E + 1], d = hh[k - 1], f = hh[k + 1], g = hh[k + E - 1], q = hh[k + E], s = hh[k + E + 1];
       const dzE = ((c + 2 * f + s) - (a + 2 * d + g)) / (8 * mpp), dzN = ((a + 2 * b + c) - (g + 2 * q + s)) / (8 * mpp);
-      const nx = -dzE * ex, ny = -dzN * ex, nl = Math.hypot(nx, ny, 1);
+      const nx = -dzE * ex, ny = -dzN * ex, nl = Math.sqrt(nx * nx + ny * ny + 1);
       const lit = Math.max(0, (nx * LIGHT[0] + ny * LIGHT[1] + LIGHT[2]) / nl) / LIGHT[2];   // vlak = 1
-      const slope = Math.atan(Math.hypot(dzE, dzN)) * 180 / Math.PI;
+      const g2 = dzE * dzE + dzN * dzN;
+      const slope = g2 > .61 ? Math.atan(Math.sqrt(g2)) * 57.2958 : 0;   // alleen uitrekenen als het steiler dan 38° kan zijn (rots)
       let R, G, B;
       if(h <= .5){ R = 156; G = 192; B = 226; }            // water
       else {
@@ -160,9 +176,18 @@
     return out;
   }
 
+  // klaar getekende wintertegels bewaren: terug-pannen of tussen 2D en 3D wisselen hoeft dan niet opnieuw te rekenen
+  const done = new Map();
   async function make(kind, z, x, y, r){
     if(kind === "dem"){ const t = await dem(z, x, y); if(!t) throw new Error("buiten de kaart"); return bitmap(t.img); }
-    return bitmap(await winter(z, x, y, r || 1));
+    const k = `${z}/${x}/${y}/${r || 1}`;
+    let img = done.get(k);
+    if(img){ done.delete(k); done.set(k, img); }
+    else {
+      img = await winter(z, x, y, r || 1);
+      done.set(k, img); if(done.size > 24) done.delete(done.keys().next().value);
+    }
+    return bitmap(img);
   }
 
   // ---------- als worker ----------
