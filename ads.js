@@ -53,6 +53,11 @@
         else await call(on ? "resumeBanner" : "hideBanner");
       }catch(e){ made = false; shown = false; setState("de balk kon niet starten (" + (e?.message || e) + ")"); }
     }
+    // via onze eigen plug-in (NavPlugin.swift): die wacht tot de app actief is, anders slaat iOS de vraag stil over
+    async function askTracking(){
+      try{ return (await window.Capacitor.nativePromise("Nav", "tracking", {})).status; }
+      catch(e){ try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); }catch(e2){} }
+    }
     async function start(){
       if(typeof proActive === "function" && proActive()){ setState("uit, want je hebt Skipilot Pro"); return; }   // Pro gekocht: geen advertenties, dus ook geen vragen
       try{
@@ -64,11 +69,12 @@
           made = false; shown = false; clearTimeout(retryT);
           call("removeBanner").catch(() => {}).finally(() => { retryT = setTimeout(sync, 60000); });
         });
+        // eerst Apples vraag om te mogen volgen (App Tracking Transparency), vóór Google iets laadt of verzamelt
+        await askTracking();
         await call("initialize", {initializeForTesting:!ios.banner});
         let c = await call("requestConsentInfo");
         if(c.status === "REQUIRED" && c.isConsentFormAvailable) c = await call("showConsentForm");
         if(c.privacyOptionsRequirementStatus === "REQUIRED"){ const b = document.getElementById("adPrivacy"); if(b) b.hidden = false; }
-        try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); }catch(e){}
         if(c.canRequestAds === false){
           setState(c.status === "REQUIRED" && !c.isConsentFormAvailable
             ? "geen toestemmingsmelding gevonden. Publiceer in AdMob onder Privacy en berichten een GDPR-melding voor Europa."

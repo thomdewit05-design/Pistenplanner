@@ -1,5 +1,7 @@
 import Capacitor
 import CoreLocation
+import AppTrackingTransparency
+import UIKit
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -15,7 +17,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "pending", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "pending", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -91,6 +94,35 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         let d = UserDefaults.standard, a = d.string(forKey: Self.actionKey) ?? ""
         d.removeObject(forKey: Self.actionKey)
         call.resolve(["action": a])
+    }
+
+    // ---------- App Tracking Transparency ----------
+    // Apples vraag "Sta toe dat deze app je volgt", vóór er advertenties geladen worden. iOS laat de vraag alleen zien als
+    // de app echt actief is (anders komt er stil "niet bepaald" terug), dus zo nodig wachten tot de app actief wordt.
+    @objc func tracking(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let ask = {
+                ATTrackingManager.requestTrackingAuthorization { st in
+                    let name: String
+                    switch st {
+                    case .authorized: name = "authorized"
+                    case .denied: name = "denied"
+                    case .restricted: name = "restricted"
+                    default: name = "notDetermined"
+                    }
+                    call.resolve(["status": name])
+                }
+            }
+            if UIApplication.shared.applicationState == .active {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: ask)
+            } else {
+                var token: NSObjectProtocol?
+                token = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+                    if let t = token { NotificationCenter.default.removeObserver(t) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: ask)
+                }
+            }
+        }
     }
 
     // ---------- GPS ----------
