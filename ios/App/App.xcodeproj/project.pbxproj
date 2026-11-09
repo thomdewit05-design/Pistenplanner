@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A7C1E0010000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */; };
+		A7C1E0010000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A7C1E0010000000000000003 /* PrivacyInfo.xcprivacy */; };
 		0296FF2E61BE78B0E7224F46 /* SkipilotWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F02783FDDBC54DB6C925265A /* SkipilotWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		10A013E8FD5BAB70894E0D41 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1984FC1BF6946ACCCAB0C482 /* Foundation.framework */; };
 		10E8E4A9B80C2675B0BC1B36 /* NavLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61C1D18C7BD2583E6C280AC /* NavLiveActivity.swift */; };
@@ -56,6 +58,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A7C1E0010000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0593BB6A375A0228C3C7F312 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		1984FC1BF6946ACCCAB0C482 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1DABB5FE7C0370F40AA70FA0 /* SkipilotWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = SkipilotWidget.entitlements; sourceTree = "<group>"; };
@@ -163,6 +167,7 @@
 				BB31EF8C9A37A6B230D32322 /* NavAttributes.swift */,
 				E8B4A0CA5E8D2EA7F0314174 /* NavPlugin.swift */,
 				F0C64F8798F1FA43F9C4CF5B /* Shortcuts.swift */,
+				A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -174,6 +179,7 @@
 				EF8E381147B4ED1D3A165256 /* Info.plist */,
 				1DABB5FE7C0370F40AA70FA0 /* SkipilotWidget.entitlements */,
 				B61C1D18C7BD2583E6C280AC /* NavLiveActivity.swift */,
+				A7C1E0010000000000000003 /* PrivacyInfo.xcprivacy */,
 			);
 			name = SkipilotWidget;
 			path = SkipilotWidget;
@@ -270,6 +276,7 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				A7C1E0010000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,6 +284,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A7C1E0010000000000000004 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

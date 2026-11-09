@@ -37,8 +37,9 @@
     const PANELS = ["picker", "diary", "menu", "status", "group"];
     let ready = false, made = false, shown = false, retryT = 0;
     // waarom er wel of geen advertentie is, zichtbaar in het menu (anders zie je niet of het aan Google of aan de app ligt)
-    let state = "Starten…";
-    const setState = s => { state = s; const el = document.getElementById("adState"); if(el){ el.hidden = false; el.textContent = "Advertenties: " + s; } };
+    let state = "Starten…", track = "";
+    const TRACK = {authorized:"toegestaan", denied:"geweigerd (of uit in Instellingen > Privacy > Volgen)", restricted:"niet mogelijk op dit toestel", notDetermined:"nog niet gevraagd"};
+    const setState = s => { state = s; const el = document.getElementById("adState"); if(el){ el.hidden = false; el.textContent = "Advertenties: " + s + (track ? ` · Volgen: ${TRACK[track] || track}` : ""); } };
     const plugin = () => window.Capacitor?.Plugins?.AdMob;
     const NO_AD = {0:"interne fout bij Google", 1:"ongeldig verzoek (klopt het advertentieblok-ID?)", 2:"geen netwerk", 3:"Google heeft nog geen advertentie voor deze app (gebruikelijk bij een nieuwe app of zolang de app in AdMob wordt beoordeeld)", 8:"de app-ID in AdMob past niet bij dit advertentieblok"};
     // ook als het routepaneel helemaal open staat (je leest dan de routebeschrijving, de kaart is toch bedekt)
@@ -53,10 +54,11 @@
         else await call(on ? "resumeBanner" : "hideBanner");
       }catch(e){ made = false; shown = false; setState("de balk kon niet starten (" + (e?.message || e) + ")"); }
     }
-    // via onze eigen plug-in (NavPlugin.swift): die wacht tot de app actief is, anders slaat iOS de vraag stil over
+    // de vraag zelf stelt de app (NavPlugin.swift, Tracking) zodra hij actief is; hier wachten we op het antwoord, pas daarna start Google
     async function askTracking(){
-      try{ return (await window.Capacitor.nativePromise("Nav", "tracking", {})).status; }
-      catch(e){ try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); }catch(e2){} }
+      try{ track = (await window.Capacitor.nativePromise("Nav", "tracking", {})).status; }
+      catch(e){ try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); track = (await call("trackingAuthorizationStatus")).status; }catch(e2){} }
+      setState(state);
     }
     async function start(){
       if(typeof proActive === "function" && proActive()){ setState("uit, want je hebt Skipilot Pro"); return; }   // Pro gekocht: geen advertenties, dus ook geen vragen

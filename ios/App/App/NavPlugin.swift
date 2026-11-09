@@ -99,30 +99,10 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     // ---------- App Tracking Transparency ----------
     // Apples vraag "Sta toe dat deze app je volgt", vóór er advertenties geladen worden. iOS laat de vraag alleen zien als
     // de app echt actief is (anders komt er stil "niet bepaald" terug), dus zo nodig wachten tot de app actief wordt.
+    // Toestemming om te volgen (App Tracking Transparency). De vraag zelf stelt Tracking hieronder, vanuit
+    // SceneDelegate zodra de app actief is; deze methode wacht tot er een antwoord is en geeft dat door.
     @objc func tracking(_ call: CAPPluginCall) {
-        DispatchQueue.main.async {
-            let ask = {
-                ATTrackingManager.requestTrackingAuthorization { st in
-                    let name: String
-                    switch st {
-                    case .authorized: name = "authorized"
-                    case .denied: name = "denied"
-                    case .restricted: name = "restricted"
-                    default: name = "notDetermined"
-                    }
-                    call.resolve(["status": name])
-                }
-            }
-            if UIApplication.shared.applicationState == .active {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: ask)
-            } else {
-                var token: NSObjectProtocol?
-                token = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-                    if let t = token { NotificationCenter.default.removeObserver(t) }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: ask)
-                }
-            }
-        }
+        Tracking.whenDecided { call.resolve(["status": $0]) }
     }
 
     // ---------- GPS ----------
@@ -244,4 +224,53 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         Task { await a.end(nil, dismissalPolicy: .immediate) }
     }
     #endif
+}
+
+// App Tracking Transparency: Apple wil dat de vraag om te volgen verschijnt vóórdat er advertentiegegevens
+// verzameld worden. iOS slaat de vraag stil over als de app op dat moment niet actief is of als er al een
+// andere systeemmelding openstaat (bijvoorbeeld de vraag om je locatie). Daarom: bij elke keer dat de app
+// actief wordt opnieuw proberen, net zo lang tot er een antwoord is. Los van de webapp, advertenties en Pro.
+enum Tracking {
+    private static var asking = false
+    private static var waiters: [(String) -> Void] = []
+
+    static var status: String {
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .authorized: return "authorized"
+        case .denied: return "denied"
+        case .restricted: return "restricted"
+        default: return "notDetermined"
+        }
+    }
+
+    /// Aanroepen zodra de app actief wordt (SceneDelegate).
+    static func askIfNeeded() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard !asking, ATTrackingManager.trackingAuthorizationStatus == .notDetermined,
+                  UIApplication.shared.applicationState == .active else { return }
+            asking = true
+            ATTrackingManager.requestTrackingAuthorization { _ in
+                DispatchQueue.main.async {
+                    asking = false
+                    // nog steeds geen antwoord: de vraag is overgeslagen; bij de volgende keer actief opnieuw
+                    if ATTrackingManager.trackingAuthorizationStatus != .notDetermined { finish() }
+                }
+            }
+        }
+    }
+
+    /// Roept done aan zodra de gebruiker heeft gekozen (meteen als dat al gebeurd is).
+    static func whenDecided(_ done: @escaping (String) -> Void) {
+        DispatchQueue.main.async {
+            if ATTrackingManager.trackingAuthorizationStatus != .notDetermined { return done(status) }
+            waiters.append(done)
+            askIfNeeded()
+        }
+    }
+
+    private static func finish() {
+        let s = status, w = waiters
+        waiters = []
+        w.forEach { $0(s) }
+    }
 }
