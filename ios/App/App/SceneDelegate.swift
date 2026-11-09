@@ -14,6 +14,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
+    // Elke keer dat de app actief wordt: de vraag om te mogen volgen (App Tracking Transparency) als die nog niet beantwoord is
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        Tracking.askIfNeeded()
+    }
+
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
     }
