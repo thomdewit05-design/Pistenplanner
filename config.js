@@ -55,7 +55,7 @@ window.PP_CONFIG = {
   },
   // contactgegevens voor de privacyverklaring en de voorwaarden
   contact: {
-    name: "",
-    email: ""
+    name: "Thom de Wit",
+    email: "thomdewit05@gmail.com"
   }
 };

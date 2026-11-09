@@ -200,6 +200,7 @@ function viaX(s){
 // ---------- losse teksten ----------
 const EXACT = {
 en:{
+ "Hulp en contact":"Help and contact",
  "Let op:":"Note:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: tap on your wrist before a turn",
  "Alle skigebieden op de website":"All ski areas on the website",
@@ -351,6 +352,7 @@ en:{
  "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Oct 2026. Times are estimates. Always follow the signs and closures on site.", "Liftstatus vandaag":"Lift status today", "Skiën in een groep":"Skiing as a group", "Mijn locatie (noodgeval)":"My location (emergency)",
 },
 de:{
+ "Hulp en contact":"Hilfe und Kontakt",
  "Let op:":"Achtung:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: Tippen am Handgelenk vor einer Abzweigung",
  "Alle skigebieden op de website":"Alle Skigebiete auf der Website",
@@ -502,6 +504,7 @@ de:{
  "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· Okt. 2026. Zeiten sind Schätzungen. Beachte immer die Schilder und Sperrungen vor Ort.", "Liftstatus vandaag":"Liftstatus heute", "Skiën in een groep":"Gemeinsam Skifahren", "Mijn locatie (noodgeval)":"Mein Standort (Notfall)",
 },
 fr:{
+ "Hulp en contact":"Aide et contact",
  "Let op:":"Attention :",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch : une touche au poignet avant un virage",
  "Alle skigebieden op de website":"Tous les domaines sur le site web",
@@ -740,6 +743,7 @@ fr:{
  "Skiën in een groep":"Skier en groupe", "Mijn locatie (noodgeval)":"Ma position (urgence)"
 },
 it:{
+ "Hulp en contact":"Aiuto e contatti",
  "Let op:":"Attenzione:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: un tocco al polso prima di una svolta",
  "Alle skigebieden op de website":"Tutti i comprensori sul sito web",
@@ -973,6 +977,7 @@ it:{
  "Skiën in een groep":"Sciare in gruppo", "Mijn locatie (noodgeval)":"La mia posizione (emergenza)"
 },
 es:{
+ "Hulp en contact":"Ayuda y contacto",
  "Let op:":"Atención:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: un toque en la muñeca antes de cada giro", "Alle skigebieden op de website":"Todas las estaciones en la web",
  "Groene piste":"Pista verde", "Blauwe piste":"Pista azul", "Rode piste":"Pista roja", "Zwarte piste":"Pista negra", "Ongemarkeerde piste":"Pista sin marcar", "Dubbelzwarte piste":"Pista doble negra",
@@ -1199,6 +1204,7 @@ es:{
  "Skiën in een groep":"Esquiar en grupo", "Mijn locatie (noodgeval)":"Mi ubicación (emergencia)"
 },
 pt:{
+ "Hulp en contact":"Ajuda e contato",
  "Let op:":"Atenção:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: um toque no pulso antes de cada curva", "Alle skigebieden op de website":"Todas as estâncias no site", "Groene piste":"Pista verde",
  "Blauwe piste":"Pista azul", "Rode piste":"Pista vermelha", "Zwarte piste":"Pista preta", "Ongemarkeerde piste":"Pista sem marcação", "Dubbelzwarte piste":"Pista dupla preta",
@@ -1425,6 +1431,7 @@ pt:{
  "Skiën in een groep":"Esquiar em grupo", "Mijn locatie (noodgeval)":"Minha localização (emergência)"
 },
 ru:{
+ "Hulp en contact":"Помощь и контакты",
  "Let op:":"Внимание:",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch: касание запястья перед поворотом", "Alle skigebieden op de website":"Все курорты на сайте", "Groene piste":"Зелёная трасса",
  "Blauwe piste":"Синяя трасса", "Rode piste":"Красная трасса", "Zwarte piste":"Чёрная трасса", "Ongemarkeerde piste":"Трасса без маркировки", "Dubbelzwarte piste":"Двойная чёрная трасса",
@@ -1646,6 +1653,7 @@ ru:{
  "Skiën in een groep":"Кататься группой", "Mijn locatie (noodgeval)":"Моё местоположение (экстренно)"
 },
 zh:{
+ "Hulp en contact":"帮助与联系",
  "Let op:":"注意：",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch：转弯前轻触手腕提醒", "Alle skigebieden op de website":"网站上的所有滑雪场", "Groene piste":"绿道", "Blauwe piste":"蓝道", "Rode piste":"红道", "Zwarte piste":"黑道",
  "Ongemarkeerde piste":"无标记雪道", "Dubbelzwarte piste":"双黑道", "Je gaat op":"你使用", "Ski's":"双板", "Snowboard":"单板",
@@ -1805,6 +1813,7 @@ zh:{
  "· okt 2026. Tijden zijn schattingen. Volg altijd de borden en afsluitingen ter plaatse.":"· 2026 年 10 月。时间为估算。请始终遵守现场标志和关闭信息。", "Skiën in een groep":"小组滑雪", "Mijn locatie (noodgeval)":"我的位置（紧急）"
 },
 ja:{
+ "Hulp en contact":"ヘルプとお問い合わせ",
  "Let op:":"注意：",
  "Apple Watch: tikje op je pols voor een afslag":"Apple Watch：曲がる前に手首をタップ", "Alle skigebieden op de website":"ウェブサイトのすべてのスキー場", "Groene piste":"グリーンコース", "Blauwe piste":"ブルーコース", "Rode piste":"レッドコース",
  "Zwarte piste":"ブラックコース", "Ongemarkeerde piste":"マークなしコース", "Dubbelzwarte piste":"ダブルブラックコース", "Je gaat op":"使う道具", "Ski's":"スキー", "Snowboard":"スノーボード",
