@@ -79,6 +79,9 @@ p{font:500 40px/1.35 Barlow;margin:34px 0 0;color:rgba(255,255,255,.92);max-widt
 const T = {nl:{h:'Nooit meer<br>verdwalen op<br>de <em>piste</em>.', hw:'Nooit meer verdwalen<br>op de <em>piste</em>.', s:'Routes, gesproken navigatie en 3D-bergen in meer dan 1.800 skigebieden.', c:['Dagroute','Apple Watch','Ook offline']},
            en:{h:'Never get<br>lost on the<br><em>slopes</em> again.', hw:'Never get lost on<br>the <em>slopes</em> again.', s:'Routes, spoken navigation and 3D mountains in more than 1,800 ski areas.', c:['Daily route','Apple Watch','Works offline']}};
 const [lang, fmt] = (location.hash.slice(1) || 'nl').split('-'); const L = T[lang];
+// In-App Event (App Store): alleen de illustratie, zonder tekst (Apple zet naam en omschrijving er zelf overheen)
+if(fmt === 'card' || fmt === 'tall'){ document.querySelector('.txt').style.display = 'none'; }
+if(fmt === 'tall'){ const a = document.querySelector('svg.art'); a.setAttribute('viewBox', '1100 0 780 1080'); a.setAttribute('preserveAspectRatio', 'xMidYMax slice'); }
 if(fmt === 'wide'){ document.body.classList.add('wide'); document.querySelector('svg.art').setAttribute('preserveAspectRatio', 'xMaxYMax meet'); }
 document.getElementById('h1').innerHTML = fmt === 'wide' ? L.hw : L.h; document.getElementById('sub').textContent = L.s;
 document.getElementById('chips').innerHTML = L.c.map(c => '<span class="chip">' + c + '</span>').join('');
