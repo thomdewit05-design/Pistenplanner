@@ -1,5 +1,7 @@
 # Skipilot in de Google Play Store
 
+> **Let op:** dit is het oude plan (een verpakte web-app). De Android-app wordt nu net als de iOS-app met Capacitor gebouwd: zie **`store/android/README.md`**. De afbeeldingen en teksten hieronder gelden nog steeds.
+
 Skipilot gaat de Play Store in als **Trusted Web Activity**: een klein Android-pakket dat de webapp schermvullend opent.
 Updates van de website komen dus vanzelf in de app; alleen bij een nieuw icoon of een nieuwe naam is een nieuw pakket nodig.
 

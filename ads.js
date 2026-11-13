@@ -29,10 +29,12 @@
   // ---- iOS-app: Google AdMob ----
   // Een balk onderin zolang de skigebiedkiezer, het dagboek of het menu open is; nooit tijdens het navigeren
   // en niet voor wie Pro gekocht heeft. Eerst de toestemmingsvragen: Google (Europa) en Apple (volgen).
-  const ios = ((window.PP_CONFIG || {}).ads || {}).ios || {};
-  if(window.PP_STORE === "ios" && (ios.banner || ios.test)){
-    const TEST = "ca-app-pub-3940256099942544/2934735716";   // proefblok van Google (balk)
-    const TEST_FULL = "ca-app-pub-3940256099942544/4411468910";   // proefblok van Google (schermvullend)
+  // iOS- en Android-app: dezelfde werking, elk met hun eigen advertentieblokken in config.js
+  const ANDROID = window.PP_STORE === "android";
+  const ios = (window.PP_STORE === "ios" || ANDROID) ? ((window.PP_CONFIG || {}).ads || {})[window.PP_STORE] || {} : {};
+  if((window.PP_STORE === "ios" || ANDROID) && (ios.banner || ios.test)){
+    const TEST = ANDROID ? "ca-app-pub-3940256099942544/6300978111" : "ca-app-pub-3940256099942544/2934735716";   // proefblok van Google (balk)
+    const TEST_FULL = ANDROID ? "ca-app-pub-3940256099942544/1033173712" : "ca-app-pub-3940256099942544/4411468910";   // proefblok van Google (schermvullend)
     const call = (m, o) => window.Capacitor.nativePromise("AdMob", m, o || {});
     const PANELS = ["picker", "diary", "menu", "status", "group"];
     let ready = false, made = false, shown = false, retryT = 0;
@@ -56,6 +58,7 @@
     }
     // de vraag zelf stelt de app (NavPlugin.swift, Tracking) zodra hij actief is; hier wachten we op het antwoord, pas daarna start Google
     async function askTracking(){
+      if(ANDROID) return;   // App Tracking Transparency bestaat alleen op iOS
       try{ track = (await window.Capacitor.nativePromise("Nav", "tracking", {})).status; }
       catch(e){ try{ const t = await call("trackingAuthorizationStatus"); if(t.status === "notDetermined") await call("requestTrackingAuthorization"); track = (await call("trackingAuthorizationStatus")).status; }catch(e2){} }
       setState(state);

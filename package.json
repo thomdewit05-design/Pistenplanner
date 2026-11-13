@@ -2,16 +2,20 @@
   "name": "skipilot",
   "version": "1.0.0",
   "private": true,
-  "description": "Skipilot als iOS-app (Capacitor). De website zelf heeft geen build-stap nodig.",
+  "description": "Skipilot als iOS- en Android-app (Capacitor). De website zelf heeft geen build-stap nodig.",
   "scripts": {
     "www": "node tools/build_www.mjs",
-    "ios": "node tools/build_www.mjs && cap sync ios"
+    "ios": "node tools/build_www.mjs && cap sync ios",
+    "android": "node tools/build_www.mjs && cap sync android"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.2.1",
     "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
-    "@capacitor/ios": "^8.5.3"
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/share": "^8.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3"

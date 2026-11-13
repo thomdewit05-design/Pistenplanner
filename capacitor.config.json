@@ -6,6 +6,19 @@
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#0F1B2A",
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": false,
+    "includePlugins": [
+      "@capacitor-community/admob",
+      "@capacitor-community/keep-awake"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#0F1B2A"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "cover"
+    }
   }
 }
