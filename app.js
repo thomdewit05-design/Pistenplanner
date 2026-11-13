@@ -948,8 +948,26 @@ function voiceFor(l){
   const list = voicesFor(l);
   return list.find(v => v.name === S.voiceName) || list.find(v => v.default) || list.find(v => v.localService) || list[0] || null;
 }
+// Android-app: de WebView kan niet spreken; daar praat de spraakfunctie van Android (plug-in TextToSpeech)
+const ANDROID_APP = window.PP_STORE === "android";
+const nativeCall = (plugin, method, opts) => window.Capacitor.nativePromise(plugin, method, opts || {});
+function hush(){
+  if(ANDROID_APP){ nativeCall("TextToSpeech", "stop").catch(() => {}); return; }
+  try{ window.speechSynthesis?.cancel?.(); }catch(e){}
+}
+// delen: de WebView van Android heeft geen navigator.share; dan het deelmenu van Android
+if(ANDROID_APP && !navigator.share){
+  navigator.share = o => nativeCall("Share", "share", {title:o?.title, text:o?.text, url:o?.url, dialogTitle:o?.title});
+}
 function say(text, force){
-  if(!(force || (S.voice && S.follow)) || !("speechSynthesis" in window)) return;
+  if(!(force || (S.voice && S.follow))) return;
+  if(ANDROID_APP){
+    const l = voiceLang();
+    nativeCall("TextToSpeech", "stop").catch(() => {}).finally(() =>
+      nativeCall("TextToSpeech", "speak", {text:trTo(text, l), lang:SPEECH_LANGS[l], rate:1.0, pitch:1.0, volume:1.0, category:"playback"}).catch(() => {}));
+    return;
+  }
+  if(!("speechSynthesis" in window)) return;
   try{ const l = voiceLang(), u = new SpeechSynthesisUtterance(trTo(text, l)); u.lang = SPEECH_LANGS[l]; u.rate = 1.02;
        const v = voiceFor(l); if(v) u.voice = v;
        speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
@@ -1078,7 +1096,7 @@ function updateNav(){
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
-  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); speechSynthesis?.cancel?.(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
+  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); hush(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
   if(!isSide()) setSheet(false);
@@ -1420,7 +1438,7 @@ document.querySelectorAll("#gear button").forEach(b => b.onclick = () => { S.boa
 $("free").onchange = e => { S.free = e.target.checked; update(); };
 $("down").onchange = e => { S.down = e.target.checked; update(); };
 function setVoice(on, from){
-  S.voice = on; if(!on) speechSynthesis?.cancel?.(); save(); syncVoice();
+  S.voice = on; if(!on) hush(); save(); syncVoice();
   if(from === "nav"){ toast(on ? "Gesproken aanwijzingen aan." : "Gesproken aanwijzingen uit."); if(on) say("Gesproken aanwijzingen aan.", true); }
 }
 function syncVoice(){
@@ -2788,8 +2806,8 @@ async function loadHuts(force){
   if(!cached) hutState(A, "loading");
   let list = null;
   try{
-    // de iOS-app draagt zijn eigen bestanden mee; de verse hutten staan op de website
-    const base = window.PP_STORE === "ios" ? (window.PP_CONFIG?.site || "") : "";
+    // de iOS- en Android-app dragen hun eigen bestanden mee; de verse hutten staan op de website
+    const base = window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") : "";
     const r = await fetch(`${base}data/h${String(A.row[8]).padStart(3, "0")}.json?${DATA_V}`);
     if(r.ok){ const j = await r.json(); if(j[A.id]) list = j[A.id].map(([lon, lat, kind, name, web]) => ({lon, lat, kind, name, web})); }
   }catch(e){}

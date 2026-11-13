@@ -3,8 +3,11 @@
 // Play Store-versie: de Android-app opent de site met ?src=play (of verwijst vanuit android-app://).
 // Daarin geen betaling buiten Google Play om en geen AdSense; onthouden per sessie, zodat dezelfde site in Chrome gewoon de webversie blijft.
 // iOS-app (App Store): de bestanden zitten in de app zelf en worden geladen vanaf capacitor://; ook daar geen eigen kassa en geen AdSense.
+// Android-app (Play Store, Capacitor): idem; Pro staat daar uit (alles gratis) tot er Google Play Billing is.
 window.PP_STORE = (() => {
   if(location.protocol === "capacitor:") return "ios";
+  // Android-app (Capacitor): de bestanden zitten in de app en worden geladen vanaf https://localhost
+  if(window.Capacitor?.getPlatform?.() === "android" || window.androidBridge) return "android";
   try{
     if(/[?&]src=play\b/.test(location.search) || document.referrer.startsWith("android-app://")) sessionStorage.setItem("pp-store", "play");
     return sessionStorage.getItem("pp-store") || "web";
@@ -51,6 +54,12 @@ window.PP_CONFIG = {
       banner: "ca-app-pub-2889563354210788/5132755133",   // advertentieblok-ID uit AdMob, bijvoorbeeld "ca-app-pub-1234567890123456/1234567890"
       interstitial: "ca-app-pub-2889563354210788/2806421807",   // schermvullende advertentie na het navigeren of na je skidag (hooguit eens per 15 minuten)
       test: true          // zolang banner leeg is: proefadvertenties van Google laten zien; op false zetten = geen advertenties
+    },
+    // Android-app: Google AdMob, met een eigen app in AdMob (andere ID's dan iOS). Leeg = proefadvertenties van Google.
+    android: {
+      banner: "",         // advertentieblok-ID (banner) van de Android-app in AdMob
+      interstitial: "",   // schermvullend advertentieblok van de Android-app
+      test: true
     }
   },
   // contactgegevens voor de privacyverklaring en de voorwaarden

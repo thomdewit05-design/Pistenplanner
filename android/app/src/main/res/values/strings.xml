@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Skipilot</string>
+    <string name="title_activity_main">Skipilot</string>
+    <string name="package_name">nl.skipilot.app</string>
+    <string name="custom_url_scheme">nl.skipilot.app</string>
+</resources>
