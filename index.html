@@ -26,7 +26,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=63">
+<link rel="stylesheet" href="app.css?v=68">
 </head>
 <body>
 <!-- iconenset -->
@@ -83,6 +83,12 @@
     <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 3.5h3.5l1.8 4.5-2.3 1.5a11 11 0 0 0 6.5 6.5l1.5-2.3 4.5 1.8V19a1.8 1.8 0 0 1-2 1.8A16.5 16.5 0 0 1 3.2 5.5 1.8 1.8 0 0 1 5 3.5Z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z"/><path d="M9 4v14M15 6v14"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></symbol>
+    <symbol id="i-today" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 7.4l2.1 1.2M17.7 15.4l2.1 1.2M4.2 16.6l2.1-1.2M17.7 8.6l2.1-1.2"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.8v.4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h11"/></symbol>
     <symbol id="i-status" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="m3.5 6.5 1.3 1.3L7 5.5"/><path d="m3.5 12 1.3 1.3L7 11"/><path d="M4 16l2.5 3M6.5 16 4 19"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4L12 5.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/></symbol>
     <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 19.5h1.5M19.5 14v2"/></symbol>
@@ -122,7 +128,7 @@
 
 <header class="topbar">
   <button type="button" id="menuBtn" class="menu-btn glass" aria-haspopup="dialog" aria-label="Menu en instellingen" title="Menu en instellingen">
-    <img src="icons/logo.svg" alt="" width="34" height="34"><span class="menu-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+    <svg class="ic"><use href="#i-menu"/></svg>
   </button>
   <button type="button" id="areaBtn" class="area-btn glass" aria-haspopup="dialog">
     <span class="area-txt"><small>Skigebied</small><b id="areaName">Kiezen…</b><span id="areaStats" class="area-stats"></span></span>
@@ -134,6 +140,7 @@
 </header>
 
 <div id="layerMenu" class="layer-menu" hidden>
+  <button type="button" id="fitAreaBtn" class="btn ghost lm-fit"><svg class="ic"><use href="#i-expand"/></svg>Heel skigebied tonen</button>
   <p class="label">Kaartweergave</p>
   <div class="layer-cards">
     <label class="layer-card"><input type="radio" name="base" value="sat"><span class="thumb t-sat"></span><span>Satelliet</span></label>
@@ -179,6 +186,7 @@
     </div>
     <button type="button" class="nd-btn" id="ndFlat" aria-label="Platte kaart" title="Platte kaart">2D</button>
   </div>
+  <div class="nd-prog" aria-hidden="true"><i id="ndProg"></i></div>
   <ol class="nd-next" id="ndNext"></ol>
   <div class="nd-hut" id="ndHut" hidden></div>
 </div>
@@ -198,12 +206,21 @@
 
 <div class="fabs">
   <button type="button" id="threeBtn" class="fab glass three-btn" aria-label="3D-bergen" title="3D-bergen" aria-pressed="false" hidden>3D</button>
-  <button type="button" id="drawBtn" class="fab glass" aria-label="Route tekenen" title="Route tekenen"><svg class="ic"><use href="#i-pencil"/></svg></button>
-  <button type="button" id="sosBtn" class="fab sos-fab" aria-label="Noodgeval (SOS)" title="Noodgeval">SOS</button>
   <button type="button" id="locBtn" class="fab glass" aria-label="Mijn locatie" title="Mijn locatie"><svg class="ic"><use href="#i-locate"/></svg></button>
   <button type="button" id="fitRouteBtn" class="fab glass" aria-label="Zoom naar route" title="Zoom naar route"><svg class="ic"><use href="#i-route"/></svg></button>
-  <button type="button" id="fitAreaBtn" class="fab glass" aria-label="Heel skigebied" title="Heel skigebied"><svg class="ic"><use href="#i-expand"/></svg></button>
+  <button type="button" id="drawBtn" class="fab glass" aria-label="Route tekenen" title="Route tekenen"><svg class="ic"><use href="#i-pencil"/></svg></button>
+  <button type="button" id="sosBtn" class="fab sos-fab" aria-label="Noodgeval (SOS)" title="Noodgeval">SOS</button>
 </div>
+
+<nav class="tabbar" id="tabbar" aria-label="Hoofdmenu">
+  <i class="tab-ind" id="tabInd" aria-hidden="true"></i>
+  <button type="button" data-tab="map" aria-label="Kaart" aria-current="page"><svg class="ic"><use href="#i-map"/></svg><span>Kaart</span></button>
+  <button type="button" data-tab="today" aria-label="Vandaag"><svg class="ic"><use href="#i-today"/></svg><span>Vandaag</span></button>
+  <button type="button" data-tab="group" aria-label="Groep"><svg class="ic"><use href="#i-group"/></svg><span>Groep</span></button>
+  <button type="button" data-tab="me" aria-label="Ik"><svg class="ic"><use href="#i-user"/></svg><span>Ik</span></button>
+</nav>
+<div id="today" class="picker dash" role="dialog" aria-label="Vandaag" hidden></div>
+<div id="me" class="picker dash" role="dialog" aria-label="Ik" hidden></div>
 
 <section id="sheet" class="sheet" aria-label="Route">
   <button type="button" class="handle" id="handle" aria-label="Paneel openen of sluiten"><span></span></button>
@@ -267,7 +284,7 @@
     <div><p class="label" id="pickerCount">Skigebieden</p><h2 id="pickerTitle">Kies een skigebied</h2></div>
     <button type="button" class="icon-btn" id="pickerClose" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button>
   </div>
-  <div class="search"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="q" placeholder="Zoek op naam, dorp of regio" autocomplete="off" aria-label="Zoek skigebied"></div>
+  <div class="search"><svg class="ic"><use href="#i-search"/></svg><input type="search" id="q" placeholder="Zoek skigebied, piste, lift of hut" autocomplete="off" aria-label="Zoek skigebied"></div>
   <div class="chips scroll" id="regions"></div>
   <div class="chips scroll" id="countries"></div>
   <button type="button" class="near-btn" id="nearBtn"><svg class="ic"><use href="#i-locate"/></svg>Bij mij in de buurt</button>
@@ -545,13 +562,13 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=63"></script>
-<script src="ads.js?v=63"></script>
+<script src="config.js?v=68"></script>
+<script src="ads.js?v=68"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=63"></script>
-<script src="terrain.js?v=63"></script>
-<script src="map3d.js?v=63"></script>
-<script src="app.js?v=63"></script>
+<script src="i18n.js?v=68"></script>
+<script src="terrain.js?v=68"></script>
+<script src="map3d.js?v=68"></script>
+<script src="app.js?v=68"></script>
 </body>
 </html>

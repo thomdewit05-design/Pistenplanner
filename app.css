@@ -274,7 +274,12 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .pin.a{background:var(--navy)} .pin.a>span{width:9px;height:9px;border-radius:50%;background:#fff}
 .pin.b{background:var(--route)} .pin.b .ic{width:15px;height:15px;color:var(--route-ink)}
 .pin.v{background:#fff;border-color:var(--navy);width:26px;height:26px} .pin.v .ic{width:14px;height:14px;color:var(--navy)}
-.me-dot{width:20px;height:20px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px color-mix(in srgb,var(--me) 28%,transparent),0 2px 8px rgba(0,0,0,.4)}
+.me-dot{position:relative;width:20px;height:20px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px color-mix(in srgb,var(--me) 28%,transparent),0 2px 8px rgba(0,0,0,.4)}
+/* kijkrichting: een waaier van licht vanuit je stip */
+.me-beam{display:none;position:absolute;left:50%;top:50%;width:78px;height:78px;margin:-78px 0 0 -39px;z-index:-1;pointer-events:none;
+  transform-origin:50% 100%;transform:rotate(var(--hd,0deg));clip-path:polygon(50% 100%,12% 0,88% 0);
+  background:radial-gradient(circle at 50% 100%,color-mix(in srgb,var(--me) 70%,transparent) 0,color-mix(in srgb,var(--me) 30%,transparent) 45%,transparent 72%)}
+.has-hd .me-beam{display:block}
 .pnum{display:grid;place-items:center;min-width:22px;height:18px;padding:0 4px;border-radius:5px;font:800 12px/1 var(--f-display);color:#fff;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);white-space:nowrap;transform:translate(-50%,-50%);width:max-content}
 .pnum.s{color:#fff}
 /* pijltjes op de route: lichten na elkaar op in de rijrichting */
@@ -1164,3 +1169,560 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .ios .ticket-card{background:var(--surface)}
 .ios .toast{background:rgba(30,30,32,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;font-weight:500}
 
+
+/* je skidag terugkijken in 3D: alleen de kaart en de stopknop */
+body.rp-on #sheet,body.rp-on .fabs,body.rp-on #ovBtn,body.rp-on .topbar{display:none}
+.rp-dot{width:18px;height:18px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 6px rgba(124,58,237,.3),0 2px 8px rgba(0,0,0,.45)}
+.rp-bar{position:fixed;left:12px;right:12px;bottom:calc(16px + var(--safe-b));z-index:3500;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between;
+  padding:10px 10px 10px 16px;border-radius:var(--r-lg);background:var(--surface);color:var(--ink);box-shadow:var(--sh-2);font-weight:600}
+.rp-bar span{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-bar .ic{width:18px;height:18px;flex:none}
+
+/* dagroute: eigen begin- en eindtijd */
+.day-times{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:12px;margin-top:4px;border-radius:14px;background:rgba(127,127,127,.12)}
+.day-times label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.day-times input{font:600 16px/1 inherit;font-family:inherit;padding:8px 10px;border-radius:10px;border:1px solid rgba(127,127,127,.35);background:var(--surface);color:var(--ink)}
+.day-times small{flex-basis:100%;color:var(--muted);font-size:12.5px;line-height:1.35}
+
+/* ================= Huisstijl 2026: merkkleuren van het logo, nachtblauw glas, rustiger knoppen =================
+   Donkerblauw en ijsblauw uit het logo; overdag lichte panelen, 's avonds (of in de donkere stand) nachtblauw glas.
+   Rood alleen voor SOS en echte waarschuwingen. Eén vaste ronding: 16 voor panelen en kaarten, 12–14 voor knoppen. */
+.ios{
+  --brand:#1B4A6B; --ice:#A7C7DC;
+  --accent:#1D6FB0; --accent-strong:#1D6FB0; --me:#2381D9;
+  --glass:rgba(255,255,255,.78); --glass-line:rgba(15,40,70,.08);
+  --r-lg:16px; --r-md:12px;
+  --sh-1:0 1px 2px rgba(8,24,44,.06),0 6px 20px rgba(8,24,44,.14); --sh-2:0 14px 40px rgba(8,24,44,.22);
+}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){
+  --accent:#5AABE6; --accent-strong:#2B7FC4; --me:#3A95EC;
+  --surface:#132233; --bg:#07111B; --glass:rgba(13,27,43,.76); --glass-line:rgba(167,199,220,.12);
+  --line:rgba(120,150,180,.28); --line-2:rgba(120,150,180,.16);
+  --sh-1:0 1px 2px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.35)}}
+.ios[data-theme=dark]{
+  --accent:#5AABE6; --accent-strong:#2B7FC4; --me:#3A95EC;
+  --surface:#132233; --bg:#07111B; --glass:rgba(13,27,43,.76); --glass-line:rgba(167,199,220,.12);
+  --line:rgba(120,150,180,.28); --line-2:rgba(120,150,180,.16);
+  --sh-1:0 1px 2px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.35)}
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary,.ios:is(:not([data-theme=x]),[data-theme]) .pc-btns .pc-main,.ios .chip[aria-pressed="true"],.three-btn.on{background:var(--accent-strong)}
+.ios .btn.primary{box-shadow:0 6px 18px color-mix(in srgb,var(--accent-strong) 35%,transparent)}
+.ios .sheet{border-radius:20px 20px 0 0}
+.ios .handle span{background:color-mix(in srgb,var(--ink) 25%,transparent)}
+
+/* bovenbalk: overal even hoog (48), de naam van het gebied op twee regels zonder kopje erboven */
+.ios .topbar{gap:8px}
+.ios .topbar .fab,.ios .menu-btn{width:44px;height:44px;border-radius:13px}
+.ios .menu-btn .ic{width:22px;height:22px}
+.ios .area-btn{min-height:44px;padding:5px 10px 5px 13px;border-radius:13px;gap:6px}
+.ios .area-txt small{display:none}
+.ios .area-txt b{font-size:17px}
+.ios .area-stats{font-size:12px;margin-top:1px}
+
+/* knoppen rechts: alleen 3D, locatie en SOS; route-zoom alleen met een route, het potlood alleen tijdens het tekenen */
+.ios .fabs{gap:10px;align-items:flex-end}
+.ios .fabs .fab{width:48px;height:48px;border-radius:14px}
+body:not(.has-route) #fitRouteBtn{display:none}
+#drawBtn:not(.drawing){display:none}
+.ios .sos-fab{width:42px;height:42px;border-radius:50%;margin:4px 3px 0 0;border:0;font-size:11.5px;letter-spacing:.04em;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent),var(--sh-1)}
+.lm-fit{width:100%;justify-content:center;margin:0 0 14px}
+
+/* je eigen positie: een zachte pulserende ring */
+.me-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--me);opacity:0;animation:mePulse 2.4s ease-out infinite;pointer-events:none}
+@keyframes mePulse{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.me-dot::after{animation:none}}
+
+/* kaart: rustiger pistebordjes en toppen */
+.ios .pnum{height:18px;min-width:22px;padding:0 5px;border-radius:6px;border:1px solid rgba(255,255,255,.9);font-size:11.5px;box-shadow:0 1px 3px rgba(8,24,44,.3)}
+.ios .peak b{font-size:10.5px;font-weight:650}
+.ios .peak span{font-size:9.5px}
+.ios .peak i{border-left-width:5px;border-right-width:5px;border-bottom-width:7px}
+
+/* 3D-kaart laden: het logo pulseert midden in beeld */
+body.m3-loading::after{content:"";position:fixed;left:50%;top:42%;z-index:2500;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:18px;
+  background:url(icons/logo.svg) center/contain no-repeat;box-shadow:0 10px 30px rgba(8,24,44,.35);animation:logoPulse 1.1s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{transform:scale(.92);opacity:.85}50%{transform:scale(1.04);opacity:1}}
+/* lege schermen: het logo als kleine illustratie */
+.empty-art{grid-column:1/-1;justify-self:center;width:56px;height:56px;border-radius:15px;margin:6px auto 0;opacity:.9;box-shadow:var(--sh-1)}
+
+/* welkomstschermen bij de eerste keer openen */
+.onb{position:fixed;inset:0;z-index:6000;display:grid;place-items:center;padding:calc(20px + var(--safe-t)) 20px calc(20px + var(--safe-b));
+  background:radial-gradient(120% 80% at 50% 0%,#245C82 0%,#0F2A40 55%,#07111B 100%);animation:onbIn .35s ease;transition:opacity .35s}
+.onb.out{opacity:0}
+@keyframes onbIn{from{opacity:0}}
+.onb-card{position:relative;width:100%;max-width:400px;text-align:center;color:#fff;display:flex;flex-direction:column;align-items:center;gap:14px}
+.onb-art{width:min(62vw,240px);aspect-ratio:1;border-radius:36px;background:rgba(255,255,255,.07);display:grid;place-items:center;margin-bottom:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.onb-art svg{width:72%;height:72%}
+.onb h2{margin:6px 0 0;font:750 28px/1.12 var(--f-display);letter-spacing:-.02em}
+.onb p{margin:0;font-size:16px;line-height:1.45;color:rgba(255,255,255,.82);max-width:340px}
+.onb-dots{display:flex;gap:7px;margin:10px 0 6px}
+.onb-dots i{width:7px;height:7px;border-radius:4px;background:rgba(255,255,255,.3);transition:width .25s,background .25s}
+.onb-dots i.on{width:22px;background:#fff}
+.onb .onb-next{width:100%;max-width:340px;padding:15px;font-size:17px;background:#2B7FC4;color:#fff;border:0;border-radius:14px}
+.onb-skip{position:fixed;top:calc(14px + var(--safe-t));right:16px;background:none;border:0;color:rgba(255,255,255,.75);font-weight:600;font-size:15px;padding:8px;cursor:pointer}
+
+/* ================= IJsblauwe stijl (overdag) =================
+   Zacht ijsblauw, matglazen kaarten met grote rondingen, ronde koppen (SF Pro Rounded) en een donkere pilknop.
+   De kleuren staan in variabelen, zodat de donkere stand er zijn eigen waarden voor heeft. */
+.ios{
+  --f-display:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"SF Pro Display","Nunito","Segoe UI",system-ui,sans-serif;
+  --ink:#0F2233; --muted:#5A7084; --faint:#7D93A6;
+  --glass:rgba(236,244,250,.74); --glass-line:rgba(255,255,255,.7);
+  --card:rgba(255,255,255,.58); --card-line:rgba(255,255,255,.75);
+  --cta:#10263A; --cta-ink:#fff; --soft:rgba(255,255,255,.62); --soft-ink:#10263A;
+  --sheet-bg:linear-gradient(180deg,rgba(236,244,250,.86) 0%,rgba(214,230,242,.9) 100%);
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){
+  --card:rgba(255,255,255,.06); --card-line:rgba(167,199,220,.12); --cta:#2B7FC4; --cta-ink:#fff; --soft:rgba(255,255,255,.08); --soft-ink:#E6F0F7;
+  --sheet-bg:linear-gradient(180deg,rgba(16,32,50,.88) 0%,rgba(9,20,33,.92) 100%); --muted:rgba(220,232,242,.66); --faint:rgba(220,232,242,.45); --ink:#F2F7FB}}
+.ios[data-theme=dark]{
+  --card:rgba(255,255,255,.06); --card-line:rgba(167,199,220,.12); --cta:#2B7FC4; --cta-ink:#fff; --soft:rgba(255,255,255,.08); --soft-ink:#E6F0F7;
+  --sheet-bg:linear-gradient(180deg,rgba(16,32,50,.88) 0%,rgba(9,20,33,.92) 100%); --muted:rgba(220,232,242,.66); --faint:rgba(220,232,242,.45); --ink:#F2F7FB}
+
+/* paneel: ijsblauw matglas met een grote ronding */
+.ios .sheet{background:var(--sheet-bg);border-radius:28px 28px 0 0;box-shadow:0 -1px 0 var(--glass-line),0 -10px 40px rgba(8,24,44,.16)}
+.ios .glass{border:1px solid var(--glass-line)}
+/* koppen rond en groot */
+.ios .peek-empty b,.ios .picker h2,.ios .menu-head h2,.ios .m-sec h3,.ios .area-txt b,.ios .eta b,.ios .onb h2{font-family:var(--f-display);letter-spacing:-.01em}
+.ios .peek-empty b{font-weight:700}
+/* matglazen kaartjes: weer, skidagboek, aanraders, cijfers */
+.ios .wx-cell,.ios .d-stat,.ios .bs-row,.ios .stat,.ios .ticket-card,.ios .diary-card{background:var(--card);border:1px solid var(--card-line);box-shadow:none}
+.ios .wx-cell,.ios .d-stat{border-radius:16px}
+.ios .bs-row{border-radius:18px}
+/* knoppen: de hoofdknop als donkere pil, de andere als witte glaspil */
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary,.ios:is(:not([data-theme=x]),[data-theme]) .pc-btns .pc-main{background:var(--cta);color:var(--cta-ink);border-radius:999px;box-shadow:0 8px 22px rgba(8,24,44,.22)}
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary .ic{color:var(--cta-ink)}
+.ios .btn,.ios .btn.ghost{border-radius:999px;background:var(--soft);border:1px solid var(--card-line)}
+.ios .btn.ghost,.ios .btn.ghost .ic{color:var(--soft-ink)}
+.ios .chip{border-radius:999px;background:var(--soft);border:1px solid var(--card-line)}
+/* zwevende knoppen: witte glasrondjes */
+.ios .fabs .fab,.ios .topbar .fab,.ios .menu-btn{border-radius:16px}
+.ios .area-btn{border-radius:16px}
+/* welkomstschermen in dezelfde ijsblauwe stijl */
+.ios .onb{background:linear-gradient(180deg,#E3EEF7 0%,#C4DAEA 55%,#9FC0D8 100%)}
+.ios .onb-card{color:var(--ink)}
+.ios .onb p{color:#3E566B}
+.ios .onb-art{background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),0 20px 40px rgba(8,24,44,.12);border-radius:40px}
+.ios .onb-dots i{background:rgba(16,38,58,.2)}
+.ios .onb-dots i.on{background:#10263A}
+.ios .onb .onb-next{background:#10263A;border-radius:999px;box-shadow:0 10px 26px rgba(8,24,44,.25)}
+.ios .onb-skip{color:#3E566B}
+
+/* ================= tabbalk ================= */
+body{--tab-h:84px}
+body.following,body.drawing,body.rp-on{--tab-h:0px}
+.tabbar{position:fixed;z-index:4500;left:50%;bottom:calc(12px + var(--safe-b));transform:translateX(-50%);display:flex;gap:6px;padding:7px;border-radius:999px;
+  background:var(--glass);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border:1px solid var(--glass-line);box-shadow:0 10px 34px rgba(8,24,44,.22);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .25s}
+.tabbar button{height:50px;min-width:50px;padding:0 15px;border:0;border-radius:999px;background:transparent;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-weight:650;font-size:14.5px;transition:background .25s,color .25s,padding .25s}
+.tabbar button .ic{width:22px;height:22px}
+.tabbar button span{display:none}
+.tabbar button[aria-current]{background:var(--cta);color:var(--cta-ink);padding:0 18px;box-shadow:0 6px 16px rgba(8,24,44,.25)}
+.tabbar button[aria-current] span{display:inline}
+.tabbar button:active{transform:scale(.94)}
+body.following .tabbar,body.drawing .tabbar,body.rp-on .tabbar,body:has(#sos:not([hidden])) .tabbar,body:has(.onb) .tabbar{transform:translate(-50%,160%);opacity:0;pointer-events:none}
+body.admob .tabbar{bottom:calc(70px + var(--safe-b))}
+/* paneel, knoppen en snelheidsmeter boven de tabbalk */
+.sheet{transform:translateY(calc(100% - var(--sheet-peek,170px) - var(--safe-b) - var(--tab-h)))}
+.sheet.open{transform:none}
+.sheet .sheet-body{padding-bottom:calc(var(--tab-h) + 12px)}
+.fabs,.speedo{bottom:calc(var(--sheet-peek,170px) + var(--tab-h) + 14px + var(--safe-b))}
+.picker{padding-bottom:calc(12px + var(--safe-b) + var(--tab-h))}
+/* menu en groep zitten nu in de tabbalk */
+#menuBtn,#groupBtn{display:none}
+.ios .area-btn{padding-left:14px}
+
+/* ================= dashboards (Vandaag, Ik) ================= */
+.dash{overflow-y:auto;gap:14px;background:linear-gradient(180deg,#E9F2F9 0%,#D5E5F1 60%,#C8DCEB 100%)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .dash{background:linear-gradient(180deg,#0E1D2E 0%,#081320 100%)}}
+.ios[data-theme=dark] .dash{background:linear-gradient(180deg,#0E1D2E 0%,#081320 100%)}
+.dash-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dash-head h2{font:750 30px/1.05 var(--f-display);letter-spacing:-.02em;margin:2px 0 0}
+.dash-head .label{margin:0;font-size:14px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:600}
+.dash .label{display:flex;align-items:center;gap:6px}
+.dash .label .ic{width:15px;height:15px}
+.dash-empty{display:grid;justify-items:center;gap:14px;text-align:center;padding:30px 10px;color:var(--muted)}
+.dc{animation:dcIn .45s cubic-bezier(.2,.8,.2,1) both}
+.dash>.dc:nth-child(2){animation-delay:.03s}.dash>.dc:nth-child(3){animation-delay:.07s}.dash>.dc:nth-child(4){animation-delay:.11s}
+.dash>.dc:nth-child(5){animation-delay:.15s}.dash>.dc:nth-child(6){animation-delay:.19s}.dash>.dc:nth-child(n+7){animation-delay:.23s}
+@keyframes dcIn{from{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion:reduce){.dc{animation:none}}
+.muted{color:var(--muted);margin:4px 0 0;font-size:14px;line-height:1.4}
+/* bovenste kaart met bergen en het weer */
+.hero{position:relative;flex:none;height:200px;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(8,24,44,.2)}
+.hero-art{position:absolute;inset:0;width:100%;height:100%}
+.hero-txt{position:absolute;left:18px;top:14px;right:18px;color:#fff;text-shadow:0 2px 12px rgba(8,30,60,.35)}
+.hero-temp{margin:0;font:700 64px/1 var(--f-display);letter-spacing:-.04em;display:flex;align-items:flex-start}
+.hero-temp span{font-size:38px;margin-top:4px}
+.hero-sub{margin:2px 0 0;font-weight:600;font-size:15px}
+.hero-alt{margin:6px 0 0;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.22);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.hero-alt .ic{width:14px;height:14px}
+/* tegels */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--card-line);border-radius:20px;padding:12px 14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);min-width:0}
+.tile>.ic{width:18px;height:18px;color:var(--accent)}
+.tile>span{display:block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.tile p{margin:2px 0 0;font:700 28px/1.05 var(--f-display);letter-spacing:-.02em}
+.tile p small{font-size:14px;font-weight:600;margin-left:3px;color:var(--muted)}
+.t-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.warnc{color:var(--danger);font-weight:650}
+.skel{display:inline-block;width:70px;height:26px;border-radius:8px;background:linear-gradient(90deg,rgba(127,127,127,.15) 0%,rgba(127,127,127,.3) 50%,rgba(127,127,127,.15) 100%);background-size:200% 100%;animation:skel 1.2s linear infinite;vertical-align:middle}
+@keyframes skel{to{background-position:-200% 0}}
+.closing-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:color-mix(in srgb,#E0A100 16%,var(--card));border:1px solid color-mix(in srgb,#E0A100 35%,transparent)}
+.closing-card .ic{color:#B57F00}
+.closing-card span{display:flex;flex-direction:column}.closing-card small{color:var(--muted)}
+/* snelle acties */
+.acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.act{display:flex;flex-direction:column;align-items:center;gap:7px;border:0;background:none;color:var(--ink);font-size:12.5px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer;line-height:1.2}
+.act>span{width:58px;height:58px;border-radius:20px;display:grid;place-items:center;background:var(--card);border:1px solid var(--card-line);box-shadow:var(--sh-1)}
+.act>span .ic{width:24px;height:24px;color:var(--accent)}
+.act:first-child>span{background:var(--cta);border-color:transparent}.act:first-child>span .ic{color:var(--cta-ink)}
+.act:active>span{transform:scale(.94)}
+/* jouw dag */
+.day-card,.me-badges{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;color:var(--ink);background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:14px 16px;cursor:pointer}
+.day-card .label,.me-badges .label{margin:0 0 6px}
+.mini-stats{display:flex;gap:18px}
+.mini-stats span{display:flex;align-items:baseline;gap:3px}
+.mini-stats b{font:700 24px/1 var(--f-display)}.mini-stats small{color:var(--muted);font-weight:600;font-size:12.5px}
+/* horizontaal scrollende pistekaarten */
+.hscroll{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 6px;scrollbar-width:none}
+.hscroll::-webkit-scrollbar{display:none}
+.pcard{flex:0 0 72%;max-width:280px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;color:var(--ink);cursor:pointer;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--c) 14%,var(--card)) 0%,var(--card) 70%);border:1px solid var(--card-line);border-radius:22px;padding:14px 16px;min-height:132px}
+.pcard small{font-size:12px;font-weight:650;color:var(--muted);margin-top:6px}
+.pcard b{font:700 17px/1.2 var(--f-display)}
+.pcard i{font-style:normal;font-size:13px;color:var(--muted);line-height:1.35}
+/* komende dagen */
+.fdays{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.fday{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:18px;background:var(--card);border:1px solid var(--card-line);text-align:center}
+.fday small{font-size:12px;font-weight:650;color:var(--muted);text-transform:capitalize}
+.fday>.ic{width:24px;height:24px;color:var(--accent);margin:2px 0}
+.fday b{font:700 18px/1 var(--f-display)}.fday i{font-style:normal;font-size:12.5px;color:var(--muted)}
+.fday em{font-style:normal;font-size:11.5px;font-weight:650;color:var(--accent);display:flex;align-items:center;gap:2px;min-height:15px}
+.fday em .ic{width:11px;height:11px}
+/* Ik */
+.me-today{background:var(--card);border:1px solid var(--card-line);border-radius:24px;padding:14px 16px 16px}
+.me-top{display:flex;justify-content:space-between;align-items:center}
+.me-top .label{margin:0}
+.rings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0 6px}
+.ring{position:relative;display:flex;flex-direction:column;align-items:center}
+.ring svg{width:100%;max-width:96px;transform:rotate(-90deg)}
+.rg-bg{fill:none;stroke:color-mix(in srgb,var(--ink) 10%,transparent);stroke-width:8}
+.rg-fg{fill:none;stroke-width:8;stroke-linecap:round;animation:ringIn 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ringIn{from{stroke-dashoffset:var(--dash,999)}}
+.ring p{position:absolute;top:0;left:0;right:0;aspect-ratio:1;max-width:96px;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring p b{font:700 20px/1 var(--f-display)}.ring p small{font-size:11px;color:var(--muted);font-weight:600}
+.ring>span{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px}
+.me-speed{display:flex;align-items:baseline;gap:6px;justify-content:center;margin:6px 0 12px;color:var(--muted);font-weight:600}
+.me-speed .ic{width:16px;height:16px;align-self:center}
+.me-speed b{font:700 26px/1 var(--f-display);color:var(--ink)}
+.me-btns{display:flex;gap:8px;flex-wrap:wrap}.me-btns .btn{flex:1 1 140px;justify-content:center}
+.me-season{background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:14px 16px}
+.ms-tot{display:flex;justify-content:space-between}
+.ms-tot span{display:flex;flex-direction:column}.ms-tot b{font:700 24px/1 var(--f-display)}.ms-tot small{color:var(--muted);font-size:12px;font-weight:600}
+.bars{display:flex;align-items:flex-end;gap:5px;height:80px;margin-top:14px}
+.bars i{flex:1;height:var(--h);min-height:6px;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,var(--accent) 0%,color-mix(in srgb,var(--accent) 45%,transparent) 100%);animation:barIn .8s cubic-bezier(.2,.8,.2,1) both;transform-origin:bottom}
+@keyframes barIn{from{transform:scaleY(0)}}
+.me-badges b{font:700 22px/1 var(--f-display)}
+.bdg-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.bdg-row span{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--faint)}
+.bdg-row span.ok{background:linear-gradient(140deg,#FFC400,#E08A1E);color:#fff}
+.bdg-row .ic{width:17px;height:17px}
+.me-list{background:var(--card);border:1px solid var(--card-line);border-radius:22px;overflow:hidden}
+.me-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:0;background:none;color:var(--ink);text-align:left;cursor:pointer}
+.me-row+.me-row{border-top:1px solid var(--line-2)}
+.me-row .sq{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;flex:none}
+.me-row .sq .ic{width:18px;height:18px}
+.mr-t{flex:1;display:flex;flex-direction:column}.mr-t small{color:var(--muted);font-size:12.5px}
+.me-row>.ic:last-child,.day-card>.ic:last-child,.me-badges>.ic:last-child{color:var(--faint);width:16px;height:16px}
+
+/* donkere stand: geen gele rand meer om de hoofdknop */
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary{border-color:transparent}
+/* de onderkant van het paneel vervaagt achter de tabbalk, zodat er geen tekst door de balk heen schemert */
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;z-index:1500;pointer-events:none;height:calc(var(--tab-h) + var(--safe-b) + 18px);
+  background:linear-gradient(180deg,transparent 0%,var(--fade,#D6E6F2) 42%)}
+.ios{--fade:#D3E4F1}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){--fade:#08131F}}
+.ios[data-theme=dark]{--fade:#08131F}
+body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open)::after{display:none}
+/* de tekst op de bovenste kaart blijft links van de berg */
+.hero-txt{right:auto;max-width:62%}
+.hero-alt{background:rgba(12,40,70,.32)}
+.av-link{margin-top:10px}
+
+/* ================= navigatie: donker matglas, grotere cijfers, voortgangsbalk ================= */
+.ios .nav-banner,.ios .nav-dash{background:rgba(12,26,42,.84);backdrop-filter:saturate(170%) blur(22px);-webkit-backdrop-filter:saturate(170%) blur(22px);border:1px solid rgba(167,199,220,.14);border-radius:26px;box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.ios .nav-main{padding:16px 18px}
+.ios .nav-arrow{width:56px;height:56px;padding:6px;border-radius:18px;background:rgba(255,196,0,.12)}
+.ios .nav-dist{font:750 30px/1 var(--f-display);letter-spacing:-.02em}
+.ios .nd-stats b{font:750 23px/1.1 var(--f-display);letter-spacing:-.01em}
+.ios .nd-stats small{text-transform:none;letter-spacing:0;font-weight:600;font-size:12px}
+.ios .nd-btn{width:50px;height:50px}
+.nd-prog{height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin:2px 4px}
+.nd-prog i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#FFC400,#FFE27A);transition:width .8s}
+
+/* ================= routepaneel: aankomst groot, stappen als tijdlijn ================= */
+.ios .eta b{font:750 40px/1 var(--f-display);letter-spacing:-.03em}
+.ios .steps{position:relative}
+.ios .stats .stat{border-radius:999px}
+
+/* ================= alle vensters in dezelfde ijsblauwe stijl ================= */
+.ios .picker,.ios .sos{background:linear-gradient(180deg,#E9F2F9 0%,#D5E5F1 60%,#C8DCEB 100%)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .picker,.ios:not([data-theme=light]) .sos{background:linear-gradient(180deg,#0E1D2E 0%,#081320 100%)}}
+.ios[data-theme=dark] .picker,.ios[data-theme=dark] .sos{background:linear-gradient(180deg,#0E1D2E 0%,#081320 100%)}
+.ios .picker h2,.ios .sos h2{font:750 30px/1.05 var(--f-display);letter-spacing:-.02em;text-transform:none}
+.ios .icon-btn{width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--card-line)}
+/* skigebied kiezen */
+.ios .search{border-radius:999px;background:var(--card);border:1px solid var(--card-line);padding:0 16px;box-shadow:var(--sh-1)}
+.ios .near-btn{border-radius:999px;background:var(--cta);color:var(--cta-ink);border:0;font-weight:650;padding:12px}
+.ios .near-btn .ic{color:var(--cta-ink)}
+.ios .areas{display:flex;flex-direction:column;gap:8px;margin:0;padding:2px 0 8px}
+.ios .areas li .area-main{background:var(--card);border:1px solid var(--card-line);border-radius:20px;padding:12px 14px}
+.ios .areas li .area-main[aria-current="true"]{background:color-mix(in srgb,var(--accent) 16%,var(--card));border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.ios .areas .nm{font-family:var(--f-display);font-size:16.5px}
+/* open en dicht */
+.ios .st-list{display:flex;flex-direction:column;gap:6px;margin:0}
+.ios .st-list li{background:var(--card);border:1px solid var(--card-line);border-radius:18px;padding:10px 12px}
+.ios .st-list li+li{border-top:1px solid var(--card-line)}
+/* groep */
+.ios .g-code-row,.ios .g-set,.ios .set-group.list,.ios .sos-loc{background:var(--card);border:1px solid var(--card-line);border-radius:22px}
+.ios .g-code{font-family:var(--f-display);letter-spacing:.16em}
+.ios .g-members{background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:4px 14px;margin-top:0}
+.ios .g-members .mem{box-shadow:0 0 0 3px var(--card)}
+.ios .g-field input,.ios .g-join input{border-radius:14px;background:var(--card);border:1px solid var(--card-line)}
+/* SOS: rustig, één grote knop */
+.ios .call{border-radius:24px;padding:20px;box-shadow:0 14px 30px color-mix(in srgb,var(--danger) 35%,transparent)}
+.ios .call b{font-size:30px}
+.ios .call.alt{background:var(--card);border:1.5px solid color-mix(in srgb,var(--danger) 60%,transparent);box-shadow:none}
+.ios .sos-facts div{background:color-mix(in srgb,var(--ink) 5%,transparent);border-radius:14px}
+.ios .sos-coord{font-family:var(--f-display)}
+/* menu als iOS-instellingen: secties als kaarten, iconen in gekleurde vakjes */
+.ios .menu-head{border-bottom:0;padding-bottom:6px}
+.ios .menu-head h2{text-transform:none}
+.ios .m-sec{background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:14px 16px;margin-bottom:12px}
+.ios .m-sec:last-child{border-bottom:1px solid var(--card-line)}
+.ios .m-sec h3{font:700 18px/1.15 var(--f-display);text-transform:none;letter-spacing:-.01em}
+.ios .m-sec h3 .ic{width:30px;height:30px;padding:6px;border-radius:9px;color:#fff;background:#1D6FB0;flex:none}
+.ios .m-sec:nth-of-type(3n+1) h3 .ic{background:#1D6FB0}
+.ios .m-sec:nth-of-type(3n+2) h3 .ic{background:#7C3AED}
+.ios .m-sec:nth-of-type(3n) h3 .ic{background:#1F9D57}
+.ios .pro-sec h3 .ic{background:linear-gradient(140deg,#FFC400,#E08A1E)!important}
+.ios .set-group{border-top:0}
+/* Pro: premium kaart */
+.ios .pro-card{border-radius:28px;background:linear-gradient(160deg,#1B4A6B 0%,#0F2A40 60%,#07111B 100%);color:#fff;border:1px solid rgba(167,199,220,.18);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.ios .pro-card .label,.ios .pro-card p,.ios .pro-card small,.ios .pro-card li{color:rgba(255,255,255,.86)}
+.ios .pro-card .btn.primary{background:linear-gradient(140deg,#FFC400,#E0A100);color:#1A1300}
+.ios .pro-card .btn.primary .ic{color:#1A1300}
+.ios .pro-card .btn.ghost{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.15)}
+.ios .pro-head h2{text-transform:none;font-family:var(--f-display);letter-spacing:-.01em;background:linear-gradient(90deg,#FFD54A,#FF9F2E);-webkit-background-clip:text;background-clip:text}
+/* skidagboek */
+.ios .d-stat{background:var(--card)}
+.ios .badge{background:var(--card);border:1px solid var(--card-line);border-radius:18px}
+.ios .badge.ok .b-ic{background:linear-gradient(140deg,#FFC400,#E08A1E);color:#fff}
+.ios .g-join .btn{padding:0 16px;min-width:0}
+
+/* ================= route in merkblauw ================= */
+.ios{--route:#2A8BE6;--route-ink:#fff}
+.rarrow i{border-color:#fff;filter:drop-shadow(0 0 1.5px rgba(10,60,110,.7));opacity:.95;width:7px;height:7px;border-width:0 2.6px 2.6px 0}
+.comet{display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#fff 0 28%,#9FD4FF 45%,rgba(31,127,214,0) 72%);box-shadow:0 0 18px 6px rgba(124,192,245,.65)}
+.ios .pin{border-width:2.5px;box-shadow:0 6px 16px rgba(8,30,60,.35)}
+.ios .pin.drop{animation:pinDrop .55s cubic-bezier(.2,1.4,.4,1) .9s both}
+.ios .pin.a{background:#fff;border-color:#1F7FD6}.ios .pin.a>span{background:#1F7FD6;width:10px;height:10px}
+.ios .pin.b{background:#1F7FD6;border-color:#fff}.ios .pin.b .ic{color:#fff}
+.ios .pin.v{border-color:#1F7FD6}.ios .pin.v .ic{color:#1F7FD6}
+@keyframes pinDrop{0%{opacity:0;translate:0 -18px;scale:.6}70%{opacity:1}100%{translate:0 0;scale:1}}
+.ios .nd-stats div:first-child b{color:#8CCBFF}
+.nd-prog i{background:linear-gradient(90deg,#1F7FD6,#7CC0F5)}
+.ios .nav-arrow{background:rgba(124,192,245,.14)}
+
+/* ================= animaties ================= */
+:root{--spring:cubic-bezier(.2,.9,.25,1.12);--ease-out:cubic-bezier(.2,.8,.2,1)}
+/* vensters veren binnen; tabvensters schuiven in de richting van de tab */
+.ios .picker:not([hidden]),.ios .sos:not([hidden]){animation:panelSpring .5s var(--spring) both}
+.ios .picker.tab-in:not([hidden]){animation:tabSlide .45s var(--spring) both}
+@keyframes panelSpring{from{opacity:0;transform:translateY(34px) scale(.985)}}
+@keyframes tabSlide{from{opacity:0;transform:translateX(var(--dx,36px))}}
+.ios .picker.closing,.ios .sos.closing{animation:panelDrop .24s cubic-bezier(.4,0,1,1) forwards}
+@keyframes panelDrop{to{opacity:0;transform:translateY(26px) scale(.985)}}
+/* tabbalk: een donkere pil schuift mee, het icoon springt even op */
+.tabbar{position:fixed}
+.tab-ind{position:absolute;left:7px;top:7px;height:50px;width:0;border-radius:999px;background:var(--cta);box-shadow:0 6px 16px rgba(8,24,44,.25);transition:transform .45s var(--spring),width .45s var(--spring);z-index:0}
+.tabbar button{position:relative;z-index:1;overflow:hidden}
+.tabbar button[aria-current]{background:transparent;box-shadow:none}
+.tabbar button[aria-current] .ic{animation:tabPop .45s var(--spring)}
+@keyframes tabPop{40%{transform:translateY(-3px) scale(1.15)}}
+/* knoppen: zacht indrukken en een rimpeling */
+.btn,.act>span,.tile,.pcard,.day-card,.me-badges,.me-row,.fday,.chip,.icon-btn,.fab{transition:transform .25s var(--spring),background .2s,box-shadow .2s}
+.btn:active,.act:active>span,.tile:active,.pcard:active,.day-card:active,.me-badges:active,.fday:active,.chip:active,.icon-btn:active,.fab:active{transform:scale(.96)}
+.btn,.act,.near-btn{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+/* paneel onderin veert */
+.ios .sheet{transition:transform .5s var(--spring)}
+/* schakelaars met een veer, chips die oppoppen */
+.ios .switch i::after{transition:transform .35s var(--spring)}
+.chip[aria-pressed="true"]{animation:chipPop .35s var(--spring)}
+@keyframes chipPop{50%{transform:scale(1.08)}}
+.ios .seg button{transition:background .25s,box-shadow .25s,color .2s}
+/* favorietenster popt met deeltjes */
+.fav.on .ic{color:#FFC400;fill:#FFC400}
+.fav.pop .ic{animation:favPop .5s var(--spring)}
+.fav.pop{background:radial-gradient(circle,rgba(255,196,0,.35) 0 30%,transparent 62%)}
+@keyframes favPop{40%{transform:scale(1.45) rotate(-12deg)}}
+/* kopiëren: even een vinkje */
+.copied{background:var(--ok)!important;color:#fff!important}
+.copied .ic{animation:tabPop .4s var(--spring)}
+/* toasts: glazen pil die van boven binnenveert */
+.ios .toast{border-radius:999px;padding:11px 18px;background:rgba(14,30,48,.82);box-shadow:0 12px 30px rgba(0,0,0,.25);transition:opacity .25s,transform .45s var(--spring);transform:translate(-50%,-14px) scale(.96)}
+.ios .toast.on{transform:translate(-50%,0) scale(1)}
+/* navigatie: banner zakt binnen, dashboard schuift op; bij een nieuwe aanwijzing draait de pijl */
+.ios .nav-banner:not([hidden]){animation:nbIn .55s var(--spring) both}
+.ios .nav-dash:not([hidden]){animation:ndIn .55s var(--spring) both}
+@keyframes nbIn{from{opacity:0;transform:translateY(-30px) scale(.97)}}
+@keyframes ndIn{from{opacity:0;transform:translateY(40px)}}
+.nav-banner.nb-change .nav-arrow{animation:arrowTurn .6s var(--spring)}
+.nav-banner.nb-change .nav-txt{animation:txtSlide .45s var(--ease-out)}
+@keyframes arrowTurn{0%{transform:rotate(-70deg) scale(.6);opacity:0}100%{transform:none;opacity:1}}
+@keyframes txtSlide{from{opacity:0;transform:translateX(20px)}}
+.nav-banner.near .nav-arrow{animation:arrowPulse 1s ease-in-out infinite}
+@keyframes arrowPulse{50%{transform:scale(1.1);background:rgba(124,192,245,.3)}}
+/* aangekomen */
+.arrive{position:fixed;inset:0;z-index:5500;display:grid;place-items:center;background:rgba(7,17,27,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fadeIn .3s;transition:opacity .3s}
+.arrive.out{opacity:0}
+.arr-card{width:min(86vw,320px);padding:26px 22px 20px;border-radius:30px;text-align:center;background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--glass-line);box-shadow:0 30px 60px rgba(0,0,0,.3);animation:panelSpring .6s var(--spring)}
+.arr-ic{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 10px;border-radius:22px;background:#1F7FD6;color:#fff;box-shadow:0 10px 24px rgba(31,127,214,.45);animation:tabPop .7s var(--spring) .15s both}
+.arr-ic .ic{width:30px;height:30px}
+.arr-card h3{margin:0;font:750 28px/1.1 var(--f-display);color:var(--ink)}
+.arr-card p{margin:6px 0 16px;color:var(--muted);font-weight:600}
+.arr-card .btn{width:100%;justify-content:center}
+.confetti{position:fixed;inset:0;width:100vw;height:100vh;z-index:5600;pointer-events:none}
+/* nieuwe prestatie: munt */
+.coin-pop{position:fixed;z-index:5550;left:50%;top:calc(80px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:12px 18px 12px 12px;border-radius:24px;
+  background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--glass-line);box-shadow:0 18px 40px rgba(0,0,0,.25);animation:nbIn .6s var(--spring);transition:opacity .4s,transform .4s;color:var(--ink);max-width:calc(100vw - 24px)}
+.coin-pop.out{opacity:0;transform:translate(-50%,-20px)}
+.coin{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;background:linear-gradient(140deg,#FFD54A,#E08A1E);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 6px 16px rgba(224,138,30,.45);animation:coinSpin 1s var(--spring)}
+.coin .ic{width:24px;height:24px}
+@keyframes coinSpin{0%{transform:rotateY(540deg) scale(.4)}100%{transform:none}}
+.coin-pop small{display:block;font-size:12px;color:var(--muted);font-weight:650}.coin-pop b{display:block;font-family:var(--f-display);font-size:17px}.coin-pop i{display:block;font-style:normal;font-size:12.5px;color:var(--muted)}
+/* weerkaart: sneeuw, zonnegloed, wind en parallax */
+.hero-art{transform:translate(var(--px,0),var(--py,0)) scale(1.06);transition:transform .3s ease-out}
+.hero-snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hero.sunny .hero-art .sun{animation:sunGlow 4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes sunGlow{50%{transform:scale(1.15);opacity:1}}
+.hero.windy::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(170deg,transparent 0 38px,rgba(255,255,255,.18) 38px 40px,transparent 40px 90px);background-size:300px 300px;animation:wind 3s linear infinite;pointer-events:none;mask-image:linear-gradient(180deg,#000 0,#000 55%,transparent 75%)}
+@keyframes wind{to{background-position:300px 0}}
+/* ringen met gloed aan het eind */
+.rg-fg{filter:drop-shadow(0 0 4px color-mix(in srgb,currentColor 40%,transparent));animation:ringIn 1.2s var(--spring) both}
+/* SOS: vasthouden, een ring loopt vol */
+.ios .call{position:relative;overflow:hidden}
+.ios .call::before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.25);transform:scaleX(0);transform-origin:left;pointer-events:none}
+.ios .call.holding::before{transform:scaleX(1);transition:transform .9s linear}
+.ios .call.alt::before{background:color-mix(in srgb,var(--danger) 18%,transparent)}
+/* welkomstschermen: vegen met een schuifbeweging */
+.onb-card.onb-in{animation:onbSlide .5s var(--spring) both}
+@keyframes onbSlide{from{opacity:0;transform:translateX(var(--dx,0px))}}
+.onb-art{animation:onbArt 6s ease-in-out infinite}
+@keyframes onbArt{50%{transform:translateY(-6px)}}
+/* opstartscherm: logo veert binnen met gloed, en schaalt bij het verdwijnen */
+.splash img{animation:splashLogo .9s var(--spring) both}
+@keyframes splashLogo{0%{transform:scale(.6) translateY(16px);opacity:0;filter:blur(6px)}100%{transform:none;opacity:1;filter:none}}
+.splash-name{animation:dcIn .7s var(--ease-out) .25s both}
+.splash-tag{animation:dcIn .7s var(--ease-out) .4s both}
+.splash.out img{transform:scale(1.5);opacity:0;transition:transform .55s var(--ease-out),opacity .45s}
+/* 3D-terugblik: samenvatting */
+.rp-sum{display:flex;gap:14px;flex-basis:100%;justify-content:space-around;padding-bottom:6px;border-bottom:1px solid var(--line-2);margin-bottom:6px;animation:panelSpring .6s var(--spring)}
+.rp-sum span{display:flex;flex-direction:column;align-items:center}.rp-sum b{font:700 22px/1 var(--f-display)}.rp-sum small{font-size:11px;color:var(--muted);font-weight:600}
+.rp-bar{flex-wrap:wrap}
+/* routebeschrijving: stappen vallen één voor één binnen */
+.route-fresh ol.steps li{animation:dcIn .4s var(--ease-out) both}
+.route-fresh ol.steps li:nth-child(2){animation-delay:.04s}.route-fresh ol.steps li:nth-child(3){animation-delay:.08s}.route-fresh ol.steps li:nth-child(4){animation-delay:.12s}.route-fresh ol.steps li:nth-child(5){animation-delay:.16s}.route-fresh ol.steps li:nth-child(n+6){animation-delay:.2s}
+/* markeringen en pistebordjes verschijnen zacht */
+.pnum{animation:fadeIn .35s ease-out}
+@keyframes fadeIn{from{opacity:0}}
+
+/* minder beweging: alles uit */
+@media (prefers-reduced-motion:reduce){
+  .ios .picker:not([hidden]),.ios .sos:not([hidden]),.ios .picker.tab-in:not([hidden]),.tabbar button[aria-current] .ic,.chip[aria-pressed="true"],.fav.pop .ic,.ios .nav-banner:not([hidden]),.ios .nav-dash:not([hidden]),
+  .nav-banner.nb-change .nav-arrow,.nav-banner.nb-change .nav-txt,.nav-banner.near .nav-arrow,.arr-card,.arr-ic,.coin-pop,.coin,.hero.sunny .hero-art .sun,.hero.windy::after,.rg-fg,.onb-card.onb-in,.onb-art,
+  .splash img,.splash-name,.splash-tag,.rp-sum,.route-fresh ol.steps li,.pnum,.ios .pin.drop,.bars i,.dc{animation:none!important}
+  .tab-ind,.ios .sheet,.ios .toast,.hero-art{transition:none}
+}
+
+/* ================= verfijning: popups, hutten, schaduwniveaus ================= */
+.ios{--sh-3:0 24px 60px rgba(8,24,44,.28)}
+.ios .glass,.ios .sheet,.ios .tabbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.55),var(--sh-1)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .glass,.ios:not([data-theme=light]) .tabbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),var(--sh-1)}}
+.ios .pop-wrap .leaflet-popup-content-wrapper{border-radius:24px;border:1px solid var(--glass-line);box-shadow:var(--sh-3)}
+.ios .pop-wrap .leaflet-popup-content{margin:18px}
+.ios .pop-wrap{animation:panelSpring .45s var(--spring)}
+.ios .pop-btns{gap:8px}
+.ios .pop-btns button,.ios .pop-btns a{border-radius:999px;border:1px solid var(--card-line);background:var(--soft);color:var(--soft-ink);padding:10px 8px}
+.ios .pop-btns .primary{background:var(--cta);color:var(--cta-ink);border-color:transparent;box-shadow:0 6px 16px rgba(8,24,44,.2)}
+.ios .pop-btns .primary .ic{color:var(--cta-ink)}
+.ios .pop-btns .danger{color:var(--danger)}
+.ios .hut{border-width:1.5px;box-shadow:0 3px 10px rgba(8,24,44,.25)}
+.ios .wpn{box-shadow:0 4px 12px rgba(8,24,44,.3)}
+/* cijfers overal even breed, zodat ze niet verspringen tijdens het optellen */
+.tile p,.mini-stats b,.ring p b,.ms-tot b,.hero-temp,.nd-stats b,.nav-dist,.eta b,.rp-sum b{font-variant-numeric:tabular-nums}
+.coin-pop{width:min(92vw,360px)}
+.coin-pop>div{min-width:0;flex:1}
+
+/* skyline: parallax per laag en een label bij de hoogste top */
+.hs-far{transform:translate(calc(var(--px,0px) * .4),0)}
+.hs-mid{transform:translate(calc(var(--px,0px) * .8),0)}
+.hs-near{transform:translate(calc(var(--px,0px) * 1.3),0)}
+.hs-lbl text{font:700 9.5px/1 var(--f-display);fill:#fff;paint-order:stroke;stroke:rgba(10,30,60,.35);stroke-width:2px}
+.hero.sky-night .hero-txt,.hero.sky-dusk .hero-txt{text-shadow:0 2px 14px rgba(0,0,0,.45)}
+.hero-art{transform:scale(1.04)}
+
+/* ================= inklappende grote titels ================= */
+.ios .picker>.picker-head,.ios .dash-head,.ios .menu-head{position:sticky;top:calc(-16px - var(--safe-t));z-index:5;margin:calc(-16px - var(--safe-t)) calc(-1 * max(18px,var(--safe-r))) 0 calc(-1 * max(18px,var(--safe-l)));
+  padding:calc(16px + var(--safe-t)) max(18px,var(--safe-r)) 8px max(18px,var(--safe-l));transition:background .25s,box-shadow .25s,padding .25s}
+.ios .picker.scrolled>.picker-head,.ios .picker.scrolled .dash-head,.ios .picker.scrolled .menu-head{top:calc(-16px - var(--safe-t) + 0px);background:var(--glass);backdrop-filter:saturate(180%) blur(22px);-webkit-backdrop-filter:saturate(180%) blur(22px);box-shadow:0 1px 0 var(--line-2);padding-bottom:8px}
+.ios .picker h2,.ios .dash-head h2{transition:font-size .3s var(--spring),transform .3s var(--spring);transform-origin:left center}
+.ios .picker.scrolled h2,.ios .picker.scrolled .dash-head h2{font-size:19px}
+.ios .picker.scrolled .dash-head .label,.ios .picker.scrolled .picker-head .label,.ios .picker.scrolled .menu-ver{opacity:0;height:0;margin:0;overflow:hidden}
+.ios .picker .dash-head .label,.ios .picker .picker-head .label{transition:opacity .2s}
+/* veegbaar: een greepje bovenaan elk venster */
+.ios .picker::before{content:"";position:absolute;left:50%;top:calc(6px + var(--safe-t));width:38px;height:5px;margin-left:-19px;border-radius:3px;background:color-mix(in srgb,var(--ink) 18%,transparent);z-index:6;pointer-events:none}
+
+/* ================= hoogteprofiel als premium grafiek ================= */
+.ios .profile{background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:12px 14px 8px}
+.ios .profile svg .prof-area{fill:url(#profGrad)}
+.ios .profile svg .grid{stroke:var(--line-2);stroke-dasharray:3 4}
+.ios .profile svg .dot{fill:#fff;stroke:#1F7FD6;stroke-width:3;filter:drop-shadow(0 2px 4px rgba(31,127,214,.45))}
+.ios .profile svg .cross{stroke:#1F7FD6;stroke-dasharray:none;opacity:.6}
+.ios .prof-tip{border-radius:14px;background:rgba(14,30,48,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.route-fresh .profile svg line{stroke-dasharray:400;stroke-dashoffset:400;animation:profDraw 1.1s cubic-bezier(.45,.05,.25,1) .2s forwards}
+@keyframes profDraw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.route-fresh .profile svg line{animation:none;stroke-dasharray:none;stroke-dashoffset:0}}
+
+/* View Transitions: zachte overgang van venster naar kaart */
+::view-transition-old(root){animation:vtOut .38s cubic-bezier(.4,0,.2,1) both}
+::view-transition-new(root){animation:vtIn .45s var(--spring) both}
+@keyframes vtOut{to{opacity:0;transform:scale(1.04);filter:blur(4px)}}
+@keyframes vtIn{from{opacity:0;transform:scale(.97)}}
+@media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+/* zoekresultaten */
+.recent-row{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 6px}
+.srch-hit .node{margin-left:2px}
+
+/* ================= staten en toegankelijkheid ================= */
+.net-banner{position:fixed;z-index:4800;left:50%;top:calc(66px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;
+  background:rgba(14,30,48,.86);color:#fff;font-size:13.5px;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,.25);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:nbIn .5s var(--spring);transition:opacity .3s,transform .3s;max-width:calc(100vw - 24px)}
+.net-banner.out{opacity:0;transform:translate(-50%,-14px)}
+.net-banner .ic{width:18px;height:18px;flex:none}
+.wx-retry{margin-left:auto;padding:7px 12px!important;font-size:13.5px!important}
+.hero-retry{display:inline-flex;align-items:center;gap:5px;margin-left:6px;padding:4px 10px;border-radius:999px;border:0;background:rgba(255,255,255,.28);color:#fff;font-weight:650;cursor:pointer}
+.hero-retry .ic{width:14px;height:14px}
+/* tikvlakken minstens 44 px, en iets meer contrast voor kleine grijze tekst */
+.ios .icon-btn{width:44px;height:44px}
+.ios .fav{width:44px;height:44px}
+.ios{--faint:#6A8197}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){--faint:rgba(220,232,242,.55)}}
+.ios[data-theme=dark]{--faint:rgba(220,232,242,.55)}
+/* ontwerpsysteem: vaste letter- en afstandsschaal */
+:root{--t-xs:12px;--t-sm:13.5px;--t-md:15px;--t-lg:17px;--t-xl:22px;--t-2xl:30px;--t-3xl:40px;--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:20px;--s-6:24px;--s-8:32px}
+/* tekst in de bovenbalk mag niet worden afgekapt midden in een woord */
+.ios .area-stats{white-space:nowrap;text-overflow:ellipsis}

@@ -24,7 +24,7 @@ function animRemove(el, ms = 200){
   el.classList.add("closing"); setTimeout(() => el.remove(), ms);
 }
 
-["picker", "status", "group", "diary", "menu", "sos", "layerMenu"].forEach(id => animHidden($(id), id === "layerMenu" ? 160 : 220));
+["picker", "status", "group", "diary", "menu", "sos", "layerMenu", "today", "me"].forEach(id => animHidden($(id), id === "layerMenu" ? 160 : 220));
 const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco",
                  ES:"Spanje", AD:"Andorra", NO:"Noorwegen", SE:"Zweden", FI:"Finland", US:"Verenigde Staten", CA:"Canada"};
 const REGIONS = [["alpen","Alpen"], ["pyreneeen","Pyreneeën"], ["scandinavie","Scandinavië"], ["noord-amerika","Noord-Amerika"]];
@@ -52,13 +52,15 @@ const OFF_ROUTE = 120;                        // m van de route af = opnieuw pla
 const ANNOUNCE_AT = 120;                      // m voor een afslag: aankondigen
 
 const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, target:null, level:2, free:false, down:true, mode:"fast",
-           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"sat", pistes:true, labels:true, nums:true, hutsOn:true, svcOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, board:false, peaksOn:true, watchTap:true, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", closeWarned:null, wps:[], draw:false,
+           closed:new Set(), pick:"from", path:null, steps:[], sig:"", base:"winter", pistes:true, labels:true, nums:true, hutsOn:true, svcOn:true, region:"", voice:true, voiceLang:"", voiceName:"", pace:1, navAwake:true, speedo:true, noDrag:false, noMogul:false, board:false, peaksOn:true, watchTap:true, sunny:false, sunOn:false, lunch:null, night:false, liftOpen:"08:30", liftClose:"16:30", dayFrom:"", dayTo:"", closeWarned:null, wps:[], draw:false,
            pos:null, watch:null, follow:false, fromMe:false, offCount:0, nearSort:false, navIdx:0, spoken:{step:-1, pre:-1}};
+// eerste keer openen: dan een korte kennismaking (welkomstschermen); bestaande gebruikers zien die niet
+const FIRST_RUN = (() => { try{ return !localStorage.getItem("pistenplanner-app") && !localStorage.getItem("pp-onboarded"); }catch(e){ return false; } })();
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
-  if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"sat",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", t3d:!!s.t3d, last:s.last}); }catch(e){}
+  if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"winter",
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -72,7 +74,46 @@ function segDist(p, a, b){
 const bearing = (p, q) => Math.atan2((q[1]-p[1])*Math.cos(p[0]*Math.PI/180), q[0]-p[0]) * 180/Math.PI;
 const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 const TURN_ICON = {"rechtdoor":"straight", "houd rechts aan":"sright", "ga rechtsaf":"right", "houd links aan":"sleft", "ga linksaf":"left"};
-const hideSplash = () => { const sp = $("splash"); if(!sp || sp.classList.contains("out")) return; sp.classList.add("out"); setTimeout(() => sp.remove(), 600); };
+const hideSplash = () => { const sp = $("splash"); if(!sp || sp.classList.contains("out")) return; sp.classList.add("out"); setTimeout(() => sp.remove(), 600); if(FIRST_RUN) setTimeout(onboarding, 450); };
+// trillingen bij belangrijke momenten (iPhone en Android via de Haptics-plug-in, anders de trilfunctie van de browser)
+function buzz(kind = "light"){
+  const cap = window.Capacitor;
+  try{
+    if(kind === "select"){ if(cap?.isNativePlatform?.()){ if(!buzz.sel){ buzz.sel = 1; cap.nativePromise("Haptics", "selectionStart", {}).catch(() => {}); } cap.nativePromise("Haptics", "selectionChanged", {}).catch(() => {}); } else navigator.vibrate?.(4); return; }
+    if(cap?.isNativePlatform?.()){ (kind === "success" ? cap.nativePromise("Haptics", "notification", {type:"SUCCESS"}) : cap.nativePromise("Haptics", "impact", {style:kind === "medium" ? "MEDIUM" : "LIGHT"})).catch(() => {}); return; }
+    navigator.vibrate?.(kind === "success" ? [12, 40, 12] : 10);
+  }catch(e){}
+}
+// welkomstschermen: drie korte kaarten met wat de app doet, en waarom hij je locatie vraagt
+function onboarding(){
+  if(document.querySelector(".onb")) return;
+  const art = k => `<svg viewBox="0 0 120 120" aria-hidden="true">${{
+    route:`<path d="M14 98 60 18l46 80Z" fill="#9FC0D8"/><path d="M60 18l46 80H60Z" fill="#6E99BB"/><path d="M60 18l-9 16 5-2-3 9 7-6Z" fill="#fff"/><path d="M60 34c14 10 14 20 0 28s-14 18 2 26" fill="none" stroke="#FFC400" stroke-width="6" stroke-linecap="round"/><circle cx="60" cy="34" r="5" fill="#fff" stroke="#FFC400" stroke-width="3"/>`,
+    voice:`<rect x="34" y="16" width="52" height="88" rx="12" fill="#fff" stroke="#9FC0D8" stroke-width="3"/><path d="M60 40v24M60 40l-9 9M60 40l9 9" stroke="#1D6FB0" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M45 80c4 5 9 7 15 7s11-2 15-7" stroke="#1D6FB0" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M92 46c5 4 5 14 0 18M98 40c9 7 9 23 0 30" stroke="#A7C7DC" stroke-width="4" fill="none" stroke-linecap="round"/>`,
+    group:`<circle cx="42" cy="46" r="13" fill="#A7C7DC"/><circle cx="78" cy="46" r="13" fill="#1D6FB0"/><path d="M20 92c2-15 12-24 22-24s20 9 22 24Z" fill="#A7C7DC"/><path d="M56 92c2-15 12-24 22-24s20 9 22 24Z" fill="#1D6FB0"/>`}[k]}</svg>`;
+  const slides = [
+    ["route", "Nooit meer verdwalen op de piste", "Kies een skigebied, tik aan waar je heen wilt en Skipilot plant de route over pistes en liften die bij je niveau passen."],
+    ["voice", "Navigeren met je stem", "Gesproken aanwijzingen, de 3D-kaart en de dagroute van vandaag. Je locatie blijft op je telefoon; die gebruikt de app alleen om je de weg te wijzen."],
+    ["group", "Samen de berg op", "Maak een groep, deel je route en zie op de kaart waar je vrienden zijn. Klaar? Ga naar je eerste skigebied."]];
+  const el = document.createElement("div"); el.className = "onb"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
+  let i = 0;
+  const done = () => { try{ localStorage.setItem("pp-onboarded", "1"); }catch(e){} el.classList.add("out"); setTimeout(() => el.remove(), 350); buzz("success"); };
+  const paint = () => {
+    const [k, h, t] = slides[i], last = i === slides.length - 1;
+    el.innerHTML = `<div class="onb-card"><button type="button" class="onb-skip">Overslaan</button><div class="onb-art">${art(k)}</div><h2>${h}</h2><p>${t}</p>
+      <div class="onb-dots">${slides.map((_, j) => `<i class="${j === i ? "on" : ""}"></i>`).join("")}</div>
+      <button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button></div>`;
+    el.querySelector(".onb-skip").onclick = done;
+    el.querySelector(".onb-next").onclick = () => { buzz(); if(last) done(); else go(1); };
+    const card = el.querySelector(".onb-card"); card.style.setProperty("--dx", `${dirNow * 60}px`); card.classList.add("onb-in");
+  };
+  // vegen tussen de schermen
+  let dirNow = 0, x0 = null;
+  const go = d => { const j = i + d; if(j < 0) return; if(j >= slides.length) return done(); dirNow = d; i = j; buzz(); paint(); };
+  el.addEventListener("pointerdown", e => { x0 = e.clientX; });
+  el.addEventListener("pointerup", e => { if(x0 == null) return; const dx = e.clientX - x0; x0 = null; if(Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); });
+  paint(); document.body.appendChild(el);
+}
 
 // ================= kaart =================
 const map = L.map("map", {zoomControl:false, preferCanvas:true, worldCopyJump:false, minZoom:6}).setView([46.4, 10.5], 7);
@@ -173,14 +214,37 @@ function renderAreas(){
   const shown = rows.slice(0, 80);
   $("areas").innerHTML = (favRows.length ? `<li class="area-sep">Favorieten</li>` + favRows.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") + `<li class="area-sep">Alle skigebieden</li>` : "")
     + (shown.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") || `<li class="empty" style="padding:16px 6px">Geen skigebied gevonden${S.q ? ` voor "${esc(S.q)}"` : ""}.</li>`);
+  // universeel zoeken: ook pistes, liften en hutten in het skigebied dat open is, en recente zoekopdrachten
+  const A = S.area; let local = "", localHits = [];
+  if(A && q.length >= 2){
+    const seen = new Set();
+    for(const e of A.edges){
+      if(e.t === "w" || !(e.name || e.ref)) continue;
+      const lbl = e.t === "l" ? liftLabel(e) : pisteLabel(e), k = e.t + "|" + (e.key ?? lbl);
+      if(seen.has(k) || !norm(lbl + " " + tr(lbl)).includes(q)) continue; seen.add(k);
+      localHits.push({kind:e.t === "l" ? "lift" : "run", e, lbl}); if(localHits.length >= 8) break;
+    }
+    for(const h of A.huts || []) if(h.name && norm(h.name).includes(q) && localHits.length < 12) localHits.push({kind:"hut", h, lbl:h.name});
+    if(localHits.length) local = `<li class="area-sep">${tr("In")} ${esc(A.row[1])}</li>` + localHits.map((x, i) => `<li><button type="button" class="area-main srch-hit" data-hit="${i}">
+      <span class="node${x.kind === "run" && isDark(x.e.diff) ? " dark" : ""}" style="--c:${x.kind === "run" ? DIFF[x.e.diff]?.col : x.kind === "lift" ? "var(--p-lift)" : "#8A4B12"}">${x.kind === "run" ? (esc(x.e.ref) || I("ski")) : I(x.kind === "lift" ? "lift" : "hut")}</span>
+      <span><span class="nm">${esc(uc(tr(x.lbl)))}</span><span class="rg">${x.kind === "run" ? tr("Piste") : x.kind === "lift" ? tr("Lift") : tr("Hut of restaurant")}</span></span><span></span></button></li>`).join("");
+  }
+  let recent = []; try{ recent = JSON.parse(localStorage.getItem("pp-recent-q") || "[]"); }catch(e){}
+  const rec = !q && recent.length ? `<li class="area-sep">${tr("Recent gezocht")}</li><li class="recent-row">${recent.map(r => `<button type="button" class="chip" data-rq="${esc(r)}">${I("clock")}${esc(r)}</button>`).join("")}</li>` : "";
+  if(local && !shown.length) $("areas").querySelector(".empty")?.remove();
+  if(local || rec) $("areas").insertAdjacentHTML("afterbegin", rec + local);
+  $("areas").querySelectorAll("[data-rq]").forEach(b => b.onclick = () => { $("q").value = S.q = b.dataset.rq; renderAreas(); });
+  $("areas").querySelectorAll(".srch-hit").forEach(b => b.onclick = e => { e.stopPropagation(); const x = localHits[+b.dataset.hit]; remember(S.q); closePicker();
+    if(x.kind === "hut"){ map.setView([x.h.lat, x.h.lon], 16); hutPopup(x.h); } else goPiste(x.e.i); });
   const total = rows.length + favRows.length;
-  $("count").textContent = rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
-  $("areas").querySelectorAll(".area-main").forEach(b => b.onclick = () => { closePicker(); openArea(b.dataset.id); });
+  $("count").textContent = local && !total ? "" : rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
+  $("areas").querySelectorAll(".area-main:not(.srch-hit)").forEach(b => b.onclick = () => { remember(S.q); closePicker(); openArea(b.dataset.id); });
   $("areas").querySelectorAll(".fav").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderAreas(); });
   markOfflineAreas();
 }
 // advertenties alleen in schermen als de kiezer, het dagboek en het menu; nooit tijdens het navigeren
 const fillAds = id => { if(!S.follow) window.ppAds?.fill($(id)); };
+function remember(q){ q = (q || "").trim(); if(q.length < 2) return; try{ const r = JSON.parse(localStorage.getItem("pp-recent-q") || "[]").filter(x => x.toLowerCase() !== q.toLowerCase()); r.unshift(q); localStorage.setItem("pp-recent-q", JSON.stringify(r.slice(0, 6))); }catch(e){} }
 function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() => $("q").focus(), 50); fillAds("picker"); }
 function closePicker(){ $("picker").hidden = true; }
 
@@ -295,9 +359,11 @@ let numFor = null;
 function drawNumbers(){
   if(numFor !== numLabels){ numLayer.clearLayers(); numFor = numLabels; }
   const on = S.area && S.nums && S.pistes && map.getZoom() >= 14;
-  const b = map.getBounds().pad(.1); let n = 0;
+  const b = map.getBounds().pad(.1); let n = 0; const shown = [];
   for(const lab of numLabels){
-    const want = on && b.contains(lab.at) && ++n <= 160;
+    // geen bordjes over elkaar heen: binnen 34 px van een ander bordje laten we hem weg
+    let want = on && b.contains(lab.at) && n < 160;
+    if(want){ const pt = map.latLngToContainerPoint(lab.at); want = !shown.some(q => Math.abs(q.x - pt.x) < 34 && Math.abs(q.y - pt.y) < 22); if(want){ shown.push(pt); n++; } }
     if(!want){ if(lab.m && numLayer.hasLayer(lab.m)) numLayer.removeLayer(lab.m); continue; }
     lab.m ||= L.marker(lab.at, {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null,
       html:`<span class="pnum ${lab.e.diff}" style="background:${DIFF[lab.e.diff].col}">${esc(lab.e.ref)}</span>`})});
@@ -334,14 +400,16 @@ function drawPistes(){
   const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", ...o});
   if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
   if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
-  if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:6, opacity:.55})).addTo(pisteLayer);
+  // zachte schaduw onder de pistes geeft diepte; daarop een witte rand en de pistekleur
+  if(runs.length) L.polyline(runs, opt({color:"#0B1A2A", weight:10, opacity:.16})).addTo(pisteLayer);
+  if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:7.5, opacity:.72})).addTo(pisteLayer);
   for(const k of ["r_u","r_f","r_g","r_b","r_B","r_r","r_s","r_x"]){
     if(!groups[k]) continue; const d = k.slice(2);
-    L.polyline(groups[k], opt({color:DIFF[d].col, weight:d==="u"?2.5:d==="x"?4.2:3.2, opacity:.95, dashArray:d==="f"?"7 5":null})).addTo(pisteLayer);
+    L.polyline(groups[k], opt({color:DIFF[d].col, weight:d==="u"?3:d==="x"?5:4, opacity:.97, dashArray:d==="f"?"7 5":null})).addTo(pisteLayer);
   }
   const lifts = [...(groups.lift||[]), ...(groups.drag||[])];
-  if(lifts.length) L.polyline(lifts, opt({color:"#ffffff", weight:4.5, opacity:.8})).addTo(pisteLayer);
-  if(groups.lift) L.polyline(groups.lift, opt({color:"#14202B", weight:2})).addTo(pisteLayer);
+  if(lifts.length) L.polyline(lifts, opt({color:"#ffffff", weight:5, opacity:.85})).addTo(pisteLayer);
+  if(groups.lift) L.polyline(groups.lift, opt({color:"#14202B", weight:2.4})).addTo(pisteLayer);
   if(groups.drag) L.polyline(groups.drag, opt({color:"#14202B", weight:1.6, dashArray:"5 4"})).addTo(pisteLayer);
   if(groups.closed) L.polyline(groups.closed, opt({color:"#9AA7B2", weight:3, dashArray:"2 6"})).addTo(pisteLayer);
   // liften die bij deze wind mogelijk dicht zijn
@@ -360,7 +428,7 @@ const isSide = () => SIDE_MQ.matches;
 const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
   : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
                                                  : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
-function fitArea(instant){ if(S.area) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:!instant}); }
+function fitArea(instant){ if(!S.area) return; if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
 function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
@@ -640,6 +708,44 @@ function buildSteps(path){
   return out;
 }
 
+// ---- de route: kleur, intekenen, komeet en het al afgelegde deel ----
+const ROUTE_BLUE = "#1F7FD6";
+const passedLayer = L.layerGroup().addTo(map);
+// een nieuwe route loopt in van start naar eind, daarna glijdt er één keer een lichtpuntje overheen
+function routeIntro(layers, lines){
+  if(calm()) return;
+  requestAnimationFrame(() => {
+    for(const l of layers){
+      const el = l.getElement?.(); if(!el?.getTotalLength) continue;
+      const len = el.getTotalLength();
+      el.style.transition = "none"; el.style.strokeDasharray = `${len} ${len}`; el.style.strokeDashoffset = len;
+      el.getBoundingClientRect();
+      el.style.transition = "stroke-dashoffset 1s cubic-bezier(.45,.05,.25,1)"; el.style.strokeDashoffset = "0";
+      setTimeout(() => { el.style.transition = ""; el.style.strokeDasharray = ""; el.style.strokeDashoffset = ""; }, 1100);
+    }
+    const pts = lines.flat(); if(pts.length < 2) return;
+    const cum = [0]; for(let i = 1; i < pts.length; i++) cum.push(cum[i-1] + meters(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]));
+    const tot = cum[cum.length-1] || 1, at = d => { let i = 1; while(i < cum.length - 1 && cum[i] < d) i++; const f = (d - cum[i-1]) / ((cum[i] - cum[i-1]) || 1); return [pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * f, pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * f]; };
+    const mk = L.marker(pts[0], {icon:L.divIcon({className:"", html:'<i class="comet"></i>', iconSize:[18, 18], iconAnchor:[9, 9]}), interactive:false, keyboard:false, zIndexOffset:900});
+    setTimeout(() => { mk.addTo(map); const t0 = performance.now(), T = 1500;
+      const step = now => { const k = Math.min(1, (now - t0) / T), e = k < .5 ? 2*k*k : 1 - (-2*k + 2) ** 2 / 2; mk.setLatLng(at(tot * e)); if(k < 1) requestAnimationFrame(step); else mk.remove(); };
+      requestAnimationFrame(step); }, 950);
+  });
+}
+// tijdens het navigeren: het stuk dat je al gehad hebt grijs
+function drawPassed(ns){
+  passedLayer.clearLayers(); S.navPassed = null;
+  if(!ns || !S.follow) return;
+  const out = [];
+  for(let i = 0; i < ns.i; i++) out.push(...S.steps[i].line);
+  const L0 = S.steps[ns.i]?.line || [];
+  for(let k = 0; k <= ns.k && k < L0.length; k++) out.push(L0[k]);
+  if(L0[ns.k + 1]) out.push([L0[ns.k][0] + (L0[ns.k+1][0] - L0[ns.k][0]) * ns.t, L0[ns.k][1] + (L0[ns.k+1][1] - L0[ns.k][1]) * ns.t]);
+  if(out.length < 2) return;
+  S.navPassed = out;
+  L.polyline(out, {renderer:svgR, interactive:false, color:"#ffffff", weight:11, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(passedLayer);
+  L.polyline(out, {renderer:svgR, interactive:false, color:"#9AA9B7", weight:7, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(passedLayer);
+}
 function update(){
   document.querySelectorAll("#level button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v===S.level)));
   document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v===S.mode)));
@@ -648,6 +754,7 @@ function update(){
   $("fromMe").classList.toggle("on", S.fromMe);
   $("pickHint").innerHTML = `Tik op een <strong>piste</strong> om hem te skiën, of op een punt om ${S.pick==="from" ? "het <strong>vertrekpunt (A)</strong>" : "de <strong>bestemming (B)</strong>"} te kiezen.`;
   save();
+  document.body.classList.toggle("has-route", !!(S.from != null && (S.to != null || S.target || S.wps.length)));
   const A = S.area; if(!A) return;
   if(S.wps.length){
     S.target = null; S.via = null;
@@ -663,16 +770,18 @@ function update(){
   S.path = path; S.steps = path ? buildSteps(path) : [];
   S.lunchStep = null;
   if(path && S.lunch && S.lunchAt != null){ let c = 0, i = 0; while(i < S.steps.length && c < S.lunchAt){ c += S.steps[i].items.length; i++; } S.lunchStep = i; }
-  const sig = (path||[]).map(s => s.e.i).join(",");
-  if(sig !== S.sig){ S.sig = sig; S.navIdx = 0; S.spoken = {step:-1, pre:-1}; }
+  const sig = (path||[]).map(s => s.e.i).join(","), freshRoute = sig !== S.sig && !!sig;
+  if(sig !== S.sig){ S.sig = sig; S.navIdx = 0; S.spoken = {step:-1, pre:-1}; S.navPassed = null; passedLayer.clearLayers(); }
   routeLayer.clearLayers(); markLayer.clearLayers();
   drawDim(); drawHome();
   if(path && path.length){
-    const lines = path.map(s => s.e.pts);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:13, opacity:.45, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#FFC400", weight:8, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2, opacity:.55, lineCap:"round"}).addTo(routeLayer);
-    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.95, dashArray:"10 8"}).addTo(routeLayer);
+    // de route: strak merkblauw met een witte rand en een lichtere streep in het midden (zoals Apple Kaarten)
+    const lines = path.map(st => st.rev ? [...st.e.pts].reverse() : st.e.pts);
+    const ro = (color, weight, opacity) => ({renderer:svgR, interactive:false, color, weight, opacity, lineCap:"round", lineJoin:"round"});
+    const rl = [L.polyline(lines, ro("#0B2236", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#7CC0F5", 2.4, .75))];
+    rl.forEach(l => l.addTo(routeLayer));
+    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:ROUTE_BLUE, weight:3, opacity:.55, dashArray:"8 8"}).addTo(routeLayer);
+    if(freshRoute){ routeIntro(rl, lines); document.body.classList.add("route-fresh"); clearTimeout(S.freshT); S.freshT = setTimeout(() => document.body.classList.remove("route-fresh"), 1400); }
   }
   const day = S.wps.length && dayRouteOn();   // dagroute: geen genummerde punten, alleen begin en eind
   if(!day) S.wps.forEach((w, i) => {
@@ -686,7 +795,7 @@ function update(){
   for(const [n, cls, html] of pins){
     if(n==null || (cls==="a" && S.fromMe && S.pos) || (cls==="b" && S.to===S.from && S.via!=null)) continue;
     const p = A.nodes[n], sz = cls==="v" ? 26 : 30;
-    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}">${html}</div>`, iconSize:[sz,sz], iconAnchor:[sz/2, sz*1.2]}),
+    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}${freshRoute ? " drop" : ""}">${html}</div>`, iconSize:[sz,sz], iconAnchor:[sz/2, sz*1.2]}),
       keyboard:false, interactive:false, zIndexOffset:cls==="v" ? 0 : 500}).addTo(markLayer);
   }
   if(S.lunch && S.lunchStep != null){ const p = A.nodes[S.lunch.n];
@@ -717,14 +826,22 @@ function renderExtra(){
   if(S.target) parts.push(`<button type="button" class="chip route" data-k="target" title="Weghalen">${I("ski")}Skiën: ${esc(S.target.label)} · ${km(S.target.len)}<span class="x">${I("close")}</span></button>`);
   if(S.via!=null && !S.target) parts.push(`<button type="button" class="chip route" data-k="via" title="Weghalen">${tourOn() && S.tour.hut ? `${I("food")}Stop bij ${esc(S.tour.hut)}` : `${I("loop")}${S.to===S.from ? "Rondje via" : "Via"} ${esc(lc(nodeLabel(S.via)))}`}<span class="x">${I("close")}</span></button>`);
   if(S.lunch) parts.push(`<button type="button" class="chip route lunch-chip" data-k="lunch" title="Lunchstop weghalen">${I("food")}Lunch: ${esc(S.lunch.name)}${S.lunch.eta != null && S.lunchStep != null ? ` · ${hhmm(S.lunch.eta)}` : ""}<span class="x">${I("close")}</span></button>`);
-  if(S.wps.length && dayRouteOn()) parts.push(`<button type="button" class="chip route day-chip" data-k="wps" title="Dagroute wissen">${I("sun")}Dagroute van vandaag · ${S.wps.filter(w => w.k === "p").length} pistes<span class="x">${I("close")}</span></button><button type="button" class="chip" data-k="reroll" title="Een andere dagroute">${I("loop")}Andere</button>`);
+  if(S.wps.length && dayRouteOn()) parts.push(`<button type="button" class="chip route day-chip" data-k="wps" title="Dagroute wissen">${I("sun")}Dagroute van vandaag · ${S.wps.filter(w => w.k === "p").length} pistes<span class="x">${I("close")}</span></button><button type="button" class="chip" data-k="reroll" title="Een andere dagroute">${I("loop")}Andere</button><button type="button" class="chip" data-k="times" title="${tr("Begin- en eindtijd")}">${I("clock")}${S.dayFrom || tr("nu")}–${S.dayTo || tr("einde")}</button>`
+    + (S.dayTimes ? `<div class="day-times"><label>Begin<input type="time" id="dtFrom" value="${S.dayFrom || ""}" step="900"></label><label>Terug om<input type="time" id="dtTo" value="${S.dayTo || ""}" step="900"></label><button type="button" class="btn primary" id="dtGo">${I("loop")}Plan opnieuw</button>
+      <small>${tr("Leeg = vanaf nu (of de eerste lift) en tot een half uur voor de laatste lift.")} (${S.liftClose}) ${tr(homeNode() != null ? "De route eindigt bij je hotel." : "De route eindigt waar hij begon.")}</small></div>` : ""));
   else if(S.wps.length) parts.push(`<button type="button" class="chip route" data-k="wps" title="Getekende route wissen">${I("pencil")}Getekende route · ${S.wps.length} ${S.wps.length===1 ? "punt" : "punten"}<span class="x">${I("close")}</span></button>`);
   if(S.night) parts.unshift(`<button type="button" class="chip route night-chip" data-k="night" title="Avondskiën uitzetten">${I("moon")}Avondskiën · ${NIGHT_OPEN}–${NIGHT_CLOSE}<span class="x">${I("close")}</span></button>`);
   if(S.planBy) parts.unshift(`<button type="button" class="chip route group-chip" data-k="planby" title="Niet meer tonen">${I("group")}Route van ${esc(S.planBy)}<span class="x">${I("close")}</span></button>`);
   x.innerHTML = parts.join(""); x.hidden = !parts.length;
-  x.querySelectorAll("button").forEach(b => b.onclick = () => {
+  if($("dtGo")) $("dtGo").onclick = () => {
+    const f = $("dtFrom").value, t = $("dtTo").value;
+    if(f && t && toMin(t) - toMin(f) < 45){ toast("Kies minstens drie kwartier tussen begin en eind."); return; }
+    S.dayFrom = f; S.dayTo = t; S.dayTimes = false; save(); dayRoute(S.day?.extra || 0);
+  };
+  x.querySelectorAll("button:not(#dtGo)").forEach(b => b.onclick = () => {
     if(b.dataset.k==="night"){ setNight(false); return; }
     if(b.dataset.k==="reroll"){ dayRoute((S.day?.extra || 0) + 1); return; }
+    if(b.dataset.k==="times"){ S.dayTimes = !S.dayTimes; renderExtra(); return; }
     if(b.dataset.k==="lunch"){ S.lunch = null; }
     else if(b.dataset.k==="wps"){ S.wps = []; S.to = null; S.from = null; S.lunch = null; S.day = null; if(S.draw) renderDrawBar(); }
     else if(b.dataset.k==="planby"){ S.planBy = null; } else if(b.dataset.k==="target"){ S.target = null; } else { if(S.to===S.from) S.to = S.via; S.via = null; }
@@ -975,7 +1092,37 @@ function say(text, force){
 function speak(text){
   say(text);
 }
+// ---- kijkrichting: een lichtbundel aan je stip (zoals in Google Maps) ----
+// Het kompas van de telefoon als dat mag; anders (en tijdens het skiën) de rijrichting van de GPS.
+const HEAD = {deg:null, t:0, src:null, compass:false};
+function headingSet(h, src){
+  if(h == null || isNaN(h)) return;
+  h = ((h % 360) + 360) % 360;
+  // rustig meedraaien: kleine wiebels negeren, grote sprongen via de kortste kant
+  if(HEAD.deg != null){ const d = ((h - HEAD.deg) % 360 + 540) % 360 - 180; if(Math.abs(d) < 3 && src === HEAD.src) return; h = HEAD.deg + d * (src === "compass" ? .35 : 1); }
+  HEAD.deg = h; HEAD.t = Date.now(); HEAD.src = src;
+  const root = document.documentElement;
+  root.style.setProperty("--hd", h.toFixed(1) + "deg"); root.classList.add("has-hd");
+}
+function onOrient(e){
+  let h = e.webkitCompassHeading;                                  // iPhone: al ten opzichte van het noorden
+  if(h == null && (e.absolute || e.type === "deviceorientationabsolute") && e.alpha != null) h = 360 - e.alpha;   // Android
+  if(h == null) return;
+  if(e.webkitCompassAccuracy != null && (e.webkitCompassAccuracy < 0 || e.webkitCompassAccuracy > 50)) return;   // kompas nog niet gekalibreerd
+  headingSet(h + (screen.orientation?.angle || window.orientation || 0), "compass");
+}
+function startCompass(){
+  if(HEAD.compass || typeof DeviceOrientationEvent === "undefined") return;
+  HEAD.compass = true; addEventListener("deviceorientationabsolute", onOrient); addEventListener("deviceorientation", onOrient);
+  // iOS vraagt eerst toestemming (alleen na een tik); zonder toestemming komen er geen metingen en blijft de GPS-richting over
+  if(typeof DeviceOrientationEvent.requestPermission === "function") DeviceOrientationEvent.requestPermission().catch(() => { HEAD.compass = false; });
+}
+function headingFromGps(c){
+  const fresh = HEAD.src === "compass" && Date.now() - HEAD.t < 3000;
+  if(c.speed > 1.5 && c.heading != null && !isNaN(c.heading) && (!fresh || c.speed > 4)) headingSet(c.heading, "gps");
+}
 function startWatch(){
+  startCompass();
   if(S.watch != null) return true;
   if(!("geolocation" in navigator)){ toast("Dit apparaat geeft geen locatie door."); return false; }
   S.watch = navigator.geolocation.watchPosition(onPos, err => {
@@ -986,6 +1133,7 @@ function startWatch(){
   return true;
 }
 function stopWatch(){
+  document.documentElement.classList.remove("has-hd");
   setTimeout(renderSpeedo, 0);
   if(S.watch != null) navigator.geolocation.clearWatch(S.watch);
   S.watch = null; S.pos = null; S.follow = false; keepAwake(false); povApply();
@@ -998,11 +1146,12 @@ async function onPos(p){
   const first = !S.pos;
   S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, alt:p.coords.altitude};
   POV.gps = {heading:p.coords.heading, speed:p.coords.speed};
+  headingFromGps(p.coords);
   speedOnPos(p);
   const ll = [S.pos.lat, S.pos.lon];
   if(!meMarker){
     meCircle = L.circle(ll, {radius:S.pos.acc, color:"#1A8CFF", weight:1, fillOpacity:.12, interactive:false}).addTo(map);
-    meMarker = L.marker(ll, {icon:L.divIcon({className:"", html:'<div class="me-dot"></div>', iconSize:[18,18], iconAnchor:[9,9]}), interactive:false, zIndexOffset:1000}).addTo(map);
+    meMarker = L.marker(ll, {icon:L.divIcon({className:"", html:'<div class="me-dot"><i class="me-beam"></i></div>', iconSize:[18,18], iconAnchor:[9,9]}), interactive:false, zIndexOffset:1000}).addTo(map);
   } else { meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(S.pos.acc); }
 
   // ben je in een ander skigebied? laad dat dan
@@ -1067,12 +1216,16 @@ function updateNav(){
   const ns = S.follow ? navState() : null;
   povHeading(ns);
   if(POV.mode === "gl" && S.pos) M3.navCam(S.pos.lat, S.pos.lon, POV.rot, povZoom() - 1.3, S.area?.nodes[nearestNode(S.pos.lat, S.pos.lon).n]?.ele ?? S.pos.alt);
+  drawPassed(ns); M3.sync("route");
   if(!ns){ ban.hidden = true; renderDash(null); return; }
   const s = S.steps[ns.i], nx = S.steps[ns.i+1];
   const frac = s.len ? Math.min(1, ns.rem / s.len) : 0;
   const left = s.min * frac + S.steps.slice(ns.i+1).reduce((t, x) => t + x.min, 0);
   ban.hidden = false;
   $("navDist").textContent = km(ns.rem);
+  // nieuwe aanwijzing: pijl draait mee en de tekst schuift door; vlak voor de afslag pulseert de pijl
+  if(S.navAnimStep !== ns.i){ if(S.navAnimStep != null && !calm()){ ban.classList.remove("nb-change"); void ban.offsetWidth; ban.classList.add("nb-change"); buzz(); } S.navAnimStep = ns.i; }
+  ban.classList.toggle("near", ns.rem < 100);
   $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
   const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
@@ -1092,13 +1245,14 @@ function updateNav(){
   // gesproken aanwijzingen
   if(S.spoken.step !== ns.i){ S.spoken.step = ns.i; speak(`${uc(s.say)}${s.t!=="w" ? ", " + km(s.len).replace("km","kilometer").replace(" m"," meter") : ""}.`); }
   else if(nx && ns.rem < ANNOUNCE_AT && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak(`Over ${Math.round(ns.rem/10)*10} meter: ${nx.say}.`); }
-  else if(!nx && ns.rem < 30 && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak("Je bent op je bestemming."); }
+  else if(!nx && ns.rem < 30 && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak("Je bent op je bestemming."); arrived(); }
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
+  document.body.classList.toggle("following", !S.follow);
   if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); hush(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
   if(!startWatch()) return;
-  S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow");
+  S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow"); buzz("medium");
   if(!isSide()) setSheet(false);
   povApply();
   if(S.pos) showAt([S.pos.lat, S.pos.lon], POV.on ? povZoom() : Math.max(map.getZoom(), 16));
@@ -1224,6 +1378,7 @@ function renderDash(ns, left, arrive){
   } else {
     const rest = ns.rem + S.steps.slice(ns.i + 1).reduce((t, x) => t + x.len, 0);
     $("ndEta").textContent = arrive; $("ndLeft").textContent = fmt(left); $("ndKm").textContent = km(rest);
+    const total = S.steps.reduce((t, x) => t + x.len, 0); $("ndProg").style.width = (total ? Math.max(2, Math.min(100, 100 * (1 - rest / total))) : 0) + "%";
     // wat er na de volgende aanwijzing komt (die staat al groot bovenin)
     let at = ns.rem + (S.steps[ns.i + 1]?.len || 0);
     const later = S.steps.slice(ns.i + 2, ns.i + 4).map(st => { const li = `<li>${stepBadge(st)}<span class="nd-t">${esc(st.title)}</span><small><span>over</span> ${km(at)}</small></li>`; at += st.len; return li; });
@@ -1252,7 +1407,7 @@ function apply3d(){
   $("threeBtn").hidden = !M3.supported || M3.failed;
   $("threeBtn").classList.toggle("on", !!S.t3d && !M3.failed);
   $("threeBtn").setAttribute("aria-pressed", String(!!S.t3d));
-  if(!want){ if(M3.mode === "view") M3.close(); return; }
+  if(!want){ document.querySelector(".rp-bar")?.remove(); document.body.classList.remove("rp-on"); if(M3.mode === "view") M3.close(); return; }
   if(M3.mode === "view") return;
   if(M3.loaded()){ M3.open("view"); if(S.pos) M3.meAt(S.pos.lat, S.pos.lon); return; }
   document.body.classList.add("m3-loading");
@@ -1335,6 +1490,7 @@ document.addEventListener("visibilitychange", () => { if(document.visibilityStat
 addEventListener("ppaction", pollAction);
 
 $("locBtn").onclick = () => {
+  startCompass();
   if(S.watch == null){ startWatch(); toast("Locatie zoeken…"); return; }
   if(S.pos) showAt([S.pos.lat, S.pos.lon], Math.max(map.getZoom(), 15));
 };
@@ -1369,17 +1525,22 @@ function setMini(on){
 }
 function setSheet(open){ sheet.classList.toggle("open", open); }
 (() => {   // veeggebaar op de greep
-  const h = $("handle"); let y0 = null, moved = false, base = 0;
-  h.addEventListener("pointerdown", e => { y0 = e.clientY; moved = false; base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
+  const h = $("handle"); let y0 = null, moved = false, base = 0, lastY = 0, lastT = 0, vel = 0;
+  h.addEventListener("pointerdown", e => { y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; moved = false; base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
   h.addEventListener("pointermove", e => { if(y0==null) return; const dy = e.clientY - y0; if(Math.abs(dy) > 5) moved = true;
-    if(moved){ const full = window.innerHeight - sheet.offsetHeight; const top = Math.max(full, base + dy); sheet.style.transform = `translateY(${top - full}px)`; } });
+    const now = performance.now(); if(now > lastT){ vel = .7 * vel + .3 * (e.clientY - lastY) / (now - lastT); lastY = e.clientY; lastT = now; }
+    // boven de hoogste stand: rubberband
+    if(moved){ const full = window.innerHeight - sheet.offsetHeight; let top = base + dy; if(top < full) top = full - Math.sqrt(full - top) * 3; sheet.style.transform = `translateY(${top - full}px)`; } });
   const end = e => { if(y0==null) return; sheet.classList.remove("dragging"); sheet.style.transform = "";
     const dy = e.clientY - y0; y0 = null;
-    const open = sheet.classList.contains("open");
-    if(!moved){ if(open) setSheet(false); else if(sheetMini) setMini(false); else setSheet(true); return; }
-    if(dy < 0){ if(sheetMini && !open && dy > -220) setMini(false); else { setSheet(true); } }
-    else if(open) setSheet(false);
-    else if(!sheetMini) setMini(true); };
+    const open = sheet.classList.contains("open"), fast = Math.abs(vel) > .55;
+    if(!moved){ if(open) setSheet(false); else if(sheetMini) setMini(false); else setSheet(true); buzz("select"); return; }
+    // snel vegen kiest de volgende stand in die richting, anders telt de afstand
+    const up = fast ? vel < 0 : dy < 0;
+    if(up){ if(sheetMini && !open && (fast ? false : dy > -220)) setMini(false); else setSheet(true); }
+    else if(open){ if(fast && vel > 1.6 && !sheetMini) { setSheet(false); setMini(true); } else setSheet(false); }
+    else if(!sheetMini) setMini(true);
+    buzz("select"); };
   h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
 })();
 
@@ -1466,7 +1627,7 @@ $("voicePick").onchange = e => { S.voiceName = e.target.value; save(); };
 $("adPrivacy").onclick = () => window.ppAds?.native?.privacy();
 $("voiceTest").onclick = () => say("Over 200 meter: neem de stoeltjeslift.", true);
 syncVoice();
-$("fitAreaBtn").onclick = () => fitArea();
+$("fitAreaBtn").onclick = () => { $("layerMenu").hidden = true; fitArea(); };
 $("fitRouteBtn").onclick = fitRoute;
 
 // ================= liftsluiting =================
@@ -1478,6 +1639,8 @@ function startTime(){
   const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
   const open = toMin(S.night ? NIGHT_OPEN : S.liftOpen), close = toMin(S.night ? NIGHT_CLOSE : S.liftClose);
   const planned = nowM < open || nowM >= close;
+  // eigen begintijd van de dagroute (later dan de eerste lift, en nog niet voorbij)
+  if(!S.night && S.dayFrom && S.wps.length && dayRouteOn()){ const f = Math.max(open, toMin(S.dayFrom)); if(nowM < f || planned) return {t:f, planned:true, open, close}; }
   return {t:planned ? open : nowM, planned, open, close};
 }
 function routeTiming(){
@@ -1602,7 +1765,8 @@ async function loadWeather(){
     const old = wxStore(id);
     if(S.area?.id !== id) return;
     if(old && Date.now() - old.t < 36*3600e3){ wxCache[id] = {t:0, d:old.d}; renderWeather(old.d, old.t); }
-    else $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span>`;
+    else { $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span><button type="button" class="btn ghost wx-retry" id="wxRetry">${I("reset")}Opnieuw</button>`;
+      $("wxRetry").onclick = ev => { ev.stopPropagation(); loadWeather(); }; S.wxFail = id; if(!$("today").hidden) renderToday(); }
   }
 }
 function renderWeather(d, savedAt){
@@ -1611,6 +1775,8 @@ function renderWeather(d, savedAt){
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
   const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
   const depth = Math.round((c.snow_depth || 0) * 100);
+  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id}; S.wxFail = null;
+  if(!$("today").hidden) setTimeout(renderToday, 0);
   $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
     <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
     <small>${txt} · wind ${Math.round(c.wind_speed_10m)} km/u${fresh >= 1 ? ` · ${Math.round(fresh)} cm vers` : ""}</small></span>
@@ -1646,10 +1812,12 @@ function renderWeather(d, savedAt){
     <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
       ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>
     ${avScale()}
-    <div class="best-snow" id="bestSnow"></div>`;
+    <div class="best-snow" id="bestSnow"></div>
+    <div class="best-snow" id="picks"></div>`;
   $("areaStats").textContent = `${A.statsTxt} · ${deg(c.temperature_2m)} top${depth ? ` · ${depth} cm sneeuw` : ""}${fresh >= 5 ? ` · ${Math.round(fresh)} cm vers` : ""}`;
   computeRisk(c, fresh);
   renderBestSnow(c, cd, fresh);
+  renderPicks();
 }
 
 // ================= beste sneeuw nu =================
@@ -1689,6 +1857,51 @@ function renderBestSnow(c, cd, fresh){
     + `<p class="bs-note">Schatting uit zon, hoogte, temperatuur en verse sneeuw. Tik om erheen te gaan.</p>`;
   box.querySelectorAll(".bs-row").forEach(b => b.onclick = () => {
     const ch = chainFrom(list[+b.dataset.i].e.i);
+    S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
+    if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
+    update(); fitRoute();
+  });
+}
+
+// ================= aanraders per skigebied =================
+// De mooiste afdalingen van het gebied, uit de kaart zelf: de langste, die met de meeste hoogtemeters,
+// die het hoogst begint (uitzicht) en de langste makkelijke. Per piste (naam of nummer), met één tik erheen.
+function areaPicks(){
+  const A = S.area; if(!A) return [];
+  const groups = new Map();
+  for(const e of A.edges){
+    if(e.t !== "r" || !e.len || !(e.ref || e.name) || e.diff === "f" || e.f === 1 || /skiroute|itinerar|freeride/i.test(e.name || "")) continue;   // skiroutes (vrij terrein) niet aanraden
+    const g = groups.get(e.key) || {e, len:0, hi:-1e9, lo:1e9, diff:e.diff};
+    g.len += e.len;
+    for(const n of [e.a, e.b]){ const z = A.nodes[n].ele; if(z != null){ g.hi = Math.max(g.hi, z); g.lo = Math.min(g.lo, z); } }
+    if((A.nodes[e.a].ele ?? 0) >= g.hi) g.e = e;     // de route begint bovenaan de piste
+    groups.set(e.key, g);
+  }
+  const all = [...groups.values()].filter(g => g.len >= 500).map(g => ({...g, hm:g.hi > g.lo ? g.hi - g.lo : 0}));
+  if(!all.length) return [];
+  const used = new Set(), out = [];
+  const pick = (label, why, list, score) => {
+    const g = list.filter(x => !used.has(x.e.key)).sort((a, b) => score(b) - score(a))[0];
+    if(!g) return; used.add(g.e.key); out.push({g, label, why:why(g)});
+  };
+  const km = g => `${(g.len / 1000).toLocaleString(LOCALE, {maximumFractionDigits:1})} km`;
+  pick("Langste afdaling", g => `${km(g)} · ${Math.round(g.hm)} hm`, all, g => g.len);
+  pick("Meeste hoogtemeters", g => `${Math.round(g.hm)} hm · ${km(g)}`, all, g => g.hm);
+  pick("Mooiste uitzicht", g => `${tr("begint op")} ${Math.round(g.hi)} m`, all.filter(g => g.hi > -1e9), g => g.hi);
+  const easy = all.filter(g => DIFF[g.diff]?.lvl === 1);
+  pick("Fijn voor beginners", g => `${km(g)} ${tr("makkelijk skiën")}`, easy, g => g.len);
+  return out;
+}
+function renderPicks(){
+  const box = $("picks"); if(!box) return;
+  const list = areaPicks();
+  if(!list.length){ box.innerHTML = ""; return; }
+  box.innerHTML = `<p class="label">${I("star")}${tr("Aanraders in")} ${esc(S.area.row[1])}</p>` + list.map((x, i) =>
+    `<button type="button" class="bs-row" data-i="${i}"><span class="node${isDark(x.g.diff) ? " dark" : ""}" style="--c:${DIFF[x.g.diff]?.col || "#888"}">${esc(x.g.e.ref) || I("ski")}</span>
+      <span class="bs-txt"><b>${tr(x.label)}: ${esc(uc(tr(pisteLabel(x.g.e))))}</b><small>${x.why}${overLevel(x.g.e) ? " · " + tr("boven je niveau") : ""}</small></span>${I("chev")}</button>`).join("")
+    + `<p class="bs-note">Gekozen uit de pistekaart. Tik om erheen te gaan.</p>`;
+  box.querySelectorAll(".bs-row").forEach(b => b.onclick = () => {
+    const ch = chainFrom(list[+b.dataset.i].g.e.i);
     S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
     if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
     update(); fitRoute();
@@ -1745,7 +1958,7 @@ function renderSos(){
       <div style="grid-column:1/-1"><span>Waar</span><b>${pl ? esc(pl.txt) : "Niet bij een piste of lift"}${S.area ? ` · ${esc(S.area.row[1])}` : ""}${cc && COUNTRY[cc] ? ` · ${COUNTRY[cc]}` : ""}</b></div>
     </div>`;
 }
-function openSos(){ $("sos").hidden = false; if(S.watch==null) startWatch(); renderSos(); clearInterval(sosTimer); sosTimer = setInterval(renderSos, 3000); }
+function openSos(){ buzz("medium"); $("sos").hidden = false; if(S.watch==null) startWatch(); renderSos(); clearInterval(sosTimer); sosTimer = setInterval(renderSos, 3000); }
 function closeSos(){ $("sos").hidden = true; clearInterval(sosTimer); }
 $("sosBtn").onclick = openSos;
 $("sosClose").onclick = closeSos;
@@ -2363,16 +2576,17 @@ function renderDiary(){
       <div class="d-stat"><span>${I("lift")}Liften</span><b>${sum.lifts}</b></div>
       <div class="d-stat"><span>${I("clock")}Op de berg</span><b>${durTxt(sum.secs)}</b></div>
       <div class="d-stat"><span>${I("lift")}In de lift</span><b>${durTxt(sum.liftSecs)}</b></div>`;
-  } else $("diaryStats").innerHTML = isToday ? `<p class="empty" style="grid-column:1/-1">${D.rec ? "Zodra je beweegt, verschijnen hier je kilometers, hoogtemeters en topsnelheid." : "Tik op <strong>Begin met opnemen</strong> als je gaat skiën. De app houdt dan je dag bij."}</p>` : "";
+  } else $("diaryStats").innerHTML = isToday ? `<img class="empty-art" src="icons/logo.svg" alt=""><p class="empty" style="grid-column:1/-1">${D.rec ? "Zodra je beweegt, verschijnen hier je kilometers, hoogtemeters en topsnelheid." : "Tik op <strong>Begin met opnemen</strong> als je gaat skiën. De app houdt dan je dag bij."}</p>` : "";
   // pistes en liften
   const pl = sum?.pisteList || [], ll = sum?.liftList || [];
   $("diaryLists").innerHTML = (pl.length ? `<div class="d-list"><p class="label">Pistes (${pl.length})</p><div class="d-chips">${pl.map(x =>
       `<span class="d-chip"><span class="node${isDark(x.diff) ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (ll.length ? `<div class="d-list"><p class="label">Liften (${ll.length})</p><div class="d-chips">${ll.map(x =>
       `<span class="d-chip"><span class="node" style="background:var(--surface);color:var(--p-lift);border:1.5px solid var(--p-lift)">${I("lift")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
-    + (sum && sum.n > 1 ? `<div class="d-actions"><button type="button" class="btn ghost" id="dShare">${I("share")}Deel mijn dag</button><button type="button" class="btn ghost" id="dGpx">${I("route")}Exporteer GPX</button></div>` : "");
+    + (sum && sum.n > 1 ? `<div class="d-actions"><button type="button" class="btn ghost" id="dShare">${I("share")}Deel mijn dag</button><button type="button" class="btn ghost" id="dGpx">${I("route")}Exporteer GPX</button>${M3.supported && !M3.failed ? `<button type="button" class="btn primary" id="d3d">${I("layers")}Bekijk je dag in 3D</button>` : ""}</div>` : "");
   $("dShare")?.addEventListener("click", () => shareDay(day, sum));
   $("dGpx")?.addEventListener("click", () => exportGpx(day));
+  $("d3d")?.addEventListener("click", () => replayDay(day));
   renderSeason(k); renderBadges();
   $("dShow").checked = D.show; $("dAwake").checked = D.awake;
   // geschiedenis
@@ -2394,6 +2608,29 @@ function renderDiary(){
     if(D.view === d) D.view = null;
     drawTrack(); renderDiary(); diaryLive(); toast("Dag verwijderd.");
   });
+}
+// je skidag terugkijken op de 3D-kaart: de camera vliegt langs je spoor
+async function replayDay(day){
+  const coords = day.pts.map(p => [p[2]/1e5, p[1]/1e5]).filter((c, i, a) => !i || c[0] !== a[i-1][0] || c[1] !== a[i-1][1]);
+  if(coords.length < 2) return;
+  $("diary").hidden = true;
+  if(!M3.loaded()){
+    document.body.classList.add("m3-loading");
+    try{ await M3.load(); }catch(e){ document.body.classList.remove("m3-loading"); toast("De 3D-kaart kon niet laden. Probeer het later opnieuw."); return; }
+    document.body.classList.remove("m3-loading");
+  }
+  if(!S.t3d){ S.t3d = true; save(); }
+  apply3d();
+  if(M3.mode !== "view") return toast("De 3D-kaart kon niet openen.");
+  // knop om te stoppen
+  document.querySelector(".rp-bar")?.remove();
+  const bar = document.createElement("div"); bar.className = "rp-bar";
+  bar.innerHTML = `<span>${I("play")}${esc(day.areaName || tr("Je skidag"))} · ${niceDate(day.date)}</span><button type="button" class="btn" id="rpStop">${I("close")}Stoppen</button>`;
+  document.body.appendChild(bar); document.body.classList.add("rp-on");
+  const end = () => { bar.remove(); document.body.classList.remove("rp-on"); };
+  $("rpStop").onclick = () => { M3.stopReplay(); end(); };
+  if(!M3.replay(coords, () => { const sm = daySummary(day); if(sm?.n > 1){ const c = document.createElement("div"); c.className = "rp-sum"; c.innerHTML = `<span>${num(sm.km, 1)}<small>km</small></span><span>${num(Math.round(sm.hm))}<small>hm</small></span><span>${num(sm.runs)}<small>${tr("afdalingen")}</small></span><span>${num(Math.round(sm.vmax))}<small>km/u</small></span>`; bar.prepend(c); countUp(c); confetti(40); }
+    bar.querySelector(":scope > span").innerHTML = `${I("check")}Klaar! Zo zag je dag eruit.`; $("rpStop").innerHTML = `${I("close")}Sluiten`; $("rpStop").onclick = () => { M3.stopReplay(); end(); }; })) end();
 }
 // GPX 1.1: punten met tijd en hoogte, te openen in Strava, Garmin Connect, Komoot en dergelijke
 function dayGpx(day){
@@ -2433,54 +2670,68 @@ async function exportGpx(day){
 const mercX = (lon, z) => (lon + 180) / 360 * 256 * 2 ** z;
 const mercY = (lat, z) => { const s = Math.sin(lat * Math.PI / 180); return (.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * 2 ** z; };
 async function dayCard(day, sum){
-  const W = 1080, H = 1350, MH = 900, c = document.createElement("canvas");
+  // dagkaart in de ijsblauwe huisstijl, formaat Story (1080×1920): kaart met je spoor, grote cijfers en een hoogteprofiel
+  const W = 1080, H = 1920, MX = 60, MY = 250, MW = 960, MH = 960, c = document.createElement("canvas");
   c.width = W; c.height = H;
   const x = c.getContext("2d"), pts = day.pts.map(p => [p[1] / 1e5, p[2] / 1e5]);
+  const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#EAF3FA"); bg.addColorStop(.6, "#D3E5F2"); bg.addColorStop(1, "#BCD5E8");
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const rr = (X0, Y0, w, h, r) => { x.beginPath(); x.moveTo(X0 + r, Y0); x.arcTo(X0 + w, Y0, X0 + w, Y0 + h, r); x.arcTo(X0 + w, Y0 + h, X0, Y0 + h, r); x.arcTo(X0, Y0 + h, X0, Y0, r); x.arcTo(X0, Y0, X0 + w, Y0, r); x.closePath(); };
+  // kaart
   let s = 90, n = -90, w = 180, e = -180;
   for(const [la, lo] of pts){ s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
   let z = 16;
-  while(z > 9 && (mercX(e, z) - mercX(w, z) > W * .78 || mercY(s, z) - mercY(n, z) > MH * .74)) z--;
-  const ox = (mercX(w, z) + mercX(e, z)) / 2 - W / 2, oy = (mercY(n, z) + mercY(s, z)) / 2 - MH / 2 + 30;
-  const P = ([la, lo]) => [mercX(lo, z) - ox, mercY(la, z) - oy];
-  x.fillStyle = "#E8EEF4"; x.fillRect(0, 0, W, H);
+  while(z > 9 && (mercX(e, z) - mercX(w, z) > MW * .78 || mercY(s, z) - mercY(n, z) > MH * .78)) z--;
+  const ox = (mercX(w, z) + mercX(e, z)) / 2 - MW / 2, oy = (mercY(n, z) + mercY(s, z)) / 2 - MH / 2;
+  const P = ([la, lo]) => [MX + mercX(lo, z) - ox, MY + mercY(la, z) - oy];
+  x.save(); x.shadowColor = "rgba(8,24,44,.25)"; x.shadowBlur = 50; x.shadowOffsetY = 20; rr(MX, MY, MW, MH, 56); x.fillStyle = "#E8EEF4"; x.fill(); x.restore();
+  x.save(); rr(MX, MY, MW, MH, 56); x.clip();
   const jobs = [];
   for(let ty = Math.floor(oy / 256); ty <= Math.floor((oy + MH) / 256); ty++)
-    for(let tx = Math.floor(ox / 256); tx <= Math.floor((ox + W) / 256); tx++)
-      jobs.push(PPterrain.get("winter", z, tx, ty, 1).then(b => { x.drawImage(b, tx * 256 - ox, ty * 256 - oy, 256, 256); b.close?.(); }, () => {}));
+    for(let tx = Math.floor(ox / 256); tx <= Math.floor((ox + MW) / 256); tx++)
+      jobs.push(PPterrain.get("winter", z, tx, ty, 1).then(b => { x.drawImage(b, MX + tx * 256 - ox, MY + ty * 256 - oy, 256, 256); b.close?.(); }, () => {}));
   await Promise.all(jobs);
-  // pistes en liften van het gebied (als dat geladen is)
   const A = day.area && S.area?.id === day.area ? S.area : null;
   x.lineCap = x.lineJoin = "round";
   if(A) for(const ed of A.edges){
     if(ed.t === "w") continue;
     x.beginPath(); ed.pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); });
-    x.strokeStyle = ed.t === "l" ? "rgba(20,32,43,.75)" : DIFF[ed.diff].col; x.lineWidth = ed.t === "l" ? 2.5 : 4; x.globalAlpha = .75; x.stroke(); x.globalAlpha = 1;
+    x.strokeStyle = ed.t === "l" ? "rgba(20,32,43,.6)" : DIFF[ed.diff].col; x.lineWidth = ed.t === "l" ? 2.5 : 4; x.globalAlpha = .6; x.stroke(); x.globalAlpha = 1;
   }
-  // het spoor
   const line = () => { x.beginPath(); pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); }); };
-  line(); x.strokeStyle = "rgba(255,255,255,.9)"; x.lineWidth = 15; x.stroke();
-  line(); x.strokeStyle = "#7C3AED"; x.lineWidth = 8; x.stroke();
-  for(const [p, col] of [[pts[0], "#1F9D57"], [pts[pts.length - 1], "#D23A3A"]]){
-    const [px, py] = P(p); x.beginPath(); x.arc(px, py, 14, 0, 7); x.fillStyle = col; x.fill(); x.lineWidth = 5; x.strokeStyle = "#fff"; x.stroke();
-  }
-  // onderste deel: donker met de cijfers
-  const g = x.createLinearGradient(0, MH - 160, 0, MH); g.addColorStop(0, "rgba(15,27,42,0)"); g.addColorStop(1, "rgba(15,27,42,1)");
-  x.fillStyle = g; x.fillRect(0, MH - 160, W, 160); x.fillStyle = "#0F1B2A"; x.fillRect(0, MH, W, H - MH);
+  x.shadowColor = "rgba(11,34,54,.3)"; x.shadowBlur = 16; line(); x.strokeStyle = "#fff"; x.lineWidth = 18; x.stroke(); x.shadowBlur = 0;
+  line(); x.strokeStyle = "#1F7FD6"; x.lineWidth = 10; x.stroke();
+  line(); x.strokeStyle = "rgba(124,192,245,.8)"; x.lineWidth = 3.5; x.stroke();
+  const [sx, sy] = P(pts[0]), [ex, ey] = P(pts[pts.length - 1]);
+  x.beginPath(); x.arc(sx, sy, 16, 0, 7); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 7; x.strokeStyle = "#1F7FD6"; x.stroke();
+  x.beginPath(); x.arc(ex, ey, 18, 0, 7); x.fillStyle = "#1F7FD6"; x.fill(); x.lineWidth = 6; x.strokeStyle = "#fff"; x.stroke();
+  x.restore();
   await document.fonts?.ready;
   const F = getComputedStyle(document.documentElement).getPropertyValue("--f-display").trim() || "sans-serif";
   const UI = getComputedStyle(document.documentElement).getPropertyValue("--f-ui").trim() || "sans-serif";
-  x.fillStyle = "#AFC0D3"; x.font = `600 34px ${UI}`; x.textBaseline = "alphabetic";
-  x.fillText(`${uc(niceDate(day.date))}${day.areaName ? " · " + day.areaName : ""}`.slice(0, 60), 64, MH - 30);
-  x.fillStyle = "#fff"; x.font = `800 170px ${F}`; const big = kmTxt(sum.km); x.fillText(big, 60, MH + 150);
-  const bw = x.measureText(big).width; x.font = `700 60px ${F}`; x.fillStyle = "#FFC400"; x.fillText("km", 72 + bw, MH + 150);
-  const stat = (v, label, i) => { const cx = 64 + i * 330; x.fillStyle = "#fff"; x.font = `800 64px ${F}`; x.fillText(v, cx, MH + 270);
-    x.fillStyle = "#8FA3B8"; x.font = `600 28px ${UI}`; x.fillText(tr(label).toUpperCase(), cx, MH + 310); };
-  stat(`${hmTxt(sum.hm)} m`, "omlaag", 0); stat(`${Math.round(sum.vmax)} km/u`.replace("km/u", tr("km/u")), "topsnelheid", 1); stat(String(sum.runs), "afdalingen", 2);
-  // merk
+  // kop: logo, naam, datum en gebied
   const logo = new Image(); logo.src = "icons/logo.svg";
-  try{ await logo.decode(); x.drawImage(logo, W - 64 - 64, H - 64 - 64, 64, 64); }catch(err){}
-  x.fillStyle = "#fff"; x.font = `800 44px ${F}`; x.textAlign = "right"; x.fillText("Skipilot", W - 64 - 80, H - 76);
-  x.fillStyle = "#8FA3B8"; x.font = `600 24px ${UI}`; x.fillText(tr("de skiroute-app"), W - 64 - 80, H - 46); x.textAlign = "left";
+  try{ await logo.decode(); x.drawImage(logo, 60, 84, 96, 96); }catch(err){}
+  x.fillStyle = "#0F2233"; x.font = `750 56px ${F}`; x.textBaseline = "alphabetic"; x.fillText("Skipilot", 180, 136);
+  x.fillStyle = "#4E6679"; x.font = `600 32px ${UI}`; x.fillText(`${uc(niceDate(day.date))}${day.areaName ? " · " + day.areaName : ""}`.slice(0, 52), 180, 180);
+  // grote kilometers
+  x.fillStyle = "#0F2233"; x.font = `800 200px ${F}`; const big = kmTxt(sum.km); x.fillText(big, 56, 1420);
+  const bw = x.measureText(big).width; x.font = `750 72px ${F}`; x.fillStyle = "#1F7FD6"; x.fillText("km", 74 + bw, 1420);
+  x.fillStyle = "#4E6679"; x.font = `600 32px ${UI}`; x.fillText(tr("geskied"), 62, 1468);
+  // drie glazen tegels
+  const tile = (v, label, i) => { const tx = 60 + i * 330, ty = 1510; rr(tx, ty, 300, 170, 36); x.fillStyle = "rgba(255,255,255,.62)"; x.fill(); x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.9)"; x.stroke();
+    x.fillStyle = "#0F2233"; x.font = `750 60px ${F}`; x.fillText(v, tx + 30, ty + 92); x.fillStyle = "#5A7084"; x.font = `600 28px ${UI}`; x.fillText(tr(label), tx + 30, ty + 138); };
+  tile(`${hmTxt(sum.hm)} m`, "omlaag", 0); tile(`${Math.round(sum.vmax)}`, "km/u top", 1); tile(String(sum.runs), "afdalingen", 2);
+  // hoogteprofiel van de dag
+  const alts = day.pts.map(p => p[3]).filter(v => v != null);
+  if(alts.length > 8){
+    const PX = 60, PY = 1720, PW = 960, PH = 120, lo = Math.min(...alts), hi = Math.max(...alts), step = Math.max(1, Math.floor(alts.length / 240));
+    const ys = alts.filter((_, i) => i % step === 0), Xp = i => PX + i / (ys.length - 1) * PW, Yp = v => PY + PH - (v - lo) / ((hi - lo) || 1) * PH;
+    x.beginPath(); x.moveTo(PX, PY + PH); ys.forEach((v, i) => x.lineTo(Xp(i), Yp(v))); x.lineTo(PX + PW, PY + PH); x.closePath();
+    const pg = x.createLinearGradient(0, PY, 0, PY + PH); pg.addColorStop(0, "rgba(31,127,214,.45)"); pg.addColorStop(1, "rgba(31,127,214,0)"); x.fillStyle = pg; x.fill();
+    x.beginPath(); ys.forEach((v, i) => i ? x.lineTo(Xp(i), Yp(v)) : x.moveTo(Xp(i), Yp(v))); x.strokeStyle = "#1F7FD6"; x.lineWidth = 5; x.stroke();
+  }
+  x.fillStyle = "#4E6679"; x.font = `600 26px ${UI}`; x.textAlign = "center"; x.fillText(`Skipilot · ${tr("de skiroute-app")}`, W / 2, H - 40); x.textAlign = "left";
   return c;
 }
 // de kaart tonen als delen niet kan (op een computer): bewaren met de knop, op een telefoon lang indrukken
@@ -2678,7 +2929,7 @@ function profileHtmlNow(W0){
   for(let i = 1; i < pd.pts.length; i++){
     const p = pd.pts[i], st = S.steps[pd.stepOf.get(p.k)] || {};
     const lift = st.t === "l", col = lift ? "var(--p-lift)" : st.t === "w" ? "var(--faint)" : (st.color || "var(--accent)");
-    segs += `<line x1="${X(prev.d).toFixed(1)}" y1="${Y(prev.ele).toFixed(1)}" x2="${X(p.d).toFixed(1)}" y2="${Y(p.ele).toFixed(1)}" stroke="${col}" stroke-width="2" stroke-linecap="round"${lift || st.t === "w" ? ' stroke-dasharray="3 4"' : ""}/>`;
+    segs += `<line x1="${X(prev.d).toFixed(1)}" y1="${Y(prev.ele).toFixed(1)}" x2="${X(p.d).toFixed(1)}" y2="${Y(p.ele).toFixed(1)}" stroke="${col}" stroke-width="3" stroke-linecap="round"${lift || st.t === "w" ? ' stroke-dasharray="3 4"' : ""}/>`;
     prev = p;
   }
   const yl = v => `<text x="${padL - 6}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${hmTxt(v)}</text><line x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="grid"/>`;
@@ -2686,8 +2937,9 @@ function profileHtmlNow(W0){
     <div class="prof-head"><p class="label">Hoogteprofiel</p><span>↑ ${hmTxt(up)} m · ↓ ${hmTxt(down)} m · hoogste ${hmTxt(hi)} m</span></div>
     <div class="prof-box">
       <svg id="profSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Hoogteprofiel van ${hmTxt(lo)} tot ${hmTxt(hi)} meter over ${km(pd.total)}">
+        <defs><linearGradient id="profGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F7FD6" stop-opacity=".35"/><stop offset="1" stop-color="#1F7FD6" stop-opacity="0"/></linearGradient></defs>
         ${yl(hi)}${yl(lo)}
-        <path d="${area}" class="prof-area"/>
+        <path d="${area}" class="prof-area" fill="url(#profGrad)"/>
         ${segs}
         <text x="${padL}" y="${H - 5}" text-anchor="start">0 km</text>
         <text x="${W - padR}" y="${H - 5}" text-anchor="end">${km(pd.total)}</text>
@@ -2714,6 +2966,7 @@ function bindProfile(){
     const q = at(d), st = S.steps[pd.stepOf.get(q.k)];
     $("profCross").setAttribute("x1", pd.X(d)); $("profCross").setAttribute("x2", pd.X(d)); $("profCross").setAttribute("visibility", "visible");
     $("profDot").setAttribute("cx", pd.X(d)); $("profDot").setAttribute("cy", pd.Y(q.ele)); $("profDot").setAttribute("visibility", "visible");
+    const bucket = Math.floor(d / 100); if(bucket !== pd.lastBucket){ pd.lastBucket = bucket; buzz("select"); }   // tikje per 100 m
     const tip = $("profTip"); tip.hidden = false;
     tip.innerHTML = `<b>${hmTxt(q.ele)} m</b> · ${km(d)}<span>${esc(st?.title || "")}</span>`;
     const left = Math.min(Math.max(pd.X(d) * r.width / pd.W - 70, 0), r.width - 150); tip.style.left = left + "px";
@@ -2724,7 +2977,7 @@ function bindProfile(){
       let want = q.f * tot, j = 0; while(j < seg.length-1 && want > seg[j]){ want -= seg[j]; j++; }
       const g = seg[j] ? want/seg[j] : 0, A_ = line[j], B_ = line[j+1] || line[j];
       const ll = [A_[0] + (B_[0]-A_[0])*g, A_[1] + (B_[1]-A_[1])*g];
-      if(!profMarker) profMarker = L.circleMarker(ll, {renderer:svgR, radius:7, color:"#fff", weight:3, fillColor:"#0F1B2A", fillOpacity:1, interactive:false}).addTo(map);
+      if(!profMarker) profMarker = L.circleMarker(ll, {renderer:svgR, radius:8, color:"#fff", weight:3, fillColor:ROUTE_BLUE, fillOpacity:1, interactive:false}).addTo(map);
       else profMarker.setLatLng(ll);
     }
   };
@@ -3240,7 +3493,11 @@ function dayRoute(extra = 0){
     cands.push({ei:e.i, ch, mid, w:(drop / 100 + ch.len / 1000) * (.5 + rnd())});
   }
   if(!cands.length){ toast("Voor dit gebied lukt geen dagroute met jouw niveau."); return; }
-  const {t:t0, close} = startTime(), budget = Math.max(60, Math.min(330, close - 30 - t0));
+  // hoe lang je wilt skiën: van je begintijd (of nu / de eerste lift) tot je eindtijd (of een half uur voor de laatste lift)
+  const st = startTime(), nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  let t0 = st.t; if(!S.night && S.dayFrom){ const f = Math.max(st.open, toMin(S.dayFrom)); if(nowM < f || st.planned) t0 = f; }
+  const close = st.close, until = !S.night && S.dayTo ? Math.min(close - 10, toMin(S.dayTo)) : close - 30;
+  const budget = Math.max(45, Math.min(540, until - t0));
   // kies om de beurt een piste: zwaar gewogen naar mooi en ver van de pistes die er al in zitten (zo zie je het hele gebied)
   const pick = [], used = new Set();
   const far = c => pick.length ? Math.min(...pick.map(p => meters(p.mid[0], p.mid[1], c.mid[0], c.mid[1]))) : 1000;
@@ -3270,6 +3527,7 @@ function dayRoute(extra = 0){
   if(t0 < toMin("12:15") && t0 + mins > toMin("12:15") && (A.huts || []).some(isFood)) planLunch("12:30", 60, true);
   S.day.key = wpsSig();
   update(); fitRoute();
+  buzz("success");
   toast(`Dagroute: ${pick.length} pistes${S.lunch ? `, lunch bij ${S.lunch.name}` : ""}. Morgen weer een andere.`, 4000);
 }
 
@@ -3516,10 +3774,341 @@ function clearRoute(){
   toast("Route gewist. Tik op de kaart voor een nieuwe.");
 }
 
+
+// ================= tabbalk en dashboards =================
+// Onderin een zwevende glazen tabbalk: Kaart · Vandaag · Groep · Ik. Vandaag en Ik zijn dashboards met kaarten van matglas;
+// Groep is het bestaande groepsvenster. Tijdens navigeren, tekenen en de 3D-terugblik verdwijnt de balk.
+let TAB = "map";
+const TAB_PANELS = {today:"today", group:"group", me:"me"};
+function setTab(t){
+  if(t === TAB && t !== "map"){ $(TAB_PANELS[t]).scrollTop = 0; return; }
+  buzz();
+  ["picker", "status", "diary", "menu", ...Object.values(TAB_PANELS)].forEach(id => { if(id !== TAB_PANELS[t]) $(id).hidden = true; });
+  $("layerMenu").hidden = true;
+  // vensters schuiven in de richting van de tab binnen
+  const dir = Math.sign(TAB_ORDER.indexOf(t) - TAB_ORDER.indexOf(TAB)) || 1, panel = $(TAB_PANELS[t]);
+  if(panel){ panel.style.setProperty("--dx", `${dir * 36}px`); panel.classList.remove("tab-in"); void panel.offsetWidth; panel.classList.add("tab-in"); }
+  TAB = t; tabPaint();
+  if(t === "today") openToday(); else if(t === "group") openGroup(); else if(t === "me") openMe();
+}
+function tabPaint(){
+  document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB));
+  // de donkere pil schuift mee naar de actieve tab
+  requestAnimationFrame(() => { const b = document.querySelector(`#tabbar button[data-tab="${TAB}"]`), ind = $("tabInd"); if(!b || !ind) return;
+    ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 7}px)`; });
+}
+addEventListener("resize", tabPaint); setTimeout(tabPaint, 300);
+const TAB_ORDER = ["map", "today", "group", "me"];
+document.querySelectorAll("#tabbar button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+// gaat een venster dicht (kruisje, vegen), dan staat de tabbalk weer op Kaart
+new MutationObserver(() => {
+  if(TAB !== "map" && $(TAB_PANELS[TAB])?.hidden){ TAB = "map"; tabPaint(); }
+}).observe(document.body, {subtree:true, attributes:true, attributeFilter:["hidden"]});
+
+// getallen tellen op bij het openen (alleen zonder "minder beweging")
+function countUp(root){
+  if(calm()) return;
+  root.querySelectorAll("[data-n]").forEach(el => {
+    const to = +el.dataset.n, dec = +(el.dataset.dec || 0), t0 = performance.now(), dur = 700;
+    const fmt = v => v.toLocaleString(LOCALE, {minimumFractionDigits:dec, maximumFractionDigits:dec});
+    const step = now => { const k = Math.min(1, (now - t0) / dur), e = 1 - (1 - k) ** 3; el.textContent = fmt(to * e); if(k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+const num = (v, dec = 0) => `<b data-n="${v}" data-dec="${dec}">${(+v).toLocaleString(LOCALE, {minimumFractionDigits:dec, maximumFractionDigits:dec})}</b>`;
+function greeting(){
+  const h = new Date().getHours();
+  return h < 5 ? "Goedenacht" : h < 11 ? "Goedemorgen" : h < 15 ? "Goedemiddag" : h < 18 ? "Nog één afdaling?" : "Goedenavond";
+}
+const dashHead = (label, title, closeId) => `<div class="dash-head"><div><p class="label">${label}</p><h2>${title}</h2></div><button type="button" class="icon-btn" id="${closeId}" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button></div>`;
+// een piste aantikken: route erheen en terug naar de kaart
+function goPiste(ei){
+  const ch = chainFrom(ei);
+  const go = () => {
+    S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
+    if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
+    // vensters meteen weg (de overgang zelf verzorgt de animatie)
+    ["today", "me", "group", "picker"].forEach(id => { const el = $(id); if(el && !el.hidden){ HIDDEN.set.call(el, true); el.hidden = true; } });
+    TAB = "map"; tabPaint(); update(); fitRoute();
+  };
+  // View Transitions: het venster gaat vloeiend over in de kaart met de route
+  if(document.startViewTransition && !calm()) document.startViewTransition(go); else go();
+}
+// berg-illustratie voor de bovenste kaart (zelfde stijl als het logo en de App Store-header)
+const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <defs><linearGradient id="hSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB3E0"/><stop offset="1" stop-color="#2F6E9F"/></linearGradient>
+  <linearGradient id="hSh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DCE9F4"/><stop offset="1" stop-color="#9DBBD3"/></linearGradient></defs>
+  <rect width="400" height="200" fill="url(#hSky)"/><circle cx="330" cy="46" r="20" fill="#fff" opacity=".85"/>
+  <path d="M120 200 210 70 250 110 290 80 400 170V200Z" fill="#A9C6DD" opacity=".7"/>
+  <path d="M150 200 255 40 360 200Z" fill="#fff"/><path d="M255 40 360 200H272L265 120 278 96Z" fill="url(#hSh)"/>
+  <path d="M255 52c18 12 18 26 2 36s-16 22 4 34 18 26-2 40" fill="none" stroke="#FFC400" stroke-width="5" stroke-linecap="round"/>
+  <path d="M0 200V178q90-22 190-6t210-4V200Z" fill="#F2F7FB"/></svg>`;
+
+// eigen skyline per skigebied: uit de echte toppen (of, zolang die er niet zijn, de hoogste punten van het pistenet),
+// gezien vanuit het zuiden; drie lagen, sneeuwkappen, de naam van de hoogste top en een lucht naar het moment van de dag
+function heroSky(){
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  if(h >= 5 && h < 8) return {k:"dawn", a:"#F7C9A9", b:"#8FB0DE", fg:"#4B5E86"};
+  if(h >= 8 && h < 16) return {k:"day", a:"#86BCE6", b:"#2F6E9F", fg:"#2B5A82"};
+  if(h >= 16 && h < 18.5) return {k:"gold", a:"#F7C873", b:"#6E8EC6", fg:"#4A5F8E"};
+  if(h >= 18.5 && h < 21.5) return {k:"dusk", a:"#9A72B8", b:"#283C6E", fg:"#2A2F5A"};
+  return {k:"night", a:"#13274A", b:"#0A1630", fg:"#0D1B36"};
+}
+function heroSkyline(A){
+  const pts = (A.peaks?.length ? A.peaks.map(p => [p[0], p[1], p[2], p[3]]) : A.nodes.filter(n => n.ele != null).map(n => [n.lat, n.lon, n.ele, ""]));
+  if(pts.length < 3) return HERO_ART;
+  const W = 400, H = 200, lons = pts.map(p => p[1]), l0 = Math.min(...lons), l1 = Math.max(...lons), span = (l1 - l0) || .01;
+  const eles = pts.map(p => p[2]).sort((a, b) => a - b), eMax = eles[eles.length - 1], eMin = Math.min(eles[Math.floor(eles.length * .25)], eMax - 400);
+  const X = lon => 20 + (lon - l0) / span * (W - 40), Y = (e, top, bot) => bot - (e - eMin) / ((eMax - eMin) || 1) * (bot - top);
+  // hoogte per kolom: elke top als een kegel met een zachte flank
+  const ridge = (list, top, bot, slope) => { const N = 80, col = [];
+    for(let i = 0; i <= N; i++){ const x = i / N * W; let y = bot + 40;
+      for(const p of list){ const px = X(p[1]), py = Y(p[2], top, bot); y = Math.min(y, py + Math.abs(x - px) * slope); }
+      y += Math.sin(x * .13 + top) * 1.6 + Math.sin(x * .41 + bot) * .9;   // grillige graat
+      col.push([x, Math.min(y, bot + 40)]); }
+    return col; };
+  const path = col => `M0 ${H}L` + col.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L") + `L${W} ${H}Z`;
+  const sorted = [...pts].sort((a, b) => b[2] - a[2]);
+  const far = ridge(sorted.slice(0, 80), 70, 140, .55), mid = ridge(sorted.slice(0, 30), 64, 156, .75), near = ridge(sorted.slice(8, 60).map(p => [p[0], p[1], p[2] * .9, p[3]]), 150, 196, 1);
+  const sky = heroSky(), top = sorted.find(p => p[3]) || sorted[0], tx = X(top[1]), ty = Y(top[2], 64, 156);
+  const hour = new Date().getHours() + new Date().getMinutes() / 60, sunX = 30 + ((hour - 6) / 14) * 340, sunY = 70 - Math.sin(Math.max(0, Math.min(1, (hour - 6) / 14)) * Math.PI) * 45;
+  const stars = sky.k === "night" ? Array.from({length:26}, (_, i) => `<circle cx="${(i * 97) % 400}" cy="${(i * 53) % 90}" r="${(i % 3) * .4 + .5}" fill="#fff" opacity="${.4 + (i % 4) * .15}"/>`).join("") : "";
+  return `<svg class="hero-art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs><linearGradient id="hsSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.b}"/><stop offset="1" stop-color="${sky.a}"/></linearGradient>
+    <linearGradient id="hsSnow" x1="0" y1="0" x2="0" y2="1">${sky.k === "night" || sky.k === "dusk" ? `<stop offset="0" stop-color="#DCE5F2"/><stop offset=".5" stop-color="#8FA5C4"/><stop offset="1" stop-color="#3E5478"/>` : `<stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#EEF4FA"/><stop offset="1" stop-color="#B7CEE0"/>`}</linearGradient>
+    <linearGradient id="hsFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="${sky.fg}" stop-opacity=".35"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#hsSky)"/>${stars}
+    <circle class="sun" cx="${sunX.toFixed(0)}" cy="${sunY.toFixed(0)}" r="${sky.k === "night" ? 11 : 17}" fill="${sky.k === "night" ? "#F2F6FF" : "#FFF6DC"}" opacity=".9"/>
+    <path class="hs-far" d="${path(far)}" fill="url(#hsFar)"/>
+    <path class="hs-mid" d="${path(mid)}" fill="url(#hsSnow)"/>
+    <path class="hs-near" d="${path(near)}" fill="${sky.k === "night" ? "#203a5c" : "#DCE8F2"}" opacity=".95"/>
+    ${top[3] ? `<g class="hs-lbl"><circle cx="${tx.toFixed(0)}" cy="${(ty - 2).toFixed(0)}" r="2.6" fill="#fff"/><text x="${Math.min(W - 6, Math.max(6, tx)).toFixed(0)}" y="${(ty - 9).toFixed(0)}" text-anchor="${tx > W - 80 ? "end" : tx < 80 ? "start" : "middle"}">${esc(top[3])} · ${top[2].toLocaleString(LOCALE)} m</text></g>` : ""}
+  </svg>`;
+}
+function openToday(){ $("today").hidden = false; renderToday(); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); }
+function renderToday(){
+  const box = $("today"), A = S.area;
+  if(!A){ box.innerHTML = dashHead(greeting(), "Vandaag", "tdClose") + `<div class="dash-empty"><img src="icons/logo.svg" alt="" class="empty-art"><p>Kies eerst een skigebied, dan zie je hier het weer, de sneeuw en de mooiste pistes van vandaag.</p><button type="button" class="btn primary" id="tdPick">${I("search")}Kies een skigebied</button></div>`;
+    $("tdClose").onclick = () => box.hidden = true; $("tdPick").onclick = () => { box.hidden = true; openPicker(); }; return; }
+  const r = A.row, w = S.wx && S.wx.area === A.id ? S.wx : null;
+  const lifts = A.edges.filter(e => e.t === "l"), liftKeys = new Set(lifts.map(e => e.key ?? e.i));
+  const openKeys = new Set(lifts.filter(e => !S.closed.has(e.i)).map(e => e.key ?? e.i));
+  const windRisk = [...(S.risk?.lifts || [])].filter(i => !S.closed.has(i)).length;
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
+  const sk = '<i class="skel"></i>';
+  const tile = (icon, label, val, unit, sub) => `<div class="tile">${I(icon)}<span>${label}</span><p>${val ?? sk}${val != null && unit ? `<small>${unit}</small>` : ""}</p>${sub ? `<small class="t-sub">${sub}</small>` : ""}</div>`;
+  const home = getHome?.();
+  const act = (id, icon, label) => `<button type="button" class="act" id="${id}"><span>${I(icon)}</span>${label}</button>`;
+  const picks = areaPicks(), best = w ? bestSnow(w.c, w.cd, w.fresh) : [];
+  const pcard = (e, top, why, i, k) => `<button type="button" class="pcard" data-k="${k}" data-i="${i}" style="--c:${DIFF[e.diff]?.col || "#888"}"><span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff]?.col || "#888"}">${esc(e.ref) || I("ski")}</span><small>${top}</small><b>${esc(uc(tr(pisteLabel(e))))}</b><i>${why}</i></button>`;
+  const tday = D.day?.date === todayKey() ? D.day : loadDay(todayKey()), ts = tday && tday.pts.length > 1 ? daySummary(tday) : null;
+  let days = "";
+  if(w){
+    const Dd = w.d[0].daily, i0 = Math.max(0, Dd.time.indexOf(w.c.time.slice(0, 10)));
+    days = Dd.time.slice(i0, i0 + 4).map((t, k) => { const i = i0 + k, [dt, di] = wxInfo(Dd.weather_code[i]), sn = Dd.snowfall_sum[i] || 0;
+      return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
+  }
+  box.innerHTML = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
+    + `<section class="hero dc sky-${heroSky().k}">${heroSkyline(A)}<div class="hero-txt">
+        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : sk}</p>
+        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `${tr("Weer niet beschikbaar.")} <button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : tr("Weer en sneeuw laden…")}</p>
+        <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
+    + `<div class="tiles dc">
+        ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
+        ${tile("thermo", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top")}
+        ${tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : ""))}
+        ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
+      </div>`
+    + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
+    + `<div class="acts dc">${act("tdDay", "sun", "Dagroute")}${`<a class="act" id="tdTicket" href="${esc(ticketUrl())}" target="_blank" rel="noopener"><span>${I("ticket")}</span>${tr("Skipas")}</a>`}${act("tdHome", home?.kind === "auto" ? "car" : "bed", home ? (home.kind === "auto" ? "Naar je auto" : "Naar je hotel") : "Hotel bewaren")}${act("tdGroup", "group", "Groep")}</div>`
+    + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
+        ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
+        : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>`}</div>${I("chev")}</button>`
+    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
+    + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
+    + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
+    + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
+  $("tdClose").onclick = () => box.hidden = true;
+  $("tdRetry")?.addEventListener("click", () => { S.wxFail = null; renderToday(); loadWeather(); });
+  $("tdDay").onclick = () => { setTab("map"); dayRoute(); };
+  $("tdHome").onclick = () => { setTab("map"); home ? goHome() : homeMenu(); };
+  $("tdGroup").onclick = () => setTab("group");
+  $("tdMe").onclick = () => setTab("me");
+  box.querySelectorAll(".pcard").forEach(b => b.onclick = () => goPiste(b.dataset.k === "b" ? best[+b.dataset.i].e.i : picks[+b.dataset.i].g.e.i));
+  countUp(box);
+  heroWeather(box);
+}
+
+// ---- Ik: jouw skidag, je seizoen, prestaties en instellingen ----
+function ring(v, max, color, label, val, unit){
+  const k = Math.max(0, Math.min(1, max ? v / max : 0)), R = 34, C = 2 * Math.PI * R;
+  return `<div class="ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" class="rg-bg"/><circle cx="40" cy="40" r="${R}" class="rg-fg" style="stroke:${color};stroke-dasharray:${C};--dash:${C};stroke-dashoffset:${C * (1 - k)}"/></svg><p>${val}<small>${unit}</small></p><span>${label}</span></div>`;
+}
+function openMe(){ $("me").hidden = false; renderMe(); }
+function renderMe(){
+  const box = $("me"), days = allDays(), tk = todayKey();
+  const tday = D.day?.date === tk ? D.day : loadDay(tk), ts = tday && tday.pts.length > 1 ? daySummary(tday) : null;
+  const rec = days.reduce((m, x) => ({km:Math.max(m.km, x.s.km), hm:Math.max(m.hm, x.s.hm), runs:Math.max(m.runs, x.s.runs)}), {km:0, hm:0, runs:0});
+  const season = days.length ? seasonOf(days[0].d) : null, sd = season ? days.filter(x => seasonOf(x.d) === season) : [];
+  const tot = sd.reduce((a, x) => ({km:a.km + x.s.km, hm:a.hm + x.s.hm}), {km:0, hm:0});
+  const bars = sd.slice(0, 14).reverse(), bmax = Math.max(1, ...bars.map(x => x.s.km));
+  const a = days.length ? badgeStats() : null, got = a ? BADGES.filter(b => b.v(a) >= b.goal) : [];
+  const row = (id, icon, color, label, sub) => `<button type="button" class="me-row" id="${id}"><span class="sq" style="background:${color}">${I(icon)}</span><span class="mr-t"><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</span>${I("chev")}</button>`;
+  box.innerHTML = dashHead(season ? `${tr("Seizoen")} ${season}` : tr("Jouw skiseizoen"), "Ik", "meClose")
+    + `<section class="me-today dc"><div class="me-top"><p class="label">${I("rec")}${tr("Vandaag")}</p>${D.rec ? `<span class="rec-pill">${I("rec")}${tr("Opname")}</span>` : ""}</div>`
+    + (ts && ts.n > 1 ? `<div class="rings">${ring(ts.km, Math.max(20, rec.km), "#2B7FC4", tr("kilometer"), num(ts.km, 1), "km")}${ring(ts.hm, Math.max(3000, rec.hm), "#7C3AED", tr("hoogtemeters"), num(Math.round(ts.hm)), "hm")}${ring(ts.runs, Math.max(15, rec.runs), "#1F9D57", tr("afdalingen"), num(ts.runs), "")}</div>
+        <div class="me-speed">${I("speed")}<span>${tr("Topsnelheid")}</span>${num(Math.round(ts.vmax))}<small>km/u</small></div>
+        <div class="me-btns"><button type="button" class="btn ghost" id="meDiary">${I("book")}Skidagboek</button>${M3.supported && !M3.failed ? `<button type="button" class="btn primary" id="me3d">${I("layers")}Bekijk je dag in 3D</button>` : ""}</div>`
+      : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>${D.rec ? "" : `<button type="button" class="btn primary" id="meStart">${I("rec")}Begin met opnemen</button>`}`)
+    + `</section>`
+    + (sd.length ? `<section class="dc"><p class="label">${I("calendar")}${tr("Mijn seizoen")}</p><div class="me-season"><div class="ms-tot"><span>${num(sd.length)}<small>${tr("dagen")}</small></span><span>${num(Math.round(tot.km))}<small>km</small></span><span>${num(Math.round(tot.hm))}<small>hm</small></span></div>
+        <div class="bars">${bars.map((x, bi) => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%;animation-delay:${bi * 40}ms" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div></section>` : "")
+    + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
+    + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
+  $("meClose").onclick = () => box.hidden = true;
+  const toDiary = () => { box.hidden = true; openDiary(); };
+  $("meDiary")?.addEventListener("click", toDiary); $("meDiary2").onclick = toDiary; $("meBadges")?.addEventListener("click", toDiary);
+  $("me3d")?.addEventListener("click", () => { box.hidden = true; replayDay(tday); });
+  $("meStart")?.addEventListener("click", () => { startRec(); renderMe(); });
+  $("meSettings").onclick = () => { box.hidden = true; openMenu(); };
+  $("mePro")?.addEventListener("click", () => { box.hidden = true; openPro(); });
+  $("meHelp").onclick = () => window.open(window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") + "support.html" : "support.html", "_blank");
+  countUp(box);
+}
+
+
+// ================= animaties en microinteracties =================
+// Alles met transform en opacity, en niets als iemand "minder beweging" heeft ingesteld (calm()).
+// ripple op knoppen
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest(".btn.primary,.act,.tabbar button,.near-btn"); if(!b || calm()) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 1.2, sp = document.createElement("span");
+  sp.className = "ripple"; sp.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d/2}px;top:${e.clientY - r.top - d/2}px`;
+  b.appendChild(sp); setTimeout(() => sp.remove(), 600);
+}, {passive:true});
+// sneeuwvlokjes-confetti (aankomst, nieuwe prestatie)
+function confetti(n = 60){
+  if(calm()) return;
+  const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
+  c.className = "confetti"; c.width = innerWidth * dpr; c.height = innerHeight * dpr; document.body.appendChild(c); x.scale(dpr, dpr);
+  const cols = ["#ffffff", "#A7C7DC", "#7CC0F5", "#FFC400", "#1F7FD6"];
+  const P = Array.from({length:n}, () => ({x:innerWidth / 2 + (Math.random() - .5) * 80, y:innerHeight * .42, vx:(Math.random() - .5) * 9, vy:-Math.random() * 11 - 4, r:2 + Math.random() * 4, c:cols[Math.random() * cols.length | 0], a:Math.random() * 6, s:Math.random() < .5}));
+  const t0 = performance.now();
+  const step = now => { const t = now - t0; x.clearRect(0, 0, innerWidth, innerHeight);
+    for(const p of P){ p.vy += .28; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += .1; x.save(); x.translate(p.x, p.y); x.rotate(p.a); x.globalAlpha = Math.max(0, 1 - t / 2400); x.fillStyle = p.c;
+      if(p.s){ x.beginPath(); for(let k = 0; k < 6; k++){ x.rotate(Math.PI / 3); x.fillRect(-.6, 0, 1.2, p.r * 1.6); } } else { x.beginPath(); x.arc(0, 0, p.r, 0, 7); x.fill(); } x.restore(); }
+    if(t < 2400) requestAnimationFrame(step); else c.remove(); };
+  requestAnimationFrame(step);
+}
+// aangekomen: kaart "Je bent er!" met confetti en een succestrilling (één keer per route)
+function arrived(){
+  if(S.arrivedSig === S.sig) return; S.arrivedSig = S.sig;
+  const tot = S.steps.reduce((a, x) => ({len:a.len + x.len, min:a.min + x.min}), {len:0, min:0});
+  buzz("success"); confetti(80);
+  document.querySelector(".arrive")?.remove();
+  const el = document.createElement("div"); el.className = "arrive";
+  el.innerHTML = `<div class="arr-card"><span class="arr-ic">${I("flag")}</span><h3>Je bent er!</h3><p>${km(tot.len)} · ${fmt(tot.min)}</p><button type="button" class="btn primary">${I("check")}Mooi</button></div>`;
+  document.body.appendChild(el);
+  const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+  el.querySelector("button").onclick = close; setTimeout(close, 6000);
+}
+// nieuwe prestatie behaald: munt die binnendraait
+function badgeCheck(){
+  try{
+    const days = allDays(); if(!days.length) return;
+    const a = badgeStats(), got = BADGES.filter(b => b.v(a) >= b.goal), seen = JSON.parse(localStorage.getItem("pp-badges-seen") || "null");
+    localStorage.setItem("pp-badges-seen", JSON.stringify(got.map(b => b.t)));
+    if(!seen) return;   // eerste keer: alleen onthouden
+    const fresh = got.filter(b => !seen.includes(b.t)); if(!fresh.length) return;
+    const b = fresh[0]; buzz("success"); confetti(70);
+    document.querySelector(".coin-pop")?.remove();
+    const el = document.createElement("div"); el.className = "coin-pop";
+    el.innerHTML = `<span class="coin">${I(b.icon)}</span><div><small>Nieuwe prestatie</small><b>${b.t}</b><i>${b.d}</i></div>`;
+    document.body.appendChild(el); setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 4200);
+  }catch(e){}
+}
+setTimeout(badgeCheck, 4000); setInterval(badgeCheck, 60000);
+// weer op de bovenste kaart: vallende sneeuw, zonnegloed of wind, en lichte parallax bij het kantelen
+let heroFx = 0;
+function heroWeather(box){
+  cancelAnimationFrame(heroFx);
+  const hero = box.querySelector(".hero"); if(!hero || !S.wx || calm()) return;
+  const code = S.wx.c.weather_code, snow = [71, 73, 75, 77, 85, 86].includes(code), sun = code <= 1, wind = S.wx.c.wind_speed_10m >= 35;
+  hero.classList.toggle("sunny", sun); hero.classList.toggle("windy", wind);
+  if(!snow) return;
+  const c = document.createElement("canvas"); c.className = "hero-snow"; hero.appendChild(c);
+  const dpr = Math.min(2, devicePixelRatio || 1), W = hero.clientWidth, H = hero.clientHeight; c.width = W * dpr; c.height = H * dpr; const x = c.getContext("2d"); x.scale(dpr, dpr);
+  const F = Array.from({length:40}, () => ({x:Math.random() * W, y:Math.random() * H, r:.8 + Math.random() * 2.2, v:.3 + Math.random() * .8, d:Math.random() * 6}));
+  const step = () => { if(!c.isConnected) return; x.clearRect(0, 0, W, H); x.fillStyle = "rgba(255,255,255,.9)";
+    for(const f of F){ f.y += f.v; f.d += .02; f.x += Math.sin(f.d) * .4; if(f.y > H) { f.y = -4; f.x = Math.random() * W; } x.beginPath(); x.arc(f.x, f.y, f.r, 0, 7); x.fill(); }
+    heroFx = requestAnimationFrame(step); };
+  step();
+}
+addEventListener("deviceorientation", e => { if(e.gamma == null) return; const h = document.querySelector(".hero"); if(!h) return;
+  h.style.setProperty("--px", `${Math.max(-1, Math.min(1, e.gamma / 30)) * 8}px`); h.style.setProperty("--py", `${Math.max(-1, Math.min(1, (e.beta - 45) / 40)) * 5}px`); }, {passive:true});
+// SOS: één seconde vasthouden om te bellen (zo bel je niet per ongeluk)
+document.querySelectorAll("#sos .call").forEach(a => {
+  let t = 0, ok = false;
+  a.addEventListener("click", e => { if(!ok){ e.preventDefault(); if(!a.classList.contains("holding")) toast("Houd de knop even vast om te bellen."); } ok = false; });
+  const start = () => { a.classList.add("holding"); buzz(); t = setTimeout(() => { ok = true; a.classList.remove("holding"); buzz("success"); location.href = a.href; }, 900); };
+  const stop = () => { clearTimeout(t); a.classList.remove("holding"); };
+  a.addEventListener("pointerdown", start); ["pointerup", "pointerleave", "pointercancel"].forEach(ev => a.addEventListener(ev, stop));
+  a.addEventListener("contextmenu", e => e.preventDefault());
+});
+// kopiëren: de knop wordt even een vinkje
+document.addEventListener("click", e => { const b = e.target.closest("#sosCopy,#gCopy,.copy-btn"); if(!b) return;
+  b.classList.add("copied"); setTimeout(() => b.classList.remove("copied"), 1400); });
+// favorietenster: kleine deeltjes
+document.addEventListener("click", e => { const b = e.target.closest(".fav"); if(!b || calm()) return;
+  setTimeout(() => { if(!b.classList.contains("on")) return; b.classList.add("pop"); setTimeout(() => b.classList.remove("pop"), 600); }, 0); });
+
+// ---- offline: een rustige banner bovenin ----
+function netState(){
+  let b = document.querySelector(".net-banner");
+  if(navigator.onLine){ if(b){ b.classList.add("out"); setTimeout(() => b.remove(), 350); } return; }
+  if(b) return;
+  b = document.createElement("div"); b.className = "net-banner"; b.setAttribute("role", "status");
+  b.innerHTML = `${I("cloud")}<span>Je bent offline. Bewaarde kaarten en routes werken gewoon.</span>`;
+  document.body.appendChild(b);
+}
+addEventListener("online", () => { netState(); toast("Weer online."); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); });
+addEventListener("offline", netState); setTimeout(netState, 1500);
+// selectietrilling bij schakelaars, segmenten en chips
+document.addEventListener("change", e => { if(e.target.closest(".switch")) buzz("select"); });
+document.addEventListener("click", e => { if(e.target.closest(".seg button,.chip,.layer-card")) buzz("select"); });
+
+// ---- vensters omlaag wegvegen vanaf de kop, en grote titels die bij het scrollen inklappen ----
+function swipeDismiss(el){
+  if(!el) return;
+  let y0 = null, lastY = 0, lastT = 0, vel = 0, dy = 0;
+  el.addEventListener("pointerdown", e => {
+    if(!e.target.closest(".picker-head,.dash-head,.menu-head,.sos-head") || e.target.closest("button,a,input")) return;
+    if(el.scrollTop > 4) return;
+    y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; dy = 0; el.style.transition = "none";
+  });
+  el.addEventListener("pointermove", e => {
+    if(y0 == null) return; dy = e.clientY - y0;
+    const now = performance.now(); if(now > lastT){ vel = .7 * vel + .3 * (e.clientY - lastY) / (now - lastT); lastY = e.clientY; lastT = now; }
+    el.style.transform = `translateY(${dy > 0 ? dy : dy * .2}px)`; el.style.opacity = String(Math.max(.6, 1 - Math.max(0, dy) / 900));
+  });
+  const end = () => {
+    if(y0 == null) return; y0 = null;
+    el.style.transition = "transform .4s var(--spring),opacity .3s";
+    if(dy > 120 || vel > .7){ buzz("select"); el.style.transform = "translateY(100%)"; el.style.opacity = "0";
+      setTimeout(() => { el.style.transition = "none"; el.style.transform = ""; el.style.opacity = ""; HIDDEN.set.call(el, true); el.hidden = true; requestAnimationFrame(() => el.style.transition = ""); }, 320); }
+    else { el.style.transform = ""; el.style.opacity = ""; setTimeout(() => el.style.transition = "", 420); }
+  };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  // grote titel klapt in tot een compacte kop met matglas
+  el.addEventListener("scroll", () => el.classList.toggle("scrolled", el.scrollTop > 36), {passive:true});
+}
+["today", "me", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
+
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
 function applyTheme(){
-  let t = "auto"; try{ t = localStorage.getItem("pp-theme") || "auto"; }catch(e){}
+  // standaard licht: de ijsblauwe huisstijl (in het menu kun je automatisch of donker kiezen)
+  let t = "light"; try{ t = localStorage.getItem("pp-theme") || "light"; }catch(e){}
   if(t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   document.querySelectorAll("#themeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === t)));
 }
