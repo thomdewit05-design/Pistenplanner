@@ -2167,27 +2167,54 @@ function sentToday(add){
   try{ n = +(localStorage.getItem(k) || 0) + (add || 0); if(add) localStorage.setItem(k, n); }catch(e){}
   return n;
 }
+// Groepsberichten (met je locatie) versleuteld: de sleutel komt uit de groepscode, het kanaal is een hash daarvan.
+// ntfy.sh ziet dus alleen onleesbare tekst en kan de code niet uit de kanaalnaam halen. Zonder WebCrypto: het oude kanaal.
+const gCry = {code:null, key:null, topic:null};
+const b64 = u8 => btoa(String.fromCharCode(...u8)), unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function gKeys(){
+  if(gCry.code === G.code) return gCry;
+  gCry.code = G.code; gCry.key = null; gCry.topic = null;
+  try{
+    if(!crypto?.subtle) throw 0;
+    const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(G.code), "PBKDF2", false, ["deriveKey"]);
+    gCry.key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:enc.encode("skipilot-groep-v2"), iterations:120000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt", "decrypt"]);
+    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("skipilot-kanaal-v2:" + G.code)));
+    gCry.topic = "skipilot-g-" + [...h.slice(0, 12)].map(x => x.toString(16).padStart(2, "0")).join("");
+  }catch(e){ gCry.key = null; gCry.topic = null; }
+  return gCry;
+}
+async function gSeal(obj){
+  const k = await gKeys(); if(!k.key) return JSON.stringify(obj);
+  const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, k.key, new TextEncoder().encode(JSON.stringify(obj))));
+  return JSON.stringify({e:2, iv:b64(iv), c:b64(ct)});
+}
+async function gOpen(raw){
+  const m = JSON.parse(raw); if(m.e !== 2) return gCry.key ? null : m;   // op het versleutelde kanaal alleen versleutelde berichten
+  const k = await gKeys(); if(!k.key) return null;
+  try{ return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(m.iv)}, k.key, unb64(m.c)))); }catch(e){ return null; }
+}
 async function gSend(obj){
   if(!G.code) return false;
-  const msg = JSON.stringify({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj});
+  const msg = await gSeal({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj});
   try{
-    const r = await fetch(NTFY + gTopic(), {method:"POST", body:msg});
+    const r = await fetch(NTFY + ((await gKeys()).topic || gTopic()), {method:"POST", body:msg});
     if(r.status === 429){ G.conn = "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw."; renderGroup(); return false; }
     if(r.ok) sentToday(1);
     return r.ok;
   }catch(e){ return false; }
 }
-function gConnect(){
+async function gConnect(){
   if(!G.code) return;
   G.es?.close();
   G.members = new Map();
   G.conn = "Verbinden…"; renderGroup();
-  const es = new EventSource(`${NTFY}${gTopic()}/sse?since=3h`);
+  const topic = (await gKeys()).topic || gTopic();
+  const es = new EventSource(`${NTFY}${topic}/sse?since=3h`);
   G.es = es;
   es.onopen = () => { G.conn = ""; renderGroup(); };
   es.onerror = () => { G.conn = navigator.onLine ? "Verbinding met de groep herstellen…" : "Geen internet. Je ziet de groep weer zodra je verbinding hebt."; renderGroup(); };
-  es.onmessage = ev => {
-    let m, d; try{ m = JSON.parse(ev.data); if(m.event !== "message") return; d = JSON.parse(m.message); d.srv = m.time * 1000; }catch(e){ return; }
+  es.onmessage = async ev => {
+    let m, d; try{ m = JSON.parse(ev.data); if(m.event !== "message") return; d = await gOpen(m.message); if(!d) return; d.srv = m.time * 1000; }catch(e){ return; }
     if(!d || d.v !== 1 || !d.id) return;
     gHandle(d);
   };
@@ -3323,8 +3350,8 @@ async function renderOffline(){
   box.innerHTML = `<p class="label">Offline</p>
     <p class="off-line ${ok ? "ok" : ""}">${I(ok ? "check" : "cloud")}<span>${ok ? `<b>${esc(A.row[1])} staat op je telefoon.</b> Pistes, liften, routes, navigatie, status en dagboek werken zonder bereik.` : `<b>Nog niet offline.</b> Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.`}</span></p>
     <p class="off-line">${I("snow")}<span>${wx ? `Laatste weerbericht bewaard om ${new Date(wx.t).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}.` : "Nog geen weerbericht bewaard."}</span></p>
-    <p class="off-line">${I("layers")}<span>Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.</span></p>
-    ${window.PP_STORE === "web" || window.PP_STORE === "play" ? `<button type="button" class="btn ghost m-wide" id="dlArea">${I("down")}${localStorage.getItem("pp-dl-" + A.id) ? tr("Gebied opnieuw downloaden") : tr("Download de hele winterkaart en 3D")}</button>` : ""}`;
+    <p class="off-line">${I("layers")}<span>${tr("De winterkaart, de steilheid en 3D werken zonder bereik als je het gebied hebt gedownload. Satelliet- en terreinkaart alleen met internet.")}</span></p>
+    ${true ? `<button type="button" class="btn ghost m-wide" id="dlArea">${I("down")}${localStorage.getItem("pp-dl-" + A.id) ? tr("Gebied opnieuw downloaden") : tr("Download de hele winterkaart en 3D")}</button>` : ""}`;
   $("dlArea")?.addEventListener("click", e => { e.stopPropagation(); downloadArea(e.currentTarget); });
 }
 $("layersBtn").addEventListener("click", () => setTimeout(renderOffline, 0));
@@ -4852,6 +4879,9 @@ async function snowReportBox(ch){
   const list = await snowReports(A, key); if($("srList")) $("srList").innerHTML = snowReportHtml(list);
   box.querySelectorAll("[data-sr]").forEach(b => b.onclick = async () => {
     const last = +(localStorage.getItem("pp-sr-" + key) || 0); if(Date.now() - last < 30 * 60e3){ toast(tr("Je hebt deze piste net al beoordeeld.")); return; }
+    if(!S.pos || !A.bounds.pad(.05).contains([S.pos.lat, S.pos.lon])){ toast(tr("Beoordelen kan alleen als je zelf in dit skigebied bent."), 3500); return; }
+    const dayN = +(localStorage.getItem("pp-sr-n-" + todayKey()) || 0); if(dayN >= 20){ toast(tr("Genoeg beoordelingen voor vandaag. Bedankt!")); return; }
+    localStorage.setItem("pp-sr-n-" + todayKey(), String(dayN + 1));
     try{ await fetch(NTFY + snowTopic(A), {method:"POST", body:JSON.stringify({g:key, k:b.dataset.sr}), headers:{"X-Cache":"yes"}}); localStorage.setItem("pp-sr-" + key, String(Date.now()));
       buzz("success"); toast(tr("Bedankt! Andere skiërs zien je bericht.")); list.push({k:b.dataset.sr, ts:Date.now()}); if($("srList")) $("srList").innerHTML = snowReportHtml(list);
     }catch(e){ toast(tr("Versturen lukte niet. Geen verbinding?")); }
@@ -4969,12 +4999,13 @@ async function hutHours(h){
 }
 // ---- het hele gebied downloaden (website): hoogtetegels voor de winterkaart en 3D, zoom 10-14 ----
 async function downloadArea(btn){
-  const A = S.area; if(!A || !("caches" in window)) return;
+  const A = S.area;
+  if(!A) return;
   const b = A.bounds, tiles = [];
   for(let z = 10; z <= 14; z++){ const n = 2 ** z, X = lo => Math.floor((lo + 180) / 360 * n), Y = la => { const s = Math.sin(la * Math.PI / 180); return Math.floor((.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n); };
-    for(let x = X(b.getWest() - .02); x <= X(b.getEast() + .02); x++) for(let y = Y(b.getNorth() + .015); y <= Y(b.getSouth() - .015); y++) tiles.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`); }
+    for(let x = X(b.getWest() - .02); x <= X(b.getEast() + .02); x++) for(let y = Y(b.getNorth() + .015); y <= Y(b.getSouth() - .015); y++) tiles.push([z, x, y]); }
   let done = 0, bytes = 0; btn.disabled = true;
-  const one = async u => { try{ const r = await fetch(u); if(r.ok){ bytes += +(r.headers.get("content-length") || 0) || (await r.clone().blob()).size; } }catch(e){} done++;
+  const one = async ([z, x, y]) => { try{ const r = await PPterrain.get("keep", z, x, y, 1); bytes += r?.size || 0; }catch(e){} done++;
     btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(done / tiles.length * 100)}%`; };
   for(let i = 0; i < tiles.length; i += 6) await Promise.all(tiles.slice(i, i + 6).map(one));
   btn.disabled = false; btn.innerHTML = `${I("check")}${tr("Klaar")} · ${(bytes / 1048576).toFixed(1).replace(".", DEC)} MB`;
@@ -5216,7 +5247,7 @@ function swipeDismiss(el){
 ["today", "me", "plan", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
 
 // ================= menu en instellingen =================
-const APP_VERSION = "2.0";
+const APP_VERSION = "1.1.0";
 function applyTheme(){
   // standaard licht: de ijsblauwe huisstijl (in het menu kun je automatisch of donker kiezen)
   let t = "light"; try{ t = localStorage.getItem("pp-theme") || "light"; }catch(e){}

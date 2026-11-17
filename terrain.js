@@ -39,6 +39,25 @@
     return h;
   }
 
+  // Hoogtetegels blijven op de telefoon bewaard (IndexedDB, werkt ook in de apps en in deze worker): bergen veranderen niet,
+  // dus eerst uit de opslag, en zonder bereik blijven de winterkaart, de steilheid en 3D gewoon werken.
+  const IDB = (() => { let p; return () => p ||= new Promise((ok, bad) => { if(typeof indexedDB === "undefined") return bad(new Error("geen opslag"));
+    const r = indexedDB.open("pp-dem", 1); r.onupgradeneeded = () => r.result.createObjectStore("t"); r.onsuccess = () => ok(r.result); r.onerror = () => bad(r.error); }); })();
+  async function idbGet(k){ try{ const db = await IDB(); return await new Promise(ok => { const q = db.transaction("t").objectStore("t").get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }); }catch(e){ return null; } }
+  let puts = 0;
+  async function idbPut(k, blob){
+    try{ const db = await IDB(); db.transaction("t", "readwrite").objectStore("t").put(blob, k);
+      if(++puts % 200 === 0){ const st = db.transaction("t", "readwrite").objectStore("t"), c = st.count();
+        c.onsuccess = () => { let drop = c.result - 8000; if(drop <= 0) return; const cur = st.openKeyCursor(); cur.onsuccess = () => { const x = cur.result; if(!x || drop-- <= 0) return; st.delete(x.key); x.continue(); }; }; }
+    }catch(e){}
+  }
+  async function demBlob(z, x, y){
+    const k = `${z}/${x}/${y}`, hit = await idbGet(k); if(hit) return hit;
+    const res = await fetch(demURL(z, x, y));
+    if(!res.ok) throw new Error(`hoogtetegel ${res.status}`);
+    const b = await res.blob(); idbPut(k, b); return b;
+  }
+
   // opgeschoonde hoogtetegel: {img: ImageData (terrarium-kleuren), h: hoogtes, w}; de laatste 160 blijven bewaard
   const cache = new Map();
   function dem(z, x, y){
@@ -49,9 +68,7 @@
     let p = cache.get(k);
     if(p){ cache.delete(k); cache.set(k, p); return p; }
     p = (async () => {
-      const res = await fetch(demURL(z, x, y));
-      if(!res.ok) throw new Error(`hoogtetegel ${res.status}`);
-      const bmp = await bitmap(await res.blob()), cx = canvas2d(bmp.width, bmp.height);
+      const bmp = await bitmap(await demBlob(z, x, y)), cx = canvas2d(bmp.width, bmp.height);
       cx.drawImage(bmp, 0, 0); bmp.close?.();
       const img = cx.getImageData(0, 0, cx.canvas.width, cx.canvas.height);
       return {img, h:despike(img, z), w:img.width};
@@ -220,6 +237,7 @@
   // klaar getekende wintertegels bewaren: terug-pannen of tussen 2D en 3D wisselen hoeft dan niet opnieuw te rekenen
   const done = new Map();
   async function make(kind, z, x, y, r){
+    if(kind === "keep"){ const b = await demBlob(z, x, y); return {size:b.size}; }
     if(kind === "dem"){ const t = await dem(z, x, y); if(!t) throw new Error("buiten de kaart"); return bitmap(t.img); }
     if(kind === "slope") return bitmap(await slope(z, x, y, r || 1));
     const k = `${z}/${x}/${y}/${r || 1}`;
@@ -242,7 +260,7 @@
     const pump = () => {
       while(running < 6 && queue.length){
         const {id, kind, z, x, y, r} = queue.pop(); running++;
-        make(kind, z, x, y, r).then(bmp => self.postMessage({id, bmp}, [bmp]), e => self.postMessage({id, err:String(e.message || e)}))
+        make(kind, z, x, y, r).then(bmp => self.postMessage({id, bmp}, typeof ImageBitmap !== "undefined" && bmp instanceof ImageBitmap ? [bmp] : []), e => self.postMessage({id, err:String(e.message || e)}))
           .finally(() => { running--; pump(); });
       }
     };

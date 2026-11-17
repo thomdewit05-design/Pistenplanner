@@ -9,7 +9,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // bouwnummer telt GitHub op (VERSION_CODE); het versienummer houden we gelijk aan de iOS-app
         versionCode((System.getenv("VERSION_CODE") ?: "1") as Integer)
-        versionName "1.0.1"
+        versionName "1.1.0"
         // AdMob-app-ID van de Android-app; zonder geheim het proef-ID van Google
         manifestPlaceholders = [admobAppId: System.getenv("ADMOB_ANDROID_APP_ID") ?: "ca-app-pub-3940256099942544~3347511713"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
