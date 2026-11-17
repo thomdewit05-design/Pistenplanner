@@ -8,7 +8,12 @@
 // Niet in de iOS-app (capacitor://), niet in de Android-app (?src=play), niet bij lokaal testen en niet met ?web.
 (function(){ try{
   var play = /[?&]src=play\b/.test(location.search) || document.referrer.indexOf("android-app://") === 0 || sessionStorage.getItem("pp-store") === "play";
-  if(/\.github\.io$/.test(location.hostname) && !play && !/[?&]web\b/.test(location.search)) location.replace("https://apps.apple.com/app/id6827621361");
+  if(/\.github\.io$/.test(location.hostname) && !play && !/[?&]web\b/.test(location.search)){
+    var store = "https://apps.apple.com/app/id6827621361";
+    // een uitnodiging (#gebied/g/CODE): eerst de app proberen te openen, anders naar de App Store
+    if(/\/g\/[A-Za-z0-9]{4,}/.test(location.hash)){ location.href = "skipilot://open/" + location.hash.slice(1); setTimeout(function(){ location.replace(store); }, 1600); }
+    else location.replace(store);
+  }
 }catch(e){} })();
 </script>
 <title>Skipilot</title>
@@ -26,7 +31,7 @@
 <link rel="preload" href="vendor/fonts/BarlowCondensed-700-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="app.css?v=68">
+<link rel="stylesheet" href="app.css?v=69">
 </head>
 <body>
 <!-- iconenset -->
@@ -562,13 +567,13 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="config.js?v=68"></script>
-<script src="ads.js?v=68"></script>
+<script src="config.js?v=69"></script>
+<script src="ads.js?v=69"></script>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="i18n.js?v=68"></script>
-<script src="terrain.js?v=68"></script>
-<script src="map3d.js?v=68"></script>
-<script src="app.js?v=68"></script>
+<script src="i18n.js?v=69"></script>
+<script src="terrain.js?v=69"></script>
+<script src="map3d.js?v=69"></script>
+<script src="app.js?v=69"></script>
 </body>
 </html>

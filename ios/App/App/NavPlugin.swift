@@ -2,6 +2,7 @@ import Capacitor
 import CoreLocation
 import AppTrackingTransparency
 import UIKit
+import StoreKit
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -18,7 +19,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pending", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -103,6 +105,17 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     // SceneDelegate zodra de app actief is; deze methode wacht tot er een antwoord is en geeft dat door.
     @objc func tracking(_ call: CAPPluginCall) {
         Tracking.whenDecided { call.resolve(["status": $0]) }
+    }
+
+    // ---------- beoordelen in de App Store ----------
+    // Apples eigen sterrenvenster; iOS beslist zelf of het verschijnt (hooguit 3x per jaar).
+    @objc func review(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else { return call.resolve(["shown": false]) }
+            if #available(iOS 16.0, *) { AppStore.requestReview(in: scene) } else { SKStoreReviewController.requestReview(in: scene) }
+            call.resolve(["shown": true])
+        }
     }
 
     // ---------- GPS ----------
