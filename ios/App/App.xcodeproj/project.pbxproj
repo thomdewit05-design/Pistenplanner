@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */; };
+		5A1E0C0100000000000000A5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A2 /* Assets.xcassets */; };
+		5A1E0C0100000000000000A6 /* SkipilotWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A3 /* SkipilotWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A7C1E0010000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */; };
 		A7C1E0010000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A7C1E0010000000000000003 /* PrivacyInfo.xcprivacy */; };
 		0296FF2E61BE78B0E7224F46 /* SkipilotWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F02783FDDBC54DB6C925265A /* SkipilotWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -34,6 +37,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		5A1E0C0100000000000000AF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A1E0C0100000000000000A8;
+			remoteInfo = SkipilotWatch;
+		};
 		6FD4E1020F1D53610CC5B3F1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
@@ -44,6 +54,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		5A1E0C0100000000000000B1 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				5A1E0C0100000000000000A6 /* SkipilotWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7D964FE5C08E6118405E0614 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -58,6 +79,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipilotWatchApp.swift; sourceTree = "<group>"; };
+		5A1E0C0100000000000000A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5A1E0C0100000000000000A3 /* SkipilotWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SkipilotWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A7C1E0010000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0593BB6A375A0228C3C7F312 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -89,6 +113,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		5A1E0C0100000000000000AB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3011FED79650016851F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -136,6 +167,7 @@
 				504EC3051FED79650016851F /* Products */,
 				49C4762EBAB03D65F18201C6 /* Frameworks */,
 				CAA02B3ECF46102CEACCA2E7 /* SkipilotWidget */,
+				5A1E0C0100000000000000A7 /* SkipilotWatch */,
 			);
 			sourceTree = "<group>";
 		};
@@ -144,6 +176,7 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				F02783FDDBC54DB6C925265A /* SkipilotWidget.appex */,
+				5A1E0C0100000000000000A3 /* SkipilotWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -185,9 +218,35 @@
 			path = SkipilotWidget;
 			sourceTree = "<group>";
 		};
+		5A1E0C0100000000000000A7 /* SkipilotWatch */ = {
+			isa = PBXGroup;
+			children = (
+				5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */,
+				5A1E0C0100000000000000A2 /* Assets.xcassets */,
+			);
+			path = SkipilotWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		5A1E0C0100000000000000A8 /* SkipilotWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A1E0C0100000000000000AC /* Build configuration list for PBXNativeTarget "SkipilotWatch" */;
+			buildPhases = (
+				5A1E0C0100000000000000A9 /* Sources */,
+				5A1E0C0100000000000000AB /* Frameworks */,
+				5A1E0C0100000000000000AA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SkipilotWatch;
+			productName = SkipilotWatch;
+			productReference = 5A1E0C0100000000000000A3 /* SkipilotWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		2B10A8FEB415624FB9BD3490 /* SkipilotWidget */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 82C49F9929CF26EE47FC9039 /* Build configuration list for PBXNativeTarget "SkipilotWidget" */;
@@ -213,11 +272,13 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				7D964FE5C08E6118405E0614 /* Embed Foundation Extensions */,
+				5A1E0C0100000000000000B1 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				7F323A92997E65A3F8460EE3 /* PBXTargetDependency */,
+				5A1E0C0100000000000000B0 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -261,11 +322,20 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				2B10A8FEB415624FB9BD3490 /* SkipilotWidget */,
+				5A1E0C0100000000000000A8 /* SkipilotWatch */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5A1E0C0100000000000000AA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A1E0C0100000000000000A5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3021FED79650016851F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -291,6 +361,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		5A1E0C0100000000000000A9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3001FED79650016851F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -319,6 +397,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5A1E0C0100000000000000B0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = SkipilotWatch;
+			target = 5A1E0C0100000000000000A8 /* SkipilotWatch */;
+			targetProxy = 5A1E0C0100000000000000AF /* PBXContainerItemProxy */;
+		};
 		7F323A92997E65A3F8460EE3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = SkipilotWidget;
@@ -557,6 +641,64 @@
 			};
 			name = Release;
 		};
+		5A1E0C0100000000000000AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Skipilot;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = nl.skipilot.app;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.skipilot.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		5A1E0C0100000000000000AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Skipilot;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = nl.skipilot.app;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.skipilot.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -583,6 +725,15 @@
 			buildConfigurations = (
 				DA03263E62AE37C7C06E75F0 /* Release */,
 				B2CBEABB721B2CF45933F3C2 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A1E0C0100000000000000AC /* Build configuration list for PBXNativeTarget "SkipilotWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A1E0C0100000000000000AD /* Debug */,
+				5A1E0C0100000000000000AE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
