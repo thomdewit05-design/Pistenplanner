@@ -1820,3 +1820,24 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 .switch span small{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
 .g-rank .rank-seg button{border:0!important;background:transparent!important;color:var(--muted)!important}
 .g-rank .rank-seg button[aria-pressed="true"]{background:#1F7FD6!important;color:#fff!important}
+
+/* Tabbalk lager: dicht boven de thuisbalk van de iPhone, zoals in iOS zelf */
+.tabbar{bottom:max(10px,calc(var(--safe-b) - 8px))}
+body{--tab-h:68px}
+body.following,body.drawing,body.rp-on{--tab-h:0px}
+
+/* Knoppen: tekst altijd netjes binnen de knop, in alle talen */
+.btn{line-height:1.2;text-align:center;text-wrap:balance;min-width:0}
+.btn .ic,.chip .ic{flex:none}
+.g-join{grid-template-columns:minmax(0,1fr) auto}
+.g-join input{min-width:0;width:100%}
+.g-join .btn,.ios .g-join .btn{white-space:nowrap;padding:0 16px;min-width:max-content}
+.wx-retry{flex:none;white-space:nowrap}
+.peek-empty .cta .btn.ghost{flex:1 1 auto;white-space:nowrap}
+.st-actions{display:flex;flex-wrap:wrap}
+.st-actions .btn{flex:1 1 auto;white-space:nowrap}
+.m-btns{display:flex!important;flex-wrap:wrap;gap:8px}
+.m-btns .btn{flex:1 1 auto;white-space:nowrap;padding-left:16px;padding-right:16px}
+.sos-btns .btn{white-space:nowrap;padding-left:12px;padding-right:12px;min-width:0}
+.tabbar button span{white-space:nowrap}
+.seg button{line-height:1.2;text-wrap:balance}

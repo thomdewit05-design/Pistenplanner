@@ -3,6 +3,7 @@ import CoreLocation
 import AppTrackingTransparency
 import UIKit
 import StoreKit
+import WatchConnectivity
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -89,6 +90,7 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
             #if canImport(ActivityKit)
             if #available(iOS 16.2, *) { self.endLive() }
             #endif
+            WatchLink.shared.send(["nav": [String: Any]()])
             call.resolve()
         }
     }
@@ -124,6 +126,10 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     // Vanuit de webapp: Capacitor.nativePromise("Nav", "day", {action: "update" | "stop", km, hm, vmax, runs, since, area, lang})
     private var dayActivity: Any? = nil
     @objc func day(_ call: CAPPluginCall) {
+        if call.getString("action") == "stop" { WatchLink.shared.send(["day": [String: Any]()]) }
+        else { WatchLink.shared.send(["day": ["km": call.getDouble("km") ?? 0, "hm": call.getInt("hm") ?? 0, "vmax": call.getInt("vmax") ?? 0,
+                                              "runs": call.getInt("runs") ?? 0, "since": (call.getDouble("since") ?? 0) / 1000,
+                                              "area": call.getString("area") ?? ""]]) }
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             let action = call.getString("action") ?? "update"
@@ -227,6 +233,9 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         let arrived = last && dist < 30
         let alert = tap && alerted != idx && (arrived || (!last && dist <= 120))
         if alert { alerted = idx }
+        WatchLink.shared.send(["nav": ["dist": dist, "instruction": s.next, "icon": last ? "flag.checkered" : s.icon, "current": s.title,
+                                        "eta": now.addingTimeInterval(leftMin * 60).timeIntervalSince1970, "badge": s.badge ?? "",
+                                        "color": s.color ?? "", "arrived": arrived, "dest": dest]], tap: alert)
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             updateLive(NavAttributes.ContentState(dist: dist, instruction: s.next, icon: last ? "flag.checkered" : s.icon,
@@ -315,4 +324,34 @@ enum Tracking {
         waiters = []
         w.forEach { $0(s) }
     }
+}
+
+// Verbinding met de Skipilot-app op de Apple Watch: navigatie en je skidag gaan als "application context"
+// naar het horloge (komt ook aan als de horloge-app later opent); een afslag gaat er direct heen voor een tikje op je pols.
+final class WatchLink: NSObject, WCSessionDelegate {
+    static let shared = WatchLink()
+    private var context: [String: Any] = [:]
+    private var lastSent = Date.distantPast
+
+    override init() {
+        super.init()
+        if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
+    }
+
+    func send(_ part: [String: Any], tap: Bool = false) {
+        guard WCSession.isSupported() else { return }
+        let s = WCSession.default
+        guard s.activationState == .activated, s.isPaired, s.isWatchAppInstalled else { return }
+        for (k, v) in part { context[k] = v }
+        context["ts"] = Date().timeIntervalSince1970
+        if tap && s.isReachable { s.sendMessage(["tap": true, "ctx": context], replyHandler: nil, errorHandler: nil) }
+        if tap || Date().timeIntervalSince(lastSent) > 3 {
+            lastSent = Date()
+            try? s.updateApplicationContext(context)
+        }
+    }
+
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    func sessionDidBecomeInactive(_ session: WCSession) {}
+    func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
 }
