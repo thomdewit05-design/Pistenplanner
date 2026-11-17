@@ -176,10 +176,52 @@
     return out;
   }
 
+  // ---------- steilheidskaart ----------
+  // Doorzichtige tegel: hellingen van 30-35° geel, 35-40° oranje, 40-45° rood, steiler paars (zoals op lawinekaarten).
+  // Zelfde hoogteraster als de winterkaart, dus geen extra downloads.
+  const SLOPE_COL = [[30, 255, 214, 0, 120], [35, 255, 140, 0, 140], [40, 232, 44, 44, 150], [45, 150, 40, 170, 160]];
+  async function slope(z, x, y, r = 1){
+    const S = 256 * r, zd = Math.min(DEM_MAX, z), sc = 2 ** (z - zd) * r;
+    const gx0 = Math.floor(((x * 256) - 2) * r / sc), gx1 = Math.floor(((x * 256) + 258) * r / sc);
+    const gy0 = Math.floor(((y * 256) - 2) * r / sc), gy1 = Math.floor(((y * 256) + 258) * r / sc);
+    const tiles = new Map(), jobs = [];
+    for(let ty = Math.floor(gy0 / 256); ty <= Math.floor(gy1 / 256); ty++)
+      for(let tx = Math.floor(gx0 / 256); tx <= Math.floor(gx1 / 256); tx++)
+        jobs.push(dem(zd, tx, ty).then(t => tiles.set(`${tx}/${ty}`, t), () => {}));
+    await Promise.all(jobs);
+    const any = [...tiles.values()].find(Boolean);
+    if(!any) throw new Error("geen hoogtegegevens");
+    const N = 2 ** zd * 256;
+    const hAt = (gx, gy) => { gx = Math.min(N - 1, Math.max(0, gx)); gy = Math.min(N - 1, Math.max(0, gy));
+      const tx = Math.floor(gx / 256), ty = Math.floor(gy / 256), t = tiles.get(`${tx}/${ty}`) || any; return t.h[(gy - ty * 256) * t.w + (gx - tx * 256)]; };
+    const E = S + 2, hh = new Float32Array(E * E);
+    for(let j = -1; j <= S; j++){
+      const v = ((y * 256) * r + j + .5) / sc - .5, v0 = Math.floor(v), fv = v - v0;
+      for(let i = -1; i <= S; i++){
+        const u = ((x * 256) * r + i + .5) / sc - .5, u0 = Math.floor(u), fu = u - u0;
+        hh[(j + 1) * E + i + 1] = mix(mix(hAt(u0, v0), hAt(u0 + 1, v0), fu), mix(hAt(u0, v0 + 1), hAt(u0 + 1, v0 + 1), fu), fv);
+      }
+    }
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + .5) / 2 ** z)));
+    const mpp = 40075016.686 * Math.cos(lat) / (256 * r * 2 ** z);
+    const out = new ImageData(S, S), o = out.data;
+    for(let j = 0; j < S; j++) for(let i = 0; i < S; i++){
+      const k = (j + 1) * E + i + 1;
+      const a = hh[k - E - 1], b = hh[k - E], c = hh[k - E + 1], d = hh[k - 1], f = hh[k + 1], g = hh[k + E - 1], q = hh[k + E], s = hh[k + E + 1];
+      const dzE = ((c + 2 * f + s) - (a + 2 * d + g)) / (8 * mpp), dzN = ((a + 2 * b + c) - (g + 2 * q + s)) / (8 * mpp);
+      const deg = Math.atan(Math.sqrt(dzE * dzE + dzN * dzN)) * 57.2958;
+      if(deg < 30 || hh[k] <= .5) continue;
+      let col = SLOPE_COL[0]; for(const cc of SLOPE_COL) if(deg >= cc[0]) col = cc;
+      const p = (j * S + i) * 4; o[p] = col[1]; o[p+1] = col[2]; o[p+2] = col[3]; o[p+3] = col[4];
+    }
+    return out;
+  }
+
   // klaar getekende wintertegels bewaren: terug-pannen of tussen 2D en 3D wisselen hoeft dan niet opnieuw te rekenen
   const done = new Map();
   async function make(kind, z, x, y, r){
     if(kind === "dem"){ const t = await dem(z, x, y); if(!t) throw new Error("buiten de kaart"); return bitmap(t.img); }
+    if(kind === "slope") return bitmap(await slope(z, x, y, r || 1));
     const k = `${z}/${x}/${y}/${r || 1}`;
     let img = done.get(k);
     if(img){ done.delete(k); done.set(k, img); }
