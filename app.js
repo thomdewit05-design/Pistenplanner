@@ -58,9 +58,9 @@ const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, targe
 const FIRST_RUN = (() => { try{ return !localStorage.getItem("pistenplanner-app") && !localStorage.getItem("pp-onboarded"); }catch(e){ return false; } })();
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"winter",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -143,6 +143,15 @@ const baseLayers = {
     }
   }))({maxZoom:19, maxNativeZoom:16, keepBuffer:3, attribution:'Winterkaart van Skipilot · hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen Terrain Tiles</a> · wegen en namen: Esri'})
 };
+// steilheidskaart: hellingen van 30° en steiler gekleurd (terrain.js rekent het uit de hoogtetegels)
+map.createPane("slope").style.cssText = "z-index:350;pointer-events:none";
+const slopeLayer = new (L.GridLayer.extend({
+  createTile(c, done){
+    const t = document.createElement("canvas"); t.width = t.height = 256;
+    PPterrain.get("slope", c.z, c.x, c.y, 1).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+    return t;
+  }
+}))({pane:"slope", minZoom:11, maxZoom:19, maxNativeZoom:15, opacity:.85, keepBuffer:2});
 const roadsLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.8});
 const labelLayer = tiles("labels", "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
@@ -164,6 +173,7 @@ function applyBase(){
   S.base==="winter" ? roadsLayer.addTo(map) : roadsLayer.remove();
   if(M3.mode) for(const l of [...Object.values(baseLayers), labelLayer, roadsLayer]) l.remove();   // onder de 3D-kaart niets laden
   S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
+  S.slopeOn && !M3.mode ? slopeLayer.addTo(map) : slopeLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums; $("showPeaks").checked = S.peaksOn;
   if(typeof drawNumbers === "function") drawNumbers();
@@ -419,7 +429,7 @@ function drawPistes(){
   persistStatus();
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
   st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
-  drawSun();
+  drawSun(); drawHeat();
   M3.sync("pistes");
 }
 // paneel opzij: op een groot scherm, of op een liggende telefoon
@@ -890,11 +900,12 @@ function renderResult(){
     <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
-      <button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
+      ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn">${I("layers")}Vlieg door de route</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
       ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("povBtn")?.addEventListener("click", () => setPov(true));
   $("valleyBtn").onclick = e => valleyChoice(e.currentTarget);
+  $("flyBtn")?.addEventListener("click", flyRoute);
   $("clearBtn").onclick = clearRoute;
   $("homeBtn")?.addEventListener("click", goHome);
   $("gSendBtn")?.addEventListener("click", sendPlan);
@@ -1776,7 +1787,7 @@ function renderWeather(d, savedAt){
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
   const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
   const depth = Math.round((c.snow_depth || 0) * 100);
-  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id}; S.wxFail = null;
+  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id}; S.wxFail = null; M3.sync("sky");
   if(!$("today").hidden) setTimeout(renderToday, 0);
   $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
     <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
@@ -2556,14 +2567,48 @@ function diaryLive(){
   if(D.rec) checkBadges();
   if(!$("diary").hidden) renderDiary();
 }
+// spoor in stukjes met een kleur naar snelheid (gemiddeld over een paar punten, tegen gps-sprongen)
+const SPEED_COLS = [[0, "#2B7FC4"], [20, "#1F9D57"], [35, "#E0A100"], [50, "#F06A1D"], [65, "#D9264B"]];
+function speedSegments(day){
+  const P = day.pts, out = [];
+  for(let i = 1; i < P.length; i++){
+    const a = P[Math.max(0, i - 2)], b = P[i], dt = b[0] - a[0];
+    let dd = 0; for(let k = Math.max(1, i - 1); k <= i; k++) dd += meters(P[k-1][1]/1e5, P[k-1][2]/1e5, P[k][1]/1e5, P[k][2]/1e5);
+    const d2 = meters(a[1]/1e5, a[2]/1e5, b[1]/1e5, b[2]/1e5), kmh = dt > 0 && dt < 60 ? d2 / dt * 3.6 : 0;
+    let col = SPEED_COLS[0][1]; for(const [v, c] of SPEED_COLS) if(kmh >= v) col = c;
+    if(b[5] === 1) col = "#7C3AED";
+    if(meters(P[i-1][1]/1e5, P[i-1][2]/1e5, b[1]/1e5, b[2]/1e5) > 400) continue;   // gat in de gps: geen rechte streep tekenen
+    out.push({ll:[[P[i-1][1]/1e5, P[i-1][2]/1e5], [b[1]/1e5, b[2]/1e5]], kmh:b[5] === 1 ? 0 : kmh, col, dd});
+  }
+  return out;
+}
+// heatmap: al je sporen in dit gebied samen als gloed (waar skiede je het meest?)
+map.createPane("heat").style.cssText = "z-index:395;pointer-events:none";
+const heatR = L.canvas({padding:.3, pane:"heat"}), heatLayer = L.layerGroup().addTo(map);
+function drawHeat(){
+  heatLayer.clearLayers();
+  const A = S.area; if(!A || !S.heatOn) return;
+  let n = 0;
+  for(const d of listDays()){ const x = loadDay(d); if(!x || x.area !== A.id || x.pts.length < 2) continue; n++;
+    const ll = x.pts.map(p => [p[1]/1e5, p[2]/1e5]);
+    L.polyline(ll, {renderer:heatR, interactive:false, color:"#FF5A1F", weight:10, opacity:.16, lineJoin:"round", lineCap:"round"}).addTo(heatLayer);
+    L.polyline(ll, {renderer:heatR, interactive:false, color:"#FFD24A", weight:3, opacity:.35, lineJoin:"round"}).addTo(heatLayer); }
+  $("heatInfo").hidden = false;
+  $("heatInfo").textContent = n ? `${n} ${n === 1 ? tr("skidag") : tr("skidagen")} ${tr("in dit gebied")}` : tr("Nog geen skidagen in dit gebied.");
+}
 function drawTrack(){
   trackLayer.clearLayers();
   if(!D.show) return;
   const k = D.view || todayKey(), day = k === todayKey() ? (D.day?.date === k ? D.day : loadDay(k)) : loadDay(k);
   if(!day || day.pts.length < 2) return;
   const pts = day.pts.map(p => [p[1]/1e5, p[2]/1e5]);
-  L.polyline(pts, {renderer:svgR, interactive:false, color:"#ffffff", weight:7, opacity:.6, lineJoin:"round"}).addTo(trackLayer);
-  L.polyline(pts, {renderer:svgR, interactive:false, color:"#7C3AED", weight:4, opacity:.95, lineJoin:"round"}).addTo(trackLayer);
+  L.polyline(pts, {renderer:svgR, interactive:false, color:"#ffffff", weight:7, opacity:.7, lineJoin:"round"}).addTo(trackLayer);
+  // kleur naar snelheid: rustig blauw, via groen en geel naar rood (snel); liften paars
+  const segs = speedSegments(day), groups = new Map();
+  for(const sg of segs){ const g = groups.get(sg.col) || []; g.push(sg.ll); groups.set(sg.col, g); }
+  for(const [col, lines] of groups) L.polyline(lines, {renderer:svgR, interactive:false, color:col, weight:4.5, opacity:.95, lineJoin:"round", lineCap:"round"}).addTo(trackLayer);
+  const top = segs.reduce((m, x) => x.kmh > (m?.kmh || 0) && x.kmh < 130 ? x : m, null);
+  if(top && top.kmh > 8) L.marker(top.ll[1], {interactive:false, keyboard:false, zIndexOffset:500, icon:L.divIcon({className:"", iconSize:[0,0], html:`<span class="top-pin">${I("speed")}${Math.round(top.kmh)} km/u</span>`})}).addTo(trackLayer);
   for(const j of day.jumps || []) if(j[2] != null) L.marker([j[2], j[3]], {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:[0,0], html:`<span class="jump-pin">${I("flag")}${airTxt(j[1])} s</span>`})}).addTo(trackLayer);
 }
 function renderDiary(){
@@ -2623,6 +2668,32 @@ function renderDiary(){
   });
 }
 // je skidag terugkijken op de 3D-kaart: de camera vliegt langs je spoor
+// vooraf door je route vliegen: de 3D-camera volgt de route, de blauwe lijn groeit mee
+async function flyRoute(){
+  if(!S.path?.length) return;
+  const coords = [];
+  for(const s of S.path){ const pts = s.rev ? [...s.e.pts].reverse() : s.e.pts; for(const p of pts){ const c = [p[1], p[0]]; const l = coords[coords.length - 1]; if(!l || l[0] !== c[0] || l[1] !== c[1]) coords.push(c); } }
+  if(coords.length < 2) return;
+  if(!await open3dForReplay()) return;
+  document.querySelector(".rp-bar")?.remove();
+  const bar = document.createElement("div"); bar.className = "rp-bar";
+  bar.innerHTML = `<span>${I("play")}${tr("Je route in 3D")}</span><button type="button" class="btn" id="rpStop">${I("close")}Stoppen</button>`;
+  document.body.appendChild(bar); document.body.classList.add("rp-on");
+  const end = () => { M3.stopReplay(); bar.remove(); document.body.classList.remove("rp-on"); };
+  $("rpStop").onclick = end;
+  if(!M3.replay(coords, () => { bar.querySelector(":scope > span").innerHTML = `${I("check")}${tr("Klaar voor de start!")}`; $("rpStop").innerHTML = `${I("close")}${tr("Sluiten")}`; }, {color:"#1F7FD6", speed:2.2})) end();
+}
+async function open3dForReplay(){
+  if(!M3.loaded()){
+    document.body.classList.add("m3-loading");
+    try{ await M3.load(); }catch(e){ document.body.classList.remove("m3-loading"); toast("De 3D-kaart kon niet laden. Probeer het later opnieuw."); return false; }
+    document.body.classList.remove("m3-loading");
+  }
+  if(!S.t3d){ S.t3d = true; save(); }
+  apply3d();
+  if(M3.mode !== "view"){ toast("De 3D-kaart kon niet openen."); return false; }
+  return true;
+}
 async function replayDay(day){
   const coords = day.pts.map(p => [p[2]/1e5, p[1]/1e5]).filter((c, i, a) => !i || c[0] !== a[i-1][0] || c[1] !== a[i-1][1]);
   if(coords.length < 2) return;
@@ -3296,13 +3367,14 @@ function sunTime(){
        m = +p.find(x => x.type === "hour").value * 60 + +p.find(x => x.type === "minute").value; }
   catch(e){ const d = new Date(now); m = d.getHours()*60 + d.getMinutes(); }
   const open = toMin(S.liftOpen), close = toMin(S.liftClose);
+  if(S.sunAt != null) return {ms:now + (S.sunAt - m) * 6e4, m:S.sunAt};   // gekozen met de tijdschuif
   if(m >= open && m < close) return {ms:now, m};
   return {ms:now + ((m < open ? open - m : open + 1440 - m) * 6e4), m:open};
 }
 const SUN_MIN = .12;   // minder licht dan dit = schaduw (zon schuurt langs of staat achter de helling)
 // per piste: hoe recht schijnt de zon erop (helling en richting van de piste; bergen die schaduw werpen tellen niet mee)
 function sunShade(){
-  const A = S.area, d = sunTime(), key = Math.floor(d.ms / 6e5);
+  const A = S.area, d = sunTime(), key = Math.floor(d.ms / 6e5) + (S.sunAt ?? -1) * 1e9;
   if(A.sun?.key === key) return A.sun;
   const c = A.bounds.getCenter(), {alt, az} = sunPos(d.ms, c.lat, c.lng), rad = Math.PI/180;
   const v = new Float32Array(A.edges.length).fill(-1), N = A.nodes;
@@ -3328,6 +3400,7 @@ const sunR = L.canvas({padding:.4, pane:"sun"}), sunLayer = L.layerGroup().addTo
 function drawSun(){
   sunLayer.clearLayers();
   const info = $("sunInfo"), A = S.area;
+  $("sunSlide").hidden = !A || !S.sunOn || S.night;
   if(!A || !S.sunOn || S.night){ info.hidden = true; return; }
   const sun = sunShade(); info.hidden = false;
   if(sun.alt <= 2){ info.textContent = `Om ${hhmm(sun.time.m)} staat de zon te laag. Alles ligt in de schaduw.`; return; }
@@ -3346,7 +3419,7 @@ function sunNote(edges){
   const lit = acc/len >= SUN_MIN, t = hhmm(sun.time.m);
   return `<p class="pop-sun ${lit ? "lit" : "shade"}">${I(lit ? "sun" : "cloud")}${lit ? `Om ${t} in de zon` : `Om ${t} in de schaduw`}</p>`;
 }
-setInterval(() => { if(S.area && (S.sunOn || S.sunny)){ drawSun(); if(S.sunny) update(); } }, 10*60000);
+setInterval(() => { if(S.area && (S.sunOn || S.sunny)){ drawSun(); if(S.sunny) update(); } M3.sync("sky"); }, 10*60000);
 
 // ================= lunchstop =================
 function lunchForm(){
@@ -4531,6 +4604,13 @@ $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); }
 $("sunny").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunny = e.target.checked; save(); update(); };
 $("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save(); drawSun(); };
 $("sunToggle").checked = S.sunOn;
+$("slopeToggle").checked = S.slopeOn; $("heatToggle").checked = S.heatOn;
+$("slopeToggle").onchange = e => { S.slopeOn = e.target.checked; save(); applyBase(); M3.sync("slope"); $("slopeLegend").hidden = !S.slopeOn;
+  if(S.slopeOn && map.getZoom() < 11) toast("Zoom verder in om de steilheid te zien.", 2600); };
+$("slopeLegend").hidden = !S.slopeOn;
+$("heatToggle").onchange = e => { S.heatOn = e.target.checked; save(); drawHeat(); if(!S.heatOn) $("heatInfo").hidden = true; };
+$("sunRange").oninput = e => { const v = +e.target.value; S.sunAt = v; $("sunAtTxt").textContent = hhmm(v); drawSun(); buzz("select"); };
+$("sunNow").onclick = () => { S.sunAt = null; $("sunRange").value = Math.max(480, Math.min(1020, sunTime().m)); $("sunAtTxt").textContent = tr("nu"); drawSun(); };
 $("nightToggle").onchange = e => setNight(e.target.checked);
 $("nightToggle2").onchange = e => setNight(e.target.checked);
 $("setName").onchange = e => { const v = e.target.value.trim().slice(0, 20); if(!v) return; G.name = v; gSave(); $("gName").value = v; toast(`Je naam is nu ${v}.`); };
