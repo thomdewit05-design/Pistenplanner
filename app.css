@@ -1608,7 +1608,7 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 /* weerkaart: sneeuw, zonnegloed, wind en parallax */
 .hero-art{transform:translate(var(--px,0),var(--py,0)) scale(1.06);transition:transform .3s ease-out}
 .hero-snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.hero.sunny .hero-art circle{animation:sunGlow 4s ease-in-out infinite;transform-origin:330px 46px}
+.hero.sunny .hero-art .sun{animation:sunGlow 4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes sunGlow{50%{transform:scale(1.15);opacity:1}}
 .hero.windy::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(170deg,transparent 0 38px,rgba(255,255,255,.18) 38px 40px,transparent 40px 90px);background-size:300px 300px;animation:wind 3s linear infinite;pointer-events:none;mask-image:linear-gradient(180deg,#000 0,#000 55%,transparent 75%)}
 @keyframes wind{to{background-position:300px 0}}
@@ -1644,7 +1644,7 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 /* minder beweging: alles uit */
 @media (prefers-reduced-motion:reduce){
   .ios .picker:not([hidden]),.ios .sos:not([hidden]),.ios .picker.tab-in:not([hidden]),.tabbar button[aria-current] .ic,.chip[aria-pressed="true"],.fav.pop .ic,.ios .nav-banner:not([hidden]),.ios .nav-dash:not([hidden]),
-  .nav-banner.nb-change .nav-arrow,.nav-banner.nb-change .nav-txt,.nav-banner.near .nav-arrow,.arr-card,.arr-ic,.coin-pop,.coin,.hero.sunny .hero-art circle,.hero.windy::after,.rg-fg,.onb-card.onb-in,.onb-art,
+  .nav-banner.nb-change .nav-arrow,.nav-banner.nb-change .nav-txt,.nav-banner.near .nav-arrow,.arr-card,.arr-ic,.coin-pop,.coin,.hero.sunny .hero-art .sun,.hero.windy::after,.rg-fg,.onb-card.onb-in,.onb-art,
   .splash img,.splash-name,.splash-tag,.rp-sum,.route-fresh ol.steps li,.pnum,.ios .pin.drop,.bars i,.dc{animation:none!important}
   .tab-ind,.ios .sheet,.ios .toast,.hero-art{transition:none}
 }
@@ -1667,3 +1667,62 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 .tile p,.mini-stats b,.ring p b,.ms-tot b,.hero-temp,.nd-stats b,.nav-dist,.eta b,.rp-sum b{font-variant-numeric:tabular-nums}
 .coin-pop{width:min(92vw,360px)}
 .coin-pop>div{min-width:0;flex:1}
+
+/* skyline: parallax per laag en een label bij de hoogste top */
+.hs-far{transform:translate(calc(var(--px,0px) * .4),0)}
+.hs-mid{transform:translate(calc(var(--px,0px) * .8),0)}
+.hs-near{transform:translate(calc(var(--px,0px) * 1.3),0)}
+.hs-lbl text{font:700 9.5px/1 var(--f-display);fill:#fff;paint-order:stroke;stroke:rgba(10,30,60,.35);stroke-width:2px}
+.hero.sky-night .hero-txt,.hero.sky-dusk .hero-txt{text-shadow:0 2px 14px rgba(0,0,0,.45)}
+.hero-art{transform:scale(1.04)}
+
+/* ================= inklappende grote titels ================= */
+.ios .picker>.picker-head,.ios .dash-head,.ios .menu-head{position:sticky;top:calc(-16px - var(--safe-t));z-index:5;margin:calc(-16px - var(--safe-t)) calc(-1 * max(18px,var(--safe-r))) 0 calc(-1 * max(18px,var(--safe-l)));
+  padding:calc(16px + var(--safe-t)) max(18px,var(--safe-r)) 8px max(18px,var(--safe-l));transition:background .25s,box-shadow .25s,padding .25s}
+.ios .picker.scrolled>.picker-head,.ios .picker.scrolled .dash-head,.ios .picker.scrolled .menu-head{top:calc(-16px - var(--safe-t) + 0px);background:var(--glass);backdrop-filter:saturate(180%) blur(22px);-webkit-backdrop-filter:saturate(180%) blur(22px);box-shadow:0 1px 0 var(--line-2);padding-bottom:8px}
+.ios .picker h2,.ios .dash-head h2{transition:font-size .3s var(--spring),transform .3s var(--spring);transform-origin:left center}
+.ios .picker.scrolled h2,.ios .picker.scrolled .dash-head h2{font-size:19px}
+.ios .picker.scrolled .dash-head .label,.ios .picker.scrolled .picker-head .label,.ios .picker.scrolled .menu-ver{opacity:0;height:0;margin:0;overflow:hidden}
+.ios .picker .dash-head .label,.ios .picker .picker-head .label{transition:opacity .2s}
+/* veegbaar: een greepje bovenaan elk venster */
+.ios .picker::before{content:"";position:absolute;left:50%;top:calc(6px + var(--safe-t));width:38px;height:5px;margin-left:-19px;border-radius:3px;background:color-mix(in srgb,var(--ink) 18%,transparent);z-index:6;pointer-events:none}
+
+/* ================= hoogteprofiel als premium grafiek ================= */
+.ios .profile{background:var(--card);border:1px solid var(--card-line);border-radius:22px;padding:12px 14px 8px}
+.ios .profile svg .prof-area{fill:url(#profGrad)}
+.ios .profile svg .grid{stroke:var(--line-2);stroke-dasharray:3 4}
+.ios .profile svg .dot{fill:#fff;stroke:#1F7FD6;stroke-width:3;filter:drop-shadow(0 2px 4px rgba(31,127,214,.45))}
+.ios .profile svg .cross{stroke:#1F7FD6;stroke-dasharray:none;opacity:.6}
+.ios .prof-tip{border-radius:14px;background:rgba(14,30,48,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.route-fresh .profile svg line{stroke-dasharray:400;stroke-dashoffset:400;animation:profDraw 1.1s cubic-bezier(.45,.05,.25,1) .2s forwards}
+@keyframes profDraw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.route-fresh .profile svg line{animation:none;stroke-dasharray:none;stroke-dashoffset:0}}
+
+/* View Transitions: zachte overgang van venster naar kaart */
+::view-transition-old(root){animation:vtOut .38s cubic-bezier(.4,0,.2,1) both}
+::view-transition-new(root){animation:vtIn .45s var(--spring) both}
+@keyframes vtOut{to{opacity:0;transform:scale(1.04);filter:blur(4px)}}
+@keyframes vtIn{from{opacity:0;transform:scale(.97)}}
+@media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+/* zoekresultaten */
+.recent-row{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 6px}
+.srch-hit .node{margin-left:2px}
+
+/* ================= staten en toegankelijkheid ================= */
+.net-banner{position:fixed;z-index:4800;left:50%;top:calc(66px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;
+  background:rgba(14,30,48,.86);color:#fff;font-size:13.5px;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,.25);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:nbIn .5s var(--spring);transition:opacity .3s,transform .3s;max-width:calc(100vw - 24px)}
+.net-banner.out{opacity:0;transform:translate(-50%,-14px)}
+.net-banner .ic{width:18px;height:18px;flex:none}
+.wx-retry{margin-left:auto;padding:7px 12px!important;font-size:13.5px!important}
+.hero-retry{display:inline-flex;align-items:center;gap:5px;margin-left:6px;padding:4px 10px;border-radius:999px;border:0;background:rgba(255,255,255,.28);color:#fff;font-weight:650;cursor:pointer}
+.hero-retry .ic{width:14px;height:14px}
+/* tikvlakken minstens 44 px, en iets meer contrast voor kleine grijze tekst */
+.ios .icon-btn{width:44px;height:44px}
+.ios .fav{width:44px;height:44px}
+.ios{--faint:#6A8197}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){--faint:rgba(220,232,242,.55)}}
+.ios[data-theme=dark]{--faint:rgba(220,232,242,.55)}
+/* ontwerpsysteem: vaste letter- en afstandsschaal */
+:root{--t-xs:12px;--t-sm:13.5px;--t-md:15px;--t-lg:17px;--t-xl:22px;--t-2xl:30px;--t-3xl:40px;--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:20px;--s-6:24px;--s-8:32px}
+/* tekst in de bovenbalk mag niet worden afgekapt midden in een woord */
+.ios .area-stats{white-space:nowrap;text-overflow:ellipsis}

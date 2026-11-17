@@ -79,6 +79,7 @@ const hideSplash = () => { const sp = $("splash"); if(!sp || sp.classList.contai
 function buzz(kind = "light"){
   const cap = window.Capacitor;
   try{
+    if(kind === "select"){ if(cap?.isNativePlatform?.()){ if(!buzz.sel){ buzz.sel = 1; cap.nativePromise("Haptics", "selectionStart", {}).catch(() => {}); } cap.nativePromise("Haptics", "selectionChanged", {}).catch(() => {}); } else navigator.vibrate?.(4); return; }
     if(cap?.isNativePlatform?.()){ (kind === "success" ? cap.nativePromise("Haptics", "notification", {type:"SUCCESS"}) : cap.nativePromise("Haptics", "impact", {style:kind === "medium" ? "MEDIUM" : "LIGHT"})).catch(() => {}); return; }
     navigator.vibrate?.(kind === "success" ? [12, 40, 12] : 10);
   }catch(e){}
@@ -213,14 +214,37 @@ function renderAreas(){
   const shown = rows.slice(0, 80);
   $("areas").innerHTML = (favRows.length ? `<li class="area-sep">Favorieten</li>` + favRows.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") + `<li class="area-sep">Alle skigebieden</li>` : "")
     + (shown.map(r => areaRow(r, S.nearSort ? dist(r) : null)).join("") || `<li class="empty" style="padding:16px 6px">Geen skigebied gevonden${S.q ? ` voor "${esc(S.q)}"` : ""}.</li>`);
+  // universeel zoeken: ook pistes, liften en hutten in het skigebied dat open is, en recente zoekopdrachten
+  const A = S.area; let local = "", localHits = [];
+  if(A && q.length >= 2){
+    const seen = new Set();
+    for(const e of A.edges){
+      if(e.t === "w" || !(e.name || e.ref)) continue;
+      const lbl = e.t === "l" ? liftLabel(e) : pisteLabel(e), k = e.t + "|" + (e.key ?? lbl);
+      if(seen.has(k) || !norm(lbl + " " + tr(lbl)).includes(q)) continue; seen.add(k);
+      localHits.push({kind:e.t === "l" ? "lift" : "run", e, lbl}); if(localHits.length >= 8) break;
+    }
+    for(const h of A.huts || []) if(h.name && norm(h.name).includes(q) && localHits.length < 12) localHits.push({kind:"hut", h, lbl:h.name});
+    if(localHits.length) local = `<li class="area-sep">${tr("In")} ${esc(A.row[1])}</li>` + localHits.map((x, i) => `<li><button type="button" class="area-main srch-hit" data-hit="${i}">
+      <span class="node${x.kind === "run" && isDark(x.e.diff) ? " dark" : ""}" style="--c:${x.kind === "run" ? DIFF[x.e.diff]?.col : x.kind === "lift" ? "var(--p-lift)" : "#8A4B12"}">${x.kind === "run" ? (esc(x.e.ref) || I("ski")) : I(x.kind === "lift" ? "lift" : "hut")}</span>
+      <span><span class="nm">${esc(uc(tr(x.lbl)))}</span><span class="rg">${x.kind === "run" ? tr("Piste") : x.kind === "lift" ? tr("Lift") : tr("Hut of restaurant")}</span></span><span></span></button></li>`).join("");
+  }
+  let recent = []; try{ recent = JSON.parse(localStorage.getItem("pp-recent-q") || "[]"); }catch(e){}
+  const rec = !q && recent.length ? `<li class="area-sep">${tr("Recent gezocht")}</li><li class="recent-row">${recent.map(r => `<button type="button" class="chip" data-rq="${esc(r)}">${I("clock")}${esc(r)}</button>`).join("")}</li>` : "";
+  if(local && !shown.length) $("areas").querySelector(".empty")?.remove();
+  if(local || rec) $("areas").insertAdjacentHTML("afterbegin", rec + local);
+  $("areas").querySelectorAll("[data-rq]").forEach(b => b.onclick = () => { $("q").value = S.q = b.dataset.rq; renderAreas(); });
+  $("areas").querySelectorAll(".srch-hit").forEach(b => b.onclick = e => { e.stopPropagation(); const x = localHits[+b.dataset.hit]; remember(S.q); closePicker();
+    if(x.kind === "hut"){ map.setView([x.h.lat, x.h.lon], 16); hutPopup(x.h); } else goPiste(x.e.i); });
   const total = rows.length + favRows.length;
-  $("count").textContent = rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
-  $("areas").querySelectorAll(".area-main").forEach(b => b.onclick = () => { closePicker(); openArea(b.dataset.id); });
+  $("count").textContent = local && !total ? "" : rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
+  $("areas").querySelectorAll(".area-main:not(.srch-hit)").forEach(b => b.onclick = () => { remember(S.q); closePicker(); openArea(b.dataset.id); });
   $("areas").querySelectorAll(".fav").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderAreas(); });
   markOfflineAreas();
 }
 // advertenties alleen in schermen als de kiezer, het dagboek en het menu; nooit tijdens het navigeren
 const fillAds = id => { if(!S.follow) window.ppAds?.fill($(id)); };
+function remember(q){ q = (q || "").trim(); if(q.length < 2) return; try{ const r = JSON.parse(localStorage.getItem("pp-recent-q") || "[]").filter(x => x.toLowerCase() !== q.toLowerCase()); r.unshift(q); localStorage.setItem("pp-recent-q", JSON.stringify(r.slice(0, 6))); }catch(e){} }
 function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() => $("q").focus(), 50); fillAds("picker"); }
 function closePicker(){ $("picker").hidden = true; }
 
@@ -1501,17 +1525,22 @@ function setMini(on){
 }
 function setSheet(open){ sheet.classList.toggle("open", open); }
 (() => {   // veeggebaar op de greep
-  const h = $("handle"); let y0 = null, moved = false, base = 0;
-  h.addEventListener("pointerdown", e => { y0 = e.clientY; moved = false; base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
+  const h = $("handle"); let y0 = null, moved = false, base = 0, lastY = 0, lastT = 0, vel = 0;
+  h.addEventListener("pointerdown", e => { y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; moved = false; base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
   h.addEventListener("pointermove", e => { if(y0==null) return; const dy = e.clientY - y0; if(Math.abs(dy) > 5) moved = true;
-    if(moved){ const full = window.innerHeight - sheet.offsetHeight; const top = Math.max(full, base + dy); sheet.style.transform = `translateY(${top - full}px)`; } });
+    const now = performance.now(); if(now > lastT){ vel = .7 * vel + .3 * (e.clientY - lastY) / (now - lastT); lastY = e.clientY; lastT = now; }
+    // boven de hoogste stand: rubberband
+    if(moved){ const full = window.innerHeight - sheet.offsetHeight; let top = base + dy; if(top < full) top = full - Math.sqrt(full - top) * 3; sheet.style.transform = `translateY(${top - full}px)`; } });
   const end = e => { if(y0==null) return; sheet.classList.remove("dragging"); sheet.style.transform = "";
     const dy = e.clientY - y0; y0 = null;
-    const open = sheet.classList.contains("open");
-    if(!moved){ if(open) setSheet(false); else if(sheetMini) setMini(false); else setSheet(true); return; }
-    if(dy < 0){ if(sheetMini && !open && dy > -220) setMini(false); else { setSheet(true); } }
-    else if(open) setSheet(false);
-    else if(!sheetMini) setMini(true); };
+    const open = sheet.classList.contains("open"), fast = Math.abs(vel) > .55;
+    if(!moved){ if(open) setSheet(false); else if(sheetMini) setMini(false); else setSheet(true); buzz("select"); return; }
+    // snel vegen kiest de volgende stand in die richting, anders telt de afstand
+    const up = fast ? vel < 0 : dy < 0;
+    if(up){ if(sheetMini && !open && (fast ? false : dy > -220)) setMini(false); else setSheet(true); }
+    else if(open){ if(fast && vel > 1.6 && !sheetMini) { setSheet(false); setMini(true); } else setSheet(false); }
+    else if(!sheetMini) setMini(true);
+    buzz("select"); };
   h.addEventListener("pointerup", end); h.addEventListener("pointercancel", end);
 })();
 
@@ -1736,7 +1765,8 @@ async function loadWeather(){
     const old = wxStore(id);
     if(S.area?.id !== id) return;
     if(old && Date.now() - old.t < 36*3600e3){ wxCache[id] = {t:0, d:old.d}; renderWeather(old.d, old.t); }
-    else $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span>`;
+    else { $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span><button type="button" class="btn ghost wx-retry" id="wxRetry">${I("reset")}Opnieuw</button>`;
+      $("wxRetry").onclick = ev => { ev.stopPropagation(); loadWeather(); }; S.wxFail = id; if(!$("today").hidden) renderToday(); }
   }
 }
 function renderWeather(d, savedAt){
@@ -1745,7 +1775,7 @@ function renderWeather(d, savedAt){
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
   const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
   const depth = Math.round((c.snow_depth || 0) * 100);
-  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id};
+  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id}; S.wxFail = null;
   if(!$("today").hidden) setTimeout(renderToday, 0);
   $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
     <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
@@ -2640,54 +2670,68 @@ async function exportGpx(day){
 const mercX = (lon, z) => (lon + 180) / 360 * 256 * 2 ** z;
 const mercY = (lat, z) => { const s = Math.sin(lat * Math.PI / 180); return (.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * 2 ** z; };
 async function dayCard(day, sum){
-  const W = 1080, H = 1350, MH = 900, c = document.createElement("canvas");
+  // dagkaart in de ijsblauwe huisstijl, formaat Story (1080×1920): kaart met je spoor, grote cijfers en een hoogteprofiel
+  const W = 1080, H = 1920, MX = 60, MY = 250, MW = 960, MH = 960, c = document.createElement("canvas");
   c.width = W; c.height = H;
   const x = c.getContext("2d"), pts = day.pts.map(p => [p[1] / 1e5, p[2] / 1e5]);
+  const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#EAF3FA"); bg.addColorStop(.6, "#D3E5F2"); bg.addColorStop(1, "#BCD5E8");
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  const rr = (X0, Y0, w, h, r) => { x.beginPath(); x.moveTo(X0 + r, Y0); x.arcTo(X0 + w, Y0, X0 + w, Y0 + h, r); x.arcTo(X0 + w, Y0 + h, X0, Y0 + h, r); x.arcTo(X0, Y0 + h, X0, Y0, r); x.arcTo(X0, Y0, X0 + w, Y0, r); x.closePath(); };
+  // kaart
   let s = 90, n = -90, w = 180, e = -180;
   for(const [la, lo] of pts){ s = Math.min(s, la); n = Math.max(n, la); w = Math.min(w, lo); e = Math.max(e, lo); }
   let z = 16;
-  while(z > 9 && (mercX(e, z) - mercX(w, z) > W * .78 || mercY(s, z) - mercY(n, z) > MH * .74)) z--;
-  const ox = (mercX(w, z) + mercX(e, z)) / 2 - W / 2, oy = (mercY(n, z) + mercY(s, z)) / 2 - MH / 2 + 30;
-  const P = ([la, lo]) => [mercX(lo, z) - ox, mercY(la, z) - oy];
-  x.fillStyle = "#E8EEF4"; x.fillRect(0, 0, W, H);
+  while(z > 9 && (mercX(e, z) - mercX(w, z) > MW * .78 || mercY(s, z) - mercY(n, z) > MH * .78)) z--;
+  const ox = (mercX(w, z) + mercX(e, z)) / 2 - MW / 2, oy = (mercY(n, z) + mercY(s, z)) / 2 - MH / 2;
+  const P = ([la, lo]) => [MX + mercX(lo, z) - ox, MY + mercY(la, z) - oy];
+  x.save(); x.shadowColor = "rgba(8,24,44,.25)"; x.shadowBlur = 50; x.shadowOffsetY = 20; rr(MX, MY, MW, MH, 56); x.fillStyle = "#E8EEF4"; x.fill(); x.restore();
+  x.save(); rr(MX, MY, MW, MH, 56); x.clip();
   const jobs = [];
   for(let ty = Math.floor(oy / 256); ty <= Math.floor((oy + MH) / 256); ty++)
-    for(let tx = Math.floor(ox / 256); tx <= Math.floor((ox + W) / 256); tx++)
-      jobs.push(PPterrain.get("winter", z, tx, ty, 1).then(b => { x.drawImage(b, tx * 256 - ox, ty * 256 - oy, 256, 256); b.close?.(); }, () => {}));
+    for(let tx = Math.floor(ox / 256); tx <= Math.floor((ox + MW) / 256); tx++)
+      jobs.push(PPterrain.get("winter", z, tx, ty, 1).then(b => { x.drawImage(b, MX + tx * 256 - ox, MY + ty * 256 - oy, 256, 256); b.close?.(); }, () => {}));
   await Promise.all(jobs);
-  // pistes en liften van het gebied (als dat geladen is)
   const A = day.area && S.area?.id === day.area ? S.area : null;
   x.lineCap = x.lineJoin = "round";
   if(A) for(const ed of A.edges){
     if(ed.t === "w") continue;
     x.beginPath(); ed.pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); });
-    x.strokeStyle = ed.t === "l" ? "rgba(20,32,43,.75)" : DIFF[ed.diff].col; x.lineWidth = ed.t === "l" ? 2.5 : 4; x.globalAlpha = .75; x.stroke(); x.globalAlpha = 1;
+    x.strokeStyle = ed.t === "l" ? "rgba(20,32,43,.6)" : DIFF[ed.diff].col; x.lineWidth = ed.t === "l" ? 2.5 : 4; x.globalAlpha = .6; x.stroke(); x.globalAlpha = 1;
   }
-  // het spoor
   const line = () => { x.beginPath(); pts.forEach((p, i) => { const [px, py] = P(p); i ? x.lineTo(px, py) : x.moveTo(px, py); }); };
-  line(); x.strokeStyle = "rgba(255,255,255,.9)"; x.lineWidth = 15; x.stroke();
-  line(); x.strokeStyle = "#7C3AED"; x.lineWidth = 8; x.stroke();
-  for(const [p, col] of [[pts[0], "#1F9D57"], [pts[pts.length - 1], "#D23A3A"]]){
-    const [px, py] = P(p); x.beginPath(); x.arc(px, py, 14, 0, 7); x.fillStyle = col; x.fill(); x.lineWidth = 5; x.strokeStyle = "#fff"; x.stroke();
-  }
-  // onderste deel: donker met de cijfers
-  const g = x.createLinearGradient(0, MH - 160, 0, MH); g.addColorStop(0, "rgba(15,27,42,0)"); g.addColorStop(1, "rgba(15,27,42,1)");
-  x.fillStyle = g; x.fillRect(0, MH - 160, W, 160); x.fillStyle = "#0F1B2A"; x.fillRect(0, MH, W, H - MH);
+  x.shadowColor = "rgba(11,34,54,.3)"; x.shadowBlur = 16; line(); x.strokeStyle = "#fff"; x.lineWidth = 18; x.stroke(); x.shadowBlur = 0;
+  line(); x.strokeStyle = "#1F7FD6"; x.lineWidth = 10; x.stroke();
+  line(); x.strokeStyle = "rgba(124,192,245,.8)"; x.lineWidth = 3.5; x.stroke();
+  const [sx, sy] = P(pts[0]), [ex, ey] = P(pts[pts.length - 1]);
+  x.beginPath(); x.arc(sx, sy, 16, 0, 7); x.fillStyle = "#fff"; x.fill(); x.lineWidth = 7; x.strokeStyle = "#1F7FD6"; x.stroke();
+  x.beginPath(); x.arc(ex, ey, 18, 0, 7); x.fillStyle = "#1F7FD6"; x.fill(); x.lineWidth = 6; x.strokeStyle = "#fff"; x.stroke();
+  x.restore();
   await document.fonts?.ready;
   const F = getComputedStyle(document.documentElement).getPropertyValue("--f-display").trim() || "sans-serif";
   const UI = getComputedStyle(document.documentElement).getPropertyValue("--f-ui").trim() || "sans-serif";
-  x.fillStyle = "#AFC0D3"; x.font = `600 34px ${UI}`; x.textBaseline = "alphabetic";
-  x.fillText(`${uc(niceDate(day.date))}${day.areaName ? " · " + day.areaName : ""}`.slice(0, 60), 64, MH - 30);
-  x.fillStyle = "#fff"; x.font = `800 170px ${F}`; const big = kmTxt(sum.km); x.fillText(big, 60, MH + 150);
-  const bw = x.measureText(big).width; x.font = `700 60px ${F}`; x.fillStyle = "#FFC400"; x.fillText("km", 72 + bw, MH + 150);
-  const stat = (v, label, i) => { const cx = 64 + i * 330; x.fillStyle = "#fff"; x.font = `800 64px ${F}`; x.fillText(v, cx, MH + 270);
-    x.fillStyle = "#8FA3B8"; x.font = `600 28px ${UI}`; x.fillText(tr(label).toUpperCase(), cx, MH + 310); };
-  stat(`${hmTxt(sum.hm)} m`, "omlaag", 0); stat(`${Math.round(sum.vmax)} km/u`.replace("km/u", tr("km/u")), "topsnelheid", 1); stat(String(sum.runs), "afdalingen", 2);
-  // merk
+  // kop: logo, naam, datum en gebied
   const logo = new Image(); logo.src = "icons/logo.svg";
-  try{ await logo.decode(); x.drawImage(logo, W - 64 - 64, H - 64 - 64, 64, 64); }catch(err){}
-  x.fillStyle = "#fff"; x.font = `800 44px ${F}`; x.textAlign = "right"; x.fillText("Skipilot", W - 64 - 80, H - 76);
-  x.fillStyle = "#8FA3B8"; x.font = `600 24px ${UI}`; x.fillText(tr("de skiroute-app"), W - 64 - 80, H - 46); x.textAlign = "left";
+  try{ await logo.decode(); x.drawImage(logo, 60, 84, 96, 96); }catch(err){}
+  x.fillStyle = "#0F2233"; x.font = `750 56px ${F}`; x.textBaseline = "alphabetic"; x.fillText("Skipilot", 180, 136);
+  x.fillStyle = "#4E6679"; x.font = `600 32px ${UI}`; x.fillText(`${uc(niceDate(day.date))}${day.areaName ? " · " + day.areaName : ""}`.slice(0, 52), 180, 180);
+  // grote kilometers
+  x.fillStyle = "#0F2233"; x.font = `800 200px ${F}`; const big = kmTxt(sum.km); x.fillText(big, 56, 1420);
+  const bw = x.measureText(big).width; x.font = `750 72px ${F}`; x.fillStyle = "#1F7FD6"; x.fillText("km", 74 + bw, 1420);
+  x.fillStyle = "#4E6679"; x.font = `600 32px ${UI}`; x.fillText(tr("geskied"), 62, 1468);
+  // drie glazen tegels
+  const tile = (v, label, i) => { const tx = 60 + i * 330, ty = 1510; rr(tx, ty, 300, 170, 36); x.fillStyle = "rgba(255,255,255,.62)"; x.fill(); x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.9)"; x.stroke();
+    x.fillStyle = "#0F2233"; x.font = `750 60px ${F}`; x.fillText(v, tx + 30, ty + 92); x.fillStyle = "#5A7084"; x.font = `600 28px ${UI}`; x.fillText(tr(label), tx + 30, ty + 138); };
+  tile(`${hmTxt(sum.hm)} m`, "omlaag", 0); tile(`${Math.round(sum.vmax)}`, "km/u top", 1); tile(String(sum.runs), "afdalingen", 2);
+  // hoogteprofiel van de dag
+  const alts = day.pts.map(p => p[3]).filter(v => v != null);
+  if(alts.length > 8){
+    const PX = 60, PY = 1720, PW = 960, PH = 120, lo = Math.min(...alts), hi = Math.max(...alts), step = Math.max(1, Math.floor(alts.length / 240));
+    const ys = alts.filter((_, i) => i % step === 0), Xp = i => PX + i / (ys.length - 1) * PW, Yp = v => PY + PH - (v - lo) / ((hi - lo) || 1) * PH;
+    x.beginPath(); x.moveTo(PX, PY + PH); ys.forEach((v, i) => x.lineTo(Xp(i), Yp(v))); x.lineTo(PX + PW, PY + PH); x.closePath();
+    const pg = x.createLinearGradient(0, PY, 0, PY + PH); pg.addColorStop(0, "rgba(31,127,214,.45)"); pg.addColorStop(1, "rgba(31,127,214,0)"); x.fillStyle = pg; x.fill();
+    x.beginPath(); ys.forEach((v, i) => i ? x.lineTo(Xp(i), Yp(v)) : x.moveTo(Xp(i), Yp(v))); x.strokeStyle = "#1F7FD6"; x.lineWidth = 5; x.stroke();
+  }
+  x.fillStyle = "#4E6679"; x.font = `600 26px ${UI}`; x.textAlign = "center"; x.fillText(`Skipilot · ${tr("de skiroute-app")}`, W / 2, H - 40); x.textAlign = "left";
   return c;
 }
 // de kaart tonen als delen niet kan (op een computer): bewaren met de knop, op een telefoon lang indrukken
@@ -2885,7 +2929,7 @@ function profileHtmlNow(W0){
   for(let i = 1; i < pd.pts.length; i++){
     const p = pd.pts[i], st = S.steps[pd.stepOf.get(p.k)] || {};
     const lift = st.t === "l", col = lift ? "var(--p-lift)" : st.t === "w" ? "var(--faint)" : (st.color || "var(--accent)");
-    segs += `<line x1="${X(prev.d).toFixed(1)}" y1="${Y(prev.ele).toFixed(1)}" x2="${X(p.d).toFixed(1)}" y2="${Y(p.ele).toFixed(1)}" stroke="${col}" stroke-width="2" stroke-linecap="round"${lift || st.t === "w" ? ' stroke-dasharray="3 4"' : ""}/>`;
+    segs += `<line x1="${X(prev.d).toFixed(1)}" y1="${Y(prev.ele).toFixed(1)}" x2="${X(p.d).toFixed(1)}" y2="${Y(p.ele).toFixed(1)}" stroke="${col}" stroke-width="3" stroke-linecap="round"${lift || st.t === "w" ? ' stroke-dasharray="3 4"' : ""}/>`;
     prev = p;
   }
   const yl = v => `<text x="${padL - 6}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${hmTxt(v)}</text><line x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="grid"/>`;
@@ -2893,8 +2937,9 @@ function profileHtmlNow(W0){
     <div class="prof-head"><p class="label">Hoogteprofiel</p><span>↑ ${hmTxt(up)} m · ↓ ${hmTxt(down)} m · hoogste ${hmTxt(hi)} m</span></div>
     <div class="prof-box">
       <svg id="profSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Hoogteprofiel van ${hmTxt(lo)} tot ${hmTxt(hi)} meter over ${km(pd.total)}">
+        <defs><linearGradient id="profGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F7FD6" stop-opacity=".35"/><stop offset="1" stop-color="#1F7FD6" stop-opacity="0"/></linearGradient></defs>
         ${yl(hi)}${yl(lo)}
-        <path d="${area}" class="prof-area"/>
+        <path d="${area}" class="prof-area" fill="url(#profGrad)"/>
         ${segs}
         <text x="${padL}" y="${H - 5}" text-anchor="start">0 km</text>
         <text x="${W - padR}" y="${H - 5}" text-anchor="end">${km(pd.total)}</text>
@@ -2921,6 +2966,7 @@ function bindProfile(){
     const q = at(d), st = S.steps[pd.stepOf.get(q.k)];
     $("profCross").setAttribute("x1", pd.X(d)); $("profCross").setAttribute("x2", pd.X(d)); $("profCross").setAttribute("visibility", "visible");
     $("profDot").setAttribute("cx", pd.X(d)); $("profDot").setAttribute("cy", pd.Y(q.ele)); $("profDot").setAttribute("visibility", "visible");
+    const bucket = Math.floor(d / 100); if(bucket !== pd.lastBucket){ pd.lastBucket = bucket; buzz("select"); }   // tikje per 100 m
     const tip = $("profTip"); tip.hidden = false;
     tip.innerHTML = `<b>${hmTxt(q.ele)} m</b> · ${km(d)}<span>${esc(st?.title || "")}</span>`;
     const left = Math.min(Math.max(pd.X(d) * r.width / pd.W - 70, 0), r.width - 150); tip.style.left = left + "px";
@@ -2931,7 +2977,7 @@ function bindProfile(){
       let want = q.f * tot, j = 0; while(j < seg.length-1 && want > seg[j]){ want -= seg[j]; j++; }
       const g = seg[j] ? want/seg[j] : 0, A_ = line[j], B_ = line[j+1] || line[j];
       const ll = [A_[0] + (B_[0]-A_[0])*g, A_[1] + (B_[1]-A_[1])*g];
-      if(!profMarker) profMarker = L.circleMarker(ll, {renderer:svgR, radius:7, color:"#fff", weight:3, fillColor:"#0F1B2A", fillOpacity:1, interactive:false}).addTo(map);
+      if(!profMarker) profMarker = L.circleMarker(ll, {renderer:svgR, radius:8, color:"#fff", weight:3, fillColor:ROUTE_BLUE, fillOpacity:1, interactive:false}).addTo(map);
       else profMarker.setLatLng(ll);
     }
   };
@@ -3778,9 +3824,15 @@ const dashHead = (label, title, closeId) => `<div class="dash-head"><div><p clas
 // een piste aantikken: route erheen en terug naar de kaart
 function goPiste(ei){
   const ch = chainFrom(ei);
-  S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
-  if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
-  setTab("map"); update(); fitRoute();
+  const go = () => {
+    S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
+    if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
+    // vensters meteen weg (de overgang zelf verzorgt de animatie)
+    ["today", "me", "group", "picker"].forEach(id => { const el = $(id); if(el && !el.hidden){ HIDDEN.set.call(el, true); el.hidden = true; } });
+    TAB = "map"; tabPaint(); update(); fitRoute();
+  };
+  // View Transitions: het venster gaat vloeiend over in de kaart met de route
+  if(document.startViewTransition && !calm()) document.startViewTransition(go); else go();
 }
 // berg-illustratie voor de bovenste kaart (zelfde stijl als het logo en de App Store-header)
 const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -3792,6 +3844,47 @@ const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRati
   <path d="M255 52c18 12 18 26 2 36s-16 22 4 34 18 26-2 40" fill="none" stroke="#FFC400" stroke-width="5" stroke-linecap="round"/>
   <path d="M0 200V178q90-22 190-6t210-4V200Z" fill="#F2F7FB"/></svg>`;
 
+// eigen skyline per skigebied: uit de echte toppen (of, zolang die er niet zijn, de hoogste punten van het pistenet),
+// gezien vanuit het zuiden; drie lagen, sneeuwkappen, de naam van de hoogste top en een lucht naar het moment van de dag
+function heroSky(){
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  if(h >= 5 && h < 8) return {k:"dawn", a:"#F7C9A9", b:"#8FB0DE", fg:"#4B5E86"};
+  if(h >= 8 && h < 16) return {k:"day", a:"#86BCE6", b:"#2F6E9F", fg:"#2B5A82"};
+  if(h >= 16 && h < 18.5) return {k:"gold", a:"#F7C873", b:"#6E8EC6", fg:"#4A5F8E"};
+  if(h >= 18.5 && h < 21.5) return {k:"dusk", a:"#9A72B8", b:"#283C6E", fg:"#2A2F5A"};
+  return {k:"night", a:"#13274A", b:"#0A1630", fg:"#0D1B36"};
+}
+function heroSkyline(A){
+  const pts = (A.peaks?.length ? A.peaks.map(p => [p[0], p[1], p[2], p[3]]) : A.nodes.filter(n => n.ele != null).map(n => [n.lat, n.lon, n.ele, ""]));
+  if(pts.length < 3) return HERO_ART;
+  const W = 400, H = 200, lons = pts.map(p => p[1]), l0 = Math.min(...lons), l1 = Math.max(...lons), span = (l1 - l0) || .01;
+  const eles = pts.map(p => p[2]).sort((a, b) => a - b), eMax = eles[eles.length - 1], eMin = Math.min(eles[Math.floor(eles.length * .25)], eMax - 400);
+  const X = lon => 20 + (lon - l0) / span * (W - 40), Y = (e, top, bot) => bot - (e - eMin) / ((eMax - eMin) || 1) * (bot - top);
+  // hoogte per kolom: elke top als een kegel met een zachte flank
+  const ridge = (list, top, bot, slope) => { const N = 80, col = [];
+    for(let i = 0; i <= N; i++){ const x = i / N * W; let y = bot + 40;
+      for(const p of list){ const px = X(p[1]), py = Y(p[2], top, bot); y = Math.min(y, py + Math.abs(x - px) * slope); }
+      y += Math.sin(x * .13 + top) * 1.6 + Math.sin(x * .41 + bot) * .9;   // grillige graat
+      col.push([x, Math.min(y, bot + 40)]); }
+    return col; };
+  const path = col => `M0 ${H}L` + col.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L") + `L${W} ${H}Z`;
+  const sorted = [...pts].sort((a, b) => b[2] - a[2]);
+  const far = ridge(sorted.slice(0, 80), 70, 140, .55), mid = ridge(sorted.slice(0, 30), 64, 156, .75), near = ridge(sorted.slice(8, 60).map(p => [p[0], p[1], p[2] * .9, p[3]]), 150, 196, 1);
+  const sky = heroSky(), top = sorted.find(p => p[3]) || sorted[0], tx = X(top[1]), ty = Y(top[2], 64, 156);
+  const hour = new Date().getHours() + new Date().getMinutes() / 60, sunX = 30 + ((hour - 6) / 14) * 340, sunY = 70 - Math.sin(Math.max(0, Math.min(1, (hour - 6) / 14)) * Math.PI) * 45;
+  const stars = sky.k === "night" ? Array.from({length:26}, (_, i) => `<circle cx="${(i * 97) % 400}" cy="${(i * 53) % 90}" r="${(i % 3) * .4 + .5}" fill="#fff" opacity="${.4 + (i % 4) * .15}"/>`).join("") : "";
+  return `<svg class="hero-art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs><linearGradient id="hsSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.b}"/><stop offset="1" stop-color="${sky.a}"/></linearGradient>
+    <linearGradient id="hsSnow" x1="0" y1="0" x2="0" y2="1">${sky.k === "night" || sky.k === "dusk" ? `<stop offset="0" stop-color="#DCE5F2"/><stop offset=".5" stop-color="#8FA5C4"/><stop offset="1" stop-color="#3E5478"/>` : `<stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#EEF4FA"/><stop offset="1" stop-color="#B7CEE0"/>`}</linearGradient>
+    <linearGradient id="hsFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="${sky.fg}" stop-opacity=".35"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#hsSky)"/>${stars}
+    <circle class="sun" cx="${sunX.toFixed(0)}" cy="${sunY.toFixed(0)}" r="${sky.k === "night" ? 11 : 17}" fill="${sky.k === "night" ? "#F2F6FF" : "#FFF6DC"}" opacity=".9"/>
+    <path class="hs-far" d="${path(far)}" fill="url(#hsFar)"/>
+    <path class="hs-mid" d="${path(mid)}" fill="url(#hsSnow)"/>
+    <path class="hs-near" d="${path(near)}" fill="${sky.k === "night" ? "#203a5c" : "#DCE8F2"}" opacity=".95"/>
+    ${top[3] ? `<g class="hs-lbl"><circle cx="${tx.toFixed(0)}" cy="${(ty - 2).toFixed(0)}" r="2.6" fill="#fff"/><text x="${Math.min(W - 6, Math.max(6, tx)).toFixed(0)}" y="${(ty - 9).toFixed(0)}" text-anchor="${tx > W - 80 ? "end" : tx < 80 ? "start" : "middle"}">${esc(top[3])} · ${top[2].toLocaleString(LOCALE)} m</text></g>` : ""}
+  </svg>`;
+}
 function openToday(){ $("today").hidden = false; renderToday(); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); }
 function renderToday(){
   const box = $("today"), A = S.area;
@@ -3816,9 +3909,9 @@ function renderToday(){
       return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
   }
   box.innerHTML = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
-    + `<section class="hero dc">${HERO_ART}<div class="hero-txt">
+    + `<section class="hero dc sky-${heroSky().k}">${heroSkyline(A)}<div class="hero-txt">
         <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : sk}</p>
-        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : tr("Weer en sneeuw laden…")}</p>
+        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `${tr("Weer niet beschikbaar.")} <button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : tr("Weer en sneeuw laden…")}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
         ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
@@ -3836,6 +3929,7 @@ function renderToday(){
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
     + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
   $("tdClose").onclick = () => box.hidden = true;
+  $("tdRetry")?.addEventListener("click", () => { S.wxFail = null; renderToday(); loadWeather(); });
   $("tdDay").onclick = () => { setTab("map"); dayRoute(); };
   $("tdHome").onclick = () => { setTab("map"); home ? goHome() : homeMenu(); };
   $("tdGroup").onclick = () => setTab("group");
@@ -3967,6 +4061,48 @@ document.addEventListener("click", e => { const b = e.target.closest("#sosCopy,#
 // favorietenster: kleine deeltjes
 document.addEventListener("click", e => { const b = e.target.closest(".fav"); if(!b || calm()) return;
   setTimeout(() => { if(!b.classList.contains("on")) return; b.classList.add("pop"); setTimeout(() => b.classList.remove("pop"), 600); }, 0); });
+
+// ---- offline: een rustige banner bovenin ----
+function netState(){
+  let b = document.querySelector(".net-banner");
+  if(navigator.onLine){ if(b){ b.classList.add("out"); setTimeout(() => b.remove(), 350); } return; }
+  if(b) return;
+  b = document.createElement("div"); b.className = "net-banner"; b.setAttribute("role", "status");
+  b.innerHTML = `${I("cloud")}<span>Je bent offline. Bewaarde kaarten en routes werken gewoon.</span>`;
+  document.body.appendChild(b);
+}
+addEventListener("online", () => { netState(); toast("Weer online."); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); });
+addEventListener("offline", netState); setTimeout(netState, 1500);
+// selectietrilling bij schakelaars, segmenten en chips
+document.addEventListener("change", e => { if(e.target.closest(".switch")) buzz("select"); });
+document.addEventListener("click", e => { if(e.target.closest(".seg button,.chip,.layer-card")) buzz("select"); });
+
+// ---- vensters omlaag wegvegen vanaf de kop, en grote titels die bij het scrollen inklappen ----
+function swipeDismiss(el){
+  if(!el) return;
+  let y0 = null, lastY = 0, lastT = 0, vel = 0, dy = 0;
+  el.addEventListener("pointerdown", e => {
+    if(!e.target.closest(".picker-head,.dash-head,.menu-head,.sos-head") || e.target.closest("button,a,input")) return;
+    if(el.scrollTop > 4) return;
+    y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; dy = 0; el.style.transition = "none";
+  });
+  el.addEventListener("pointermove", e => {
+    if(y0 == null) return; dy = e.clientY - y0;
+    const now = performance.now(); if(now > lastT){ vel = .7 * vel + .3 * (e.clientY - lastY) / (now - lastT); lastY = e.clientY; lastT = now; }
+    el.style.transform = `translateY(${dy > 0 ? dy : dy * .2}px)`; el.style.opacity = String(Math.max(.6, 1 - Math.max(0, dy) / 900));
+  });
+  const end = () => {
+    if(y0 == null) return; y0 = null;
+    el.style.transition = "transform .4s var(--spring),opacity .3s";
+    if(dy > 120 || vel > .7){ buzz("select"); el.style.transform = "translateY(100%)"; el.style.opacity = "0";
+      setTimeout(() => { el.style.transition = "none"; el.style.transform = ""; el.style.opacity = ""; HIDDEN.set.call(el, true); el.hidden = true; requestAnimationFrame(() => el.style.transition = ""); }, 320); }
+    else { el.style.transform = ""; el.style.opacity = ""; setTimeout(() => el.style.transition = "", 420); }
+  };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  // grote titel klapt in tot een compacte kop met matglas
+  el.addEventListener("scroll", () => el.classList.toggle("scrolled", el.scrollTop > 36), {passive:true});
+}
+["today", "me", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
 
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
