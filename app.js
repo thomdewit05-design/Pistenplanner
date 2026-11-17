@@ -277,9 +277,10 @@ function closePicker(){ $("picker").hidden = true; }
 
 async function openArea(id, opts={}){
   const row = S.index.find(r => r[0]===id); if(!row) return;
+  const tok = S.openTok = (S.openTok || 0) + 1; $("dlGate")?._close?.(false);   // een ander gebied gekozen: het oude downloadscherm weg
   $("areaName").textContent = row[1]; $("areaStats").textContent = "Kaart laden…";
   let raw;
-  try{ raw = (await loadShard(row[8]))[id]; }
+  try{ raw = (await loadShard(row[8]))[id]; if(tok !== S.openTok) return; }
   catch(e){ hideSplash(); $("areaStats").textContent = "Laden mislukt. Controleer je verbinding."; toast("Kaartdata kon niet laden."); return; }
   const nodes = raw.n.map(n => ({lat:n[1]/1e5, lon:n[0]/1e5, ele:n[2]}));
   const geo = g => { const pts = []; let lo=0, la=0; for(let i=0;i<g.length;i+=2){ lo+=g[i]; la+=g[i+1]; pts.push([la/1e5, lo/1e5]); } return pts; };
@@ -320,7 +321,6 @@ async function openArea(id, opts={}){
   const bounds = L.latLngBounds([q(lats,.02), q(lons,.02)], [q(lats,.98), q(lons,.98)]);
   if(!isDownloaded(id)){   // eerst downloaden, dan pas de kaart
     if(S.area) $("areaName").textContent = S.area.row[1], $("areaStats").textContent = S.area.statsTxt || "";
-    const tok = S.openTok = (S.openTok || 0) + 1;
     if(!await downloadGate(row, bounds) || tok !== S.openTok) return;
   }
   S.area = {id, row, nodes, edges, place, names, outRuns, inRuns, bounds};
@@ -459,8 +459,26 @@ const LAND_MQ = matchMedia("(orientation:landscape) and (max-height:500px)");
 const isSide = () => SIDE_MQ.matches;
 const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
   : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
-                                                 : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
-function fitArea(instant){ if(!S.area) return; if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
+                                                 : {paddingTopLeft:[20, padTop()], paddingBottomRight:[70, padBottom()]};
+// wat het paneel en de tabbalk onderaan echt bedekken (het paneel loopt door achter de tabbalk), en de chips bovenaan
+function padBottom(){
+  const sh = $("sheet"), tab = parseFloat(getComputedStyle(document.body).getPropertyValue("--tab-h")) || 0;
+  let cover = sheetPeek() + tab;
+  if(sh && !sh.classList.contains("open") && !sh.hidden){ const top = sh.getBoundingClientRect().top; if(top > 0 && top < innerHeight) cover = Math.max(cover, innerHeight - top); }
+  const sb = $("sunBar"), sr = sb && !sb.hidden ? sb.getBoundingClientRect() : null; if(sr && sr.height && sr.top > 0) cover = Math.max(cover, innerHeight - sr.top);
+  return Math.min(innerHeight * .6, cover) + 16;
+}
+function padTop(){ const c = $("layerChips"), r = c && !c.hidden ? c.getBoundingClientRect() : null; return Math.max(80, r && r.height ? r.bottom + 10 : 0); }
+function fitArea(instant){ if(!S.area) return; refitSoon(); if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
+// het paneel krijgt zijn echte hoogte pas na het tekenen: daarna één keer opnieuw passend maken, tenzij je de kaart zelf al bewoog
+let refitT = 0, userMoved = false;
+["pointerdown", "wheel"].forEach(ev => map.getContainer().addEventListener(ev, () => { if(refitT) userMoved = true; }, {passive:true}));
+function refitSoon(){
+  clearTimeout(refitT); userMoved = false;
+  refitT = setTimeout(() => { refitT = 0; if(!S.area || userMoved || S.follow || POV.mode === "gl") return;
+    const want = S.path?.length ? L.latLngBounds(S.path.flatMap(s => s.e.pts)) : S.area.bounds;
+    map.fitBounds(want, {...sheetPad(), maxZoom:S.path?.length ? 16 : 16, animate:!calm()}); }, 700);
+}
 function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
@@ -3465,7 +3483,7 @@ function sunTime(){
   const open = toMin(S.liftOpen), close = toMin(S.liftClose);
   if(S.sunAt != null) return {ms:now + (S.sunAt - m) * 6e4, m:S.sunAt};   // gekozen met de tijdschuif
   if(m >= open && m < close) return {ms:now, m};
-  return {ms:now + ((m < open ? open - m : open + 1440 - m) * 6e4), m:open};
+  return {ms:now + ((m < open ? open - m : open + 1440 - m) * 6e4), m:open, closed:true};
 }
 const SUN_MIN = .12;   // minder licht dan dit = schaduw (zon schuurt langs of staat achter de helling)
 // per piste: hoe recht schijnt de zon erop (helling en richting van de piste; bergen die schaduw werpen tellen niet mee)
@@ -3495,16 +3513,21 @@ map.createPane("sun").style.cssText = "z-index:390;pointer-events:none";
 const sunR = L.canvas({padding:.4, pane:"sun"}), sunLayer = L.layerGroup().addTo(map);
 function drawSun(){
   sunLayer.clearLayers();
-  const info = $("sunInfo"), A = S.area;
-  $("sunSlide").hidden = !A || !S.sunOn || S.night;
-  if(!A || !S.sunOn || S.night){ info.hidden = true; return; }
-  const sun = sunShade(); info.hidden = false;
-  if(sun.alt <= 2){ info.textContent = `Om ${hhmm(sun.time.m)} staat de zon te laag. Alles ligt in de schaduw.`; return; }
+  const info = $("sunInfo"), A = S.area, bar = $("sunBar");
+  const on = !!(A && S.sunOn && !S.night);
+  bar.hidden = !on; document.body.classList.toggle("sun-on", on);
+  M3.sync("sun");
+  if(!on) return;
+  const sun = sunShade(), t = hhmm(sun.time.m);
+  $("sunRange").value = Math.max(480, Math.min(1020, sun.time.m)); $("sunAtTxt").textContent = S.sunAt == null && !sun.time.closed ? tr("nu") : t;
+  if(sun.alt <= 2){ info.textContent = `${tr("Om")} ${t} ${tr("staat de zon te laag. Alles ligt in de schaduw.")}`; return; }
   const lit = [], shade = [];
   for(const e of A.edges) if(e.t === "r" && !S.closed.has(e.i)) (sun.v[e.i] >= SUN_MIN ? lit : shade).push(e.pts);
-  if(shade.length) L.polyline(shade, {renderer:sunR, interactive:false, color:"#5B8BC9", weight:12, opacity:.4, lineCap:"round"}).addTo(sunLayer);
-  if(lit.length) L.polyline(lit, {renderer:sunR, interactive:false, color:"#FFC531", weight:14, opacity:.6, lineCap:"round"}).addTo(sunLayer);
-  info.textContent = `Om ${hhmm(sun.time.m)}: ${Math.round(100*lit.length/Math.max(1, lit.length + shade.length))}% van de pistes in de zon (schatting).`;
+  // onder de pistes, als gloed: geel = zon, donker paarsgrijs = schaduw (valt op tegen de blauwe winterkaart en een satellietfoto)
+  if(shade.length) L.polyline(shade, {renderer:sunR, interactive:false, color:"#3B3F6B", weight:11, opacity:.55, lineCap:"round"}).addTo(sunLayer);
+  if(lit.length) L.polyline(lit, {renderer:sunR, interactive:false, color:"#FFB800", weight:14, opacity:.72, lineCap:"round"}).addTo(sunLayer);
+  const pct = Math.round(100 * lit.length / Math.max(1, lit.length + shade.length));
+  info.innerHTML = (sun.time.closed && S.sunAt == null ? `<b>${tr("Liften dicht")}</b> · ` : "") + `${tr("Om")} ${t}: <b>${pct}%</b> ${tr("van de pistes in de zon")} <span class="est">≈</span>`;
 }
 function sunNote(edges){
   if(S.night) return "";
@@ -5041,7 +5064,8 @@ function downloadGate(row, bounds){
     hideSplash(); $("dlGate")?.remove();
     const tiles = areaTiles(bounds), est = tiles.length * DL_KB * 1024, ctl = {aborted:false};
     const g = document.createElement("div"); g.id = "dlGate"; g.className = "dl-gate"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true"); g.setAttribute("aria-label", tr("Skigebied downloaden"));
-    const close = ok => { ctl.aborted = true; g.classList.add("out"); setTimeout(() => g.remove(), 280); resolve(ok); };
+    const close = ok => { ctl.aborted = true; g._close = null; g.id = ""; g.classList.add("out"); setTimeout(() => g.remove(), 280); resolve(ok); };
+    g._close = close;
     const others = () => { const l = downloadedList().filter(d => d.id !== row[0]).slice(0, 6);
       return l.length ? `<p class="dl-sub">${tr("Gedownloade gebieden")}</p><div class="dl-list">${l.map(d => `<button type="button" class="dl-row" data-go="${d.id}">${I("check")}<b>${esc(d.row[1])}</b>${I("chev")}</button>`).join("")}</div>` : ""; };
     const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${row[6]} km · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
@@ -5416,7 +5440,8 @@ $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("watchTap").onchange = e => { S.watchTap = e.target.checked; save(); liveSig = null; navLive(); };
 $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
 $("sunny").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunny = e.target.checked; save(); update(); };
-$("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save(); drawSun(); };
+$("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save();
+  const whole = S.area && POV.mode !== "gl" && map.getBounds().contains(S.area.bounds); drawSun(); if(S.sunOn && whole) setTimeout(() => map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16}), 60); };
 $("sunToggle").checked = S.sunOn;
 $("familyToggle").checked = S.family; $("freeToggle").checked = S.freeride;
 $("familyToggle").onchange = e => { S.family = e.target.checked;
@@ -5432,6 +5457,7 @@ $("slopeToggle").onchange = e => { S.slopeOn = e.target.checked; save(); applyBa
 $("slopeLegend").hidden = !S.slopeOn;
 $("heatToggle").onchange = e => { S.heatOn = e.target.checked; save(); drawHeat(); if(!S.heatOn) $("heatInfo").hidden = true; };
 $("sunRange").oninput = e => { const v = +e.target.value; S.sunAt = v; $("sunAtTxt").textContent = hhmm(v); drawSun(); buzz("select"); };
+$("sunOff").onclick = () => { const c = $("sunToggle"); c.checked = false; c.dispatchEvent(new Event("change")); };
 $("sunNow").onclick = () => { S.sunAt = null; $("sunRange").value = Math.max(480, Math.min(1020, sunTime().m)); $("sunAtTxt").textContent = tr("nu"); drawSun(); };
 $("nightToggle").onchange = e => setNight(e.target.checked);
 $("nightToggle2").onchange = e => setNight(e.target.checked);
@@ -5455,8 +5481,10 @@ setTimeout(prefetch3d, 3000);
   $("pickerCount").textContent = `${nAreas} skigebieden`;
   const st = $("splashTag"); if(st) st.textContent = `${nAreas} skigebieden`;
   const want = location.hash.slice(1).split("/")[0], byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
-  const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
-  await openArea(start || S.index[0][0]);
+  const start = [want, S.last].find(id => id && S.index.some(r => r[0]===id));
+  // eerste keer: zelf een skigebied kiezen (en dat dan downloaden), niet meteen een gebied dat je niet koos
+  if(start) await openArea(start);
+  else { map.setView([46.6, 10.4], 6, {animate:false}); hideSplash(); setTimeout(openPicker, FIRST_RUN ? 600 : 0); }
   if(G.pending && G.pending !== G.code){
     const code = G.pending; G.pending = null;
     if(G.code) gLeave();

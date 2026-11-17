@@ -290,7 +290,7 @@ const M3 = (() => {
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
         slope:{type:"raster", tiles:[SLOPE], tileSize:256, minzoom:11, maxzoom:15},
-        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
+        pistes:{type:"geojson", data:EMPTY}, sun:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
       },
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
@@ -303,6 +303,9 @@ const M3 = (() => {
         {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
         // aangetikte piste of lift: blauwe gloed eronder
         {id:"sel-glow", type:"line", source:"sel", filter:["==", ["geometry-type"], "LineString"], layout:line, paint:{"line-color":"#1E88FF", "line-width":w(9, 16), "line-opacity":.45, "line-blur":2}},
+        // zon en schaduw per piste (zelfde kleuren als de platte kaart), onder de pistes als gloed
+        {id:"sun-shade", type:"line", source:"sun", filter:["==", ["get", "lit"], 0], layout:line, paint:{"line-color":"#3B3F6B", "line-width":w(7, 16), "line-opacity":.55, "line-blur":1}},
+        {id:"sun-lit", type:"line", source:"sun", filter:["==", ["get", "lit"], 1], layout:line, paint:{"line-color":"#FFB800", "line-width":w(8, 18), "line-opacity":.72, "line-blur":1}},
         {id:"run-shadow", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#0B1A2A", "line-width":w(7, 15), "line-opacity":.16, "line-blur":3}},
         {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(4.4, 9.5), "line-opacity":.82}},
         {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8)}},
@@ -338,13 +341,43 @@ const M3 = (() => {
 
   // lucht en nevel naar het moment van de dag en het weer (slecht zicht = meer nevel)
   function skyNow(){
-    const h = new Date().getHours() + new Date().getMinutes() / 60, vis = S.wx?.c?.visibility, code = S.wx?.c?.weather_code ?? 0;
+    const h = sunOn3() ? sunTime().m / 60 : new Date().getHours() + new Date().getMinutes() / 60, vis = S.wx?.c?.visibility, code = S.wx?.c?.weather_code ?? 0;
     const T = h >= 5 && h < 8 ? ["#7FA2D6", "#F5C9A8", "#F2DCCB"] : h >= 8 && h < 16 ? ["#4F86C6", "#D7E6F3", "#E8EFF5"]
       : h >= 16 && h < 18.5 ? ["#6A8CC4", "#F6D29A", "#F0E2CC"] : h >= 18.5 && h < 21.5 ? ["#2E3F72", "#9C79B5", "#5D5878"] : ["#0B1630", "#23365E", "#2A3550"];
     const grey = code >= 45 && code <= 48 || (vis != null && vis < 2000) || code >= 71;
     return {"sky-color":grey ? "#9AA9B8" : T[0], "horizon-color":grey ? "#C9D3DC" : T[1], "fog-color":grey ? "#D5DCE3" : T[2],
       "sky-horizon-blend":.5, "horizon-fog-blend":grey ? .8 : .35, "fog-ground-blend":grey ? .45 : .9,
       "atmosphere-blend":["interpolate", ["linear"], ["zoom"], 0, 1, 10, 1, 12, 0]};
+  }
+  // ---------- zon en schaduw in 3D ----------
+  const sunOn3 = () => !!(S.area && S.sunOn && !S.night);
+  function sunData(){
+    if(!sunOn3()) return EMPTY;
+    const sun = sunShade(); if(sun.alt <= 2) return EMPTY;
+    const f = [];
+    for(const e of S.area.edges) if(e.t === "r" && !S.closed.has(e.i)) f.push({type:"Feature", properties:{lit:sun.v[e.i] >= SUN_MIN ? 1 : 0}, geometry:{type:"LineString", coordinates:e.pts.map(p => [p[1], p[0]])}});
+    return {type:"FeatureCollection", features:f};
+  }
+  // de bergen belicht vanuit de echte zon: de reliëfschaduw draait mee met de zonnestand (een lage zon geeft harde schaduwkanten)
+  function sunShadeLayer(){
+    if(!gl.getLayer("shade")) return;
+    const sun = sunOn3() ? sunShade() : null;
+    if(sun && sun.alt > 2){
+      const k = Math.max(0, Math.min(1, (40 - sun.alt) / 35));   // 0 = zon hoog, 1 = zon laag
+      gl.setLayoutProperty("shade", "visibility", "visible");
+      gl.setPaintProperty("shade", "hillshade-illumination-anchor", "map");
+      gl.setPaintProperty("shade", "hillshade-illumination-direction", Math.round(sun.az));
+      gl.setPaintProperty("shade", "hillshade-exaggeration", .45 + .4 * k);
+      gl.setPaintProperty("shade", "hillshade-shadow-color", "#1E2448");
+      gl.setPaintProperty("shade", "hillshade-highlight-color", "#FFF4D6");
+    } else {
+      gl.setLayoutProperty("shade", "visibility", sun ? "visible" : vis("shade"));
+      gl.setPaintProperty("shade", "hillshade-illumination-anchor", "viewport");
+      gl.setPaintProperty("shade", "hillshade-illumination-direction", 335);
+      gl.setPaintProperty("shade", "hillshade-exaggeration", sun ? .7 : .4);
+      gl.setPaintProperty("shade", "hillshade-shadow-color", sun ? "#1E2448" : "#33435A");
+      gl.setPaintProperty("shade", "hillshade-highlight-color", "#FFFFFF");
+    }
   }
   // vallende sneeuw over de 3D-kaart als het nu sneeuwt
   let snowRaf = 0;
@@ -484,11 +517,13 @@ const M3 = (() => {
       gl.addSource("base", baseSource()); gl.addLayer({id:"base", type:"raster", source:"base", paint}, "roads");
       gl.addSource("basehd", baseSource(TS)); gl.addLayer({id:"basehd", type:"raster", source:"basehd", layout:{visibility:hd() && hdOn ? "visible" : "none"}, paint:{"raster-fade-duration":250}}, "roads");
       for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id));
+      if(sunOn3()) dirty.add("sun");
     }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("route")){ gl.getSource("route").setData(routeData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     if(dirty.has("slope") && gl.getLayer("slope")) gl.setLayoutProperty("slope", "visibility", S.slopeOn ? "visible" : "none");
+    if(dirty.has("sun")){ gl.getSource("sun")?.setData(sunData()); sunShadeLayer(); gl.setSky(skyNow()); }
     if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); }
     if(dirty.has("peaks")) gl.getSource("peaks").setData(peaksData());
     dirty.clear();
@@ -513,7 +548,7 @@ const M3 = (() => {
     // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes
     gl.once("style.load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd
-      styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks", "sky"]); flush(); ovCheck();
+      styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks", "sky", "sun"]); flush(); ovCheck();
       el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
     gl.on("moveend", ovCheck);
@@ -553,6 +588,8 @@ const M3 = (() => {
     if(on){
       me?.getElement().classList.remove("m3-hide");
       if(was === "nav"){ const v = fromLeaflet(); gl.easeTo({...v, pitch:58, padding:{top:0, bottom:0, left:0, right:0}, duration:800}); }
+      // de platte kaart toont het hele gebied: in 3D ook het hele gebied, schuin van boven (niet piepklein in de verte)
+      else if(!was && S.area && map.getBounds().contains(S.area.bounds)){ const c = ovCam(); if(c) gl.jumpTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:50, padding:ovPad()}); }
     } else me?.getElement().classList.add("m3-hide");
     ovCheck();
     gl.resize();
@@ -595,10 +632,12 @@ const M3 = (() => {
 
   // ---------- overzicht ----------
   // hoe de camera staat als je het hele skigebied ziet (noorden boven)
+  const ovPad = () => { const side = isSide(); return {top:side ? 90 : padTop(), left:side ? 440 : 24, right:80, bottom:side ? 24 : padBottom()}; };
+  // met padding legt MapLibre het midden zelf in het vrije deel; dus het echte midden van het gebied meegeven
+  const ovCenter = () => { const c = S.area.bounds.getCenter(); return [c.lng, c.lat]; };
   function ovCam(){
     const b = S.area?.bounds; if(!b || !gl) return null;
-    const side = isSide(), pad = {top:90, left:side ? 440 : 24, right:80, bottom:(side ? 0 : sheetPeek()) + 24};
-    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:pad, bearing:0}); }catch(e){ return null; }
+    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:ovPad(), bearing:0}); }catch(e){ return null; }
   }
   // knop Overzicht alleen als je flink ingezoomd bent (of het gebied uit beeld is)
   function ovCheck(){
@@ -608,7 +647,7 @@ const M3 = (() => {
   }
   function overview(){
     const c = ovCam(); if(!c) return;
-    gl.easeTo({center:c.center, zoom:c.zoom - .3, bearing:0, pitch:50, duration:1400});
+    gl.easeTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:50, padding:ovPad(), duration:1400});
   }
 
   // ---------- volgen ----------
