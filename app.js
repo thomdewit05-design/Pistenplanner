@@ -3124,10 +3124,13 @@ function hutPopup(h){
       ${web}
       <button type="button" class="${h.kind === "o" ? "" : "primary"}" data-a="to" style="grid-column:1/-1">${I("flag")}${isSvc(h) ? "Route hierheen" : "Hierheen"}</button>
       ${isSvc(h) ? "" : `<button type="button" data-a="via" style="grid-column:1/-1">Als tussenstop in mijn route</button>`}
-    </div>`;
+      ${isFood(h) && S.path?.length ? `<button type="button" data-a="lunch" style="grid-column:1/-1">${I("food")}${tr("Lunch hier in mijn route")}</button>` : ""}
+    </div>${isSvc(h) ? "" : `<p class="pop-hours" id="hutOh"></p>`}`;
   const pop = openPop([h.lat, h.lon], div, {maxWidth:280, className:"pop-wrap"});
   selectOnMap(null, [h.lat, h.lon], pop);
+  if(!isSvc(h)) hutHours(h).then(oh => { const p = div.querySelector("#hutOh"); if(p && oh) p.innerHTML = `${I("clock")}<span>${esc(oh)}</span>`; });
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
+    if(b.dataset.a === "lunch"){ const k = HUT_KIND[h.kind] || HUT_KIND.r; S.lunch = {n:h.node, at:S.lunchPref?.at || "12:30", dur:S.lunchPref?.dur || 60, name:h.name || k[0], kind:h.kind}; pop.remove(); update(); toast(`${tr("Lunch bij")} ${S.lunch.name}`); return; }
     if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
     else{
       // huidige route als punten, de hut als stop vóór de eindbestemming
@@ -3276,7 +3279,9 @@ async function renderOffline(){
   box.innerHTML = `<p class="label">Offline</p>
     <p class="off-line ${ok ? "ok" : ""}">${I(ok ? "check" : "cloud")}<span>${ok ? `<b>${esc(A.row[1])} staat op je telefoon.</b> Pistes, liften, routes, navigatie, status en dagboek werken zonder bereik.` : `<b>Nog niet offline.</b> Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.`}</span></p>
     <p class="off-line">${I("snow")}<span>${wx ? `Laatste weerbericht bewaard om ${new Date(wx.t).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}.` : "Nog geen weerbericht bewaard."}</span></p>
-    <p class="off-line">${I("layers")}<span>Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.</span></p>`;
+    <p class="off-line">${I("layers")}<span>Van de achtergrondkaart worden alleen de stukken bewaard die je hebt bekeken. Zoom thuis op wifi even rond over het gebied.</span></p>
+    ${window.PP_STORE === "web" || window.PP_STORE === "play" ? `<button type="button" class="btn ghost m-wide" id="dlArea">${I("down")}${localStorage.getItem("pp-dl-" + A.id) ? tr("Gebied opnieuw downloaden") : tr("Download de hele winterkaart en 3D")}</button>` : ""}`;
+  $("dlArea")?.addEventListener("click", e => { e.stopPropagation(); downloadArea(e.currentTarget); });
 }
 $("layersBtn").addEventListener("click", () => setTimeout(renderOffline, 0));
 // vinkje in de gebiedenlijst voor gebieden die al op de telefoon staan
@@ -4019,6 +4024,7 @@ function renderToday(){
         ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
+    + tripCard()
     + `<div class="acts dc">${act("tdDay", "sun", "Dagroute")}${`<a class="act" id="tdTicket" href="${esc(ticketUrl())}" target="_blank" rel="noopener"><span>${I("ticket")}</span>${tr("Skipas")}</a>`}${act("tdHome", home?.kind === "auto" ? "car" : "bed", home ? (home.kind === "auto" ? "Naar je auto" : "Naar je hotel") : "Hotel bewaren")}${act("tdGroup", "group", "Groep")}</div>`
     + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
         ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
@@ -4036,6 +4042,7 @@ function renderToday(){
   $("tdGroup").onclick = () => setTab("group");
   $("tdMe").onclick = () => setTab("me");
   $("aiCompare")?.addEventListener("click", openCompare);
+  $("tripOpen")?.addEventListener("click", openTrip);
   $("colMap")?.addEventListener("click", () => { box.hidden = true; if(typeof setTab === "function") setTab("map"); showCollected(true); });
   wireFree(box);
   box.querySelectorAll("[data-cam]").forEach(b => b.onclick = () => camView(A.cams[+b.dataset.cam]));
@@ -4833,6 +4840,98 @@ async function saveHealth(day){
   const start = sm.from || day.start, end = sm.to || Date.now(), kcal = Math.round(5.5 * 75 * Math.max(0, (end - start) / 3.6e6) * .7);
   const r = await navNative("health", {start, end, km:+sm.km.toFixed(2), kcal});
   if(r?.saved) toast(`${tr("Opgeslagen in Apple Gezondheid")} · ${kmTxt(sm.km)} km · ${kcal} kcal`, 3500);
+}
+
+// ================= fase 4: skivakantie plannen =================
+const PACK = ["Ski's of snowboard", "Skischoenen", "Helm", "Skibril en zonnebril", "Skijas en -broek", "Thermokleding", "Handschoenen (en een extra paar)", "Muts en buff", "Zonnebrand en lippenbalsem", "Skipas", "Paspoort of ID-kaart", "Zorgverzekeringspas", "Oplader en powerbank", "Rugzakje"];
+const tripGet = () => { try{ return JSON.parse(localStorage.getItem("pp-trip") || "null"); }catch(e){ return null; } };
+const tripSet = t => { try{ t ? localStorage.setItem("pp-trip", JSON.stringify(t)) : localStorage.removeItem("pp-trip"); }catch(e){} };
+const dayDiff = iso => Math.ceil((new Date(iso + "T00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 864e5);
+// kaart bovenin Vandaag: aftellen naar je vakantie
+function tripCard(){
+  const t = tripGet(); if(!t) return `<button type="button" class="trip-add dc" id="tripOpen">${I("calendar")}<span><b>${tr("Plan je skivakantie")}</b><small>${tr("Aftellen, weer, paklijst en route")}</small></span>${I("chev")}</button>`;
+  const r = S.index.find(x => x[0] === t.area), d = dayDiff(t.from), end = dayDiff(t.to);
+  if(end < 0){ return `<button type="button" class="trip-add dc" id="tripOpen">${I("calendar")}<span><b>${tr("Plan je volgende skivakantie")}</b><small>${tr("Aftellen, weer, paklijst en route")}</small></span>${I("chev")}</button>`; }
+  const packed = (t.pack || []).length;
+  return `<button type="button" class="trip-card dc" id="tripOpen"><div class="tc-l"><p class="label">${I("calendar")}${d > 0 ? tr("Nog") : tr("Op vakantie")}</p>
+      <b class="tc-n">${d > 0 ? `${d}<small>${d === 1 ? tr("dag") : tr("dagen")}</small>` : `${tr("Dag")} ${1 - d}`}</b><span>${esc(r?.[1] || "")}</span></div>
+    <div class="tc-r"><small>${new Date(t.from + "T12:00").toLocaleDateString(LOCALE, {day:"numeric", month:"short"})} – ${new Date(t.to + "T12:00").toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}</small>
+      <div class="col-bar"><i style="--k:${Math.round(packed / PACK.length * 100)}%"></i></div><small>${packed}/${PACK.length} ${tr("ingepakt")}</small></div></button>`;
+}
+async function openTrip(){
+  const el = detailPanel(), t = tripGet() || {area:S.area?.id || FAVS[0] || "", from:"", to:"", pack:[]};
+  const today = new Date().toISOString().slice(0, 10);
+  const areaOpts = [...new Set([t.area, S.area?.id, ...FAVS].filter(Boolean))].map(id => S.index.find(r => r[0] === id)).filter(Boolean);
+  el.innerHTML = `<div class="picker-head"><div><p class="label">${tr("Skivakantie")}</p><h2>${tr("Reisplanner")}</h2></div><button type="button" class="icon-btn" id="detClose" aria-label="${tr("Sluiten")}">${I("close")}</button></div>
+    <div class="trip-form">
+      <label>${tr("Skigebied")}<select id="tpArea">${areaOpts.map(r => `<option value="${r[0]}" ${r[0] === t.area ? "selected" : ""}>${esc(r[1])}</option>`).join("")}<option value="__pick">${tr("Ander gebied kiezen…")}</option></select></label>
+      <div class="trip-dates"><label>${tr("Van")}<input type="date" id="tpFrom" min="${today}" value="${t.from || ""}"></label><label>${tr("Tot en met")}<input type="date" id="tpTo" min="${today}" value="${t.to || ""}"></label></div>
+      <button type="button" class="btn primary" id="tpSave">${I("check")}${tr("Bewaar mijn vakantie")}</button>
+    </div>
+    <div id="tpInfo"></div>
+    <section class="dc"><p class="label">${I("check")}${tr("Paklijst")}</p><ul class="gear pack">${PACK.map((p, i) => `<li><label><input type="checkbox" data-pk="${i}" ${(t.pack || []).includes(i) ? "checked" : ""}><span>${tr(p)}</span></label></li>`).join("")}</ul></section>
+    ${tripGet() ? `<button type="button" class="btn ghost danger-btn" id="tpDel">${I("trash")}${tr("Vakantie verwijderen")}</button>` : ""}`;
+  el.hidden = false; $("detClose").onclick = () => el.hidden = true;
+  $("tpArea").onchange = e => { if(e.target.value === "__pick"){ el.hidden = true; openPicker(); toast(tr("Kies een gebied en zet het bij je favorieten (ster), dan staat het in de reisplanner."), 4500); } else tripInfo(e.target.value); };
+  $("tpSave").onclick = () => { const a = $("tpArea").value, f = $("tpFrom").value, to = $("tpTo").value || f;
+    if(!a || a === "__pick" || !f){ toast(tr("Kies een gebied en een begindatum.")); return; }
+    if(to < f){ toast(tr("De einddatum ligt voor de begindatum.")); return; }
+    const cur = tripGet() || {}; tripSet({...cur, area:a, from:f, to, pack:cur.pack || []}); tripRemind(); buzz("success"); toast(tr("Vakantie bewaard. Het aftellen begint!")); openTrip(); if(!$("today").hidden) renderToday(); };
+  el.querySelectorAll("[data-pk]").forEach(cb => cb.onchange = () => { const cur = tripGet() || {area:$("tpArea").value, from:$("tpFrom").value, to:$("tpTo").value};
+    cur.pack = [...el.querySelectorAll("[data-pk]:checked")].map(x => +x.dataset.pk); tripSet(cur.from ? cur : {...cur}); buzz("select");
+    if(cur.pack.length === PACK.length){ buzz("success"); confetti(50); toast(tr("Alles ingepakt. Goede reis!")); } });
+  $("tpDel")?.addEventListener("click", () => { tripSet(null); el.hidden = true; if(!$("today").hidden) renderToday(); toast(tr("Vakantie verwijderd.")); });
+  tripInfo($("tpArea").value);
+}
+// weer, sneeuwzekerheid, skipas en de route ernaartoe voor het gekozen gebied
+async function tripInfo(id){
+  const box = $("tpInfo"), r = S.index.find(x => x[0] === id); if(!box || !r) return;
+  const hi = r[10] ?? 0, sure = hi >= 2800 ? [3, tr("Zeer sneeuwzeker")] : hi >= 2200 ? [2, tr("Sneeuwzeker")] : hi >= 1700 ? [1, tr("Redelijk sneeuwzeker")] : [0, tr("Laag gelegen: let op de sneeuw")];
+  const dest = `${r[5]},${r[4]}`, nav = window.PP_STORE === "ios" || /iPhone|iPad/.test(navigator.userAgent) ? `https://maps.apple.com/?daddr=${dest}` : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+  box.innerHTML = `<section class="dc"><p class="label">${I("map")}${esc(r[1])}</p>
+    <div class="det-tiles"><div class="det-tile">${I("ski")}<small>${tr("Pistes")}</small><b>${r[6]}<i> km</i></b></div><div class="det-tile">${I("down")}<small>${tr("Hoogte")}</small><b>${r[10] ?? "?"}<i> m</i></b></div><div class="det-tile">${I("snow")}<small>${tr("Sneeuwhoogte")}</small><b id="tpDepth">…</b></div></div>
+    <p class="sure s${sure[0]}">${I("snow")}${sure[1]}</p><div id="tpWx"></div>
+    <div class="det-btns"><a class="btn ghost" href="${nav}" target="_blank" rel="noopener">${I("car")}${tr("Route ernaartoe")}</a><a class="btn ghost" href="https://www.google.com/search?q=${encodeURIComponent(r[1] + " skipas prijs")}" target="_blank" rel="noopener">${I("ticket")}${tr("Skipasprijzen")}</a></div></section>`;
+  try{
+    const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${hi || 2400}&current=snow_depth&daily=weather_code,temperature_2m_max,snowfall_sum&forecast_days=7&timezone=auto`)).json();
+    if($("tpDepth")) $("tpDepth").innerHTML = `${Math.round((j.current.snow_depth || 0) * 100)}<i> cm</i>`;
+    const t = tripGet(), D = j.daily;
+    const days = D.time.map((d, i) => ({d, i})).filter(x => !t || t.area !== id || !t.from || (x.d >= t.from && x.d <= (t.to || t.from)));
+    const show = days.length ? days : D.time.map((d, i) => ({d, i}));
+    if($("tpWx")) $("tpWx").innerHTML = `<p class="m-hint">${days.length && t?.area === id ? tr("Weer tijdens je vakantie:") : tr("Weer de komende dagen:")}</p><div class="wx-days trip-wx">${show.slice(0, 7).map(({d, i}) => { const [dt, ic] = wxInfo(D.weather_code[i]);
+      return `<div class="wx-day" title="${dt}"><b>${new Date(d + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</b>${I(ic)}<span class="t">${deg(D.temperature_2m_max[i])}</span><span class="sn">${D.snowfall_sum[i] >= .5 ? Math.round(D.snowfall_sum[i]) + " cm" : ""}</span></div>`; }).join("")}</div>`;
+  }catch(e){ if($("tpDepth")) $("tpDepth").textContent = "–"; }
+}
+// herinnering de avond voor vertrek (alleen in de apps)
+function tripRemind(){
+  const t = tripGet(), ln = window.Capacitor?.isNativePlatform?.() && window.Capacitor.nativePromise; if(!t || !ln) return;
+  const at = new Date(t.from + "T18:00"); at.setDate(at.getDate() - 1); if(at.getTime() < Date.now()) return;
+  const r = S.index.find(x => x[0] === t.area);
+  window.Capacitor.nativePromise("LocalNotifications", "requestPermissions", {}).then(() =>
+    window.Capacitor.nativePromise("LocalNotifications", "schedule", {notifications:[{id:7600, title:`${tr("Morgen naar")} ${r?.[1] || ""}!`, body:tr("Check je paklijst en download het gebied voor offline gebruik."), schedule:{at:at.toISOString()}}]})).catch(() => {});
+}
+// ---- hutten: lunch hier en openingstijden (OpenStreetMap) ----
+const ohCache = new Map();
+async function hutHours(h){
+  const k = `${h.lat.toFixed(4)},${h.lon.toFixed(4)}`; if(ohCache.has(k)) return ohCache.get(k);
+  const q = `[out:json][timeout:15];nwr(around:45,${h.lat},${h.lon})["opening_hours"];out tags 3;`;
+  const p = (async () => { for(const url of OVERPASS){ try{ const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}}); if(!r.ok) continue;
+    const j = await r.json(); const el = (j.elements || []).find(e => !h.name || (e.tags?.name || "") === h.name) || j.elements?.[0]; return el?.tags?.opening_hours?.slice(0, 80) || ""; }catch(e){} } return ""; })();
+  ohCache.set(k, p); return p;
+}
+// ---- het hele gebied downloaden (website): hoogtetegels voor de winterkaart en 3D, zoom 10-14 ----
+async function downloadArea(btn){
+  const A = S.area; if(!A || !("caches" in window)) return;
+  const b = A.bounds, tiles = [];
+  for(let z = 10; z <= 14; z++){ const n = 2 ** z, X = lo => Math.floor((lo + 180) / 360 * n), Y = la => { const s = Math.sin(la * Math.PI / 180); return Math.floor((.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n); };
+    for(let x = X(b.getWest() - .02); x <= X(b.getEast() + .02); x++) for(let y = Y(b.getNorth() + .015); y <= Y(b.getSouth() - .015); y++) tiles.push(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`); }
+  let done = 0, bytes = 0; btn.disabled = true;
+  const one = async u => { try{ const r = await fetch(u); if(r.ok){ bytes += +(r.headers.get("content-length") || 0) || (await r.clone().blob()).size; } }catch(e){} done++;
+    btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(done / tiles.length * 100)}%`; };
+  for(let i = 0; i < tiles.length; i += 6) await Promise.all(tiles.slice(i, i + 6).map(one));
+  btn.disabled = false; btn.innerHTML = `${I("check")}${tr("Klaar")} · ${(bytes / 1048576).toFixed(1).replace(".", DEC)} MB`;
+  try{ localStorage.setItem("pp-dl-" + A.id, String(Date.now())); }catch(e){}
+  buzz("success"); toast(`${A.row[1]}: ${tiles.length} ${tr("kaarttegels bewaard voor offline.")}`, 3500);
 }
 // seizoensdoel in kilometers
 const GOALS = [100, 200, 300, 500, 1000];

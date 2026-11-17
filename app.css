@@ -1977,3 +1977,26 @@ body.following,body.drawing,body.rp-on{--tab-h:0px}
 .detail>*{flex:none}
 #detail>*{flex:none!important}
 #detail>.btn{height:auto;min-height:48px;max-height:60px}
+
+/* ===== Fase 4: skivakantie ===== */
+.trip-add{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;cursor:pointer;color:var(--ink)}
+.trip-add>.ic:first-child{width:40px;height:40px;padding:9px;border-radius:13px;background:linear-gradient(135deg,#1F7FD6,#7C3AED);color:#fff;flex:none}
+.trip-add span{flex:1;min-width:0}.trip-add b{display:block;font:750 16px var(--f-display)}.trip-add small{color:var(--muted);font-size:13px}
+.trip-card{display:flex;align-items:stretch;gap:14px;width:100%;text-align:left;border:0;cursor:pointer;color:#fff!important;background:linear-gradient(135deg,#1F7FD6,#7C3AED 70%)!important;box-shadow:0 12px 30px rgba(31,127,214,.3)}
+.trip-card .label{color:rgba(255,255,255,.85)!important}.trip-card .label .ic{color:#fff}
+.tc-l{flex:1;min-width:0}.tc-n{display:block;font:800 44px/1 var(--f-display);margin:4px 0}.tc-n small{font-size:16px;margin-left:6px;font-weight:700}
+.tc-l>span{font:650 14px var(--f-ui);opacity:.9}
+.tc-r{display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-width:110px;font-size:12px}
+.tc-r .col-bar{background:rgba(255,255,255,.25)}.tc-r .col-bar i{background:#fff}
+.trip-form{display:grid;gap:10px;margin:4px 0 12px}
+.trip-form label{display:grid;gap:5px;font:650 13px var(--f-ui);color:var(--muted)}
+.trip-form select,.trip-form input{font:600 16px var(--f-ui);padding:11px 12px;border-radius:14px;border:1px solid var(--card-line,rgba(0,0,0,.1));background:var(--card,#fff);color:var(--ink);width:100%;min-width:0}
+.trip-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sure{display:inline-flex;align-items:center;gap:6px;margin:4px 0 8px;padding:6px 11px;border-radius:999px;font:700 13px var(--f-ui)}
+.sure .ic{width:15px;height:15px}
+.sure.s3{background:rgba(31,157,87,.15);color:#1F9D57}.sure.s2{background:rgba(31,127,214,.14);color:#1F7FD6}.sure.s1{background:rgba(224,161,0,.16);color:#B07D00}.sure.s0{background:rgba(217,38,75,.13);color:#D9264B}
+.trip-wx{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(44px,1fr))}
+.pack{max-height:none}
+.pop-hours{display:flex;align-items:flex-start;gap:6px;margin:8px 2px 0;font-size:12.5px;color:var(--muted)}
+.pop-hours:empty{display:none}.pop-hours .ic{width:14px;height:14px;flex:none;margin-top:1px}
+.det-btns a.btn,.trip-card,.trip-add{text-decoration:none}
