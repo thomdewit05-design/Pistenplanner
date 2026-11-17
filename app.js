@@ -24,7 +24,7 @@ function animRemove(el, ms = 200){
   el.classList.add("closing"); setTimeout(() => el.remove(), ms);
 }
 
-["picker", "status", "group", "diary", "menu", "sos", "layerMenu"].forEach(id => animHidden($(id), id === "layerMenu" ? 160 : 220));
+["picker", "status", "group", "diary", "menu", "sos", "layerMenu", "today", "me"].forEach(id => animHidden($(id), id === "layerMenu" ? 160 : 220));
 const COUNTRY = {AT:"Oostenrijk", CH:"Zwitserland", FR:"Frankrijk", IT:"Italië", DE:"Duitsland", SI:"Slovenië", LI:"Liechtenstein", MC:"Monaco",
                  ES:"Spanje", AD:"Andorra", NO:"Noorwegen", SE:"Zweden", FI:"Finland", US:"Verenigde Staten", CA:"Canada"};
 const REGIONS = [["alpen","Alpen"], ["pyreneeen","Pyreneeën"], ["scandinavie","Scandinavië"], ["noord-amerika","Noord-Amerika"]];
@@ -1175,6 +1175,7 @@ function updateNav(){
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
+  document.body.classList.toggle("following", !S.follow);
   if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); hush(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow"); buzz("medium");
@@ -1303,6 +1304,7 @@ function renderDash(ns, left, arrive){
   } else {
     const rest = ns.rem + S.steps.slice(ns.i + 1).reduce((t, x) => t + x.len, 0);
     $("ndEta").textContent = arrive; $("ndLeft").textContent = fmt(left); $("ndKm").textContent = km(rest);
+    const total = S.steps.reduce((t, x) => t + x.len, 0); $("ndProg").style.width = (total ? Math.max(2, Math.min(100, 100 * (1 - rest / total))) : 0) + "%";
     // wat er na de volgende aanwijzing komt (die staat al groot bovenin)
     let at = ns.rem + (S.steps[ns.i + 1]?.len || 0);
     const later = S.steps.slice(ns.i + 2, ns.i + 4).map(st => { const li = `<li>${stepBadge(st)}<span class="nd-t">${esc(st.title)}</span><small><span>over</span> ${km(at)}</small></li>`; at += st.len; return li; });
@@ -1693,6 +1695,8 @@ function renderWeather(d, savedAt){
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
   const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
   const depth = Math.round((c.snow_depth || 0) * 100);
+  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id};
+  if(!$("today").hidden) setTimeout(renderToday, 0);
   $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
     <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
     <small>${txt} · wind ${Math.round(c.wind_speed_10m)} km/u${fresh >= 1 ? ` · ${Math.round(fresh)} cm vers` : ""}</small></span>
@@ -3671,6 +3675,149 @@ function clearRoute(){
   update(); setPeek();
   if(!isSide()) setSheet(false);
   toast("Route gewist. Tik op de kaart voor een nieuwe.");
+}
+
+
+// ================= tabbalk en dashboards =================
+// Onderin een zwevende glazen tabbalk: Kaart · Vandaag · Groep · Ik. Vandaag en Ik zijn dashboards met kaarten van matglas;
+// Groep is het bestaande groepsvenster. Tijdens navigeren, tekenen en de 3D-terugblik verdwijnt de balk.
+let TAB = "map";
+const TAB_PANELS = {today:"today", group:"group", me:"me"};
+function setTab(t){
+  if(t === TAB && t !== "map"){ $(TAB_PANELS[t]).scrollTop = 0; return; }
+  buzz();
+  ["picker", "status", "diary", "menu", ...Object.values(TAB_PANELS)].forEach(id => { if(id !== TAB_PANELS[t]) $(id).hidden = true; });
+  $("layerMenu").hidden = true;
+  TAB = t; tabPaint();
+  if(t === "today") openToday(); else if(t === "group") openGroup(); else if(t === "me") openMe();
+}
+function tabPaint(){ document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB)); }
+document.querySelectorAll("#tabbar button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+// gaat een venster dicht (kruisje, vegen), dan staat de tabbalk weer op Kaart
+new MutationObserver(() => {
+  if(TAB !== "map" && $(TAB_PANELS[TAB])?.hidden){ TAB = "map"; tabPaint(); }
+}).observe(document.body, {subtree:true, attributes:true, attributeFilter:["hidden"]});
+
+// getallen tellen op bij het openen (alleen zonder "minder beweging")
+function countUp(root){
+  if(calm()) return;
+  root.querySelectorAll("[data-n]").forEach(el => {
+    const to = +el.dataset.n, dec = +(el.dataset.dec || 0), t0 = performance.now(), dur = 700;
+    const fmt = v => v.toLocaleString(LOCALE, {minimumFractionDigits:dec, maximumFractionDigits:dec});
+    const step = now => { const k = Math.min(1, (now - t0) / dur), e = 1 - (1 - k) ** 3; el.textContent = fmt(to * e); if(k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+const num = (v, dec = 0) => `<b data-n="${v}" data-dec="${dec}">${(+v).toLocaleString(LOCALE, {minimumFractionDigits:dec, maximumFractionDigits:dec})}</b>`;
+function greeting(){
+  const h = new Date().getHours();
+  return h < 5 ? "Goedenacht" : h < 11 ? "Goedemorgen" : h < 15 ? "Goedemiddag" : h < 18 ? "Nog één afdaling?" : "Goedenavond";
+}
+const dashHead = (label, title, closeId) => `<div class="dash-head"><div><p class="label">${label}</p><h2>${title}</h2></div><button type="button" class="icon-btn" id="${closeId}" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button></div>`;
+// een piste aantikken: route erheen en terug naar de kaart
+function goPiste(ei){
+  const ch = chainFrom(ei);
+  S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = [];
+  if(S.pos && S.fromMe) S.from = nearestNode(S.pos.lat, S.pos.lon).n; else if(S.from == null) S.from = ch.start;
+  setTab("map"); update(); fitRoute();
+}
+// berg-illustratie voor de bovenste kaart (zelfde stijl als het logo en de App Store-header)
+const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <defs><linearGradient id="hSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB3E0"/><stop offset="1" stop-color="#2F6E9F"/></linearGradient>
+  <linearGradient id="hSh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#DCE9F4"/><stop offset="1" stop-color="#9DBBD3"/></linearGradient></defs>
+  <rect width="400" height="200" fill="url(#hSky)"/><circle cx="330" cy="46" r="20" fill="#fff" opacity=".85"/>
+  <path d="M120 200 210 70 250 110 290 80 400 170V200Z" fill="#A9C6DD" opacity=".7"/>
+  <path d="M150 200 255 40 360 200Z" fill="#fff"/><path d="M255 40 360 200H272L265 120 278 96Z" fill="url(#hSh)"/>
+  <path d="M255 52c18 12 18 26 2 36s-16 22 4 34 18 26-2 40" fill="none" stroke="#FFC400" stroke-width="5" stroke-linecap="round"/>
+  <path d="M0 200V178q90-22 190-6t210-4V200Z" fill="#F2F7FB"/></svg>`;
+
+function openToday(){ $("today").hidden = false; renderToday(); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); }
+function renderToday(){
+  const box = $("today"), A = S.area;
+  if(!A){ box.innerHTML = dashHead(greeting(), "Vandaag", "tdClose") + `<div class="dash-empty"><img src="icons/logo.svg" alt="" class="empty-art"><p>Kies eerst een skigebied, dan zie je hier het weer, de sneeuw en de mooiste pistes van vandaag.</p><button type="button" class="btn primary" id="tdPick">${I("search")}Kies een skigebied</button></div>`;
+    $("tdClose").onclick = () => box.hidden = true; $("tdPick").onclick = () => { box.hidden = true; openPicker(); }; return; }
+  const r = A.row, w = S.wx && S.wx.area === A.id ? S.wx : null;
+  const lifts = A.edges.filter(e => e.t === "l"), liftKeys = new Set(lifts.map(e => e.key ?? e.i));
+  const openKeys = new Set(lifts.filter(e => !S.closed.has(e.i)).map(e => e.key ?? e.i));
+  const windRisk = [...(S.risk?.lifts || [])].filter(i => !S.closed.has(i)).length;
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
+  const sk = '<i class="skel"></i>';
+  const tile = (icon, label, val, unit, sub) => `<div class="tile">${I(icon)}<span>${label}</span><p>${val ?? sk}${val != null && unit ? `<small>${unit}</small>` : ""}</p>${sub ? `<small class="t-sub">${sub}</small>` : ""}</div>`;
+  const home = getHome?.();
+  const act = (id, icon, label) => `<button type="button" class="act" id="${id}"><span>${I(icon)}</span>${label}</button>`;
+  const picks = areaPicks(), best = w ? bestSnow(w.c, w.cd, w.fresh) : [];
+  const pcard = (e, top, why, i, k) => `<button type="button" class="pcard" data-k="${k}" data-i="${i}" style="--c:${DIFF[e.diff]?.col || "#888"}"><span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff]?.col || "#888"}">${esc(e.ref) || I("ski")}</span><small>${top}</small><b>${esc(uc(tr(pisteLabel(e))))}</b><i>${why}</i></button>`;
+  const tday = D.day?.date === todayKey() ? D.day : loadDay(todayKey()), ts = tday && tday.pts.length > 1 ? daySummary(tday) : null;
+  let days = "";
+  if(w){
+    const Dd = w.d[0].daily, i0 = Math.max(0, Dd.time.indexOf(w.c.time.slice(0, 10)));
+    days = Dd.time.slice(i0, i0 + 4).map((t, k) => { const i = i0 + k, [dt, di] = wxInfo(Dd.weather_code[i]), sn = Dd.snowfall_sum[i] || 0;
+      return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
+  }
+  box.innerHTML = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
+    + `<section class="hero dc">${HERO_ART}<div class="hero-txt">
+        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : sk}</p>
+        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : tr("Weer en sneeuw laden…")}</p>
+        <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
+    + `<div class="tiles dc">
+        ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
+        ${tile("thermo", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top")}
+        ${tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : ""))}
+        ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
+      </div>`
+    + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
+    + `<div class="acts dc">${act("tdDay", "sun", "Dagroute")}${`<a class="act" id="tdTicket" href="${esc(ticketUrl())}" target="_blank" rel="noopener"><span>${I("ticket")}</span>${tr("Skipas")}</a>`}${act("tdHome", home?.kind === "auto" ? "car" : "bed", home ? (home.kind === "auto" ? "Naar je auto" : "Naar je hotel") : "Hotel bewaren")}${act("tdGroup", "group", "Groep")}</div>`
+    + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
+        ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
+        : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>`}</div>${I("chev")}</button>`
+    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
+    + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
+    + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
+    + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
+  $("tdClose").onclick = () => box.hidden = true;
+  $("tdDay").onclick = () => { setTab("map"); dayRoute(); };
+  $("tdHome").onclick = () => { setTab("map"); home ? goHome() : homeMenu(); };
+  $("tdGroup").onclick = () => setTab("group");
+  $("tdMe").onclick = () => setTab("me");
+  box.querySelectorAll(".pcard").forEach(b => b.onclick = () => goPiste(b.dataset.k === "b" ? best[+b.dataset.i].e.i : picks[+b.dataset.i].g.e.i));
+  countUp(box);
+}
+
+// ---- Ik: jouw skidag, je seizoen, prestaties en instellingen ----
+function ring(v, max, color, label, val, unit){
+  const k = Math.max(0, Math.min(1, max ? v / max : 0)), R = 34, C = 2 * Math.PI * R;
+  return `<div class="ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" class="rg-bg"/><circle cx="40" cy="40" r="${R}" class="rg-fg" style="stroke:${color};stroke-dasharray:${C};--dash:${C};stroke-dashoffset:${C * (1 - k)}"/></svg><p>${val}<small>${unit}</small></p><span>${label}</span></div>`;
+}
+function openMe(){ $("me").hidden = false; renderMe(); }
+function renderMe(){
+  const box = $("me"), days = allDays(), tk = todayKey();
+  const tday = D.day?.date === tk ? D.day : loadDay(tk), ts = tday && tday.pts.length > 1 ? daySummary(tday) : null;
+  const rec = days.reduce((m, x) => ({km:Math.max(m.km, x.s.km), hm:Math.max(m.hm, x.s.hm), runs:Math.max(m.runs, x.s.runs)}), {km:0, hm:0, runs:0});
+  const season = days.length ? seasonOf(days[0].d) : null, sd = season ? days.filter(x => seasonOf(x.d) === season) : [];
+  const tot = sd.reduce((a, x) => ({km:a.km + x.s.km, hm:a.hm + x.s.hm}), {km:0, hm:0});
+  const bars = sd.slice(0, 14).reverse(), bmax = Math.max(1, ...bars.map(x => x.s.km));
+  const a = days.length ? badgeStats() : null, got = a ? BADGES.filter(b => b.v(a) >= b.goal) : [];
+  const row = (id, icon, color, label, sub) => `<button type="button" class="me-row" id="${id}"><span class="sq" style="background:${color}">${I(icon)}</span><span class="mr-t"><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</span>${I("chev")}</button>`;
+  box.innerHTML = dashHead(season ? `${tr("Seizoen")} ${season}` : tr("Jouw skiseizoen"), "Ik", "meClose")
+    + `<section class="me-today dc"><div class="me-top"><p class="label">${I("rec")}${tr("Vandaag")}</p>${D.rec ? `<span class="rec-pill">${I("rec")}${tr("Opname")}</span>` : ""}</div>`
+    + (ts && ts.n > 1 ? `<div class="rings">${ring(ts.km, Math.max(20, rec.km), "#2B7FC4", tr("kilometer"), num(ts.km, 1), "km")}${ring(ts.hm, Math.max(3000, rec.hm), "#7C3AED", tr("hoogtemeters"), num(Math.round(ts.hm)), "hm")}${ring(ts.runs, Math.max(15, rec.runs), "#1F9D57", tr("afdalingen"), num(ts.runs), "")}</div>
+        <div class="me-speed">${I("speed")}<span>${tr("Topsnelheid")}</span>${num(Math.round(ts.vmax))}<small>km/u</small></div>
+        <div class="me-btns"><button type="button" class="btn ghost" id="meDiary">${I("book")}Skidagboek</button>${M3.supported && !M3.failed ? `<button type="button" class="btn primary" id="me3d">${I("layers")}Bekijk je dag in 3D</button>` : ""}</div>`
+      : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>${D.rec ? "" : `<button type="button" class="btn primary" id="meStart">${I("rec")}Begin met opnemen</button>`}`)
+    + `</section>`
+    + (sd.length ? `<section class="dc"><p class="label">${I("calendar")}${tr("Mijn seizoen")}</p><div class="me-season"><div class="ms-tot"><span>${num(sd.length)}<small>${tr("dagen")}</small></span><span>${num(Math.round(tot.km))}<small>km</small></span><span>${num(Math.round(tot.hm))}<small>hm</small></span></div>
+        <div class="bars">${bars.map(x => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div></section>` : "")
+    + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
+    + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
+  $("meClose").onclick = () => box.hidden = true;
+  const toDiary = () => { box.hidden = true; openDiary(); };
+  $("meDiary")?.addEventListener("click", toDiary); $("meDiary2").onclick = toDiary; $("meBadges")?.addEventListener("click", toDiary);
+  $("me3d")?.addEventListener("click", () => { box.hidden = true; replayDay(tday); });
+  $("meStart")?.addEventListener("click", () => { startRec(); renderMe(); });
+  $("meSettings").onclick = () => { box.hidden = true; openMenu(); };
+  $("mePro")?.addEventListener("click", () => { box.hidden = true; openPro(); });
+  $("meHelp").onclick = () => window.open(window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") + "support.html" : "support.html", "_blank");
+  countUp(box);
 }
 
 // ================= menu en instellingen =================
