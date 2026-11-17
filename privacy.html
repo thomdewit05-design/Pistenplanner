@@ -30,7 +30,7 @@ a{color:var(--accent)}
 <body>
 <main>
 <header><img src="icons/logo.svg" alt=""><h1>Privacyverklaring</h1></header>
-<p class="meta">Skipilot · laatst bijgewerkt op 26 oktober 2026</p>
+<p class="meta">Skipilot · laatst bijgewerkt op 17 november 2026</p>
 
 <div class="card">
 <h2>In het kort</h2>
@@ -38,7 +38,8 @@ a{color:var(--accent)}
   <li class="ads-off">Skipilot heeft geen accounts en geen analysediensten. De website toont geen advertenties; de gratis iPhone-app toont advertenties van Google AdMob (zie hieronder).</li>
   <li class="ads-on" hidden>Skipilot heeft geen accounts en geen analysediensten. De app en de website tonen advertenties van Google; daarvoor vraagt Google eerst om je toestemming voor cookies.</li>
   <li>Je routes, instellingen, skidagboek en bewaarde plekken staan alleen op je eigen telefoon.</li>
-  <li>Je locatie wordt op je telefoon gebruikt voor de navigatie. Alleen als je zelf een groep gebruikt, gaat je positie naar je groepsgenoten.</li>
+  <li>Je locatie wordt op je telefoon gebruikt voor de navigatie. Alleen als je zelf een groep gebruikt, gaat je positie naar je groepsgenoten, versleuteld.</li>
+  <li>Apple Gezondheid, foto's en de bewegingssensor gebruikt de app alleen als je dat zelf aanzet. Die gegevens blijven op je eigen telefoon.</li>
 </ul>
 </div>
 
@@ -46,10 +47,19 @@ a{color:var(--accent)}
 <p>Skipilot wordt gemaakt door <span data-cfg="name" class="todo">[naam]</span>. Vragen over privacy kun je mailen naar <span data-cfg="email" class="todo">[e-mailadres]</span>.</p>
 
 <h2>Wat blijft op je telefoon</h2>
-<p>De app bewaart in de opslag van je browser: je instellingen (niveau, voorkeuren, thema, taal), je bewaarde routes en favorieten, je skidagboek met de gps-punten van je skidagen, de plek van je hotel of auto, door jou afgesloten pistes, je groepsnaam en, als je Pro hebt, je licentiecode. Deze gegevens worden nergens naartoe gestuurd. Je kunt ze wissen via Menu &gt; Opslag en privacy, of door de app te verwijderen.</p>
+<p>De app bewaart in de opslag van je telefoon (of browser): je instellingen (niveau, voorkeuren, thema, taal), je bewaarde routes en favorieten, je skidagboek met de gps-punten van je skidagen, de plek van je hotel of auto, door jou afgesloten pistes, je groepsnaam en groepscode, je foto's, je gewicht (als je dat invult), de gedownloade skigebieden en, als je Pro hebt, je licentiecode. Deze gegevens worden nergens naartoe gestuurd. Je kunt ze wissen via Menu &gt; Opslag en privacy, of door de app te verwijderen.</p>
 
 <h2>Je locatie</h2>
 <p>Als je toestemming geeft, gebruikt de app de gps van je telefoon om je op de kaart te tonen, te navigeren, je skidagboek bij te houden en je snelheid te laten zien. Dat gebeurt op je telefoon. Je locatie gaat alleen naar anderen als je in een groep zit en "Mijn positie delen" aan staat (zie hieronder).</p>
+
+<h2>Apple Gezondheid (iPhone-app)</h2>
+<p>Zet je "Opslaan in Apple Gezondheid" aan, dan vraagt je iPhone eerst om toestemming. Na een skidag slaat de app die op als training in Apple Gezondheid: de begin- en eindtijd, de afstand en een schatting van de calorieën. Voor die schatting kun je je gewicht invullen; dat blijft op je telefoon. De app leest niets uit Apple Gezondheid en stuurt deze gegevens nergens naartoe. Gezondheidsgegevens worden nooit gebruikt voor advertenties.</p>
+
+<h2>Foto's, bewegingssensor en Apple Watch</h2>
+<p>Foto's die je bij je skidag maakt of kiest, bewaart de app alleen op je telefoon. De bewegingssensor gebruikt de app tijdens het opnemen van een skidag om sprongen te herkennen; ook dat gebeurt op je telefoon. Heb je de Apple Watch-app, dan stuurt je iPhone je skidag en route rechtstreeks naar je horloge. Widgets en de Live Activity tonen gegevens die al op je telefoon staan.</p>
+
+<h2>Gedownloade skigebieden</h2>
+<p>Voordat je een skigebied gebruikt, download je het: de pistedata en de hoogtegegevens voor de winterkaart en 3D worden dan op je telefoon bewaard, zodat alles zonder bereik werkt. Je wist ze via Menu &gt; Opslag en privacy.</p>
 
 <h2>Diensten van anderen</h2>
 <p>Om te werken haalt de app gegevens op bij andere diensten. Die zien daarbij, zoals bij elke website, je IP-adres en wat er wordt opgevraagd.</p>
@@ -57,10 +67,11 @@ a{color:var(--accent)}
   <tr><th>Dienst</th><th>Waarvoor</th><th>Wat wordt verstuurd</th></tr>
   <tr><td>GitHub Pages</td><td>Hosting van de app en de pistedata</td><td>Gewone webverzoeken</td></tr>
   <tr><td>Esri, OpenTopoMap, OpenStreetMap</td><td>Kaarttegels (satelliet, terrein, kaart)</td><td>Welk stuk kaart je bekijkt</td></tr>
-  <tr><td>Amazon Web Services (Terrain Tiles)</td><td>Hoogtegegevens voor de 3D-kaart en de 3D-navigatie</td><td>Welk stuk kaart je in 3D bekijkt</td></tr>
+  <tr><td>Amazon Web Services (Terrain Tiles)</td><td>Hoogtegegevens voor de winterkaart, de steilheid, de 3D-kaart en de 3D-navigatie</td><td>Welk stuk kaart je in 3D bekijkt</td></tr>
   <tr><td>Open-Meteo</td><td>Weer en sneeuw</td><td>De ligging van het skigebied (niet je eigen positie)</td></tr>
-  <tr><td>Overpass (OpenStreetMap)</td><td>Hutten en restaurants</td><td>Het gebied van het skigebied</td></tr>
-  <tr><td>ntfy.sh</td><td>Groepen</td><td>Alleen als je een groep gebruikt: je naam in de groep, de route die je deelt, en als je dat aanzet je positie en dagtotaal (km en hoogtemeters). Berichten gaan via een geheime groepscode en worden door ntfy.sh tijdelijk bewaard (standaard ongeveer 12 uur).</td></tr>
+  <tr><td>Overpass (OpenStreetMap)</td><td>Hutten, restaurants, toppen, webcams en openingstijden</td><td>Het gebied van het skigebied</td></tr>
+  <tr><td>ntfy.sh (sneeuwberichten)</td><td>Hoe de sneeuw op een piste is, gemeld door andere skiërs</td><td>Alleen als je zelf een piste beoordeelt: welke piste en welk soort sneeuw. Anoniem; je positie wordt alleen op je telefoon gecontroleerd en niet verstuurd.</td></tr>
+  <tr><td>ntfy.sh</td><td>Groepen</td><td>Alleen als je een groep gebruikt: je naam in de groep, de route die je deelt, en als je dat aanzet je positie en dagtotaal (km en hoogtemeters). Berichten worden op je telefoon versleuteld (AES-GCM) met een sleutel die alleen uit de groepscode volgt; ntfy.sh ziet dus alleen onleesbare tekst. Ze worden daar tijdelijk bewaard (standaard ongeveer 12 uur).</td></tr>
   <tr><td>Google AdMob (iPhone-app)</td><td>Een advertentiebalk in de skigebiedkiezer, de routebeschrijving, het dagboek en het menu van de gratis iPhone-app, en af en toe een schermvullende advertentie bij een pauze; nooit tijdens het navigeren en niet als je Pro hebt gekocht</td><td>Gegevens over je apparaat, je IP-adres, hoe je de advertenties ziet en gebruikt en, alleen als je toestemming geeft, de advertentie-ID van je iPhone. Zie hieronder.</td></tr>
 <tr class="ads-on" hidden><td>Google AdSense</td><td>Advertenties op de website en in de app (in de skigebiedkiezer, het dagboek en het menu; nooit tijdens het navigeren)</td><td>Gegevens over je apparaat en browser, je IP-adres, de pagina die je bekijkt en, als je toestemming geeft, cookies en vergelijkbare technieken. Zie hieronder.</td></tr>
   <tr><td>Lemon Squeezy</td><td>Kopen en controleren van Pro</td><td>Bij het kopen: wat je zelf invult in de kassa van Lemon Squeezy. In de app: je licentiecode en het soort apparaat (bijvoorbeeld "iPhone"), om de code te activeren en eens per week te controleren.</td></tr>

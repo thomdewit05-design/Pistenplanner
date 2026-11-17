@@ -237,7 +237,7 @@ const M3 = (() => {
       g.uniform1f(this.u.u_bias, .0005); g.drawArrays(g.TRIANGLES, this.half, this.n - this.half);
       this.vao.bind(null);
       // cabines: elke keer opnieuw (ze bewegen), in een eigen buffer; niet tijdens het navigeren of bij "minder beweging"
-      if(mode === "view" && !REDUCED && gl.getZoom() > 12.5){
+      if(mode === "view" && !REDUCED && !saving() && gl.getZoom() > 12.5){
         if(!this.cva){ this.cbuf = g.createBuffer(); this.cva = this.vao.make(); this.vao.bind(this.cva); g.bindBuffer(g.ARRAY_BUFFER, this.cbuf);
           const st = FLOATS * 4, L = this.loc;
           [["a_pos", 3, 0], ["a_other", 3, 3], ["a_flip", 1, 6], ["a_side", 1, 7], ["a_w", 1, 8], ["a_col", 4, 9]].forEach(([k, size, off]) => {
@@ -351,7 +351,7 @@ const M3 = (() => {
   function snowFx(){
     cancelAnimationFrame(snowRaf); document.querySelector(".m3-snow")?.remove();
     const code = S.wx?.c?.weather_code ?? 0;
-    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches || saving()) return;
     const c = document.createElement("canvas"); c.className = "m3-snow"; gl.getContainer().appendChild(c);
     const x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
     const fit = () => { c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr; };

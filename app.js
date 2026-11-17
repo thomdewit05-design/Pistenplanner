@@ -5,6 +5,18 @@ const $ = id => document.getElementById(id);
 // de weg-animatie afspeelt en dan pas echt verbergt. Code die el.hidden leest ziet meteen de nieuwe stand.
 const HIDDEN = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "hidden");
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// batterij sparen: zelf aangezet, of vanzelf onder 20% (als het toestel de batterijstand doorgeeft)
+const POWER = {low:false};
+const saving = () => !!(S?.saver || POWER.low);
+function applySaver(){ const on = saving(); document.documentElement.classList.toggle("saver", on); window.M3?.sync?.("sky"); }
+navigator.getBattery?.().then(b => { const upd = () => { const was = POWER.low; POWER.low = !b.charging && b.level <= .2;
+  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } };
+  b.addEventListener("levelchange", upd); b.addEventListener("chargingchange", upd); upd(); }).catch(() => {});
+// iOS-app: batterij (en de energiebesparingsmodus van iOS) elke 5 minuten bij de app opvragen
+if(window.PP_STORE === "ios" && !navigator.getBattery){ const ask = async () => { try{ const r = await window.Capacitor?.nativePromise?.("Nav", "battery", {});
+  if(!r) return; const was = POWER.low; POWER.low = r.lowPower || (!r.charging && r.level >= 0 && r.level <= .2);
+  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } }catch(e){} };
+  setTimeout(ask, 3000); setInterval(ask, 5 * 60000); }
 function animHidden(el, ms = 220){
   if(!el) return;
   let want = el.hasAttribute("hidden"), timer = 0;
@@ -58,9 +70,9 @@ const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, targe
 const FIRST_RUN = (() => { try{ return !localStorage.getItem("pistenplanner-app") && !localStorage.getItem("pp-onboarded"); }catch(e){ return false; } })();
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"winter",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, saver:!!s.saver, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, saver:S.saver, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -1878,7 +1890,7 @@ function renderBestSnow(c, cd, fresh){
   const box = $("bestSnow"); if(!box) return;
   const list = bestSnow(c, cd, fresh);
   if(!list.length){ box.innerHTML = ""; return; }
-  box.innerHTML = `<p class="label">${I("snow")}Beste sneeuw nu</p>` + list.map((g, i) =>
+  box.innerHTML = `<p class="label">${I("snow")}Beste sneeuw nu <span class="est">≈</span></p>` + list.map((g, i) =>
     `<button type="button" class="bs-row" data-i="${i}"><span class="node${isDark(g.e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>
       <span class="bs-txt"><b>${esc(uc(pisteLabel(g.e)))}</b><small>${g.reason}</small></span>${I("chev")}</button>`).join("")
     + `<p class="bs-note">Schatting uit zon, hoogte, temperatuur en verse sneeuw. Tik om erheen te gaan.</p>`;
@@ -2308,7 +2320,7 @@ function groupOnPos(){
   if(!G.code || !G.sharePos || !S.pos) return;
   const now = Date.now(), last = G.lastPos;
   const moved = last ? meters(last.lat, last.lon, S.pos.lat, S.pos.lon) : Infinity, dt = last ? (now - last.t)/1000 : Infinity;
-  const minSec = sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC;
+  const minSec = (sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC) * (saving() ? 3 : 1);   // batterij sparen: groep minder vaak
   if(dt >= POS_MAX_SEC || (moved >= POS_MIN_MOVE && dt >= minSec)){
     G.lastPos = {lat:S.pos.lat, lon:S.pos.lon, t:now};
     const sm = D.rec ? D.day?.sum : null;
@@ -3204,7 +3216,7 @@ function hutPopup(h){
     </div>${isSvc(h) ? "" : `<p class="pop-hours" id="hutOh"></p>`}`;
   const pop = openPop([h.lat, h.lon], div, {maxWidth:280, className:"pop-wrap"});
   selectOnMap(null, [h.lat, h.lon], pop);
-  if(!isSvc(h)) hutHours(h).then(oh => { const p = div.querySelector("#hutOh"); if(p && oh) p.innerHTML = `${I("clock")}<span>${esc(oh)}</span>`; });
+  if(!isSvc(h)) hutHours(h).then(oh => { const p = div.querySelector("#hutOh"); if(p && oh) p.innerHTML = `${I("clock")}<span>${esc(oh)} <small class="est">${tr("volgens OpenStreetMap")}</small></span>`; });
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.a === "lunch"){ const k = HUT_KIND[h.kind] || HUT_KIND.r; S.lunch = {n:h.node, at:S.lunchPref?.at || "12:30", dur:S.lunchPref?.dur || 60, name:h.name || k[0], kind:h.kind}; pop.remove(); update(); toast(`${tr("Lunch bij")} ${S.lunch.name}`); return; }
     if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
@@ -4101,7 +4113,7 @@ function renderToday(){
     + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
         ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
         : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>`}</div>${I("chev")}</button>`
-    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
+    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu <span class="est">≈</span></p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
     + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
     + freeSection() + wxCharts() + collectSection(A) + areaInfo()
@@ -4476,6 +4488,7 @@ function camsSection(A){
   const cards = (cams || []).map((c, i) => c.img
     ? `<button type="button" class="cam" data-cam="${i}"><img src="${esc(c.u)}${c.u.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 6e5)}" alt="" loading="lazy" onerror="this.closest('.cam').remove()"><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></button>`
     : `<a class="cam cam-link" href="${esc(c.u)}" target="_blank" rel="noopener"><span class="cam-ic">${I("eye")}</span><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></a>`).join("");
+  if(cams != null && !cards && !site) return "";   // geen webcams bekend: geen lege sectie met alleen een zoeklink
   return `<section class="dc cams-sec"><p class="label">${I("eye")}${tr("Webcams")}</p>${cams == null ? `<div class="cams"><i class="skel cam-skel"></i><i class="skel cam-skel"></i></div>` : cards ? `<div class="cams">${cards}</div>` : ""}
     <a class="btn ghost cam-more" href="${esc(more)}" target="_blank" rel="noopener">${I("eye")}${tr(cards ? "Meer webcams" : "Webcams bekijken")}</a></section>`;
 }
@@ -4530,7 +4543,8 @@ async function liftAlertPlan(){
 }
 if(NOTIF_APP){
   $("notifSec").hidden = false;
-  if(window.PP_STORE === "ios"){ $("healthRow").hidden = false; $("healthToggle").checked = localStorage.getItem("pp-health") === "1";
+  if(window.PP_STORE === "ios"){ $("healthRow").hidden = false; $("healthToggle").checked = localStorage.getItem("pp-health") === "1"; $("weightRow").hidden = false; $("weightIn").value = localStorage.getItem("pp-kg") || ""; $("weightIn").placeholder = "75";
+    $("weightIn").onchange = e => { const v = Math.round(+e.target.value); if(v >= 20 && v <= 200) localStorage.setItem("pp-kg", v); else { localStorage.removeItem("pp-kg"); e.target.value = ""; } };
     $("healthToggle").onchange = async e => { localStorage.setItem("pp-health", e.target.checked ? "1" : "0");
       if(e.target.checked) toast(tr("Na elke skidag vraagt Apple de eerste keer om toestemming."), 3500); }; }
   const c0 = notifCfg(); $("snowAlert").checked = c0.snow; $("liftAlert").checked = c0.lift;
@@ -4630,7 +4644,7 @@ async function _openDetail(ei){
     ${risky ? `<p class="notice bad">${I("wind")}<span>${tr("Kans op sluiting door harde wind.")}</span></p>` : ""}
     ${!lift ? `<section class="dc"><p class="label">${I("down")}${tr("Hoogteprofiel en steilheid")}</p><div id="detProf" class="det-prof-box"><i class="skel" style="height:150px;display:block;border-radius:14px"></i></div>
       <div class="slope-key"><span><i style="background:#22984A"></i>&lt;15°</span><span><i style="background:#1E66CC"></i>15–25°</span><span><i style="background:#D22E2E"></i>25–35°</span><span><i style="background:#121417"></i>35°+</span></div></section>
-      <section class="dc"><p class="label">${I("sun")}${tr("Zon en schaduw vandaag")}</p>${sunTimeline(ch.edges)}</section>
+      <section class="dc"><p class="label">${I("sun")}${tr("Zon en schaduw vandaag")} <span class="est">≈</span></p>${sunTimeline(ch.edges)}</section>
       <section class="dc"><p class="label">${I("snow")}${tr("Hoe is de sneeuw?")}</p><div id="detSnow"></div></section>` : ""}
     ${(() => { const t = tempAt(((eS ?? 0) + (eE ?? 0)) / 2); return t == null ? "" : `<section class="dc det-now"><p class="label">${I("thermo")}${tr("Nu op deze hoogte")}</p><div class="det-tiles">${tile("thermo", "Temperatuur", Math.round(t), "°")}${tile("snow", "Vers", Math.round(S.wx.fresh), " cm")}${tile("wind", "Wind top", Math.round(S.wx.c.wind_speed_10m), " km/u")}</div></section>`; })()}
     <div class="det-btns"><button type="button" class="btn primary" id="detGo">${lift ? liftIc(e.kind) : I("ski")}${lift ? tr("Neem deze lift") : tr("Ski deze piste")}</button>
@@ -4913,9 +4927,9 @@ async function drawPhotos(day){
 async function saveHealth(day){
   if(window.PP_STORE !== "ios" || localStorage.getItem("pp-health") !== "1") return;
   const sm = day.sum; if(!sm || sm.n < 2 || sm.km < .3) return;
-  const start = sm.from || day.start, end = sm.to || Date.now(), kcal = Math.round(5.5 * 75 * Math.max(0, (end - start) / 3.6e6) * .7);
+  const start = sm.from || day.start, end = sm.to || Date.now(), kcal = Math.round(5.5 * (+localStorage.getItem("pp-kg") || 75) * Math.max(0, (end - start) / 3.6e6) * .7);   // schatting: MET 5,5, 70% van de tijd actief
   const r = await navNative("health", {start, end, km:+sm.km.toFixed(2), kcal});
-  if(r?.saved) toast(`${tr("Opgeslagen in Apple Gezondheid")} · ${kmTxt(sm.km)} km · ${kcal} kcal`, 3500);
+  if(r?.saved) toast(`${tr("Opgeslagen in Apple Gezondheid")} · ${kmTxt(sm.km)} km · ≈ ${kcal} kcal`, 3500);
 }
 
 // ================= fase 4: skivakantie plannen =================
@@ -4967,7 +4981,7 @@ async function tripInfo(id){
   const dest = `${r[5]},${r[4]}`, nav = window.PP_STORE === "ios" || /iPhone|iPad/.test(navigator.userAgent) ? `https://maps.apple.com/?daddr=${dest}` : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
   box.innerHTML = `<section class="dc"><p class="label">${I("map")}${esc(r[1])}</p>
     <div class="det-tiles"><div class="det-tile">${I("ski")}<small>${tr("Pistes")}</small><b>${r[6]}<i> km</i></b></div><div class="det-tile">${I("down")}<small>${tr("Hoogte")}</small><b>${r[10] ?? "?"}<i> m</i></b></div><div class="det-tile">${I("snow")}<small>${tr("Sneeuwhoogte")}</small><b id="tpDepth">…</b></div></div>
-    <p class="sure s${sure[0]}">${I("snow")}${sure[1]}</p><div id="tpWx"></div>
+    <p class="sure s${sure[0]}">${I("snow")}${sure[1]} <small class="est">${tr("schatting op hoogte")}</small></p><div id="tpWx"></div>
     <div class="det-btns"><a class="btn ghost" href="${nav}" target="_blank" rel="noopener">${I("car")}${tr("Route ernaartoe")}</a><a class="btn ghost" href="https://www.google.com/search?q=${encodeURIComponent(r[1] + " skipas prijs")}" target="_blank" rel="noopener">${I("ticket")}${tr("Skipasprijzen")}</a></div></section>`;
   try{
     const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${hi || 2400}&current=snow_depth&daily=weather_code,temperature_2m_max,snowfall_sum&forecast_days=7&timezone=auto`)).json();
@@ -5395,6 +5409,8 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").
 $("menuLayers").onclick = e => { e.stopPropagation(); closeMenu(); $("layerMenu").hidden = false; renderOffline(); };
 document.querySelectorAll("#pace button").forEach(b => b.onclick = () => { S.pace = +b.dataset.v; syncMenu(); update(); });
 $("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake(); };
+$("saverToggle").checked = !!S.saver; applySaver();
+$("saverToggle").onchange = e => { S.saver = e.target.checked; save(); applySaver(); toast(tr(S.saver ? "Batterij sparen staat aan." : "Batterij sparen staat uit."), 2500); };
 $("speedoToggle").onchange = e => { S.speedo = e.target.checked; save(); renderSpeedo(); };
 $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("watchTap").onchange = e => { S.watchTap = e.target.checked; save(); liveSig = null; navLive(); };

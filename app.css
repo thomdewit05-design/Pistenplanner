@@ -2098,3 +2098,15 @@ body.following .layer-chips,body.drawing .layer-chips,body.rp-on .layer-chips,bo
 .dl-row svg{width:16px;height:16px;flex:none}
 .dl-row svg:first-child{color:var(--ok)}
 @media (prefers-reduced-motion:reduce){.dl-gate,.dl-gate.out,.dl-card.ok .dl-art{animation:none}}
+
+/* batterij sparen: geen doorlopende animaties */
+.saver *,.saver *::before,.saver *::after{animation-iteration-count:1!important}
+.saver .m3-snow{display:none}
+/* schattingen herkenbaar maken */
+.est{font:600 11px/1 var(--f-ui);letter-spacing:0;text-transform:none;color:var(--faint);opacity:.9}
+.label .est{font-size:12px}
+.weight-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0}
+.weight-row>span:first-child{display:flex;flex-direction:column;font-weight:600}
+.weight-row small{font-weight:500;color:var(--muted);font-size:12.5px}
+.wr-in{display:flex;align-items:center;gap:6px;flex:none;color:var(--muted)}
+.wr-in input{width:64px;padding:8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font:inherit;text-align:right}
