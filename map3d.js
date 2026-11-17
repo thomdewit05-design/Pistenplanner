@@ -119,7 +119,7 @@ const M3 = (() => {
         const off = [dx / L * bar / 111320, -dy / L * bar / 111320 / ky];      // loodrecht op de kabel, in graden: [lat, lon]
         pylons.push([P([q.p[0] + off[0], q.p[1] + off[1]], q.g + H), P([q.p[0] - off[0], q.p[1] - off[1]], q.g + H)]);
       });
-      // lengte langs de kabel (in kaarteenheden) voor de bewegende cabines
+      // lengte langs de kabel (in kaarteenheden)
       const cum = [0]; for(let k = 1; k < line.length; k++) cum.push(cum[k-1] + Math.hypot(line[k][0] - line[k-1][0], line[k][1] - line[k-1][1], line[k][2] - line[k-1][2]));
       out.push({i:e.i, closed:S.closed.has(e.i), line, pylons, cum, total, kind:e.kind});
     }
@@ -147,34 +147,6 @@ const M3 = (() => {
         quad(c.line[k-1], c.line[k], r ? (pass ? 7.5 : 12) : (pass ? 1.8 : 3.6), r ? (pass ? gold : navy) : pass ? (c.closed ? grey : dark) : soft);
     } }
     const out = new Float32Array(v); out.half = half; return out;
-  }
-  // bewegende cabines/stoeltjes: blokjes die langs de kabel schuiven (heen en terug), met de echte snelheid
-  const CAB = {chair_lift:{gap:28, v:2.4, len:2.4, w:5}, gondola:{gap:70, v:5, len:3.6, w:8}, mixed_lift:{gap:60, v:5, len:3.6, w:8}, cable_car:{gap:0, v:9, len:7, w:12}};
-  function cabinVerts(geo, t){
-    const v = [];
-    const quad = (a, b, w, col) => {
-      for(const [p, o, flip, side] of [[a, b, 1, -1], [a, b, 1, 1], [b, a, -1, -1], [b, a, -1, -1], [a, b, 1, 1], [b, a, -1, 1]])
-        v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
-    };
-    const at = (c, f) => { const L = c.cum[c.cum.length - 1], d = Math.max(0, Math.min(L, f * L)); let k = 1; while(k < c.cum.length - 1 && c.cum[k] < d) k++;
-      const s = c.cum[k] > c.cum[k-1] ? (d - c.cum[k-1]) / (c.cum[k] - c.cum[k-1]) : 0, a = c.line[k-1], b = c.line[k];
-      return [a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s, a[2] + (b[2] - a[2]) * s - (c.cum[c.cum.length - 1] / c.total) * 1.2]; };   // iets onder de kabel
-    const dark = [.1, .15, .2, 1], body = [.93, .3, .25, 1], white = [1, 1, 1, .95];
-    for(const c of geo){
-      if(c.closed || !c.cum || c.line.length < 2) continue;
-      const k = CAB[c.kind] || CAB.chair_lift, n = k.gap ? Math.max(1, Math.floor(c.total / k.gap)) : 1;
-      for(let dir = 0; dir < 2; dir++){
-        if(!k.gap && dir) break;
-        for(let j = 0; j < n; j++){
-          let f;
-          if(!k.gap){ const per = c.total / k.v, u = (t / 1000 % (2 * per)) / per; f = u <= 1 ? u : 2 - u; }   // kabelbaan: één cabine heen en weer
-          else { f = ((t / 1000 * k.v / c.total) + j / n + (dir ? .5 / n : 0)) % 1; if(dir) f = 1 - f; }
-          const df = k.len / c.total, a = at(c, Math.max(0, f - df / 2)), b = at(c, Math.min(1, f + df / 2));
-          quad(a, b, k.w + 3, white); quad(a, b, k.w, c.kind === "chair_lift" ? dark : body);
-        }
-      }
-    }
-    return new Float32Array(v);
   }
   // matrix van MapLibre × verschuiving naar het midden van het gebied, in dubbele precisie (anders trillen de kabels)
   function withOrigin(m){
@@ -236,22 +208,6 @@ const M3 = (() => {
       g.uniform1f(this.u.u_bias, .0004); g.drawArrays(g.TRIANGLES, 0, this.half);
       g.uniform1f(this.u.u_bias, .0005); g.drawArrays(g.TRIANGLES, this.half, this.n - this.half);
       this.vao.bind(null);
-      // cabines: elke keer opnieuw (ze bewegen), in een eigen buffer; niet tijdens het navigeren of bij "minder beweging"
-      if(mode === "view" && !REDUCED && !saving() && gl.getZoom() > 12.5){
-        if(!this.cva){ this.cbuf = g.createBuffer(); this.cva = this.vao.make(); this.vao.bind(this.cva); g.bindBuffer(g.ARRAY_BUFFER, this.cbuf);
-          const st = FLOATS * 4, L = this.loc;
-          [["a_pos", 3, 0], ["a_other", 3, 3], ["a_flip", 1, 6], ["a_side", 1, 7], ["a_w", 1, 8], ["a_col", 4, 9]].forEach(([k, size, off]) => {
-            if(L[k] < 0) return; g.enableVertexAttribArray(L[k]); g.vertexAttribPointer(L[k], size, g.FLOAT, false, st, off * 4); });
-          this.vao.bind(null); }
-        const cv = cabinVerts(cableGeo, performance.now());
-        if(cv.length){
-          this.vao.bind(this.cva); g.bindBuffer(g.ARRAY_BUFFER, this.cbuf); g.bufferData(g.ARRAY_BUFFER, cv, g.DYNAMIC_DRAW);
-          g.uniform1f(this.u.u_bias, .0006); g.drawArrays(g.TRIANGLES, 0, cv.length / FLOATS);
-          this.vao.bind(null);
-          // ±25 beelden per seconde is genoeg voor cabines en spaart de batterij
-          clearTimeout(this.tick); this.tick = setTimeout(() => gl?.triggerRepaint(), 40);
-        }
-      }
     }
   };
   // tikken op een kabel: de kabel staat in de lucht, dus zelf projecteren (map.project kent geen hoogte)
