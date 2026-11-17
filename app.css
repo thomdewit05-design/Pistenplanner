@@ -1820,3 +1820,8 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 .switch span small{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
 .g-rank .rank-seg button{border:0!important;background:transparent!important;color:var(--muted)!important}
 .g-rank .rank-seg button[aria-pressed="true"]{background:#1F7FD6!important;color:#fff!important}
+
+/* Tabbalk lager: dicht boven de thuisbalk van de iPhone, zoals in iOS zelf */
+.tabbar{bottom:max(10px,calc(var(--safe-b) - 8px))}
+body{--tab-h:68px}
+body.following,body.drawing,body.rp-on{--tab-h:0px}
