@@ -2129,3 +2129,30 @@ body.following .sun-bar,body.drawing .sun-bar,body.rp-on .sun-bar,body:has(.pick
 /* de Overzicht-knop van de 3D-kaart onder de rij lagenchips, niet erachter */
 .ov-pill{top:calc(122px + var(--safe-t));z-index:999}
 body:has(#layerChips[hidden]) .ov-pill{top:calc(76px + var(--safe-t))}
+/* routekleur paars (blauw botste met blauwe pistes) */
+.comet{background:radial-gradient(circle,#fff 0 28%,#E2C6FF 45%,rgba(142,43,230,0) 72%);box-shadow:0 0 18px 6px rgba(142,43,230,.45)}
+.ios .pin.a{border-color:#8E2BE6}.ios .pin.a>span{background:#8E2BE6}
+.ios .pin.b{background:#8E2BE6}
+.ios .pin.v{border-color:#8E2BE6}.ios .pin.v .ic{color:#8E2BE6}
+.nd-prog i{background:linear-gradient(90deg,#8E2BE6,#C08CFF)}
+/* lagenchips: compacter, en zachtjes vervagend aan de rand in plaats van hard afgesneden */
+.layer-chips{gap:6px;padding:2px 24px 6px 2px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.lchip{padding:5px 11px 5px 9px;min-height:30px;font:650 12px/1 var(--f-ui);gap:5px;box-shadow:0 2px 8px rgba(8,24,44,.12)}
+.lchip .ic{width:13px;height:13px}
+.lchip[aria-pressed="true"]{background:#0F2233;border-color:#0F2233;color:#fff}
+.lchip[data-lc="sunToggle"][aria-pressed="true"]{background:#E0A100;border-color:#E0A100;color:#1A1300}
+.lchip[data-lc="sunToggle"][aria-pressed="true"] .ic{color:#1A1300}
+.lchip[data-lc="slopeToggle"][aria-pressed="true"]{background:#E8590C;border-color:#E8590C}
+.ov-pill{top:calc(114px + var(--safe-t))}
+/* zonbalk: rustiger en compacter */
+.sun-bar{padding:7px 8px 5px 12px;border-radius:16px}
+.sun-bar .sb-info{font-size:12.5px;margin:0 0 2px}
+.sun-bar .sun-slide b{font-size:12.5px;min-width:38px}
+.sun-bar .sun-slide .chip{min-height:28px;padding:4px 10px;font-size:12px}
+.sun-bar .sb-x{width:28px;height:28px}
+.layer-chips{padding:2px 2px 6px;-webkit-mask-image:none;mask-image:none}
+.layer-chips.more{padding-right:24px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+.lchip{padding:5px 10px 5px 8px;gap:4px}
+/* meldingen onder de chips, niet eroverheen */
+.toast{top:calc(118px + var(--safe-t))}
+.layer-chips{right:calc(10px + var(--safe-r,0px))}

@@ -759,7 +759,8 @@ function buildSteps(path){
 }
 
 // ---- de route: kleur, intekenen, komeet en het al afgelegde deel ----
-const ROUTE_BLUE = "#1F7FD6";
+// paarse routelijn: geen enkele piste heeft die kleur (blauwe pistes, blauwe selectie, blauwe stip van jezelf)
+const ROUTE_BLUE = "#8E2BE6";
 const passedLayer = L.layerGroup().addTo(map);
 // een nieuwe route loopt in van start naar eind, daarna glijdt er één keer een lichtpuntje overheen
 function routeIntro(layers, lines){
@@ -828,7 +829,7 @@ function update(){
     // de route: strak merkblauw met een witte rand en een lichtere streep in het midden (zoals Apple Kaarten)
     const lines = path.map(st => st.rev ? [...st.e.pts].reverse() : st.e.pts);
     const ro = (color, weight, opacity) => ({renderer:svgR, interactive:false, color, weight, opacity, lineCap:"round", lineJoin:"round"});
-    const rl = [L.polyline(lines, ro("#0B2236", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#7CC0F5", 2.4, .75))];
+    const rl = [L.polyline(lines, ro("#2A0B45", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#D9B3FF", 2.4, .75))];
     rl.forEach(l => l.addTo(routeLayer));
     if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:ROUTE_BLUE, weight:3, opacity:.55, dashArray:"8 8"}).addTo(routeLayer);
     if(freshRoute){ routeIntro(rl, lines); document.body.classList.add("route-fresh"); clearTimeout(S.freshT); S.freshT = setTimeout(() => document.body.classList.remove("route-fresh"), 1400); }
@@ -5253,11 +5254,13 @@ const LAYER_CHIPS = [["slopeToggle", "warn", "Steilheid"], ["sunToggle", "sun", 
 function syncLayerChips(){
   const box = $("layerChips"); if(!box) return;
   box.hidden = !S.area;
-  box.innerHTML = LAYER_CHIPS.map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
+  // Avond alleen als het aan staat (de schakelaar zit in het lagenmenu); zo past de rij op een telefoon
+  box.innerHTML = LAYER_CHIPS.filter(([id]) => id !== "nightToggle2" || S.night).map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
     return `<button type="button" class="lchip" data-lc="${id}" aria-pressed="${on}">${I(ic)}${tr(t)}</button>`; }).join("");
   box.querySelectorAll("[data-lc]").forEach(b => b.onclick = () => { const id = b.dataset.lc; buzz("select");
     if(id === "colChip"){ showCollected(!S.colOn); syncLayerChips(); return; }
     const c = $(id); c.checked = !c.checked; c.dispatchEvent(new Event("change")); setTimeout(syncLayerChips, 50); });
+  requestAnimationFrame(() => box.classList.toggle("more", box.scrollWidth > box.clientWidth + 2));
 }
 ["slopeToggle", "sunToggle", "heatToggle", "nightToggle2", "nightToggle"].forEach(id => $(id)?.addEventListener("change", () => setTimeout(syncLayerChips, 50)));
 // ---- nieuw in Skipilot: één keer een korte rondleiding na de update ----

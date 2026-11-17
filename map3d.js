@@ -319,13 +319,13 @@ const M3 = (() => {
         {id:"station", type:"circle", source:"pistes", filter:["==", ["get", "k"], "st"], paint:{"circle-radius":w(1.5, 3.5), "circle-color":"#14202B", "circle-stroke-color":"#fff", "circle-stroke-width":1.5, "circle-pitch-alignment":"map"}},
         // bergtoppen met naam en hoogte (de hoogste eerst; wat overlapt valt weg)
         {id:"peaks", type:"symbol", source:"peaks", minzoom:10.5, layout:{"icon-image":["get", "img"], "icon-anchor":"top", "icon-offset":[0, -7], "symbol-sort-key":["get", "o"], "icon-padding":6}},
-        {id:"route-shadow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0B2236", "line-width":w(9, 18), "line-opacity":.18, "line-blur":3}},
+        {id:"route-shadow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#2A0B45", "line-width":w(9, 18), "line-opacity":.18, "line-blur":3}},
         {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
-        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(3.6, 7.5)}},
-        {id:"route-glow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#7CC0F5", "line-width":w(1.1, 2.4), "line-opacity":.75}},
+        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#8E2BE6", "line-width":w(3.6, 7.5)}},
+        {id:"route-glow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#D9B3FF", "line-width":w(1.1, 2.4), "line-opacity":.75}},
         {id:"route-passed-case", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
         {id:"route-passed", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#9AA9B7", "line-width":w(3.6, 7.5)}},
-        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(1.5, 3), "line-opacity":.6, "line-dasharray":[3, 2.5]}},
+        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#8E2BE6", "line-width":w(1.5, 3), "line-opacity":.6, "line-dasharray":[3, 2.5]}},
         // pijltjes in de rijrichting op de route
         {id:"route-arrows", type:"symbol", source:"route", filter:["==", ["get", "k"], "p"], minzoom:12, layout:{"symbol-placement":"line", "symbol-spacing":["interpolate", ["linear"], ["zoom"], 12, 60, 16, 110], "icon-image":"route-arrow", "icon-size":["interpolate", ["linear"], ["zoom"], 12, .6, 16, 1], "icon-rotation-alignment":"map", "icon-pitch-alignment":"map", "icon-allow-overlap":true, "icon-ignore-placement":true}},
         {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
