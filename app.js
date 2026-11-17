@@ -1027,11 +1027,12 @@ function edgePopup(ei, latlng, nearNode){
       <button type="button" class="pc-ic danger" data-a="close" title="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten" aria-label="${ch.kind==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>
       <button type="button" data-a="from" title="Vertrek hier">${I("play")}<span>Vertrek hier</span></button>
       <button type="button" data-a="to" title="Hierheen">${I("flag")}<span>Hierheen</span></button>
-    </div>`;
+    </div><button type="button" class="pc-more" data-a="info">${I("chev")}<span>${tr("Details, profiel en zon")}</span></button>`;
   const pop = openPop(latlng, div, {closeButton:true, autoPan:true, maxWidth:262, className:"pop-wrap pc-wrap"});
   selectOnMap(ch.edges, latlng, pop);
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     const a = b.dataset.a;
+    if(a==="info"){ pop.remove(); clearSel?.(); openDetail(ei); return; }
     if(a==="ski"){ S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from==null) S.from = ch.start; }
     else if(a==="to"){ S.to = nearNode; S.target = null; S.via = null; S.pick = "from"; S.wps = []; }
     else if(a==="from"){ S.from = nearNode; S.fromMe = false; S.pick = "to"; }
@@ -1765,9 +1766,9 @@ async function loadWeather(){
   $("wxSum").innerHTML = `<span class="wx-loading">Weer en sneeuw laden…</span>`; $("wxBody").innerHTML = "";
   try{
     const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
-      latitude:`${r[5]},${r[5]}`, longitude:`${r[4]},${r[4]}`, elevation:`${hi},${lo}`, timezone:"auto", forecast_days:"4", past_days:"1",
+      latitude:`${r[5]},${r[5]}`, longitude:`${r[4]},${r[4]}`, elevation:`${hi},${lo}`, timezone:"auto", forecast_days:"7", past_days:"1",
       current:"temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,visibility,snow_depth,freezing_level_height",
-      hourly:"snowfall", daily:"weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,wind_speed_10m_max"});
+      hourly:"snowfall,temperature_2m,wind_speed_10m", daily:"weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,wind_speed_10m_max"});
     const res = await fetch(url); if(!res.ok) throw new Error(res.status);
     const d = await res.json(); if(!Array.isArray(d) || d.length < 2) throw new Error("data");
     wxCache[id] = {t:Date.now(), d};
@@ -4017,6 +4018,7 @@ function renderToday(){
     + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
     + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
+    + wxCharts() + areaInfo()
     + camsSection(A)
     + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
   $("tdClose").onclick = () => box.hidden = true;
@@ -4025,6 +4027,7 @@ function renderToday(){
   $("tdHome").onclick = () => { setTab("map"); home ? goHome() : homeMenu(); };
   $("tdGroup").onclick = () => setTab("group");
   $("tdMe").onclick = () => setTab("me");
+  $("aiCompare")?.addEventListener("click", openCompare);
   box.querySelectorAll("[data-cam]").forEach(b => b.onclick = () => camView(A.cams[+b.dataset.cam]));
   if(A.cams === undefined){ A.cams = null; loadCams(A).then(() => { if(S.area === A && !box.hidden) renderToday(); }); }
   box.querySelectorAll(".pcard").forEach(b => b.onclick = () => goPiste(b.dataset.k === "b" ? best[+b.dataset.i].e.i : picks[+b.dataset.i].g.e.i));
@@ -4059,6 +4062,7 @@ function renderMe(){
         <div class="bars">${bars.map((x, bi) => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%;animation-delay:${bi * 40}ms" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div>
         <div class="goal">${goalKm() ? `<div class="goal-bar"><div class="goal-t"><b>${tr("Seizoensdoel")}</b><span>${num(Math.round(Math.min(tot.km, goalKm())))} / ${goalKm()} km</span></div><div class="goal-track"><i style="--k:${Math.min(100, tot.km / goalKm() * 100).toFixed(1)}%"></i></div></div>` : `<p class="goal-q">${tr("Stel een seizoensdoel in")}</p>`}
           <div class="chips goal-chips">${GOALS.map(g => `<button type="button" class="chip" data-goal="${g}" aria-pressed="${goalKm() === g}">${g} km</button>`).join("")}</div></div></section>
+      ${seasonCal(sd)}
       <button type="button" class="wr-tease dc" id="meWrapped"><span class="wr-tease-art">${I("star")}</span><span><b>${tr("Jouw seizoen in beeld")}</b><small>${tr("Je hoogtepunten om te delen")}</small></span>${I("chev")}</button>` : "")
     + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
     + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
@@ -4445,6 +4449,201 @@ if(NOTIF_APP){
   $("liftAlert").onchange = e => { const c = notifCfg(); c.lift = e.target.checked; save(c); liftAlertPlan(); };
   setTimeout(() => { snowSync(); snowCheckNow(); }, 8000);
   document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") snowCheckNow(); });
+}
+
+// ================= fase 2: details, grafieken, infographic, vergelijken, seizoenskalender =================
+// hoogte op willekeurige punten uit de hoogtetegels (zoom 14, ±10 m nauwkeurig), zelfde bron als de 3D-kaart
+const demPix = new Map();
+function demTile(z, x, y){
+  const k = `${z}/${x}/${y}`;
+  if(!demPix.has(k)){ demPix.set(k, PPterrain.get("dem", z, x, y, 1).then(b => { const c = document.createElement("canvas"); c.width = b.width; c.height = b.height;
+    const cx = c.getContext("2d", {willReadFrequently:true}); cx.drawImage(b, 0, 0); b.close?.(); return cx.getImageData(0, 0, c.width, c.height); }).catch(() => null));
+    if(demPix.size > 40) demPix.delete(demPix.keys().next().value); }
+  return demPix.get(k);
+}
+async function elevAt(list){
+  const z = 14, n = 2 ** z;
+  return Promise.all(list.map(async ([la, lo]) => {
+    const fx = (lo + 180) / 360 * n, s = Math.sin(la * Math.PI / 180), fy = (.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n;
+    const tx = Math.floor(fx), ty = Math.floor(fy), img = await demTile(z, tx, ty); if(!img) return null;
+    const px = Math.min(img.width - 1, Math.floor((fx - tx) * img.width)), py = Math.min(img.height - 1, Math.floor((fy - ty) * img.height)), i = (py * img.width + px) * 4, d = img.data;
+    return d[i] * 256 + d[i + 1] + d[i + 2] / 256 - 32768;
+  }));
+}
+// punten van een piste op volgorde (van boven naar beneden), om de ±20 m
+function chainPts(ch){
+  const A = S.area, set = new Set(ch.edges), out = []; let cur = ch.start, guard = 0;
+  while(set.size && guard++ < 500){ const i = [...set].find(j => A.edges[j].a === cur); if(i == null) break; set.delete(i); const e = A.edges[i];
+    for(const p of e.pts){ const l = out[out.length - 1]; if(!l || l[0] !== p[0] || l[1] !== p[1]) out.push(p); } cur = e.b; }
+  if(out.length < 2) for(const i of ch.edges) out.push(...A.edges[i].pts);
+  const res = [out[0]]; let acc = 0;
+  for(let k = 1; k < out.length; k++){ const d = meters(...out[k-1], ...out[k]); acc += d; if(acc >= 20 || k === out.length - 1){ res.push(out[k]); acc = 0; } }
+  return res;
+}
+const SLOPE_CLS = [[0, "#22984A"], [15, "#1E66CC"], [25, "#D22E2E"], [35, "#121417"]];
+const slopeCol = deg => { let c = SLOPE_CLS[0][1]; for(const [v, col] of SLOPE_CLS) if(deg >= v) c = col; return c; };
+// hoogteprofiel met de helling als gekleurde band eronder
+function profileSvg(dist, ele){
+  const W = 340, H = 150, PB = 22, lo = Math.min(...ele), hi = Math.max(...ele), tot = dist[dist.length - 1] || 1;
+  const X = d => 8 + d / tot * (W - 16), Y = v => 10 + (hi - v) / ((hi - lo) || 1) * (H - PB - 22);
+  const line = ele.map((v, i) => `${i ? "L" : "M"}${X(dist[i]).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  let band = "";
+  for(let i = 1; i < ele.length; i++){ const dd = dist[i] - dist[i-1]; if(dd <= 0) continue; const deg = Math.atan(Math.abs(ele[i-1] - ele[i]) / dd) * 57.3;
+    band += `<rect x="${X(dist[i-1]).toFixed(1)}" y="${H - PB + 6}" width="${(X(dist[i]) - X(dist[i-1]) + .6).toFixed(1)}" height="9" fill="${slopeCol(deg)}"/>`; }
+  return `<svg class="det-prof" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${tr("Hoogteprofiel")}">
+    <defs><linearGradient id="dpG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B7FC4" stop-opacity=".45"/><stop offset="1" stop-color="#2B7FC4" stop-opacity="0"/></linearGradient></defs>
+    <path d="${line}L${X(tot)},${H - PB}L${X(0)},${H - PB}Z" fill="url(#dpG)"/><path d="${line}" fill="none" stroke="#1F7FD6" stroke-width="2.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <text x="8" y="${Y(hi) - 2}" class="dp-t">${Math.round(hi)} m</text><text x="${W - 8}" y="${H - PB - 4}" text-anchor="end" class="dp-t">${Math.round(lo)} m</text>${band}</svg>`;
+}
+// zon of schaduw per uur (8-17) voor een piste
+function sunTimeline(edges){
+  const keep = S.sunAt, cells = [];
+  for(let h = 8; h <= 16; h++){
+    S.sunAt = h * 60 + 30; if(S.area) S.area.sun = null;
+    const sun = sunShade(); let acc = 0, len = 0;
+    for(const i of edges){ if(sun.v[i] === -1) continue; acc += sun.v[i] * S.area.edges[i].len; len += S.area.edges[i].len; }
+    cells.push({h, lit:sun.alt > 2 && len && acc / len >= SUN_MIN});
+  }
+  S.sunAt = keep; if(S.area) S.area.sun = null;
+  return `<div class="sun-tl">${cells.map(c => `<span class="${c.lit ? "lit" : "sh"}" title="${c.h}:30"><i></i><small>${c.h}</small></span>`).join("")}</div>`;
+}
+// temperatuur op een hoogte: tussen dal en top in (uit het weer van het gebied)
+function tempAt(ele){
+  const w = S.wx; if(!w || w.area !== S.area?.id) return null;
+  const hi = S.area.row[10] ?? 2400, lo = S.area.row[9] ?? 1200, tTop = w.c.temperature_2m, tLow = w.cd.temperature_2m;
+  return tLow + (tTop - tLow) * Math.max(0, Math.min(1, (ele - lo) / ((hi - lo) || 1)));
+}
+function detailPanel(){
+  let el = $("detail");
+  if(!el){ el = document.createElement("div"); el.id = "detail"; el.className = "picker dash detail"; el.setAttribute("role", "dialog"); el.hidden = true; document.body.appendChild(el);
+    if(typeof swipeDismiss === "function") swipeDismiss(el); }
+  return el;
+}
+async function openDetail(ei){
+  const ch = chainFrom(ei), e = ch.e, A = S.area, el = detailPanel(), lift = ch.kind === "l";
+  const eS = A.nodes[ch.start].ele, eE = A.nodes[ch.end].ele, drop = Math.abs((eS ?? 0) - (eE ?? 0));
+  const node = lift ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${liftIc(e.kind)}</span>`
+                    : `<span class="node${isDark(e.diff) ? " dark" : ""}" style="--c:${DIFF[e.diff].col}">${esc(e.ref) || I("ski")}</span>`;
+  const kind = lift ? uc(LIFT[e.kind] || "lift") : e.diff === "f" ? "Skiroute" : `${uc(DIFF[e.diff].adj)} piste`;
+  const mins = lift ? e.dur / 60 : ch.len / DIFF[e.diff].spd;
+  const tile = (ic, label, val, unit) => `<div class="det-tile">${I(ic)}<small>${tr(label)}</small><b>${val}<i>${unit || ""}</i></b></div>`;
+  const risky = lift && S.risk?.lifts?.has?.(ei);
+  el.innerHTML = `<div class="picker-head"><div class="det-head">${node}<div><p class="label">${esc(kind)}</p><h2>${esc(uc(ch.label.replace(/^(de|het) /, "")))}</h2></div></div>
+      <button type="button" class="icon-btn" id="detClose" aria-label="${tr("Sluiten")}">${I("close")}</button></div>
+    <div class="det-tiles">${tile("route", "Lengte", nb(km(ch.len)))}${tile(lift ? "lift" : "down", lift ? "Omhoog" : "Hoogteverschil", Math.round(drop), " m")}
+      ${lift ? tile("clock", "Ritduur", Math.max(1, Math.round(mins)), " min") + tile("speed", "Snelheid", ((ch.len / Math.max(1, e.dur)) * 3.6).toFixed(1).replace(".", DEC), " km/u")
+             : `<div class="det-tile" id="detAvg">${I("ski")}<small>${tr("Gem. helling")}</small><b>…</b></div><div class="det-tile" id="detMax">${I("warn")}<small>${tr("Steilste stuk")}</small><b>…</b></div>`}
+      ${tile("flag", lift ? "Bovenstation" : "Start", Math.round((lift ? eE : eS) ?? 0), " m")}${!lift ? tile("clock", "Tijd", nb(fmt(mins))) : tile("clock", "Open", `${S.liftOpen}–${S.liftClose}`)}</div>
+    ${risky ? `<p class="notice bad">${I("wind")}<span>${tr("Kans op sluiting door harde wind.")}</span></p>` : ""}
+    ${!lift ? `<section class="dc"><p class="label">${I("down")}${tr("Hoogteprofiel en steilheid")}</p><div id="detProf" class="det-prof-box"><i class="skel" style="height:150px;display:block;border-radius:14px"></i></div>
+      <div class="slope-key"><span><i style="background:#22984A"></i>&lt;15°</span><span><i style="background:#1E66CC"></i>15–25°</span><span><i style="background:#D22E2E"></i>25–35°</span><span><i style="background:#121417"></i>35°+</span></div></section>
+      <section class="dc"><p class="label">${I("sun")}${tr("Zon en schaduw vandaag")}</p>${sunTimeline(ch.edges)}</section>` : ""}
+    ${(() => { const t = tempAt(((eS ?? 0) + (eE ?? 0)) / 2); return t == null ? "" : `<section class="dc det-now"><p class="label">${I("thermo")}${tr("Nu op deze hoogte")}</p><div class="det-tiles">${tile("thermo", "Temperatuur", Math.round(t), "°")}${tile("snow", "Vers", Math.round(S.wx.fresh), " cm")}${tile("wind", "Wind top", Math.round(S.wx.c.wind_speed_10m), " km/u")}</div></section>`; })()}
+    <div class="det-btns"><button type="button" class="btn primary" id="detGo">${lift ? liftIc(e.kind) : I("ski")}${lift ? tr("Neem deze lift") : tr("Ski deze piste")}</button>
+      ${!lift && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="detFly">${I("layers")}${tr("Vlieg erlangs in 3D")}</button>` : ""}</div>`;
+  el.hidden = false; buzz("light");
+  $("detClose").onclick = () => el.hidden = true;
+  $("detGo").onclick = () => { el.hidden = true; S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from == null) S.from = ch.start; update(); fitRoute(); };
+  $("detFly")?.addEventListener("click", async () => { el.hidden = true; const pts = chainPts(ch).map(p => [p[1], p[0]]); if(await open3dForReplay()) M3.replay(pts, null, {color:DIFF[e.diff].col, speed:1.6}); });
+  if(!lift){
+    const pts = chainPts(ch), ele = await elevAt(pts);
+    if(el.hidden || !$("detProf")) return;
+    const ok = ele.every(v => v != null);
+    const E = ok ? ele.map((v, i, a) => (a[Math.max(0, i - 1)] + v + a[Math.min(a.length - 1, i + 1)]) / 3) : pts.map((_, i) => (eS ?? 0) - drop * i / (pts.length - 1));
+    const dist = [0]; for(let i = 1; i < pts.length; i++) dist.push(dist[i-1] + meters(...pts[i-1], ...pts[i]));
+    let mx = 0; for(let i = 2; i < E.length; i++){ const dd = dist[i] - dist[i-2]; if(dd > 25) mx = Math.max(mx, Math.atan(Math.abs(E[i-2] - E[i]) / dd) * 57.3); }
+    const avg = Math.atan(Math.abs(E[0] - E[E.length - 1]) / (dist[dist.length - 1] || 1)) * 57.3;
+    $("detProf").innerHTML = profileSvg(dist, E);
+    $("detAvg").querySelector("b").innerHTML = `${Math.round(avg)}<i>°</i>`; $("detMax").querySelector("b").innerHTML = `${Math.round(mx)}<i>°</i>`;
+  }
+}
+// weer in grafieken: per uur (temperatuur, sneeuw, wind) en sneeuw de komende 7 dagen
+function wxCharts(){
+  const w = S.wx; if(!w || w.area !== S.area?.id) return "";
+  const H = w.d[0].hourly; if(!H?.temperature_2m) return "";
+  const i0 = Math.max(0, H.time.indexOf(w.c.time.slice(0, 13) + ":00")), N = 24, idx = [...Array(N)].map((_, k) => i0 + k).filter(i => i < H.time.length);
+  const T = idx.map(i => H.temperature_2m[i]), SN = idx.map(i => H.snowfall[i] || 0), WI = idx.map(i => H.wind_speed_10m?.[i] || 0);
+  const W = 340, Hh = 120, tlo = Math.min(...T, 0) - 1, thi = Math.max(...T, 0) + 1, snMax = Math.max(1, ...SN);
+  const X = k => 10 + k / (idx.length - 1) * (W - 20), Y = v => 12 + (thi - v) / (thi - tlo) * (Hh - 40);
+  const tl = T.map((v, k) => `${k ? "L" : "M"}${X(k).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const bars = SN.map((v, k) => v > 0.05 ? `<rect x="${(X(k) - 4).toFixed(1)}" y="${(Hh - 18 - v / snMax * 40).toFixed(1)}" width="8" height="${(v / snMax * 40).toFixed(1)}" rx="2" fill="#7CC0F5"/>` : "").join("");
+  const lbl = idx.map((i, k) => k % 4 === 0 ? `<text x="${X(k)}" y="${Hh - 3}" text-anchor="middle" class="dp-t">${H.time[i].slice(11, 13)}</text>` : "").join("");
+  const zero = tlo < 0 && thi > 0 ? `<line x1="10" x2="${W - 10}" y1="${Y(0)}" y2="${Y(0)}" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 4"/>` : "";
+  const D = w.d[0].daily, ds = Math.max(0, D.time.indexOf(w.c.time.slice(0, 10))), days = D.time.slice(ds, ds + 7);
+  const dmax = Math.max(5, ...days.map((_, k) => D.snowfall_sum[ds + k] || 0));
+  const wk = days.map((t, k) => { const v = D.snowfall_sum[ds + k] || 0; return `<div class="sb"><b>${v >= .5 ? Math.round(v) : ""}</b><i style="--h:${Math.max(3, v / dmax * 100)}%"></i><small>${k ? new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"}) : tr("Vandaag")}</small></div>`; }).join("");
+  const fl = w.c.freezing_level_height, hi = S.area.row[10] ?? 2400, lo = S.area.row[9] ?? 1200;
+  const flBar = fl != null ? `<div class="fl"><div class="fl-bar"><i class="fl-area" style="--a:${Math.min(100, lo / 4000 * 100)}%;--b:${Math.min(100, hi / 4000 * 100)}%"></i><i class="fl-line" style="--f:${Math.min(100, fl / 4000 * 100)}%"></i></div>
+    <p>${fl > hi ? tr("Het vriest nergens in het gebied: ook boven dooi.") : fl < lo ? tr("Overal in het gebied vriest het.") : `${tr("Boven")} ${Math.round(fl / 50) * 50} m ${tr("vriest het, daaronder dooi.")}`}</p></div>` : "";
+  return `<section class="dc"><p class="label">${I("thermo")}${tr("De komende 24 uur")}</p><svg class="wx-chart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${tr("Temperatuur en sneeuw per uur")}">${zero}${bars}
+      <path d="${tl}" fill="none" stroke="#F06A1D" stroke-width="2.4" stroke-linejoin="round"/>${T.map((v, k) => k % 4 === 0 ? `<text x="${X(k)}" y="${Y(v) - 6}" text-anchor="middle" class="dp-t b">${Math.round(v)}°</text>` : "").join("")}${lbl}</svg>
+      <div class="wx-key"><span><i style="background:#F06A1D"></i>${tr("Temperatuur")}</span><span><i style="background:#7CC0F5"></i>${tr("Sneeuw")}</span><span>${I("wind")}${tr("max.")} ${Math.round(Math.max(...WI))} km/u</span></div></section>
+    <section class="dc"><p class="label">${I("snow")}${tr("Sneeuw de komende 7 dagen")}</p><div class="snow-bars">${wk}</div></section>
+    ${flBar ? `<section class="dc"><p class="label">${I("thermo")}${tr("Nulgradengrens")}</p>${flBar}</section>` : ""}`;
+}
+// infographic van het gebied: km per moeilijkheid, liften per soort, hoogte, en het "DNA"
+function areaInfo(){
+  const A = S.area, r = A.row, km = {g:0, b:0, r:0, s:0, f:0};
+  const kmOf = d => d === "B" ? "r" : d === "x" ? "s" : d === "u" ? "r" : d;
+  for(const e of A.edges) if(e.t === "r"){ const k = kmOf(e.diff); km[k] = (km[k] || 0) + e.len / 1000; }
+  const tot = Object.values(km).reduce((a, b) => a + b, 0) || 1, lifts = {};
+  for(const e of A.edges) if(e.t === "l"){ const k = LIFT_IC[e.kind] || "lift"; lifts[k] = (lifts[k] || 0) + 1; }
+  const seg = [["g", "#22984A", "Groen"], ["b", "#1E66CC", "Blauw"], ["r", "#D22E2E", "Rood"], ["s", "#121417", "Zwart"], ["f", "#E08A1E", "Skiroute"]].filter(x => km[x[0]] > .05);
+  let acc = 0; const R = 42, C = 2 * Math.PI * R;
+  const arcs = seg.map(([k, col]) => { const f = km[k] / tot, s = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${col}" stroke-width="16" stroke-dasharray="${(f * C).toFixed(2)} ${C}" stroke-dashoffset="${(-acc * C).toFixed(2)}" transform="rotate(-90 60 60)"/>`; acc += f; return s; }).join("");
+  const dna = [];
+  if((km.g + km.b) / tot > .45) dna.push(["star", "Beginnersvriendelijk"]);
+  if(km.s / tot > .18) dna.push(["warn", "Uitdagend"]);
+  if((r[10] ?? 0) >= 2800) dna.push(["snow", "Hoog en sneeuwzeker"]);
+  if(tot > 150) dna.push(["map", "Groot gebied"]);
+  if(A.nightLifts?.size) dna.push(["moon", "Avondskiën"]);
+  if(km.f / tot > .08) dna.push(["ski", "Veel skiroutes"]);
+  const lo = r[9] ?? 0, hi = r[10] ?? 0;
+  return `<section class="dc area-info"><p class="label">${I("map")}${tr("Over dit gebied")}</p>
+    <div class="ai-top"><svg viewBox="0 0 120 120" class="ai-donut"><circle cx="60" cy="60" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="16"/>${arcs}<text x="60" y="58" text-anchor="middle" class="ai-n">${Math.round(tot)}</text><text x="60" y="74" text-anchor="middle" class="ai-u">km piste</text></svg>
+      <ul class="ai-leg">${seg.map(([k, col, nm]) => `<li><i style="background:${col}"></i>${tr(nm)}<b>${Math.round(km[k])} km</b></li>`).join("")}</ul></div>
+    <div class="ai-alt"><span>${lo} m</span><div class="ai-altbar"><i style="--a:${lo / 4000 * 100}%;--b:${hi / 4000 * 100}%"></i></div><span>${hi} m</span></div>
+    <div class="ai-lifts">${Object.entries(lifts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span>${I(k)}<b>${n}</b></span>`).join("")}<span>${I("hut")}<b>${A.huts?.length || 0}</b></span></div>
+    ${dna.length ? `<div class="ai-dna">${dna.map(([ic, t]) => `<span>${I(ic)}${tr(t)}</span>`).join("")}</div>` : ""}
+    <button type="button" class="btn ghost" id="aiCompare">${I("swap")}${tr("Vergelijk met andere gebieden")}</button></section>`;
+}
+// skigebieden vergelijken: dit gebied naast je favorieten (of een paar grote), met verse sneeuw en sneeuwhoogte
+async function openCompare(){
+  const A = S.area, el = detailPanel();
+  const others = [...FAVS.filter(id => id !== A.id), ...S.index.filter(r => r[0] !== A.id && r[2] === A.row[2]).sort((a, b) => b[6] - a[6]).map(r => r[0])].filter((v, i, a) => a.indexOf(v) === i).slice(0, 2);
+  const rows = [A.row, ...others.map(id => S.index.find(r => r[0] === id)).filter(Boolean)];
+  const col = (r, i) => `<th${i ? "" : ' class="me"'}>${esc(r[1])}</th>`;
+  el.innerHTML = `<div class="picker-head"><div><p class="label">${tr("Skigebieden")}</p><h2>${tr("Vergelijken")}</h2></div><button type="button" class="icon-btn" id="detClose" aria-label="${tr("Sluiten")}">${I("close")}</button></div>
+    <div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>${rows.map(col).join("")}</tr></thead><tbody>
+      <tr><td>${I("ski")}${tr("Pistes")}</td>${rows.map(r => `<td>${r[6]} km</td>`).join("")}</tr>
+      <tr><td>${I("lift")}${tr("Liften")}</td>${rows.map(r => `<td>${r[7]}</td>`).join("")}</tr>
+      <tr><td>${I("down")}${tr("Hoogte")}</td>${rows.map(r => `<td>${r[9] ?? "?"}–${r[10] ?? "?"} m</td>`).join("")}</tr>
+      <tr><td>${I("snow")}${tr("Sneeuwhoogte")}</td>${rows.map((r, i) => `<td id="cmpD${i}"><i class="skel" style="width:40px;height:14px;display:inline-block"></i></td>`).join("")}</tr>
+      <tr><td>${I("snow")}${tr("Vers (24 u)")}</td>${rows.map((r, i) => `<td id="cmpF${i}">–</td>`).join("")}</tr>
+      <tr><td>${I("calendar")}${tr("Komende 3 dagen")}</td>${rows.map((r, i) => `<td id="cmpC${i}">–</td>`).join("")}</tr>
+    </tbody></table></div><p class="m-hint">${tr("Zet een gebied bij je favorieten (ster) om het hier te vergelijken.")}</p>`;
+  el.hidden = false; $("detClose").onclick = () => el.hidden = true;
+  rows.forEach(async (r, i) => {
+    try{
+      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${r[10] || 2400}&current=snow_depth&hourly=snowfall&daily=snowfall_sum&past_days=1&forecast_days=4&timezone=auto`)).json();
+      const hi = j.hourly.time.indexOf(j.current.time.slice(0, 13) + ":00"), fresh = hi >= 0 ? j.hourly.snowfall.slice(Math.max(0, hi - 23), hi + 1).reduce((a, x) => a + (x || 0), 0) : 0;
+      const di = j.daily.time.indexOf(j.current.time.slice(0, 10)), coming = j.daily.snowfall_sum.slice(di + 1, di + 4).reduce((a, x) => a + (x || 0), 0);
+      if($("cmpD" + i)){ $("cmpD" + i).textContent = `${Math.round((j.current.snow_depth || 0) * 100)} cm`; $("cmpF" + i).textContent = `${Math.round(fresh)} cm`; $("cmpC" + i).textContent = `${Math.round(coming)} cm`; }
+    }catch(e){ if($("cmpD" + i)) $("cmpD" + i).textContent = "–"; }
+  });
+}
+// seizoenskalender: een vakje per dag (kleur naar km) en km per maand
+function seasonCal(sd){
+  if(!sd.length) return "";
+  const byDay = new Map(sd.map(x => [x.d, x.s.km])), mx = Math.max(...sd.map(x => x.s.km), 1);
+  const y0 = +seasonOf(sd[0].d).slice(0, 4), months = [[y0, 11], [y0, 12], [y0 + 1, 1], [y0 + 1, 2], [y0 + 1, 3], [y0 + 1, 4]];
+  const lvl = v => v ? Math.min(4, 1 + Math.floor(v / mx * 3.999)) : 0;
+  const cal = months.map(([y, m]) => { const n = new Date(y, m, 0).getDate(), off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+    const cells = [...Array(off)].map(() => `<i class="e"></i>`).join("") + [...Array(n)].map((_, k) => { const key = `${y}${String(m).padStart(2, "0")}${String(k + 1).padStart(2, "0")}`, v = byDay.get(key);
+      return `<i class="l${lvl(v)}" title="${v ? `${niceDate(key)}: ${kmTxt(v)} km` : ""}"></i>`; }).join("");
+    const sum = sd.filter(x => +x.d.slice(4, 6) === m && +x.d.slice(0, 4) === y).reduce((a, x) => a + x.s.km, 0);
+    return `<div class="cal-m"><p>${new Date(y, m - 1, 1).toLocaleDateString(LOCALE, {month:"short"})}<b>${sum ? Math.round(sum) + " km" : ""}</b></p><div class="cal-g">${cells}</div></div>`; }).join("");
+  return `<section class="dc"><p class="label">${I("calendar")}${tr("Seizoenskalender")}</p><div class="cal">${cal}</div><div class="cal-key">${tr("minder")}<i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>${tr("meer km")}</div></section>`;
 }
 // seizoensdoel in kilometers
 const GOALS = [100, 200, 300, 500, 1000];
