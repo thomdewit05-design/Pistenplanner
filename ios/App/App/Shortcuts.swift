@@ -44,6 +44,43 @@ struct StopIntent: AppIntent {
 }
 
 @available(iOS 16.0, *)
+struct StartDayIntent: AppIntent {
+    static let title: LocalizedStringResource = "Begin skidag"
+    static let description = IntentDescription("Start het skidagboek: kilometers, hoogtemeters en topsnelheid.")
+    static let openAppWhenRun: Bool = true
+    @MainActor func perform() async throws -> some IntentResult { SiriAction.run("rec"); return .result() }
+}
+
+@available(iOS 16.0, *)
+struct StopDayIntent: AppIntent {
+    static let title: LocalizedStringResource = "Stop skidag"
+    static let description = IntentDescription("Stop het skidagboek en bewaar je dag.")
+    static let openAppWhenRun: Bool = true
+    @MainActor func perform() async throws -> some IntentResult { SiriAction.run("recstop"); return .result() }
+}
+
+// zonder de app te openen: Siri leest je kilometers van vandaag voor (uit de gedeelde gegevens van de widget)
+@available(iOS 16.0, *)
+struct KmTodayIntent: AppIntent {
+    static let title: LocalizedStringResource = "Kilometers van vandaag"
+    static let description = IntentDescription("Hoeveel heb je vandaag geskied?")
+    static let openAppWhenRun: Bool = false
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        struct D: Decodable { let date: String; let km: Double; let hm: Double; let runs: Int; let vmax: Double; let lang: String? }
+        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"
+        guard let s = UserDefaults(suiteName: WidgetPlugin.group)?.string(forKey: "day"), let d = try? JSONDecoder().decode(D.self, from: Data(s.utf8)), d.date == f.string(from: Date()) else {
+            return .result(dialog: "Je hebt vandaag nog geen skidag opgenomen.")
+        }
+        let km = String(format: "%.1f", d.km), hm = Int(d.hm.rounded()), v = Int(d.vmax.rounded())
+        switch d.lang {
+        case "en": return .result(dialog: "Today you skied \(km) km, \(hm) metres down in \(d.runs) runs. Top speed \(v) km/h.")
+        case "de": return .result(dialog: "Heute bist du \(km) km gefahren, \(hm) Höhenmeter in \(d.runs) Abfahrten. Höchstgeschwindigkeit \(v) km/h.")
+        default: return .result(dialog: "Vandaag skiede je \(km) km, \(hm) meter omlaag in \(d.runs) afdalingen. Topsnelheid \(v) km/u.")
+        }
+    }
+}
+
+@available(iOS 16.0, *)
 struct SkipilotShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: ValleyIntent(), phrases: [
@@ -57,6 +94,17 @@ struct SkipilotShortcuts: AppShortcutsProvider {
         AppShortcut(intent: HomeIntent(), phrases: [
             "Navigeer naar mijn verblijf met \(.applicationName)", "\(.applicationName) naar huis",
             "Take me home with \(.applicationName)", "Bring mich zur Unterkunft mit \(.applicationName)"
+        ])
+        AppShortcut(intent: StartDayIntent(), phrases: [
+            "Begin skidag met \(.applicationName)", "Start mijn skidag in \(.applicationName)",
+            "Start my ski day with \(.applicationName)", "Starte meinen Skitag mit \(.applicationName)"
+        ])
+        AppShortcut(intent: StopDayIntent(), phrases: [
+            "Stop skidag in \(.applicationName)", "Stop my ski day in \(.applicationName)", "Skitag beenden in \(.applicationName)"
+        ])
+        AppShortcut(intent: KmTodayIntent(), phrases: [
+            "Hoeveel heb ik geskied met \(.applicationName)", "Kilometers vandaag in \(.applicationName)",
+            "How far did I ski with \(.applicationName)", "Wie weit bin ich gefahren mit \(.applicationName)"
         ])
         AppShortcut(intent: StopIntent(), phrases: [
             "Stop navigatie in \(.applicationName)", "Stop navigation in \(.applicationName)", "Navigation beenden in \(.applicationName)"

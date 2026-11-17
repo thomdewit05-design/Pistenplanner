@@ -511,6 +511,15 @@ struct DayView: View {
         if let d = entry.day {
             let title = isToday(d.date) ? tr.t("Vandaag", "Today", "Heute") : label(d.date, tr)
             switch family {
+            case .accessoryCircular:
+                Gauge(value: min(d.km, 40), in: 0...40) {
+                    Image(systemName: "figure.skiing.downhill")
+                } currentValueLabel: {
+                    Text(tr.num(d.km, digits: d.km < 10 ? 1 : 0)).font(.system(size: 15, weight: .bold, design: .rounded))
+                }
+                .gaugeStyle(.accessoryCircular)
+            case .accessoryInline:
+                Text("\(Image(systemName: "figure.skiing.downhill")) \(tr.num(d.km, digits: 1)) km · \(tr.num(d.hm)) hm")
             case .accessoryRectangular:
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).font(.headline)
@@ -586,7 +595,84 @@ struct DayWidget: Widget {
         }
         .configurationDisplayName("Skidag")
         .description("Kilometers, hoogtemeters, afdalingen en tijd op de piste van je skidag.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}
+
+// ---------- aftellen naar je skivakantie (reisplanner in de app) ----------
+struct SharedTrip: Codable {
+    let area: String
+    let from: String   // jjjj-mm-dd
+    let to: String
+    let lang: String?
+}
+struct TripEntry: TimelineEntry { let date: Date; let trip: SharedTrip? }
+struct TripProvider: TimelineProvider {
+    func placeholder(in context: Context) -> TripEntry { TripEntry(date: Date(), trip: SharedTrip(area: "Ski Arlberg", from: "2027-02-13", to: "2027-02-20", lang: nil)) }
+    func getSnapshot(in context: Context, completion: @escaping (TripEntry) -> Void) {
+        let t: SharedTrip? = Shared.read("trip"); completion(t == nil ? placeholder(in: context) : TripEntry(date: Date(), trip: t))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<TripEntry>) -> Void) {
+        let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86400))
+        completion(Timeline(entries: [TripEntry(date: Date(), trip: Shared.read("trip"))], policy: .after(midnight)))
+    }
+}
+struct TripView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: TripEntry
+    func daysLeft(_ iso: String) -> Int? {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        guard let d = f.date(from: iso) else { return nil }
+        return Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: d).day
+    }
+    var body: some View {
+        let tr = Tr(entry.trip?.lang)
+        if let t = entry.trip, let n = daysLeft(t.from) {
+            let onTrip = n <= 0 && (daysLeft(t.to) ?? 0) >= 0
+            switch family {
+            case .accessoryCircular:
+                VStack(spacing: 0) {
+                    Text(onTrip ? "⛷" : "\(max(0, n))").font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text(onTrip ? tr.t("nu", "now", "jetzt") : tr.t("dagen", "days", "Tage")).font(.system(size: 9, weight: .semibold))
+                }
+            case .accessoryRectangular:
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(t.area).font(.headline).lineLimit(1)
+                    Text(onTrip ? tr.t("Je bent op skivakantie!", "You're on your ski trip!", "Du bist im Skiurlaub!") : "\(tr.t("Nog", "Still", "Noch")) \(n) \(tr.t("dagen", "days", "Tage"))")
+                }
+            case .accessoryInline:
+                Text("\(Image(systemName: "snowflake")) \(onTrip ? t.area : "\(n) \(tr.t("dagen tot", "days to", "Tage bis")) \(t.area)")")
+            default:
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(onTrip ? tr.t("Op vakantie", "On holiday", "Im Urlaub") : tr.t("Nog", "Still", "Noch")).font(.caption.weight(.bold)).foregroundStyle(gold)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(onTrip ? "⛷" : "\(max(0, n))").font(.system(size: 40, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                        if !onTrip { Text(tr.t("dagen", "days", "Tage")).font(.caption.weight(.semibold)).foregroundStyle(.white) }
+                    }
+                    Spacer(minLength: 0)
+                    Text(t.area).font(.caption.weight(.semibold)).lineLimit(2).foregroundStyle(soft)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: "calendar").font(.title2).foregroundStyle(gold)
+                Text(tr.t("Plan je skivakantie in Skipilot", "Plan your ski trip in Skipilot", "Plane deinen Skiurlaub in Skipilot")).font(.caption.weight(.semibold)).foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+}
+struct TripWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "SkipilotTrip", provider: TripProvider()) { entry in
+            TripView(entry: entry).containerBackground(for: .widget) {
+                LinearGradient(colors: [Color(red: 0.12, green: 0.5, blue: 0.84), Color(red: 0.49, green: 0.23, blue: 0.93)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+        .configurationDisplayName("Skivakantie")
+        .description("Aftellen naar je skivakantie.")
+        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -597,5 +683,6 @@ struct SkipilotWidgets: WidgetBundle {
         DayWidget()
         NavLiveActivity()
         DayLiveActivity()
+        TripWidget()
     }
 }
