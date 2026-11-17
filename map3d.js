@@ -560,9 +560,11 @@ const M3 = (() => {
     const done = Math.abs(camT.lon - cam.lon) + Math.abs(camT.lat - cam.lat) < 2e-7 && Math.abs(db) < .2 && Math.abs(camT.zoom - cam.zoom) < .01;
     if(!done) raf = requestAnimationFrame(camStep);
   }
+  // je eigen positie: altijd volledig zichtbaar. Standaard maakt MapLibre een marker doorzichtig (20%)
+  // zodra het reliëf hem volgens de berekening bedekt, en op een steile helling gebeurt dat al snel.
   function meAt(lat, lon){
     if(!gl) return;
-    if(!me){ const el = document.createElement("div"); el.className = "me-dot" + (mode === "nav" ? " m3-hide" : ""); me = new maplibregl.Marker({element:el}).setLngLat([lon, lat]).addTo(gl); }
+    if(!me){ const el = document.createElement("div"); el.className = "me-dot" + (mode === "nav" ? " m3-hide" : ""); me = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1"}).setLngLat([lon, lat]).addTo(gl); }
     else me.setLngLat([lon, lat]);
   }
 

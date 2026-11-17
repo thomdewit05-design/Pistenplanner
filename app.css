@@ -972,6 +972,8 @@ body.picking-home .leaflet-container{cursor:crosshair}
 @media (orientation:landscape) and (max-height:500px){.ov-pill{top:calc(var(--gap) + var(--safe-t));left:calc(50% + var(--side) / 2)}}
 .nav3d .ov-pill,.drawing .ov-pill{display:none}
 .map3d .me-dot.m3-hide{display:none}
+/* 3D: iets groter en met een duidelijke rand, zodat je stip opvalt op sneeuw en reliëf */
+.map3d .me-dot{width:24px;height:24px;border-width:3.5px;box-shadow:0 0 0 8px color-mix(in srgb,var(--me) 32%,transparent),0 0 0 9.5px rgba(255,255,255,.55),0 3px 10px rgba(0,0,0,.5)}
 .map3d .maplibregl-ctrl-attrib{font-size:10.5px}
 .m3-pop .maplibregl-popup-content{padding:0;border-radius:var(--r-lg);background:var(--surface);color:var(--ink);box-shadow:var(--sh-2);overflow:hidden}
 .m3-pop .maplibregl-popup-close-button{font-size:20px;width:30px;height:30px;color:var(--muted);z-index:2}
