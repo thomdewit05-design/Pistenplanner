@@ -48,7 +48,7 @@
   async function idbPut(k, blob){
     try{ const db = await IDB(); db.transaction("t", "readwrite").objectStore("t").put(blob, k);
       if(++puts % 200 === 0){ const st = db.transaction("t", "readwrite").objectStore("t"), c = st.count();
-        c.onsuccess = () => { let drop = c.result - 8000; if(drop <= 0) return; const cur = st.openKeyCursor(); cur.onsuccess = () => { const x = cur.result; if(!x || drop-- <= 0) return; st.delete(x.key); x.continue(); }; }; }
+        c.onsuccess = () => { let drop = c.result - 15000; if(drop <= 0) return; const cur = st.openKeyCursor(); cur.onsuccess = () => { const x = cur.result; if(!x || drop-- <= 0) return; st.delete(x.key); x.continue(); }; }; }
     }catch(e){}
   }
   async function demBlob(z, x, y){
@@ -293,7 +293,9 @@
     })();
   }
   window.PPterrain = {
-    warm: () => startWorker(),   // de worker alvast opstarten, zodat de eerste 3D-tegel niet hoeft te wachten
+    warm: () => startWorker(),
+    // alle bewaarde hoogtetegels wissen (Opslag → gedownloade gebieden wissen)
+    async clear(){ try{ const db = await IDB(); await new Promise(ok => { const t = db.transaction("t", "readwrite"); t.objectStore("t").clear(); t.oncomplete = t.onerror = () => ok(); }); }catch(e){} },   // de worker alvast opstarten, zodat de eerste 3D-tegel niet hoeft te wachten
     // signal (optioneel): een AbortSignal; een tegel die niet meer nodig is, wordt dan niet meer getekend
     async get(kind, z, x, y, r, signal){
       if(await startWorker()) return new Promise((ok, bad) => {

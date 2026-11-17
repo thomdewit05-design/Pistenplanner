@@ -306,6 +306,11 @@ async function openArea(id, opts={}){
   const q = (arr, f) => { const s = [...arr].sort((a,b) => a-b); return s[Math.min(s.length-1, Math.max(0, Math.round(f*(s.length-1))))]; };
   const lats = nodes.map(n => n.lat), lons = nodes.map(n => n.lon);
   const bounds = L.latLngBounds([q(lats,.02), q(lons,.02)], [q(lats,.98), q(lons,.98)]);
+  if(!isDownloaded(id)){   // eerst downloaden, dan pas de kaart
+    if(S.area) $("areaName").textContent = S.area.row[1], $("areaStats").textContent = S.area.statsTxt || "";
+    const tok = S.openTok = (S.openTok || 0) + 1;
+    if(!await downloadGate(row, bounds) || tok !== S.openTok) return;
+  }
   S.area = {id, row, nodes, edges, place, names, outRuns, inRuns, bounds};
   // "Skiën: piste X" als bestemming
   const skiNames = new Map(), seen = new Set();
@@ -3340,27 +3345,21 @@ function setHuts(A, list){
 }
 
 // ================= offline =================
-// staat de kaartdata van een gebied in de offline-opslag van de app?
-async function isOffline(row){
-  try{ return !!(await caches.match(`data/s${String(row[8]).padStart(3,"0")}.json?${DATA_V}`, {ignoreVary:true})); }catch(e){ return false; }
-}
 async function renderOffline(){
   const A = S.area, box = $("offlineBox"); if(!A || !box) return;
-  const ok = "caches" in window && await isOffline(A.row), wx = wxStore(A.id);
+  const inf = dlInfo(A.id), wx = wxStore(A.id), when = inf ? new Date(inf.t).toLocaleDateString(LOCALE, {day:"numeric", month:"short"}) : "";
   box.innerHTML = `<p class="label">Offline</p>
-    <p class="off-line ${ok ? "ok" : ""}">${I(ok ? "check" : "cloud")}<span>${ok ? `<b>${esc(A.row[1])} staat op je telefoon.</b> Pistes, liften, routes, navigatie, status en dagboek werken zonder bereik.` : `<b>Nog niet offline.</b> Open dit gebied één keer met internet; daarna werkt het ook zonder bereik.`}</span></p>
+    <p class="off-line ${inf ? "ok" : ""}">${I(inf ? "check" : "cloud")}<span>${inf ? `<b>${esc(A.row[1])} ${tr("staat op je telefoon")}</b> · ${tr("gedownload op")} ${when}${inf.b ? ` · ${fmtMB(inf.b)} MB` : ""}. ${tr("Pistes, liften, routes, de winterkaart en 3D werken zonder bereik.")}` : `<b>${tr("Nog niet gedownload.")}</b>`}</span></p>
     <p class="off-line">${I("snow")}<span>${wx ? `Laatste weerbericht bewaard om ${new Date(wx.t).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}.` : "Nog geen weerbericht bewaard."}</span></p>
-    <p class="off-line">${I("layers")}<span>${tr("De winterkaart, de steilheid en 3D werken zonder bereik als je het gebied hebt gedownload. Satelliet- en terreinkaart alleen met internet.")}</span></p>
-    ${true ? `<button type="button" class="btn ghost m-wide" id="dlArea">${I("down")}${localStorage.getItem("pp-dl-" + A.id) ? tr("Gebied opnieuw downloaden") : tr("Download de hele winterkaart en 3D")}</button>` : ""}`;
+    <p class="off-line">${I("layers")}<span>${tr("Satelliet- en terreinkaart alleen met internet.")}</span></p>
+    <button type="button" class="btn ghost m-wide" id="dlArea">${I("down")}${tr("Gebied opnieuw downloaden")}</button>`;
   $("dlArea")?.addEventListener("click", e => { e.stopPropagation(); downloadArea(e.currentTarget); });
 }
 $("layersBtn").addEventListener("click", () => setTimeout(renderOffline, 0));
 // vinkje in de gebiedenlijst voor gebieden die al op de telefoon staan
-async function markOfflineAreas(){
-  if(!("caches" in window)) return;
+function markOfflineAreas(){
   for(const b of document.querySelectorAll("#areas .area-main")){
-    const r = S.index.find(x => x[0] === b.dataset.id);
-    if(r && await isOffline(r) && !b.querySelector(".off-mark")) b.querySelector(".nm")?.insertAdjacentHTML("beforeend", ` <span class="off-mark" title="Staat offline op je telefoon">${I("check")}</span>`);
+    if(isDownloaded(b.dataset.id) && !b.querySelector(".off-mark")) b.querySelector(".nm")?.insertAdjacentHTML("beforeend", ` <span class="off-mark" title="${tr("Gedownload")}">${I("check")}</span>`);
   }
 }
 
@@ -4997,19 +4996,97 @@ async function hutHours(h){
     const j = await r.json(); const el = (j.elements || []).find(e => !h.name || (e.tags?.name || "") === h.name) || j.elements?.[0]; return el?.tags?.opening_hours?.slice(0, 80) || ""; }catch(e){} } return ""; })();
   ohCache.set(k, p); return p;
 }
-// ---- het hele gebied downloaden (website): hoogtetegels voor de winterkaart en 3D, zoom 10-14 ----
-async function downloadArea(btn){
-  const A = S.area;
-  if(!A) return;
-  const b = A.bounds, tiles = [];
+// ---- een skigebied downloaden: verplicht voordat je de kaart gebruikt, zodat alles ook zonder bereik werkt ----
+// hoogtetegels (winterkaart, steilheid, 3D) zoom 10-14 rond het gebied; de kaartdata zelf is dan al binnen
+const DL_KB = 120;   // gemiddelde grootte van een hoogtetegel, voor de schatting vooraf
+function areaTiles(b){
+  const tiles = [];
   for(let z = 10; z <= 14; z++){ const n = 2 ** z, X = lo => Math.floor((lo + 180) / 360 * n), Y = la => { const s = Math.sin(la * Math.PI / 180); return Math.floor((.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n); };
     for(let x = X(b.getWest() - .02); x <= X(b.getEast() + .02); x++) for(let y = Y(b.getNorth() + .015); y <= Y(b.getSouth() - .015); y++) tiles.push([z, x, y]); }
-  let done = 0, bytes = 0; btn.disabled = true;
-  const one = async ([z, x, y]) => { try{ const r = await PPterrain.get("keep", z, x, y, 1); bytes += r?.size || 0; }catch(e){} done++;
-    btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(done / tiles.length * 100)}%`; };
-  for(let i = 0; i < tiles.length; i += 6) await Promise.all(tiles.slice(i, i + 6).map(one));
-  btn.disabled = false; btn.innerHTML = `${I("check")}${tr("Klaar")} · ${(bytes / 1048576).toFixed(1).replace(".", DEC)} MB`;
-  try{ localStorage.setItem("pp-dl-" + A.id, String(Date.now())); }catch(e){}
+  return tiles;
+}
+const dlInfo = id => { try{ const v = localStorage.getItem("pp-dl-" + id); if(!v) return null; const j = JSON.parse(v); return typeof j === "object" && j ? j : {t:+v || Date.now()}; }catch(e){ return null; } };
+const isDownloaded = id => !!dlInfo(id);
+function downloadedList(){
+  const out = [];
+  try{ for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(!k?.startsWith("pp-dl-")) continue;
+    const id = k.slice(6), r = S.index.find(x => x[0] === id), inf = dlInfo(id); if(r && inf) out.push({id, row:r, ...inf}); } }catch(e){}
+  return out.sort((a, b) => (b.t || 0) - (a.t || 0));
+}
+const fmtMB = b => (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace(".", DEC);
+// tegels ophalen; ontbrekende tegels tellen als fout, zodat "opnieuw proberen" verdergaat waar het stopte (wat binnen is, blijft bewaard)
+async function fetchTiles(tiles, onStep, signal){
+  let done = 0, bytes = 0, fails = 0;
+  const one = async ([z, x, y]) => { if(signal?.aborted) return; try{ const r = await PPterrain.get("keep", z, x, y, 1); bytes += r?.size || 0; }catch(e){ fails++; } done++; onStep?.(done, bytes); };
+  for(let i = 0; i < tiles.length && !signal?.aborted; i += 6) await Promise.all(tiles.slice(i, i + 6).map(one));
+  return {bytes, fails};
+}
+// het downloadscherm; geeft true terug als het gebied klaar is, false als je een ander gebied kiest
+function downloadGate(row, bounds){
+  return new Promise(resolve => {
+    hideSplash(); $("dlGate")?.remove();
+    const tiles = areaTiles(bounds), est = tiles.length * DL_KB * 1024, ctl = {aborted:false};
+    const g = document.createElement("div"); g.id = "dlGate"; g.className = "dl-gate"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true"); g.setAttribute("aria-label", tr("Skigebied downloaden"));
+    const close = ok => { ctl.aborted = true; g.classList.add("out"); setTimeout(() => g.remove(), 280); resolve(ok); };
+    const others = () => { const l = downloadedList().filter(d => d.id !== row[0]).slice(0, 6);
+      return l.length ? `<p class="dl-sub">${tr("Gedownloade gebieden")}</p><div class="dl-list">${l.map(d => `<button type="button" class="dl-row" data-go="${d.id}">${I("check")}<b>${esc(d.row[1])}</b>${I("chev")}</button>`).join("")}</div>` : ""; };
+    const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${row[6]} km · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
+    const offline = () => {
+      g.innerHTML = `<div class="dl-card">${head}<p class="dl-lead off">${I("cloud")}<span>${tr("Je bent offline en dit gebied staat nog niet op je telefoon. Maak verbinding om het te downloaden.")}</span></p>
+        <button type="button" class="btn primary dl-go" id="dlRetry">${I("reset")}${tr("Opnieuw proberen")}</button>${others()}
+        <button type="button" class="btn ghost dl-back" id="dlBack">${tr("Ander gebied kiezen")}</button></div>`;
+      wire(); $("dlRetry").onclick = () => navigator.onLine ? intro() : toast(tr("Nog steeds geen verbinding."));
+    };
+    const intro = () => {
+      if(!navigator.onLine) return offline();
+      g.innerHTML = `<div class="dl-card">${head}<p class="dl-lead">${tr("Download dit skigebied om het te gebruiken. Daarna werkt alles op de berg, ook zonder bereik.")}</p>
+        <ul class="dl-what">
+          <li>${I("ski")}<span>${tr("Pistes, liften en routes")}</span></li>
+          <li>${I("layers")}<span>${tr("Winterkaart, steilheid en 3D")}</span></li>
+          <li>${I("food")}<span>${tr("Hutten, toppen en het laatste weer")}</span></li>
+        </ul>
+        <button type="button" class="btn primary dl-go" id="dlGo">${I("down")}${tr("Download")} (${tr("ca.")} ${fmtMB(est)} MB)</button>
+        <button type="button" class="btn ghost dl-back" id="dlBack">${tr("Ander gebied kiezen")}</button></div>`;
+      wire(); $("dlGo").onclick = run;
+    };
+    const run = async () => {
+      g.innerHTML = `<div class="dl-card">${head}<p class="dl-step" id="dlStep">${tr("Winterkaart en 3D")}</p>
+        <div class="dl-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="dlFill"></i></div>
+        <p class="dl-num"><b id="dlPct">0%</b><span id="dlMB">0 ${tr("van")} ${fmtMB(est)} MB</span></p>
+        <button type="button" class="btn ghost dl-back" id="dlBack">${tr("Annuleren")}</button></div>`;
+      wire();
+      const bar = g.querySelector(".dl-bar"), fill = $("dlFill"), pct = $("dlPct"), mb = $("dlMB");
+      const show = p => { p = Math.min(100, Math.round(p)); fill.style.width = p + "%"; pct.textContent = p + "%"; bar.setAttribute("aria-valuenow", p); };
+      const {bytes, fails} = await fetchTiles(tiles, (d, b) => { show(d / tiles.length * 92); mb.textContent = `${fmtMB(b)} ${tr("van")} ${fmtMB(Math.max(est, b))} MB`; }, ctl);
+      if(ctl.aborted) return;
+      // te veel tegels mislukt: verbinding weg; wat binnen is blijft bewaard
+      if(fails > tiles.length * .05){
+        $("dlStep").innerHTML = `${I("cloud")}${tr("De verbinding viel weg. Wat al binnen is, blijft bewaard.")}`; g.querySelector(".dl-card").classList.add("err");
+        $("dlBack").insertAdjacentHTML("beforebegin", `<button type="button" class="btn primary dl-go" id="dlRetry">${I("reset")}${tr("Opnieuw proberen")}</button>`);
+        $("dlRetry").onclick = () => navigator.onLine ? run() : offline(); return;
+      }
+      // hutten en toppen alvast in de opslag (mag mislukken)
+      $("dlStep").textContent = tr("Hutten, toppen en weer"); show(96);
+      try{ await Promise.race([fetch(`${window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") : ""}data/h${String(row[8]).padStart(3, "0")}.json?${DATA_V}`), new Promise(r => setTimeout(r, 6000))]); }catch(e){}
+      if(ctl.aborted) return;
+      try{ localStorage.setItem("pp-dl-" + row[0], JSON.stringify({v:1, t:Date.now(), n:tiles.length, b:bytes})); }catch(e){}
+      show(100); $("dlStep").innerHTML = `${I("check")}${tr("Klaar")} · ${fmtMB(bytes)} MB`; g.querySelector(".dl-card").classList.add("ok"); $("dlBack").remove();
+      buzz("success"); setTimeout(() => close(true), 650);
+    };
+    const wire = () => {
+      $("dlBack").onclick = () => { close(false); if(!S.area) openPicker(); };
+      g.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { close(false); openArea(b.dataset.go); });
+    };
+    document.body.appendChild(g); intro();
+  });
+}
+// opnieuw downloaden vanuit het lagenmenu of Plannen (het gebied staat al open)
+async function downloadArea(btn, A = S.area){
+  if(!A) return;
+  const tiles = areaTiles(A.bounds); btn.disabled = true;
+  const {bytes} = await fetchTiles(tiles, d => btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(d / tiles.length * 100)}%`);
+  btn.disabled = false; btn.innerHTML = `${I("check")}${tr("Klaar")} · ${fmtMB(bytes)} MB`;
+  try{ localStorage.setItem("pp-dl-" + A.id, JSON.stringify({v:1, t:Date.now(), n:tiles.length, b:bytes})); }catch(e){}
   buzz("success"); toast(`${A.row[1]}: ${tiles.length} ${tr("kaarttegels bewaard voor offline.")}`, 3500);
 }
 
@@ -5073,6 +5150,10 @@ function renderPlan(){
         ${tile("plArea", "search", "Skigebied kiezen", A ? A.row[1] : "1883 gebieden", "linear-gradient(135deg,#5E6E80,#2B3A4B)")}
         ${tile("plOffline", "down", "Offline", "Gebied op je telefoon", "linear-gradient(135deg,#0F4C86,#2B7FC4)")}
       </div>`
+    + (() => { const l = downloadedList(), tot = l.reduce((t, d) => t + (d.b || 0), 0);
+        return `<section class="dc" id="plDl" hidden><p class="label">${I("down")}${tr("Gedownloade gebieden")}${tot ? ` · ${fmtMB(tot)} MB` : ""}</p>${l.length
+          ? `<div class="fav-list">${l.map(d => `<button type="button" class="fav-row" data-area="${d.id}"><span class="cc">${esc(d.row[2])}</span><b>${esc(d.row[1])}</b><small>${d.b ? fmtMB(d.b) + " MB · " : ""}${new Date(d.t).toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}</small>${I("chev")}</button>`).join("")}</div>`
+          : `<p class="m-hint">${tr("Nog geen gebieden gedownload. Kies een skigebied om het te downloaden.")}</p>`}</section>`; })()
     + (favRows.length ? `<section class="dc"><p class="label">${I("star")}${tr("Je favorieten")}</p><div class="fav-list">${favRows.map(r => `<button type="button" class="fav-row" data-area="${r[0]}"><span class="cc">${esc(r[2])}</span><b>${esc(r[1])}</b><small>${r[6]} km · ${r[10] ?? "?"} m</small>${I("chev")}</button>`).join("")}</div></section>`
       : `<section class="dc"><p class="m-hint">${tr("Zet skigebieden bij je favorieten (ster) om ze hier snel te openen en te vergelijken.")}</p></section>`);
   $("plClose").onclick = () => box.hidden = true;
@@ -5081,7 +5162,7 @@ function renderPlan(){
   $("plDay").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); dayRoute(); };
   $("plLunch").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); if(!S.path?.length) dayRoute(); setTimeout(lunchForm, 400); };
   $("plArea").onclick = () => { box.hidden = true; openPicker(); };
-  $("plOffline").onclick = () => { setTab("map"); $("layerMenu").hidden = false; renderOffline(); setTimeout(() => $("offlineBox")?.scrollIntoView({block:"center"}), 200); };
+  $("plOffline").onclick = () => { const sec = $("plDl"); sec.hidden = !sec.hidden; if(!sec.hidden) sec.scrollIntoView({block:"nearest", behavior:"smooth"}); };
   box.querySelectorAll("[data-area]").forEach(b => b.onclick = () => { box.hidden = true; openArea(b.dataset.area); setTab("map"); });
 }
 // ---- acties in de zoekbalk: "begin skidag", "steilheid", "reisplanner", "niveau"… ----
@@ -5282,7 +5363,7 @@ document.querySelectorAll("[data-clear]").forEach(b => b.onclick = async () => {
   const drop = pre => { try{ for(let i = localStorage.length - 1; i >= 0; i--){ const k = localStorage.key(i); if(k?.startsWith(pre)) localStorage.removeItem(k); } }catch(e){} };
   if(what === "routes"){ drop("pp-routes:"); toast("Je bewaarde routes zijn gewist."); }
   if(what === "diary"){ if(D.rec) stopRec(); drop("pp-day:"); D.day = null; D.view = null; drawTrack(); diaryLive(); toast("Je skidagboek is gewist."); }
-  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts"); drop("pp-wx:"); toast("Offline kaart gewist. Hij wordt opnieuw opgehaald zodra je hem bekijkt."); }
+  if(what === "offline"){ try{ for(const k of await caches.keys()) if(k.startsWith("tiles") || k.startsWith("data")) await caches.delete(k); }catch(e){} drop("pp-huts"); drop("pp-wx:"); drop("pp-dl-"); await PPterrain.clear?.(); toast(tr("Gedownloade gebieden gewist. Je downloadt een gebied opnieuw zodra je het opent.")); }
   if(what === "all"){
     try{ localStorage.clear(); }catch(e){}
     try{ for(const k of await caches.keys()) await caches.delete(k); }catch(e){}

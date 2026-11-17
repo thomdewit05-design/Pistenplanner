@@ -2058,3 +2058,43 @@ body.following .layer-chips,body.drawing .layer-chips,body.rp-on .layer-chips,bo
 .onb-label{text-align:center;margin:0 0 6px;color:var(--accent-strong,#1F7FD6)!important}
 @media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .lchip:not([aria-pressed="true"]){background:rgba(18,30,46,.82);color:#E8EEF4;border-color:rgba(255,255,255,.12)}}
 .ios[data-theme=dark] .lchip:not([aria-pressed="true"]){background:rgba(18,30,46,.82);color:#E8EEF4;border-color:rgba(255,255,255,.12)}
+
+/* ---------- skigebied downloaden (verplicht voor de kaart) ---------- */
+.dl-gate{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:calc(20px + var(--safe-t)) 16px calc(20px + var(--safe-b));
+  background:radial-gradient(120% 80% at 50% 0%,#DCEBFA 0%,#EEF5FC 45%,var(--bg) 100%);animation:dlIn .28s ease both;overflow:auto}
+:root[data-theme=dark] .dl-gate{background:radial-gradient(120% 80% at 50% 0%,#1B3354 0%,#0F1E30 50%,var(--bg) 100%)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .dl-gate{background:radial-gradient(120% 80% at 50% 0%,#1B3354 0%,#0F1E30 50%,var(--bg) 100%)}}
+.dl-gate.out{animation:dlOut .28s ease both}
+@keyframes dlIn{from{opacity:0;transform:scale(1.02)}to{opacity:1;transform:none}}
+@keyframes dlOut{to{opacity:0;transform:scale(.98)}}
+.dl-card{width:100%;max-width:400px;margin:auto;background:var(--surface);border:1px solid var(--glass-line);border-radius:24px;box-shadow:var(--sh-2);padding:26px 22px 18px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.dl-art{width:64px;height:64px;margin:0 auto 2px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#0F4C86,#2B7FC4);box-shadow:0 8px 22px rgba(43,127,196,.35)}
+.dl-art svg{width:30px;height:30px}
+.dl-card.ok .dl-art{background:linear-gradient(135deg,#1F9D57,#36B37E);animation:dlPop .45s ease}
+@keyframes dlPop{50%{transform:scale(1.12)}}
+.dl-kick{margin:0;font:700 11.5px/1.2 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.dl-title{margin:0;font:700 30px/1.05 var(--f-display);color:var(--ink);overflow-wrap:anywhere}
+.dl-lead{margin:0;color:var(--muted);font-size:15px}
+.dl-lead.off{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--line-2);border-radius:var(--r-md);padding:12px;color:var(--ink)}
+.dl-lead svg,.dl-step svg{width:18px;height:18px;flex:none;margin-top:1px}
+.dl-what{list-style:none;margin:2px 0;padding:0;display:flex;flex-direction:column;gap:8px;text-align:left}
+.dl-what li{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r-md);background:var(--line-2);font-weight:600;color:var(--ink)}
+.dl-what svg{width:18px;height:18px;flex:none;color:var(--accent)}
+.dl-card .btn{width:100%;min-height:50px;justify-content:center;flex:none;white-space:normal;text-align:center}
+.dl-go{font-size:16px}
+.dl-back{min-height:44px!important}
+.dl-step{margin:4px 0 0;font-weight:700;color:var(--ink);display:flex;gap:8px;justify-content:center;align-items:center}
+.dl-card.err .dl-step{color:var(--danger)}
+.dl-card.ok .dl-step{color:var(--ok)}
+.dl-bar{height:12px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.dl-bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2B7FC4,#5BB4FF);transition:width .25s ease}
+.dl-card.ok .dl-bar i{background:linear-gradient(90deg,#1F9D57,#36B37E)}
+.dl-num{margin:0;display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.dl-num b{color:var(--ink)}
+.dl-sub{margin:6px 0 0;font:700 11.5px/1 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:left}
+.dl-list{display:flex;flex-direction:column;gap:6px}
+.dl-row{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.dl-row b{flex:1;min-width:0;overflow-wrap:anywhere}
+.dl-row svg{width:16px;height:16px;flex:none}
+.dl-row svg:first-child{color:var(--ok)}
+@media (prefers-reduced-motion:reduce){.dl-gate,.dl-gate.out,.dl-card.ok .dl-art{animation:none}}
