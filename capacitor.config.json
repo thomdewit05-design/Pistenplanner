@@ -11,7 +11,8 @@
       "@capacitor-community/admob",
       "@capacitor-community/keep-awake",
       "@capacitor/haptics",
-      "@capacitor/app"
+      "@capacitor/app",
+      "@capacitor/local-notifications"
     ]
   },
   "android": {

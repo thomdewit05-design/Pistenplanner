@@ -20,7 +20,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pending", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "day", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -50,6 +51,7 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             for a in Activity<NavAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+            for a in Activity<DayAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } }
         }
         #endif
     }
@@ -116,6 +118,33 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
             if #available(iOS 16.0, *) { AppStore.requestReview(in: scene) } else { SKStoreReviewController.requestReview(in: scene) }
             call.resolve(["shown": true])
         }
+    }
+
+    // ---------- skidag live op het toegangsscherm ----------
+    // Vanuit de webapp: Capacitor.nativePromise("Nav", "day", {action: "update" | "stop", km, hm, vmax, runs, since, area, lang})
+    private var dayActivity: Any? = nil
+    @objc func day(_ call: CAPPluginCall) {
+        #if canImport(ActivityKit)
+        if #available(iOS 16.2, *) {
+            let action = call.getString("action") ?? "update"
+            if action == "stop" {
+                if let a = dayActivity as? Activity<DayAttributes> { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+                dayActivity = nil
+                return call.resolve()
+            }
+            let since = Date(timeIntervalSince1970: (call.getDouble("since") ?? Date().timeIntervalSince1970 * 1000) / 1000)
+            let state = DayAttributes.ContentState(km: call.getDouble("km") ?? 0, hm: call.getInt("hm") ?? 0,
+                                                   vmax: call.getInt("vmax") ?? 0, runs: call.getInt("runs") ?? 0, since: since)
+            let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(1800))
+            if let a = dayActivity as? Activity<DayAttributes> {
+                Task { await a.update(content) }
+            } else if ActivityAuthorizationInfo().areActivitiesEnabled {
+                dayActivity = try? Activity.request(attributes: DayAttributes(area: call.getString("area") ?? "", lang: call.getString("lang") ?? "nl"),
+                                                    content: content, pushType: nil)
+            }
+        }
+        #endif
+        call.resolve()
     }
 
     // ---------- GPS ----------
