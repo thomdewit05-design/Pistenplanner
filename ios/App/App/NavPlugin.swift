@@ -4,6 +4,7 @@ import AppTrackingTransparency
 import UIKit
 import StoreKit
 import WatchConnectivity
+import HealthKit
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -22,7 +23,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         CAPPluginMethod(name: "pending", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "day", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "day", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "health", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -151,6 +153,34 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         }
         #endif
         call.resolve()
+    }
+
+    // ---------- Apple Gezondheid ----------
+    // Een skidag als training "Afdaling skiën": begin, einde, afstand en geschatte calorieën.
+    // Vanuit de webapp: Capacitor.nativePromise("Nav", "health", {start, end, km, kcal}) (tijden in ms).
+    private let healthStore = HKHealthStore()
+    @objc func health(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else { return call.resolve(["saved": false, "reason": "unavailable"]) }
+        let start = Date(timeIntervalSince1970: (call.getDouble("start") ?? 0) / 1000)
+        let end = Date(timeIntervalSince1970: (call.getDouble("end") ?? Date().timeIntervalSince1970 * 1000) / 1000)
+        let km = call.getDouble("km") ?? 0, kcal = call.getDouble("kcal") ?? 0
+        guard end > start else { return call.resolve(["saved": false, "reason": "time"]) }
+        let types: Set<HKSampleType> = [HKObjectType.workoutType(), HKQuantityType(.distanceDownhillSnowSports), HKQuantityType(.activeEnergyBurned)]
+        healthStore.requestAuthorization(toShare: types, read: [HKQuantityType(.heartRate)]) { ok, _ in
+            guard ok else { return call.resolve(["saved": false, "reason": "denied"]) }
+            let cfg = HKWorkoutConfiguration(); cfg.activityType = .downhillSkiing; cfg.locationType = .outdoor
+            let builder = HKWorkoutBuilder(healthStore: self.healthStore, configuration: cfg, device: .local())
+            builder.beginCollection(withStart: start) { _, _ in
+                var samples: [HKSample] = []
+                if km > 0 { samples.append(HKQuantitySample(type: HKQuantityType(.distanceDownhillSnowSports), quantity: HKQuantity(unit: .meter(), doubleValue: km * 1000), start: start, end: end)) }
+                if kcal > 0 { samples.append(HKQuantitySample(type: HKQuantityType(.activeEnergyBurned), quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal), start: start, end: end)) }
+                builder.add(samples) { _, _ in
+                    builder.endCollection(withEnd: end) { _, _ in
+                        builder.finishWorkout { w, err in call.resolve(["saved": w != nil, "reason": err?.localizedDescription ?? ""]) }
+                    }
+                }
+            }
+        }
     }
 
     // ---------- GPS ----------

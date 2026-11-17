@@ -67,6 +67,10 @@
       </array>
     </dict>
 	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Skipilot can read your heart rate during a ski day to show it in your ski diary.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Skipilot saves your ski days as a downhill skiing workout in Apple Health, with distance and estimated calories.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Skipilot uses your location to show where you are on the slopes, to guide you along your route and to record your ski diary. Your location stays on your phone unless you share it with your group.</string>
 	<key>NSSupportsLiveActivities</key>
