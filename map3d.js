@@ -255,13 +255,14 @@ const M3 = (() => {
         {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
         // aangetikte piste of lift: blauwe gloed eronder
         {id:"sel-glow", type:"line", source:"sel", filter:["==", ["geometry-type"], "LineString"], layout:line, paint:{"line-color":"#1E88FF", "line-width":w(9, 16), "line-opacity":.45, "line-blur":2}},
-        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(3.6, 8), "line-opacity":.75}},
-        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6)}},
-        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.2, 4.6), "line-dasharray":[2, 1.4]}},
+        {id:"run-shadow", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#0B1A2A", "line-width":w(7, 15), "line-opacity":.16, "line-blur":3}},
+        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(4.4, 9.5), "line-opacity":.82}},
+        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8)}},
+        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8), "line-dasharray":[2, 1.4]}},
         // sleepliften, lopende banden en kabeltreinen liggen op de grond; kabelbanen hangen in de lucht (laag "cables"),
         // op de grond staat dan alleen een vage schaduw van hun spoor
         {id:"lift-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "drag"], layout:line, paint:{"line-color":"#fff", "line-width":w(2.5, 5), "line-opacity":.85}},
-        {id:"lift", type:"line", source:"pistes", filter:["==", ["get", "k"], "aerial"], layout:line, paint:{"line-color":"#14202B", "line-width":w(1, 2), "line-opacity":.22}},
+        {id:"lift", type:"line", source:"pistes", filter:["==", ["get", "k"], "aerial"], layout:line, paint:{"line-color":"#14202B", "line-width":w(1.1, 2.2), "line-opacity":.3}},
         {id:"drag", type:"line", source:"pistes", filter:["==", ["get", "k"], "drag"], layout:line, paint:{"line-color":"#14202B", "line-width":w(1, 1.8), "line-dasharray":[2.5, 2]}},
         {id:"closed", type:"line", source:"pistes", filter:["==", ["get", "k"], "closed"], layout:line, paint:{"line-color":"#9AA7B2", "line-width":w(1.5, 3), "line-dasharray":[1, 3]}},
         {id:"station", type:"circle", source:"pistes", filter:["==", ["get", "k"], "st"], paint:{"circle-radius":w(1.5, 3.5), "circle-color":"#14202B", "circle-stroke-color":"#fff", "circle-stroke-width":1.5, "circle-pitch-alignment":"map"}},
@@ -275,7 +276,7 @@ const M3 = (() => {
         {id:"route-arrows", type:"symbol", source:"route", filter:["==", ["get", "k"], "p"], minzoom:12, layout:{"symbol-placement":"line", "symbol-spacing":["interpolate", ["linear"], ["zoom"], 12, 60, 16, 110], "icon-image":"route-arrow", "icon-size":["interpolate", ["linear"], ["zoom"], 12, .6, 16, 1], "icon-rotation-alignment":"map", "icon-pitch-alignment":"map", "icon-allow-overlap":true, "icon-ignore-placement":true}},
         {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
         // pistenummers en hutten als plaatjes in de kaart zelf (veel lichter dan losse HTML-knopjes die elk beeld opnieuw geplaatst worden)
-        {id:"nums", type:"symbol", source:"nums", minzoom:12.5, layout:{"icon-image":["get", "img"], "icon-padding":1}},
+        {id:"nums", type:"symbol", source:"nums", minzoom:13.2, layout:{"icon-image":["get", "img"], "icon-padding":1}},
         {id:"huts", type:"symbol", source:"huts", minzoom:12, filter:["!=", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":["interpolate", ["linear"], ["zoom"], 12, .75, 15, 1]}},
         {id:"bus", type:"symbol", source:"huts", minzoom:13.5, filter:["==", ["get", "kind"], "o"], layout:{"icon-image":["get", "img"], "icon-allow-overlap":true, "icon-size":.85}}
       ],

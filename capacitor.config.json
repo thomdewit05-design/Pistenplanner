@@ -9,7 +9,8 @@
     "limitsNavigationsToAppBoundDomains": false,
     "includePlugins": [
       "@capacitor-community/admob",
-      "@capacitor-community/keep-awake"
+      "@capacitor-community/keep-awake",
+      "@capacitor/haptics"
     ]
   },
   "android": {

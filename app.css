@@ -1183,3 +1183,128 @@ body.rp-on #sheet,body.rp-on .fabs,body.rp-on #ovBtn,body.rp-on .topbar{display:
 .day-times label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
 .day-times input{font:600 16px/1 inherit;font-family:inherit;padding:8px 10px;border-radius:10px;border:1px solid rgba(127,127,127,.35);background:var(--surface);color:var(--ink)}
 .day-times small{flex-basis:100%;color:var(--muted);font-size:12.5px;line-height:1.35}
+
+/* ================= Huisstijl 2026: merkkleuren van het logo, nachtblauw glas, rustiger knoppen =================
+   Donkerblauw en ijsblauw uit het logo; overdag lichte panelen, 's avonds (of in de donkere stand) nachtblauw glas.
+   Rood alleen voor SOS en echte waarschuwingen. Eén vaste ronding: 16 voor panelen en kaarten, 12–14 voor knoppen. */
+.ios{
+  --brand:#1B4A6B; --ice:#A7C7DC;
+  --accent:#1D6FB0; --accent-strong:#1D6FB0; --me:#2381D9;
+  --glass:rgba(255,255,255,.78); --glass-line:rgba(15,40,70,.08);
+  --r-lg:16px; --r-md:12px;
+  --sh-1:0 1px 2px rgba(8,24,44,.06),0 6px 20px rgba(8,24,44,.14); --sh-2:0 14px 40px rgba(8,24,44,.22);
+}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){
+  --accent:#5AABE6; --accent-strong:#2B7FC4; --me:#3A95EC;
+  --surface:#132233; --bg:#07111B; --glass:rgba(13,27,43,.76); --glass-line:rgba(167,199,220,.12);
+  --line:rgba(120,150,180,.28); --line-2:rgba(120,150,180,.16);
+  --sh-1:0 1px 2px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.35)}}
+.ios[data-theme=dark]{
+  --accent:#5AABE6; --accent-strong:#2B7FC4; --me:#3A95EC;
+  --surface:#132233; --bg:#07111B; --glass:rgba(13,27,43,.76); --glass-line:rgba(167,199,220,.12);
+  --line:rgba(120,150,180,.28); --line-2:rgba(120,150,180,.16);
+  --sh-1:0 1px 2px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.35)}
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary,.ios:is(:not([data-theme=x]),[data-theme]) .pc-btns .pc-main,.ios .chip[aria-pressed="true"],.three-btn.on{background:var(--accent-strong)}
+.ios .btn.primary{box-shadow:0 6px 18px color-mix(in srgb,var(--accent-strong) 35%,transparent)}
+.ios .sheet{border-radius:20px 20px 0 0}
+.ios .handle span{background:color-mix(in srgb,var(--ink) 25%,transparent)}
+
+/* bovenbalk: overal even hoog (48), de naam van het gebied op twee regels zonder kopje erboven */
+.ios .topbar{gap:8px}
+.ios .topbar .fab,.ios .menu-btn{width:44px;height:44px;border-radius:13px}
+.ios .menu-btn .ic{width:22px;height:22px}
+.ios .area-btn{min-height:44px;padding:5px 10px 5px 13px;border-radius:13px;gap:6px}
+.ios .area-txt small{display:none}
+.ios .area-txt b{font-size:17px}
+.ios .area-stats{font-size:12px;margin-top:1px}
+
+/* knoppen rechts: alleen 3D, locatie en SOS; route-zoom alleen met een route, het potlood alleen tijdens het tekenen */
+.ios .fabs{gap:10px;align-items:flex-end}
+.ios .fabs .fab{width:48px;height:48px;border-radius:14px}
+body:not(.has-route) #fitRouteBtn{display:none}
+#drawBtn:not(.drawing){display:none}
+.ios .sos-fab{width:42px;height:42px;border-radius:50%;margin:4px 3px 0 0;border:0;font-size:11.5px;letter-spacing:.04em;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent),var(--sh-1)}
+.lm-fit{width:100%;justify-content:center;margin:0 0 14px}
+
+/* je eigen positie: een zachte pulserende ring */
+.me-dot::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--me);opacity:0;animation:mePulse 2.4s ease-out infinite;pointer-events:none}
+@keyframes mePulse{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.me-dot::after{animation:none}}
+
+/* kaart: rustiger pistebordjes en toppen */
+.ios .pnum{height:18px;min-width:22px;padding:0 5px;border-radius:6px;border:1px solid rgba(255,255,255,.9);font-size:11.5px;box-shadow:0 1px 3px rgba(8,24,44,.3)}
+.ios .peak b{font-size:10.5px;font-weight:650}
+.ios .peak span{font-size:9.5px}
+.ios .peak i{border-left-width:5px;border-right-width:5px;border-bottom-width:7px}
+
+/* 3D-kaart laden: het logo pulseert midden in beeld */
+body.m3-loading::after{content:"";position:fixed;left:50%;top:42%;z-index:2500;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:18px;
+  background:url(icons/logo.svg) center/contain no-repeat;box-shadow:0 10px 30px rgba(8,24,44,.35);animation:logoPulse 1.1s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{transform:scale(.92);opacity:.85}50%{transform:scale(1.04);opacity:1}}
+/* lege schermen: het logo als kleine illustratie */
+.empty-art{grid-column:1/-1;justify-self:center;width:56px;height:56px;border-radius:15px;margin:6px auto 0;opacity:.9;box-shadow:var(--sh-1)}
+
+/* welkomstschermen bij de eerste keer openen */
+.onb{position:fixed;inset:0;z-index:6000;display:grid;place-items:center;padding:calc(20px + var(--safe-t)) 20px calc(20px + var(--safe-b));
+  background:radial-gradient(120% 80% at 50% 0%,#245C82 0%,#0F2A40 55%,#07111B 100%);animation:onbIn .35s ease;transition:opacity .35s}
+.onb.out{opacity:0}
+@keyframes onbIn{from{opacity:0}}
+.onb-card{position:relative;width:100%;max-width:400px;text-align:center;color:#fff;display:flex;flex-direction:column;align-items:center;gap:14px}
+.onb-art{width:min(62vw,240px);aspect-ratio:1;border-radius:36px;background:rgba(255,255,255,.07);display:grid;place-items:center;margin-bottom:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.onb-art svg{width:72%;height:72%}
+.onb h2{margin:6px 0 0;font:750 28px/1.12 var(--f-display);letter-spacing:-.02em}
+.onb p{margin:0;font-size:16px;line-height:1.45;color:rgba(255,255,255,.82);max-width:340px}
+.onb-dots{display:flex;gap:7px;margin:10px 0 6px}
+.onb-dots i{width:7px;height:7px;border-radius:4px;background:rgba(255,255,255,.3);transition:width .25s,background .25s}
+.onb-dots i.on{width:22px;background:#fff}
+.onb .onb-next{width:100%;max-width:340px;padding:15px;font-size:17px;background:#2B7FC4;color:#fff;border:0;border-radius:14px}
+.onb-skip{position:fixed;top:calc(14px + var(--safe-t));right:16px;background:none;border:0;color:rgba(255,255,255,.75);font-weight:600;font-size:15px;padding:8px;cursor:pointer}
+
+/* ================= IJsblauwe stijl (overdag) =================
+   Zacht ijsblauw, matglazen kaarten met grote rondingen, ronde koppen (SF Pro Rounded) en een donkere pilknop.
+   De kleuren staan in variabelen, zodat de donkere stand er zijn eigen waarden voor heeft. */
+.ios{
+  --f-display:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"SF Pro Display","Nunito","Segoe UI",system-ui,sans-serif;
+  --ink:#0F2233; --muted:#5A7084; --faint:#7D93A6;
+  --glass:rgba(236,244,250,.74); --glass-line:rgba(255,255,255,.7);
+  --card:rgba(255,255,255,.58); --card-line:rgba(255,255,255,.75);
+  --cta:#10263A; --cta-ink:#fff; --soft:rgba(255,255,255,.62); --soft-ink:#10263A;
+  --sheet-bg:linear-gradient(180deg,rgba(236,244,250,.86) 0%,rgba(214,230,242,.9) 100%);
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]){
+  --card:rgba(255,255,255,.06); --card-line:rgba(167,199,220,.12); --cta:#2B7FC4; --cta-ink:#fff; --soft:rgba(255,255,255,.08); --soft-ink:#E6F0F7;
+  --sheet-bg:linear-gradient(180deg,rgba(16,32,50,.88) 0%,rgba(9,20,33,.92) 100%); --muted:rgba(220,232,242,.66); --faint:rgba(220,232,242,.45); --ink:#F2F7FB}}
+.ios[data-theme=dark]{
+  --card:rgba(255,255,255,.06); --card-line:rgba(167,199,220,.12); --cta:#2B7FC4; --cta-ink:#fff; --soft:rgba(255,255,255,.08); --soft-ink:#E6F0F7;
+  --sheet-bg:linear-gradient(180deg,rgba(16,32,50,.88) 0%,rgba(9,20,33,.92) 100%); --muted:rgba(220,232,242,.66); --faint:rgba(220,232,242,.45); --ink:#F2F7FB}
+
+/* paneel: ijsblauw matglas met een grote ronding */
+.ios .sheet{background:var(--sheet-bg);border-radius:28px 28px 0 0;box-shadow:0 -1px 0 var(--glass-line),0 -10px 40px rgba(8,24,44,.16)}
+.ios .glass{border:1px solid var(--glass-line)}
+/* koppen rond en groot */
+.ios .peek-empty b,.ios .picker h2,.ios .menu-head h2,.ios .m-sec h3,.ios .area-txt b,.ios .eta b,.ios .onb h2{font-family:var(--f-display);letter-spacing:-.01em}
+.ios .peek-empty b{font-weight:700}
+/* matglazen kaartjes: weer, skidagboek, aanraders, cijfers */
+.ios .wx-cell,.ios .d-stat,.ios .bs-row,.ios .stat,.ios .ticket-card,.ios .diary-card{background:var(--card);border:1px solid var(--card-line);box-shadow:none}
+.ios .wx-cell,.ios .d-stat{border-radius:16px}
+.ios .bs-row{border-radius:18px}
+/* knoppen: de hoofdknop als donkere pil, de andere als witte glaspil */
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary,.ios:is(:not([data-theme=x]),[data-theme]) .pc-btns .pc-main{background:var(--cta);color:var(--cta-ink);border-radius:999px;box-shadow:0 8px 22px rgba(8,24,44,.22)}
+.ios:is(:not([data-theme=x]),[data-theme]) .btn.primary .ic{color:var(--cta-ink)}
+.ios .btn,.ios .btn.ghost{border-radius:999px;background:var(--soft);border:1px solid var(--card-line)}
+.ios .btn.ghost,.ios .btn.ghost .ic{color:var(--soft-ink)}
+.ios .chip{border-radius:999px;background:var(--soft);border:1px solid var(--card-line)}
+/* zwevende knoppen: witte glasrondjes */
+.ios .fabs .fab,.ios .topbar .fab,.ios .menu-btn{border-radius:16px}
+.ios .area-btn{border-radius:16px}
+/* welkomstschermen in dezelfde ijsblauwe stijl */
+.ios .onb{background:linear-gradient(180deg,#E3EEF7 0%,#C4DAEA 55%,#9FC0D8 100%)}
+.ios .onb-card{color:var(--ink)}
+.ios .onb p{color:#3E566B}
+.ios .onb-art{background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.8),0 20px 40px rgba(8,24,44,.12);border-radius:40px}
+.ios .onb-dots i{background:rgba(16,38,58,.2)}
+.ios .onb-dots i.on{background:#10263A}
+.ios .onb .onb-next{background:#10263A;border-radius:999px;box-shadow:0 10px 26px rgba(8,24,44,.25)}
+.ios .onb-skip{color:#3E566B}
