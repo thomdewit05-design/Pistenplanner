@@ -52,6 +52,8 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     implementation "com.google.android.play:review:2.0.2"
+    implementation "androidx.work:work-runtime:2.9.1"
+    implementation "com.google.guava:guava:33.3.1-android"   // ListenableFuture voor WorkManager
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

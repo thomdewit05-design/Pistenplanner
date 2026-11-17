@@ -194,6 +194,7 @@ const isFav = id => FAVS.includes(id);
 function toggleFav(id){
   FAVS = isFav(id) ? FAVS.filter(x => x !== id) : [id, ...FAVS];
   try{ localStorage.setItem("pp-favs", JSON.stringify(FAVS)); }catch(e){}
+  snowSync();
   const r = S.index.find(x => x[0] === id);
   toast(isFav(id) ? `${r?.[1] || "Gebied"} staat bij je favorieten.` : `${r?.[1] || "Gebied"} is geen favoriet meer.`);
 }
@@ -2175,7 +2176,7 @@ function gHandle(d){
   if(d.id !== G.id){
     const m = G.members.get(d.id) || {id:d.id};
     m.name = String(d.name || "?").slice(0, 20); m.seen = Math.max(m.seen || 0, d.ts || 0);
-    if(d.t === "pos" && (!m.posTs || d.ts > m.posTs)){ m.lat = +d.lat; m.lon = +d.lon; m.posTs = d.ts; if(d.dk != null){ m.dk = +d.dk; m.dh = +d.dh; } }
+    if(d.t === "pos" && (!m.posTs || d.ts > m.posTs)){ m.lat = +d.lat; m.lon = +d.lon; m.posTs = d.ts; if(d.dk != null){ m.dk = +d.dk; m.dh = +d.dh; m.dv = +d.dv || 0; m.dr = +d.dr || 0; } }
     G.members.set(d.id, m);
   }
   if(d.t === "plan" && d.ts > G.planTs){
@@ -2257,7 +2258,7 @@ function groupOnPos(){
   if(dt >= POS_MAX_SEC || (moved >= POS_MIN_MOVE && dt >= minSec)){
     G.lastPos = {lat:S.pos.lat, lon:S.pos.lon, t:now};
     const sm = D.rec ? D.day?.sum : null;
-    gSend({t:"pos", lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5), ...(sm && sm.n > 1 ? {dk:+sm.km.toFixed(1), dh:Math.round(sm.hm)} : {})});
+    gSend({t:"pos", lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5), ...(sm && sm.n > 1 ? {dk:+sm.km.toFixed(1), dh:Math.round(sm.hm), dv:Math.round(sm.vmax), dr:sm.runs} : {})});
   }
 }
 const ago = ts => { const m = Math.round((Date.now() - ts)/60000); return m < 1 ? "nu" : m < 60 ? `${m} min geleden` : `${Math.floor(m/60)} u geleden`; };
@@ -2298,6 +2299,7 @@ function renderGroup(){
     const day = m.dk != null ? ` · vandaag ${kmTxt(m.dk)} km, ${hmTxt(m.dh)} hm` : "";
     return `<li><div class="mem" style="--c:${gColor(m.id)}">${esc(m.name.charAt(0).toUpperCase())}</div><span><b>${esc(m.name)}</b><small>${esc(where)}${dist}${day}</small></span><span class="ago">${ago(m.posTs || m.seen)}</span></li>`;
   }).join("");
+  renderRank();
   $("gMembers").innerHTML = me + (others || `<li class="empty" style="display:block">Nog niemand anders. Laat ze de code scannen.</li>`);
 }
 // link naar de website (ook vanuit de app); de website opent zelf de app als die op de telefoon staat
@@ -2490,7 +2492,8 @@ function diaryAdd(lat, lon, acc, alt, t = Date.now()){
 }
 function daySummary(day){
   const P = day.pts, A = day.area && day.area === S.area?.id ? S.area : null;
-  const s = {km:0, hm:0, vmax:0, runs:0, lifts:0, secs:0, liftSecs:0, n:P.length, pisteList:[], liftList:[], from:null, to:null};
+  const s = {km:0, hm:0, vmax:0, runs:0, lifts:0, secs:0, liftSecs:0, n:P.length, pisteList:[], liftList:[], from:null, to:null,
+    jumps:(day.jumps || []).length, airMax:(day.jumps || []).reduce((m, j) => Math.max(m, j[1]), 0)};
   if(P.length < 2){ if(day.sum){ s.pisteList = day.sum.pisteList || []; s.liftList = day.sum.liftList || []; } return s; }
   s.from = day.start + P[0][0]*1000; s.to = day.start + P[P.length-1][0]*1000;
   // hoogte gladstrijken (mediaan van drie), tegen sprongen in de GPS-hoogte
@@ -2535,10 +2538,18 @@ function daySummary(day){
 const hmTxt = x => Math.round(x).toLocaleString(LOCALE);
 const kmTxt = x => x.toFixed(1).replace(".", DEC);
 const durTxt = sec => { const m = Math.round(sec/60); return m >= 60 ? `${Math.floor(m/60)}u ${String(m%60).padStart(2,"0")}` : `${m} min`; };
+// skidag live op het toegangsscherm en in het Dynamic Island (iOS), hooguit elke 20 seconden bijgewerkt
+let dayLiveT = 0, dayLiveOn = false;
+function dayLiveNative(day, sum){
+  if(!D.rec){ if(dayLiveOn){ dayLiveOn = false; navNative("day", {action:"stop"}); } return; }
+  if(Date.now() - dayLiveT < 20000 && dayLiveOn) return; dayLiveT = Date.now(); dayLiveOn = true;
+  navNative("day", {action:"update", km:+(sum?.km || 0).toFixed(1), hm:Math.round(sum?.hm || 0), vmax:Math.round(sum?.vmax || 0), runs:sum?.runs || 0,
+    since:sum?.from || day?.start || Date.now(), area:day?.areaName || S.area?.row[1] || "", lang:LANG});
+}
 function diaryLive(){
   const day = D.day && D.day.date === todayKey() ? D.day : loadDay(todayKey());
   const sum = day ? (day.sum = daySummary(day)) : null;
-  widgetDay(day, sum, !D.rec);
+  widgetDay(day, sum, !D.rec); dayLiveNative(day, sum);
   $("diaryRecPill").hidden = !D.rec; document.body.classList.toggle("recording", D.rec);
   $("diaryMini").textContent = sum && sum.n > 1 ? `Vandaag: ${kmTxt(sum.km)} km · ${hmTxt(sum.hm)} hm · ${Math.round(sum.vmax)} km/u` : D.rec ? "Opname loopt. Ga skiën!" : "Houd je skidag bij: kilometers, hoogtemeters en topsnelheid";
   if(Date.now() - D.lastDraw > 3000){ D.lastDraw = Date.now(); drawTrack(); }
@@ -2553,6 +2564,7 @@ function drawTrack(){
   const pts = day.pts.map(p => [p[1]/1e5, p[2]/1e5]);
   L.polyline(pts, {renderer:svgR, interactive:false, color:"#ffffff", weight:7, opacity:.6, lineJoin:"round"}).addTo(trackLayer);
   L.polyline(pts, {renderer:svgR, interactive:false, color:"#7C3AED", weight:4, opacity:.95, lineJoin:"round"}).addTo(trackLayer);
+  for(const j of day.jumps || []) if(j[2] != null) L.marker([j[2], j[3]], {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:[0,0], html:`<span class="jump-pin">${I("flag")}${airTxt(j[1])} s</span>`})}).addTo(trackLayer);
 }
 function renderDiary(){
   const tk = todayKey(), k = D.view || tk, isToday = k === tk;
@@ -2769,6 +2781,8 @@ async function shareDay(day, sum){
 // Badges uit alle bewaarde skidagen. Een nieuwe badge geeft een melding; de lijst staat in het skidagboek.
 const BADGES = [
   {id:"first", icon:"ski", t:"Eerste skidag", d:"Je eerste skidag bijgehouden", v:a => a.days, goal:1},
+  {id:"jump1", icon:"flag", t:"Eerste sprong", d:"Je eerste sprong gemeten", v:a => a.jumps, goal:1},
+  {id:"air1", icon:"star", t:"Vliegende skiër", d:"Een hele seconde in de lucht", v:a => a.air >= 1000 ? 1 : 0, goal:1},
   {id:"days5", icon:"calendar", t:"Vaste gast", d:"5 skidagen", v:a => a.days, goal:5},
   {id:"days20", icon:"calendar", t:"Seizoensheld", d:"20 skidagen", v:a => a.days, goal:20},
   {id:"km20", icon:"ski", t:"Kilometervreter", d:"20 km op één dag", v:a => a.km, goal:20},
@@ -2787,11 +2801,11 @@ const BADGES = [
   {id:"long", icon:"clock", t:"Van open tot dicht", d:"6 uur op de berg op één dag", v:a => a.secs / 3600, goal:6}
 ];
 function badgeStats(){
-  const a = {days:0, km:0, runs:0, hm:0, hmTot:0, vmax:0, secs:0, blacks:0, areas:0, early:0}, blacks = new Set(), areas = new Set();
+  const a = {days:0, km:0, runs:0, hm:0, hmTot:0, vmax:0, secs:0, blacks:0, areas:0, early:0, jumps:0, air:0}, blacks = new Set(), areas = new Set();
   for(const x of allDays()){
     const s = x.s; a.days++;
     a.km = Math.max(a.km, s.km); a.runs = Math.max(a.runs, s.runs); a.hm = Math.max(a.hm, s.hm); a.hmTot += s.hm;
-    a.vmax = Math.max(a.vmax, s.vmax); a.secs = Math.max(a.secs, s.secs);
+    a.vmax = Math.max(a.vmax, s.vmax); a.secs = Math.max(a.secs, s.secs); a.jumps += s.jumps || 0; a.air = Math.max(a.air, s.airMax || 0);
     if(x.area) areas.add(x.area);
     for(const p of s.pisteList || []) if(p.diff === "s" || p.diff === "x") blacks.add(x.area + "|" + (p.ref || p.name));
     if(s.from && new Date(s.from).getHours() < 9) a.early = 1;
@@ -2821,17 +2835,18 @@ function renderBadges(){
   }).join("")}</div></div>`;
 }
 function startRec(){
+  motionOn();
   if(!startWatch()) return;
   D.rec = true; D.view = null; today(); dSaveSettings(); keepAwake();
   toast("Het dagboek neemt op. Veel skiplezier!");
-  diaryLive(); renderDiary();
+  diaryLive(); renderDiary(); liftAlertPlan();
 }
 function stopRec(){
   D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
   toast("Opname gestopt. Je dag is bewaard.");
   setTimeout(() => checkBadges(true), 2500);
   if(day.sum?.km >= 8) setTimeout(askReview, 6000); else setTimeout(offerWrapped, 5000);
-  diaryLive(); renderDiary(); window.ppAds?.native?.pause?.();
+  diaryLive(); renderDiary(); window.ppAds?.native?.pause?.(); liftAlertPlan();
 }
 // winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
 const seasonOf = k => { const y = +k.slice(0,4), m = +k.slice(4,6); const a = m >= 7 ? y : y - 1; return `${a}–${String(a + 1).slice(2)}`; };
@@ -3929,6 +3944,7 @@ function renderToday(){
     + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
     + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
+    + camsSection(A)
     + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
   $("tdClose").onclick = () => box.hidden = true;
   $("tdRetry")?.addEventListener("click", () => { S.wxFail = null; renderToday(); loadWeather(); });
@@ -3936,6 +3952,8 @@ function renderToday(){
   $("tdHome").onclick = () => { setTab("map"); home ? goHome() : homeMenu(); };
   $("tdGroup").onclick = () => setTab("group");
   $("tdMe").onclick = () => setTab("me");
+  box.querySelectorAll("[data-cam]").forEach(b => b.onclick = () => camView(A.cams[+b.dataset.cam]));
+  if(A.cams === undefined){ A.cams = null; loadCams(A).then(() => { if(S.area === A && !box.hidden) renderToday(); }); }
   box.querySelectorAll(".pcard").forEach(b => b.onclick = () => goPiste(b.dataset.k === "b" ? best[+b.dataset.i].e.i : picks[+b.dataset.i].g.e.i));
   countUp(box);
   heroWeather(box);
@@ -3960,6 +3978,7 @@ function renderMe(){
     + `<section class="me-today dc"><div class="me-top"><p class="label">${I("rec")}${tr("Vandaag")}</p>${D.rec ? `<span class="rec-pill">${I("rec")}${tr("Opname")}</span>` : ""}</div>`
     + (ts && ts.n > 1 ? `<div class="rings">${ring(ts.km, Math.max(20, rec.km), "#2B7FC4", tr("kilometer"), num(ts.km, 1), "km")}${ring(ts.hm, Math.max(3000, rec.hm), "#7C3AED", tr("hoogtemeters"), num(Math.round(ts.hm)), "hm")}${ring(ts.runs, Math.max(15, rec.runs), "#1F9D57", tr("afdalingen"), num(ts.runs), "")}</div>
         <div class="me-speed">${I("speed")}<span>${tr("Topsnelheid")}</span>${num(Math.round(ts.vmax))}<small>km/u</small></div>
+        ${ts.jumps ? `<div class="me-speed me-jump">${I("flag")}<span>${tr("Langste sprong")} · ${ts.jumps}×</span><b>${airTxt(ts.airMax)}</b><small>s</small></div>` : ""}
         <div class="me-btns"><button type="button" class="btn ghost" id="meDiary">${I("book")}Skidagboek</button>${M3.supported && !M3.failed ? `<button type="button" class="btn primary" id="me3d">${I("layers")}Bekijk je dag in 3D</button>` : ""}</div>`
       : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>${D.rec ? "" : `<button type="button" class="btn primary" id="meStart">${I("rec")}Begin met opnemen</button>`}`)
     + `</section>`
@@ -4206,6 +4225,153 @@ function offerWrapped(){
     el.onclick = () => { el.remove(); openWrapped(); };
     document.body.appendChild(el); setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 7000);
   }catch(e){}
+}
+
+// ================= op de piste: sprongen, ranglijst, webcams =================
+// Sprongen: tijdens het opnemen kijkt de bewegingssensor naar vrije val (bijna geen versnelling) terwijl je met minstens 15 km/u skiet.
+const JMP = {low:0, last:0};
+function gpsKmh(){
+  const s = POV.gps?.speed; if(s != null && s >= 0) return s * 3.6;
+  const P = D.day?.pts; if(P?.length > 1){ const a = P[P.length - 2], b = P[P.length - 1], dt = b[0] - a[0]; if(dt > 0 && dt < 30) return meters(a[1]/1e5, a[2]/1e5, b[1]/1e5, b[2]/1e5) / dt * 3.6; }
+  return 0;
+}
+function onMotion(e){
+  if(!D.rec) return; const a = e.accelerationIncludingGravity; if(!a || a.x == null) return;
+  const g = Math.hypot(a.x, a.y, a.z), now = e.timeStamp || performance.now();
+  if(g < 2.5){ if(!JMP.low) JMP.low = now; return; }
+  if(JMP.low){ const ms = now - JMP.low; JMP.low = 0;
+    if(ms >= 250 && ms <= 3000 && now - JMP.last > 1500 && gpsKmh() >= 15){ JMP.last = now; addJump(Math.round(ms)); } }
+}
+const airTxt = ms => (ms / 1000).toLocaleString(LOCALE, {minimumFractionDigits:1, maximumFractionDigits:2});
+function addJump(ms){
+  const day = today(); (day.jumps ||= []).push([Math.round((Date.now() - day.start) / 1000), ms, S.pos ? +S.pos.lat.toFixed(5) : null, S.pos ? +S.pos.lon.toFixed(5) : null]);
+  saveDay(day); buzz("success"); toast(`${tr("Sprong")}: ${airTxt(ms)} s ${tr("in de lucht")}`, 2600); drawTrack();
+}
+async function motionOn(){
+  try{ if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){ if(await DeviceMotionEvent.requestPermission() !== "granted") return; } }catch(e){ return; }
+  if(!motionOn.on){ motionOn.on = 1; addEventListener("devicemotion", onMotion, {passive:true}); }
+}
+// na een herstart met een lopende opname: op iOS mag de vraag pas na een tik
+if(D.rec){ if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") addEventListener("pointerdown", function once(){ removeEventListener("pointerdown", once); if(D.rec) motionOn(); }); else motionOn(); }
+
+// Ranglijst van vandaag in de groep: km, hoogtemeters en topsnelheid
+G.rankBy = "dk"; G.rankPrev = [];
+function renderRank(){
+  const box = $("gRank"); if(!box) return;
+  const sm = D.day?.date === todayKey() && D.day.pts.length > 1 ? (D.day.sum || daySummary(D.day)) : null;
+  const list = [...G.members.values()].filter(m => m.dk != null).map(m => ({id:m.id, name:m.name, dk:m.dk, dh:m.dh || 0, dv:m.dv || 0}));
+  if(sm && sm.n > 1) list.push({id:G.id, name:G.name || tr("Jij"), me:true, dk:+sm.km.toFixed(1), dh:Math.round(sm.hm), dv:Math.round(sm.vmax)});
+  if(!list.length){ box.innerHTML = ""; return; }
+  const by = G.rankBy; list.sort((a, b) => b[by] - a[by]);
+  const unit = by === "dk" ? "km" : by === "dh" ? "hm" : "km/u", fmtV = v => by === "dk" ? kmTxt(v) : hmTxt(v);
+  const prev = G.rankPrev; G.rankPrev = list.map(x => x.id);
+  box.innerHTML = `<div class="rank-head"><p class="label">${I("star")}${tr("Ranglijst van vandaag")}</p>
+    <div class="seg rank-seg">${[["dk", "Km"], ["dh", "Hoogte"], ["dv", "Snelst"]].map(([k, t]) => `<button type="button" data-rk="${k}" aria-pressed="${by === k}">${tr(t)}</button>`).join("")}</div></div>
+    <ol class="rank">${list.map((x, i) => { const was = prev.indexOf(x.id), up = was > i && was >= 0;
+      return `<li class="${x.me ? "me" : ""}${up ? " up" : ""}${i === 0 ? " first" : ""}"><span class="rk-pos">${i === 0 ? `<svg class="crown" viewBox="0 0 24 24"><path d="M3 18h18l-1.6-9.5-4.9 4L12 5l-2.5 7.5-4.9-4z"/></svg>` : i + 1}</span>
+        <span class="mem" style="--c:${gColor(x.id)}">${esc(x.name.charAt(0).toUpperCase())}</span><b class="rk-nm">${esc(x.name)}${x.me ? ` <small>(${tr("jij")})</small>` : ""}</b>
+        <span class="rk-v">${fmtV(x[by])}<small>${unit}</small></span><i class="rk-bar" style="--k:${Math.max(4, Math.round(100 * x[by] / (list[0][by] || 1)))}%"></i></li>`; }).join("")}</ol>
+    ${list.length < 2 ? `<p class="muted rank-tip">${tr("Zodra je groep opneemt, zie je hier wie de meeste kilometers maakt.")}</p>` : ""}`;
+  box.querySelectorAll("[data-rk]").forEach(b => b.onclick = () => { G.rankBy = b.dataset.rk; G.rankPrev = []; buzz("select"); renderRank(); });
+}
+
+// Webcams per gebied uit OpenStreetMap (contact:webcam / webcam), lang bewaard
+async function loadCams(A){
+  const key = `pp-cams:${A.id}`;
+  let c = null; try{ c = JSON.parse(localStorage.getItem(key) || "null"); }catch(e){}
+  if(c && Date.now() - c.t < 14 * 864e5){ A.cams = c.c; return c.c; }
+  if(!navigator.onLine){ A.cams = c?.c || []; return A.cams; }
+  const lats = A.nodes.map(n => n.lat), lons = A.nodes.map(n => n.lon);
+  const bb = `${(Math.min(...lats) - .02).toFixed(4)},${(Math.min(...lons) - .03).toFixed(4)},${(Math.max(...lats) + .02).toFixed(4)},${(Math.max(...lons) + .03).toFixed(4)}`;
+  const q = `[out:json][timeout:30];(nwr["contact:webcam"](${bb});nwr["webcam"](${bb});nwr["surveillance:type"="webcam"](${bb}););out center tags 40;`;
+  for(const url of OVERPASS){
+    try{
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 35000);
+      const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}, signal:ctl.signal});
+      clearTimeout(timer); if(!r.ok) continue;
+      const j = await r.json(); if(/error|timed out/i.test(j.remark || "")) continue;
+      const seen = new Set(), cams = [];
+      for(const el of j.elements || []){
+        const t = el.tags || {}, u = [t["contact:webcam"], t.webcam, t.image, t.url, t.website].map(v => (v || "").split(";")[0].trim()).find(v => /^https?:\/\//.test(v));
+        if(!u || seen.has(u)) continue; seen.add(u);
+        const p = el.center || el;
+        cams.push({u:u.slice(0, 300), n:(t.name || t.description || "").slice(0, 50), e:+t.ele || null, img:/\.(jpe?g|png|webp)(\?|$)/i.test(u), lat:p.lat, lon:p.lon});
+      }
+      cams.sort((a, b) => (b.img - a.img) || ((b.e || 0) - (a.e || 0)));
+      try{ localStorage.setItem(key, JSON.stringify({t:Date.now(), c:cams.slice(0, 12)})); }catch(e){}
+      A.cams = cams.slice(0, 12); return A.cams;
+    }catch(e){}
+  }
+  A.cams = c?.c || []; return A.cams;
+}
+function camsSection(A){
+  const cams = A.cams, site = A.row[11], more = site || `https://www.google.com/search?q=${encodeURIComponent(A.row[1] + " webcam")}`;
+  const cards = (cams || []).map((c, i) => c.img
+    ? `<button type="button" class="cam" data-cam="${i}"><img src="${esc(c.u)}${c.u.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 6e5)}" alt="" loading="lazy" onerror="this.closest('.cam').remove()"><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></button>`
+    : `<a class="cam cam-link" href="${esc(c.u)}" target="_blank" rel="noopener"><span class="cam-ic">${I("eye")}</span><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></a>`).join("");
+  return `<section class="dc cams-sec"><p class="label">${I("eye")}${tr("Webcams")}</p>${cams == null ? `<div class="cams"><i class="skel cam-skel"></i><i class="skel cam-skel"></i></div>` : cards ? `<div class="cams">${cards}</div>` : ""}
+    <a class="btn ghost cam-more" href="${esc(more)}" target="_blank" rel="noopener">${I("eye")}${tr(cards ? "Meer webcams" : "Webcams bekijken")}</a></section>`;
+}
+function camView(c){
+  const el = document.createElement("div"); el.className = "cam-full";
+  el.innerHTML = `<img src="${esc(c.u)}${c.u.includes("?") ? "&" : "?"}t=${Date.now()}" alt=""><p>${esc(c.n || tr("Webcam"))}</p><button type="button" class="wr-x" aria-label="${tr("Sluiten")}">${I("close")}</button>`;
+  el.onclick = () => { el.classList.add("out"); setTimeout(() => el.remove(), 250); };
+  document.body.appendChild(el);
+}
+
+// ================= meldingen: poederalarm en laatste lift (alleen in de apps) =================
+const NOTIF_APP = !!window.Capacitor?.isNativePlatform?.();
+const notifCfg = () => { try{ return {snow:false, lift:true, ...JSON.parse(localStorage.getItem("pp-notif") || "{}")}; }catch(e){ return {snow:false, lift:true}; } };
+const LN = () => window.Capacitor?.nativePromise ? (m, o = {}) => window.Capacitor.nativePromise("LocalNotifications", m, o) : null;
+async function notifAllowed(ask){
+  const ln = LN(); if(!ln) return false;
+  try{ let r = await ln("checkPermissions"); if(r?.display !== "granted" && ask) r = await ln("requestPermissions"); return r?.display === "granted"; }catch(e){ return false; }
+}
+// de favorieten en de taal doorgeven aan de achtergrondcontrole (iOS: App Group, Android: SnowPlugin)
+function snowSync(){
+  if(!NOTIF_APP) return;
+  const areas = FAVS.map(id => S.index.find(r => r[0] === id)).filter(Boolean).slice(0, 8).map(r => [r[1], r[5], r[4], r[10] || 2400]);
+  const value = JSON.stringify({on:notifCfg().snow && areas.length > 0, lang:LANG, areas});
+  if(ANDROID_APP) window.Capacitor.nativePromise("Snow", "set", {value}).catch(() => {});
+  else widgetSet("snow", JSON.parse(value));
+}
+// ook in de app zelf kijken (bij openen), hooguit elke 3 uur
+async function snowCheckNow(){
+  const cfg = notifCfg(); if(!NOTIF_APP || !cfg.snow || !FAVS.length) return;
+  if(Date.now() - +(localStorage.getItem("pp-snowchk") || 0) < 3 * 3600e3) return;
+  localStorage.setItem("pp-snowchk", String(Date.now()));
+  if(!await notifAllowed(false)) return;
+  for(const id of FAVS.slice(0, 8)){
+    const r = S.index.find(x => x[0] === id); if(!r) continue;
+    const key = "pp-snowtold:" + id; if(Date.now() - +(localStorage.getItem(key) || 0) < 48 * 3600e3) continue;
+    try{
+      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${r[10] || 2400}&daily=snowfall_sum&forecast_days=2&timezone=auto`)).json();
+      const cm = (j.daily?.snowfall_sum || []).reduce((a, v) => a + (v || 0), 0); if(cm < 20) continue;
+      localStorage.setItem(key, String(Date.now()));
+      LN()("schedule", {notifications:[{id:7000 + (FAVS.indexOf(id) % 900), title:`${tr("Poederalarm in")} ${r[1]}`, body:`${Math.round(cm)} ${tr("cm verse sneeuw verwacht in de komende 48 uur.")}`, schedule:{at:new Date(Date.now() + 1500).toISOString()}}]}).catch(() => {});
+    }catch(e){}
+  }
+}
+// laatste lift: een melding 30 minuten voor sluitingstijd, alleen als het dagboek opneemt
+async function liftAlertPlan(){
+  const ln = LN(); if(!NOTIF_APP || !ln) return;
+  try{ await ln("cancel", {notifications:[{id:7777}]}); }catch(e){}
+  if(!D.rec || !notifCfg().lift) return;
+  const [h, m] = (S.liftClose || "16:30").split(":").map(Number), at = new Date(); at.setHours(h, m - 30, 0, 0);
+  if(at.getTime() < Date.now() + 60000 || !await notifAllowed(true)) return;
+  ln("schedule", {notifications:[{id:7777, title:tr("Laatste lift over 30 minuten"), body:tr("Tik om de route naar je auto of hotel te zien."), schedule:{at:at.toISOString()}}]}).catch(() => {});
+}
+if(NOTIF_APP){
+  $("notifSec").hidden = false;
+  const c0 = notifCfg(); $("snowAlert").checked = c0.snow; $("liftAlert").checked = c0.lift;
+  const save = c => localStorage.setItem("pp-notif", JSON.stringify(c));
+  $("snowAlert").onchange = async e => { const c = notifCfg(); c.snow = e.target.checked;
+    if(c.snow && !await notifAllowed(true)){ c.snow = false; e.target.checked = false; toast("Sta meldingen toe in de instellingen van je telefoon."); }
+    if(c.snow && !FAVS.length) toast("Zet een skigebied bij je favorieten (ster) voor het poederalarm.", 3500);
+    save(c); snowSync(); if(c.snow){ localStorage.removeItem("pp-snowchk"); snowCheckNow(); } };
+  $("liftAlert").onchange = e => { const c = notifCfg(); c.lift = e.target.checked; save(c); liftAlertPlan(); };
+  setTimeout(() => { snowSync(); snowCheckNow(); }, 8000);
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") snowCheckNow(); });
 }
 // seizoensdoel in kilometers
 const GOALS = [100, 200, 300, 500, 1000];

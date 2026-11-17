@@ -18,4 +18,18 @@ struct NavAttributes: ActivityAttributes {
     var dest: String
     var lang: String
 }
+
+// Je skidag live op het toegangsscherm terwijl het dagboek opneemt: kilometers, hoogtemeters, topsnelheid en afdalingen.
+@available(iOS 16.1, *)
+struct DayAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        var km: Double
+        var hm: Int
+        var vmax: Int
+        var runs: Int
+        var since: Date
+    }
+    var area: String
+    var lang: String
+}
 #endif

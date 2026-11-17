@@ -127,3 +127,78 @@ struct NavLiveActivity: Widget {
         .keylineTint(gold)
     }
 }
+
+// ---------- skidag live (dagboek neemt op) ----------
+struct DayStat: View {
+    let value: String, unit: String, label: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value).font(.system(size: 24, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(.white)
+                Text(unit).font(.caption.weight(.semibold)).foregroundStyle(soft)
+            }
+            Text(label).font(.caption2).foregroundStyle(soft).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct DayLockView: View {
+    let state: DayAttributes.ContentState
+    let attr: DayAttributes
+    var body: some View {
+        let tr = Tr(attr.lang)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Circle().fill(Color.red).frame(width: 8, height: 8)
+                Text(attr.area.isEmpty ? "Skipilot" : attr.area).font(.subheadline.weight(.semibold)).foregroundStyle(.white).lineLimit(1)
+                Spacer(minLength: 0)
+                Text(state.since, style: .timer).font(.subheadline.monospacedDigit()).foregroundStyle(soft)
+            }
+            HStack(spacing: 8) {
+                DayStat(value: String(format: "%.1f", state.km), unit: "km", label: tr.t("geskied", "skied", "gefahren"))
+                DayStat(value: "\(state.hm)", unit: "m", label: tr.t("omlaag", "down", "abwärts"))
+                DayStat(value: "\(state.vmax)", unit: "km/h", label: tr.t("top", "top", "max"))
+                DayStat(value: "\(state.runs)", unit: "", label: tr.t("afdalingen", "runs", "Abfahrten"))
+            }
+        }
+        .padding(16)
+    }
+}
+
+struct DayLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: DayAttributes.self) { ctx in
+            DayLockView(state: ctx.state, attr: ctx.attributes)
+                .activityBackgroundTint(navy)
+                .activitySystemActionForegroundColor(.white)
+        } dynamicIsland: { ctx in
+            let s = ctx.state, tr = Tr(ctx.attributes.lang)
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    DayStat(value: String(format: "%.1f", s.km), unit: "km", label: tr.t("geskied", "skied", "gefahren")).padding(.leading, 6)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    DayStat(value: "\(s.vmax)", unit: "km/h", label: tr.t("top", "top", "max")).padding(.trailing, 6)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack {
+                        Text("\(s.hm) m " + tr.t("omlaag", "down", "abwärts"))
+                        Spacer(minLength: 0)
+                        Text("\(s.runs) " + tr.t("afdalingen", "runs", "Abfahrten"))
+                        Spacer(minLength: 0)
+                        Text(s.since, style: .timer).monospacedDigit()
+                    }
+                    .font(.caption).foregroundStyle(soft)
+                }
+            } compactLeading: {
+                Image(systemName: "figure.skiing.downhill").foregroundStyle(gold)
+            } compactTrailing: {
+                Text(String(format: "%.1f km", s.km)).font(.caption.weight(.semibold)).monospacedDigit()
+            } minimal: {
+                Image(systemName: "figure.skiing.downhill").foregroundStyle(gold)
+            }
+            .keylineTint(gold)
+        }
+    }
+}

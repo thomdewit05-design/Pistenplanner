@@ -596,5 +596,6 @@ struct SkipilotWidgets: WidgetBundle {
         AreaWidget()
         DayWidget()
         NavLiveActivity()
+        DayLiveActivity()
     }
 }
