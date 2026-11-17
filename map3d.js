@@ -478,6 +478,7 @@ const M3 = (() => {
     return true;
   }
   function close(){
+    stopReplay();
     if(!gl){ mode = null; return; }
     // terug naar de platte kaart op dezelfde plek
     if(mode === "view" && !failed){ const c = gl.getCenter(); map.setView([c.lat, c.lng], Math.round(gl.getZoom() + 1), {animate:false}); }
@@ -564,8 +565,61 @@ const M3 = (() => {
   // zodra het reliëf hem volgens de berekening bedekt, en op een steile helling gebeurt dat al snel.
   function meAt(lat, lon){
     if(!gl) return;
-    if(!me){ const el = document.createElement("div"); el.className = "me-dot" + (mode === "nav" ? " m3-hide" : ""); me = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1"}).setLngLat([lon, lat]).addTo(gl); }
+    if(!me){ const el = document.createElement("div"); el.className = "me-dot" + (mode === "nav" ? " m3-hide" : ""); el.innerHTML = '<i class="me-beam"></i>';
+      // met de kaart mee draaien en plat op het reliëf, zodat de lichtbundel de echte kijkrichting aanwijst
+      me = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1", rotationAlignment:"map", pitchAlignment:"map"}).setLngLat([lon, lat]).addTo(gl); }
     else me.setLngLat([lon, lat]);
+  }
+
+  // ---------- je skidag terugkijken ----------
+  // De camera vliegt langs het spoor van die dag; het paarse spoor groeit mee achter een stip aan.
+  let rp = null;
+  function replay(coords, done){
+    if(!gl || coords.length < 2) return false;
+    stopReplay();
+    const R = 6371000, rad = Math.PI / 180;
+    const dist = (a, b) => { const x = (b[0] - a[0]) * rad * Math.cos((a[1] + b[1]) / 2 * rad), y = (b[1] - a[1]) * rad; return Math.hypot(x, y) * R; };
+    const brg = (a, b) => { const y = Math.sin((b[0] - a[0]) * rad) * Math.cos(b[1] * rad), x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad) - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos((b[0] - a[0]) * rad); return (Math.atan2(y, x) / rad + 360) % 360; };
+    const cum = [0]; for(let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + dist(coords[i - 1], coords[i]));
+    const total = cum[cum.length - 1] || 1;
+    const at = d => { let lo = 0, hi = cum.length - 1; while(hi - lo > 1){ const m = (lo + hi) >> 1; if(cum[m] <= d) lo = m; else hi = m; }
+      const f = cum[hi] > cum[lo] ? (d - cum[lo]) / (cum[hi] - cum[lo]) : 0, a = coords[lo], b = coords[hi]; return {p:[a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], i:lo}; };
+    const T = Math.min(70000, Math.max(22000, total / 1000 * 3500));   // ±3,5 s per kilometer, tussen 22 en 70 s
+    const start = () => {
+      if(!gl) return;
+      gl.addSource("replay", {type:"geojson", data:{type:"Feature", geometry:{type:"LineString", coordinates:[coords[0], coords[0]]}}});
+      const line = {"line-cap":"round", "line-join":"round"};
+      gl.addLayer({id:"replay-case", type:"line", source:"replay", layout:line, paint:{"line-color":"#fff", "line-width":8, "line-opacity":.75}});
+      gl.addLayer({id:"replay", type:"line", source:"replay", layout:line, paint:{"line-color":"#7C3AED", "line-width":4.5}});
+      const el = document.createElement("div"); el.className = "rp-dot";
+      const mk = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1"}).setLngLat(coords[0]).addTo(gl);
+      rp = {mk, raf:0, t0:performance.now(), bearing:brg(coords[0], at(Math.min(total, 150)).p), done};
+      const step = now => {
+        if(!rp) return;
+        const k = Math.min(1, (now - rp.t0) / T), d = total * (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);   // rustig optrekken en afremmen
+        const {p, i} = at(d), ahead = at(Math.min(total, d + 160)).p;
+        gl.getSource("replay")?.setData({type:"Feature", geometry:{type:"LineString", coordinates:[...coords.slice(0, i + 1), p]}});
+        rp.mk.setLngLat(p);
+        if(dist(p, ahead) > 8){ const db = ((brg(p, ahead) - rp.bearing) % 360 + 540) % 360 - 180; rp.bearing += db * .04; }
+        gl.jumpTo({center:p, bearing:rp.bearing, zoom:14.8, pitch:64});
+        if(k < 1){ rp.raf = requestAnimationFrame(step); return; }
+        // klaar: het hele spoor in beeld
+        const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+        gl.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], {padding:80, pitch:55, duration:1800});
+        const cb = rp.done; rp.mk.remove(); rp = {ended:true}; cb?.();
+      };
+      gl.easeTo({center:coords[0], zoom:14.8, pitch:64, bearing:rp.bearing, duration:1500});
+      setTimeout(() => { if(rp && !rp.ended){ rp.t0 = performance.now(); rp.raf = requestAnimationFrame(step); } }, 1550);
+    };
+    if(styled) start(); else gl.once("style.load", start);
+    return true;
+  }
+  function stopReplay(){
+    if(!rp) return;
+    cancelAnimationFrame(rp.raf); rp.mk?.remove(); rp = null;
+    if(!gl) return;
+    for(const id of ["replay", "replay-case"]) if(gl.getLayer(id)) gl.removeLayer(id);
+    if(gl.getSource("replay")) gl.removeSource("replay");
   }
 
   // ---------- tikken ----------
@@ -605,6 +659,6 @@ const M3 = (() => {
     return pop;
   }
 
-  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable, select,
+  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable, select, replay, stopReplay,
           get mode(){ return mode; }, get failed(){ return failed; }, get gl(){ return gl; }};
 })();

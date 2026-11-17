@@ -274,7 +274,12 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .pin.a{background:var(--navy)} .pin.a>span{width:9px;height:9px;border-radius:50%;background:#fff}
 .pin.b{background:var(--route)} .pin.b .ic{width:15px;height:15px;color:var(--route-ink)}
 .pin.v{background:#fff;border-color:var(--navy);width:26px;height:26px} .pin.v .ic{width:14px;height:14px;color:var(--navy)}
-.me-dot{width:20px;height:20px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px color-mix(in srgb,var(--me) 28%,transparent),0 2px 8px rgba(0,0,0,.4)}
+.me-dot{position:relative;width:20px;height:20px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px color-mix(in srgb,var(--me) 28%,transparent),0 2px 8px rgba(0,0,0,.4)}
+/* kijkrichting: een waaier van licht vanuit je stip */
+.me-beam{display:none;position:absolute;left:50%;top:50%;width:78px;height:78px;margin:-78px 0 0 -39px;z-index:-1;pointer-events:none;
+  transform-origin:50% 100%;transform:rotate(var(--hd,0deg));clip-path:polygon(50% 100%,12% 0,88% 0);
+  background:radial-gradient(circle at 50% 100%,color-mix(in srgb,var(--me) 70%,transparent) 0,color-mix(in srgb,var(--me) 30%,transparent) 45%,transparent 72%)}
+.has-hd .me-beam{display:block}
 .pnum{display:grid;place-items:center;min-width:22px;height:18px;padding:0 4px;border-radius:5px;font:800 12px/1 var(--f-display);color:#fff;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);white-space:nowrap;transform:translate(-50%,-50%);width:max-content}
 .pnum.s{color:#fff}
 /* pijltjes op de route: lichten na elkaar op in de rijrichting */
@@ -1164,3 +1169,17 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .ios .ticket-card{background:var(--surface)}
 .ios .toast{background:rgba(30,30,32,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;font-weight:500}
 
+
+/* je skidag terugkijken in 3D: alleen de kaart en de stopknop */
+body.rp-on #sheet,body.rp-on .fabs,body.rp-on #ovBtn,body.rp-on .topbar{display:none}
+.rp-dot{width:18px;height:18px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 6px rgba(124,58,237,.3),0 2px 8px rgba(0,0,0,.45)}
+.rp-bar{position:fixed;left:12px;right:12px;bottom:calc(16px + var(--safe-b));z-index:3500;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between;
+  padding:10px 10px 10px 16px;border-radius:var(--r-lg);background:var(--surface);color:var(--ink);box-shadow:var(--sh-2);font-weight:600}
+.rp-bar span{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rp-bar .ic{width:18px;height:18px;flex:none}
+
+/* dagroute: eigen begin- en eindtijd */
+.day-times{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:12px;margin-top:4px;border-radius:14px;background:rgba(127,127,127,.12)}
+.day-times label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.day-times input{font:600 16px/1 inherit;font-family:inherit;padding:8px 10px;border-radius:10px;border:1px solid rgba(127,127,127,.35);background:var(--surface);color:var(--ink)}
+.day-times small{flex-basis:100%;color:var(--muted);font-size:12.5px;line-height:1.35}
