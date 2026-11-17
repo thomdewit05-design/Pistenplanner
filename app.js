@@ -2300,7 +2300,11 @@ function renderGroup(){
   }).join("");
   $("gMembers").innerHTML = me + (others || `<li class="empty" style="display:block">Nog niemand anders. Laat ze de code scannen.</li>`);
 }
-function gUrl(){ return `${location.origin}${location.pathname}#${S.area?.id || ""}/g/${G.code}`; }
+// link naar de website (ook vanuit de app); de website opent zelf de app als die op de telefoon staat
+function gUrl(){
+  const web = /^https?:$/.test(location.protocol) && !/^(localhost|127\.)/.test(location.hostname);
+  return `${web ? location.origin + location.pathname : (window.PP_CONFIG?.site || location.origin + location.pathname)}#${S.area?.id || ""}/g/${G.code}`;
+}
 function gDrawQr(){ try{ const qr = qrcode(0, "M"); qr.addData(gUrl()); qr.make(); $("gQr").innerHTML = qr.createSvgTag({cellSize:4, margin:0, scalable:true}); }catch(e){ $("gQr").innerHTML = ""; } }
 function gStart(code){
   const name = $("gName").value.trim();
@@ -2325,10 +2329,7 @@ $("gStartAll").onclick = startAll;
 $("gFollow").onchange = e => { G.follow = e.target.checked; gSave(); if(G.follow && G.plan && G.plan.id !== G.id) adoptPlan(G.plan); };
 $("gSharePos").onchange = e => { G.sharePos = e.target.checked; gSave(); if(G.sharePos){ G.lastPos = null; if(S.watch == null) startWatch(); else groupOnPos(); } };
 $("gCopy").onclick = async () => { try{ await navigator.clipboard.writeText(gUrl()); toast("Link gekopieerd."); }catch(e){ toast("Kopiëren lukte niet."); } };
-$("gShare").onclick = async () => {
-  if(navigator.share){ try{ await navigator.share({title:tr("Skiën in een groep"), text:tr(`Doe mee met mijn groep in Skipilot (code ${G.code}):`), url:gUrl()}); }catch(e){} }
-  else $("gCopy").click();
-};
+$("gShare").onclick = () => shareInvite();
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("group").hidden) $("group").hidden = true; });
 setInterval(() => { if(G.code){ drawMembers(); if(!$("group").hidden) renderGroup(); } }, 30000);
 window.addEventListener("online", () => { if(G.code && G.es?.readyState === 2) gConnect(); });
@@ -2829,6 +2830,7 @@ function stopRec(){
   D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
   toast("Opname gestopt. Je dag is bewaard.");
   setTimeout(() => checkBadges(true), 2500);
+  if(day.sum?.km >= 8) setTimeout(askReview, 6000); else setTimeout(offerWrapped, 5000);
   diaryLive(); renderDiary(); window.ppAds?.native?.pause?.();
 }
 // winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
@@ -3962,7 +3964,10 @@ function renderMe(){
       : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>${D.rec ? "" : `<button type="button" class="btn primary" id="meStart">${I("rec")}Begin met opnemen</button>`}`)
     + `</section>`
     + (sd.length ? `<section class="dc"><p class="label">${I("calendar")}${tr("Mijn seizoen")}</p><div class="me-season"><div class="ms-tot"><span>${num(sd.length)}<small>${tr("dagen")}</small></span><span>${num(Math.round(tot.km))}<small>km</small></span><span>${num(Math.round(tot.hm))}<small>hm</small></span></div>
-        <div class="bars">${bars.map((x, bi) => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%;animation-delay:${bi * 40}ms" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div></section>` : "")
+        <div class="bars">${bars.map((x, bi) => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%;animation-delay:${bi * 40}ms" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div>
+        <div class="goal">${goalKm() ? `<div class="goal-bar"><div class="goal-t"><b>${tr("Seizoensdoel")}</b><span>${num(Math.round(Math.min(tot.km, goalKm())))} / ${goalKm()} km</span></div><div class="goal-track"><i style="--k:${Math.min(100, tot.km / goalKm() * 100).toFixed(1)}%"></i></div></div>` : `<p class="goal-q">${tr("Stel een seizoensdoel in")}</p>`}
+          <div class="chips goal-chips">${GOALS.map(g => `<button type="button" class="chip" data-goal="${g}" aria-pressed="${goalKm() === g}">${g} km</button>`).join("")}</div></div></section>
+      <button type="button" class="wr-tease dc" id="meWrapped"><span class="wr-tease-art">${I("star")}</span><span><b>${tr("Jouw seizoen in beeld")}</b><small>${tr("Je hoogtepunten om te delen")}</small></span>${I("chev")}</button>` : "")
     + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
     + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
   $("meClose").onclick = () => box.hidden = true;
@@ -3972,6 +3977,9 @@ function renderMe(){
   $("meStart")?.addEventListener("click", () => { startRec(); renderMe(); });
   $("meSettings").onclick = () => { box.hidden = true; openMenu(); };
   $("mePro")?.addEventListener("click", () => { box.hidden = true; openPro(); });
+  $("meWrapped")?.addEventListener("click", openWrapped);
+  box.querySelectorAll("[data-goal]").forEach(b => b.onclick = () => { const g = +b.dataset.goal; localStorage.setItem("pp-goal", goalKm() === g ? "0" : String(g)); buzz("select"); renderMe(); });
+  if(season) goalCheck(tot.km, season);
   $("meHelp").onclick = () => window.open(window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") + "support.html" : "support.html", "_blank");
   countUp(box);
 }
@@ -4010,7 +4018,7 @@ function arrived(){
   el.innerHTML = `<div class="arr-card"><span class="arr-ic">${I("flag")}</span><h3>Je bent er!</h3><p>${km(tot.len)} · ${fmt(tot.min)}</p><button type="button" class="btn primary">${I("check")}Mooi</button></div>`;
   document.body.appendChild(el);
   const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
-  el.querySelector("button").onclick = close; setTimeout(close, 6000);
+  el.querySelector("button").onclick = () => { close(); askReview(); }; setTimeout(close, 6000);
 }
 // nieuwe prestatie behaald: munt die binnendraait
 function badgeCheck(){
@@ -4028,6 +4036,185 @@ function badgeCheck(){
   }catch(e){}
 }
 setTimeout(badgeCheck, 4000); setInterval(badgeCheck, 60000);
+
+// ================= groei: beoordelen, deeplinks, uitnodigen, seizoen in beeld, seizoensdoel =================
+// Beoordelen in de App Store / Play Store: alleen na een mooi moment, na minstens 3 skidagen, hooguit eens per 120 dagen en nooit tijdens het navigeren.
+function askReview(){
+  try{
+    const cap = window.Capacitor; if(!cap?.isNativePlatform?.() || S.follow) return;
+    if(allDays().length < 3) return;
+    const last = +(localStorage.getItem("pp-review") || 0); if(Date.now() - last < 120 * 864e5) return;
+    localStorage.setItem("pp-review", String(Date.now()));
+    setTimeout(() => cap.nativePromise(ANDROID_APP ? "Review" : "Nav", "review", {}).catch(() => {}), 1600);
+  }catch(e){}
+}
+// skipilot://open/<gebied>/g/<CODE> en skipilot://g/<CODE>: in de app dezelfde weg als een #-link op de website
+function openDeepLink(url){
+  const m = /^skipilot:\/\/(?:open\/?)?(.*)$/i.exec(url || ""); if(!m) return false;
+  let rest = decodeURIComponent(m[1] || "").replace(/^[#/]+/, "");
+  if(/^g\//i.test(rest)) rest = "/" + rest;
+  if(!rest) return false;
+  if(location.hash === "#" + rest) window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "#" + rest;
+  return true;
+}
+(() => {
+  const cap = window.Capacitor; if(!cap?.isNativePlatform?.() || !cap.registerPlugin) return;
+  try{
+    const App = cap.registerPlugin("App");
+    App.addListener("appUrlOpen", e => openDeepLink(e?.url));
+    App.getLaunchUrl?.().then(r => r?.url && setTimeout(() => openDeepLink(r.url), 400)).catch(() => {});
+  }catch(e){}
+})();
+// gedeelde helpers voor afbeeldingen om te delen
+const cardFonts = () => { const cs = getComputedStyle(document.documentElement); return {F:cs.getPropertyValue("--f-display").trim() || "sans-serif", UI:cs.getPropertyValue("--f-ui").trim() || "sans-serif"}; };
+function rrect(x, X0, Y0, w, h, r){ x.beginPath(); x.moveTo(X0 + r, Y0); x.arcTo(X0 + w, Y0, X0 + w, Y0 + h, r); x.arcTo(X0 + w, Y0 + h, X0, Y0 + h, r); x.arcTo(X0, Y0 + h, X0, Y0, r); x.arcTo(X0, Y0, X0 + w, Y0, r); x.closePath(); }
+async function drawLogo(x, X, Y, s){ const logo = new Image(); logo.src = "icons/logo.svg"; try{ await logo.decode(); x.drawImage(logo, X, Y, s, s); }catch(e){} }
+async function shareCanvas(c, name, text){
+  let blob = null; try{ blob = await new Promise(r => c.toBlob(r, "image/jpeg", .9)); }catch(e){}
+  if(!blob) return false;
+  const file = new File([blob], name, {type:"image/jpeg"});
+  if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file], text}); return true; }catch(e){ if(e.name === "AbortError") return true; } }
+  showCard(URL.createObjectURL(blob), name, text); return true;
+}
+// uitnodigingskaart voor de groep: logo, gebied, de code in grote letters en een QR-code
+async function inviteCard(){
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d"), {F, UI} = cardFonts();
+  const bg = x.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#EAF3FA"); bg.addColorStop(1, "#BCD5E8"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  // bergen onderaan
+  x.fillStyle = "rgba(255,255,255,.55)"; x.beginPath(); x.moveTo(0, H); [[0,1080],[180,930],[300,1010],[470,840],[640,990],[790,900],[1080,1060],[1080,H]].forEach(([a,b]) => x.lineTo(a, b)); x.fill();
+  await document.fonts?.ready;
+  await drawLogo(x, 80, 90, 100);
+  x.fillStyle = "#0F2233"; x.font = `750 58px ${F}`; x.fillText("Skipilot", 204, 160);
+  x.fillStyle = "#1F7FD6"; x.font = `700 34px ${UI}`; x.fillText(tr("Uitnodiging").toUpperCase(), 80, 300);
+  x.fillStyle = "#0F2233"; x.font = `800 84px ${F}`; x.fillText(tr("Ski mee met"), 80, 400); x.fillText(tr("mijn groep"), 80, 492);
+  if(S.area){ x.fillStyle = "#4E6679"; x.font = `600 38px ${UI}`; x.fillText(S.area.row[1].slice(0, 40), 80, 556); }
+  // code in losse vakjes
+  const code = (G.code || "").split(""), bw = 104, gap = 14, cx0 = 80;
+  code.forEach((ch, i) => { const X = cx0 + i * (bw + gap); rrect(x, X, 620, bw, 132, 26); x.fillStyle = "rgba(255,255,255,.85)"; x.fill();
+    x.fillStyle = "#0F2233"; x.font = `800 74px ${F}`; x.textAlign = "center"; x.fillText(ch, X + bw / 2, 712); x.textAlign = "left"; });
+  // QR
+  try{
+    const qr = qrcode(0, "M"); qr.addData(gUrl()); qr.make(); const n = qr.getModuleCount(), size = 330, cell = size / n, QX = W - 80 - size - 30, QY = 830;
+    rrect(x, QX - 30, QY - 30, size + 60, size + 60, 40); x.fillStyle = "#fff"; x.fill();
+    x.fillStyle = "#0F2233"; for(let r = 0; r < n; r++) for(let k = 0; k < n; k++) if(qr.isDark(r, k)) x.fillRect(QX + k * cell, QY + r * cell, Math.ceil(cell), Math.ceil(cell));
+  }catch(e){}
+  x.fillStyle = "#0F2233"; x.font = `700 40px ${UI}`; x.fillText(tr("Scan de code"), 80, 900);
+  x.fillStyle = "#4E6679"; x.font = `500 32px ${UI}`;
+  [tr("of open de link en zie elkaar"), tr("live op de pistekaart.")].forEach((l, i) => x.fillText(l, 80, 952 + i * 44));
+  x.fillStyle = "#4E6679"; x.font = `600 28px ${UI}`; x.textAlign = "center"; x.fillText(`Skipilot · ${tr("de skiroute-app")}`, W / 2, H - 50); x.textAlign = "left";
+  return c;
+}
+async function shareInvite(){
+  const text = tr(`Doe mee met mijn groep in Skipilot (code ${G.code}):`) + " " + gUrl();
+  try{
+    const c = await inviteCard(); const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .9));
+    const file = blob && new File([blob], `skipilot-groep-${G.code}.jpg`, {type:"image/jpeg"});
+    if(file && navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file], text}); return; }catch(e){ if(e.name === "AbortError") return; } }
+  }catch(e){}
+  if(navigator.share){ try{ await navigator.share({title:tr("Skiën in een groep"), text, url:gUrl()}); }catch(e){} }
+  else $("gCopy").click();
+}
+
+// ---------- seizoen in beeld (zoals een jaaroverzicht): kaarten om doorheen te tikken en te delen ----------
+function wrapData(){
+  const days = allDays(); if(!days.length) return null;
+  const season = seasonOf(days[0].d), sd = days.filter(x => seasonOf(x.d) === season);
+  const tot = sd.reduce((a, x) => ({km:a.km + x.s.km, hm:a.hm + x.s.hm, runs:a.runs + x.s.runs, secs:a.secs + (x.s.secs || 0)}), {km:0, hm:0, runs:0, secs:0});
+  const top = sd.reduce((m, x) => !m || x.s.vmax > m.s.vmax ? x : m, null), best = sd.reduce((m, x) => !m || x.s.km > m.s.km ? x : m, null);
+  const pc = new Map(), ac = new Map();
+  for(const x of sd){ x.area && ac.set(x.area, (ac.get(x.area) || 0) + 1);
+    for(const p of x.s.pisteList || []){ const k = p.name || p.ref || ""; if(k.trim()) pc.set(k.trim(), (pc.get(k.trim()) || 0) + (p.n || 1)); } }
+  const favP = [...pc].sort((a, b) => b[1] - a[1])[0], favA = [...ac].sort((a, b) => b[1] - a[1])[0];
+  return {season, days:sd.length, tot, top, best, favP, favA, areas:ac.size};
+}
+function wrapCards(w){
+  const ev = w.tot.hm / 8849, mar = w.tot.km / 42.195;
+  const L = [
+    {k:tr("Jouw seizoen"), big:w.season, sub:tr("Tik om je seizoen te zien"), g:["#1F7FD6", "#0F2A47"]},
+    {k:tr("Je skiede in totaal"), big:kmTxt(w.tot.km), unit:"km", sub:mar >= 1 ? `${tr("Dat zijn")} ${num1(mar)} ${tr("marathons")}` : tr("Elke meter telt"), g:["#2B7FC4", "#163B63"]},
+    {k:tr("Je ging omlaag"), big:hmTxt(w.tot.hm), unit:"hm", sub:ev >= .1 ? `${num1(ev)}× ${tr("de Mount Everest")}` : `${w.tot.runs} ${tr("afdalingen")}`, g:["#7C3AED", "#2B1659"]},
+    w.top && w.top.s.vmax > 5 ? {k:tr("Je topsnelheid"), big:String(Math.round(w.top.s.vmax)), unit:"km/u", sub:`${niceDate(w.top.d)}${w.top.area ? " · " + w.top.area : ""}`, g:["#E5484D", "#5A1218"]} : null,
+    w.favP ? {k:tr("Je favoriete piste"), big:w.favP[0], small:true, sub:`${w.favP[1]}× ${tr("gereden")}`, g:["#1F9D57", "#0D3B22"]} : null,
+    {k:tr("Op de berg"), big:String(w.days), unit:w.days === 1 ? tr("dag") : tr("dagen"), sub:w.favA ? `${tr("Favoriet gebied")}: ${w.favA[0]}${w.areas > 1 ? ` · ${w.areas} ${tr("skigebieden")}` : ""}` : "", g:["#E0A100", "#5C3B00"]},
+    w.best ? {k:tr("Je beste dag"), big:kmTxt(w.best.s.km), unit:"km", sub:`${niceDate(w.best.d)}${w.best.area ? " · " + w.best.area : ""}`, g:["#0F8B8D", "#08333A"], end:true} : null,
+  ];
+  return L.filter(Boolean);
+}
+const num1 = v => v.toLocaleString(LOCALE, {maximumFractionDigits:v >= 10 ? 0 : 1});
+async function wrapCanvas(card, w){
+  const W = 1080, H = 1920, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d"), {F, UI} = cardFonts();
+  const bg = x.createLinearGradient(0, 0, W * .4, H); bg.addColorStop(0, card.g[0]); bg.addColorStop(1, card.g[1]); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  // zachte bergen en sneeuwvlokjes
+  x.fillStyle = "rgba(255,255,255,.08)"; x.beginPath(); x.moveTo(0, H); [[0,1500],[220,1290],[400,1420],[620,1180],[820,1380],[1080,1250],[1080,H]].forEach(([a,b]) => x.lineTo(a, b)); x.fill();
+  x.fillStyle = "rgba(255,255,255,.12)"; x.beginPath(); x.moveTo(0, H); [[0,1660],[300,1500],[540,1640],[760,1480],[1080,1620],[1080,H]].forEach(([a,b]) => x.lineTo(a, b)); x.fill();
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for(let i = 0; i < 70; i++){ x.globalAlpha = .15 + rnd() * .35; x.fillStyle = "#fff"; x.beginPath(); x.arc(rnd() * W, rnd() * H * .75, 2 + rnd() * 5, 0, 7); x.fill(); } x.globalAlpha = 1;
+  await document.fonts?.ready; await drawLogo(x, 80, 100, 92);
+  x.fillStyle = "#fff"; x.font = `750 54px ${F}`; x.fillText("Skipilot", 196, 164);
+  x.globalAlpha = .75; x.font = `600 32px ${UI}`; x.fillText(`${tr("Seizoen")} ${w.season}`, 196, 208); x.globalAlpha = 1;
+  x.font = `700 46px ${UI}`; x.globalAlpha = .85; x.fillText(card.k.toUpperCase(), 80, 760); x.globalAlpha = 1;
+  let size = card.small ? 120 : 300; x.font = `800 ${size}px ${F}`;
+  while(x.measureText(card.big).width > W - 160 - (card.unit ? 200 : 0) && size > 70){ size -= 10; x.font = `800 ${size}px ${F}`; }
+  x.fillText(card.big, 72, 760 + size + 20);
+  if(card.unit){ const bw = x.measureText(card.big).width; x.font = `750 90px ${F}`; x.globalAlpha = .8; x.fillText(card.unit, 100 + bw, 760 + size + 20); x.globalAlpha = 1; }
+  if(card.sub){ x.font = `600 44px ${UI}`; x.globalAlpha = .9; x.fillText(card.sub.slice(0, 44), 80, 760 + size + 120); x.globalAlpha = 1; }
+  x.font = `600 30px ${UI}`; x.globalAlpha = .75; x.textAlign = "center"; x.fillText(`Skipilot · ${tr("de skiroute-app")}`, W / 2, H - 70); x.textAlign = "left"; x.globalAlpha = 1;
+  return c;
+}
+function openWrapped(){
+  const w = wrapData(); if(!w){ toast("Neem eerst een skidag op."); return; }
+  const cards = wrapCards(w); let i = 0, tm = 0, paused = false;
+  document.querySelector(".wrapped")?.remove();
+  const el = document.createElement("div"); el.className = "wrapped"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", tr("Jouw seizoen"));
+  el.innerHTML = `<div class="wr-bars">${cards.map(() => `<i><b></b></i>`).join("")}</div>
+    <button type="button" class="wr-x" aria-label="${tr("Sluiten")}">${I("close")}</button>
+    <div class="wr-stage"></div>
+    <div class="wr-foot"><button type="button" class="btn wr-share">${I("share")}${tr("Delen")}</button></div>`;
+  document.body.appendChild(el); buzz("medium");
+  const stage = el.querySelector(".wr-stage"), bars = [...el.querySelectorAll(".wr-bars b")];
+  const show = n => {
+    i = Math.max(0, Math.min(cards.length - 1, n)); const c = cards[i];
+    el.style.setProperty("--g1", c.g[0]); el.style.setProperty("--g2", c.g[1]);
+    stage.innerHTML = `<div class="wr-card"><p class="wr-k">${esc(c.k)}</p><p class="wr-big${c.small ? " sm" : (c.big.length + (c.unit ? c.unit.length : 0)) > 6 ? " md" : ""}">${esc(c.big)}${c.unit ? `<small>${esc(c.unit)}</small>` : ""}</p>${c.sub ? `<p class="wr-sub">${esc(c.sub)}</p>` : ""}${c.end ? `<p class="wr-end">${tr("Tot op de piste!")}</p>` : ""}</div>`;
+    bars.forEach((b, k) => { b.style.animation = "none"; b.style.width = k < i ? "100%" : "0"; });
+    void bars[i].offsetWidth; bars[i].style.animation = calm() ? "none" : ""; if(calm()) bars[i].style.width = "100%";
+    clearTimeout(tm); if(!paused && !calm()) tm = setTimeout(() => i < cards.length - 1 ? show(i + 1) : 0, 5200);
+    buzz("select"); if(c.end) confetti(70);
+  };
+  const close = () => { clearTimeout(tm); el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+  el.querySelector(".wr-x").onclick = close;
+  stage.onclick = e => { const r = el.getBoundingClientRect(); show(e.clientX - r.left < r.width * .3 ? i - 1 : i + 1); };
+  el.addEventListener("pointerdown", e => { if(e.target.closest("button")) return; paused = true; clearTimeout(tm); el.classList.add("paused"); });
+  el.addEventListener("pointerup", () => { if(paused){ paused = false; el.classList.remove("paused"); } });
+  el.querySelector(".wr-share").onclick = async () => { const c = await wrapCanvas(cards[i], w);
+    await shareCanvas(c, `skipilot-seizoen-${i + 1}.jpg`, `${tr("Mijn skiseizoen")} ${w.season} · Skipilot`); };
+  document.addEventListener("keydown", function k(e){ if(!document.body.contains(el)){ document.removeEventListener("keydown", k); return; }
+    if(e.key === "Escape") close(); if(e.key === "ArrowRight") show(i + 1); if(e.key === "ArrowLeft") show(i - 1); });
+  localStorage.setItem("pp-wrapped", String(Date.now()));
+  show(0);
+}
+// na een skivakantie (3 dagen in een week) een uitnodiging om je seizoen te bekijken
+function offerWrapped(){
+  try{
+    const days = allDays(), wk = days.filter(x => Date.now() - new Date(+x.d.slice(0,4), +x.d.slice(4,6) - 1, +x.d.slice(6,8)).getTime() < 7 * 864e5);
+    if(wk.length < 3 || Date.now() - +(localStorage.getItem("pp-wrapped") || 0) < 5 * 864e5) return;
+    document.querySelector(".wr-offer")?.remove();
+    const el = document.createElement("div"); el.className = "coin-pop wr-offer";
+    el.innerHTML = `<span class="coin">${I("star")}</span><div><small>${tr("Nieuw")}</small><b>${tr("Jouw seizoen in beeld")}</b><i>${tr("Tik om te bekijken en te delen")}</i></div>`;
+    el.onclick = () => { el.remove(); openWrapped(); };
+    document.body.appendChild(el); setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 7000);
+  }catch(e){}
+}
+// seizoensdoel in kilometers
+const GOALS = [100, 200, 300, 500, 1000];
+function goalKm(){ return +(localStorage.getItem("pp-goal") || 0); }
+function goalCheck(totKm, season){
+  const g = goalKm(); if(!g || totKm < g) return;
+  const key = season + ":" + g; if(localStorage.getItem("pp-goal-done") === key) return;
+  localStorage.setItem("pp-goal-done", key); buzz("success"); confetti(90); toast(`${tr("Doel gehaald")}: ${g} km!`, 3500);
+}
 // weer op de bovenste kaart: vallende sneeuw, zonnegloed of wind, en lichte parallax bij het kantelen
 let heroFx = 0;
 function heroWeather(box){

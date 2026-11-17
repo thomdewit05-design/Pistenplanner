@@ -10,7 +10,8 @@
     "includePlugins": [
       "@capacitor-community/admob",
       "@capacitor-community/keep-awake",
-      "@capacitor/haptics"
+      "@capacitor/haptics",
+      "@capacitor/app"
     ]
   },
   "android": {
