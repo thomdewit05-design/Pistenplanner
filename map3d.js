@@ -132,7 +132,7 @@ const M3 = (() => {
         v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
     };
     const soft = [1, 1, 1, .6], dark = [.08, .13, .17, 1], grey = [.6, .65, .7, 1], pole = [.2, .24, .3, 1];
-    const navy = [.06, .11, .16, .55], gold = [1, .77, 0, 1];
+    const navy = [1, 1, 1, .95], gold = [.12, .5, .84, 1];   // liften op je route: blauw met een witte rand, net als de route
     // liften op je route: net als de route op de grond geel met een donkere rand, maar dan langs de kabel
     const onRoute = new Set((S.path || []).filter(x => aerial(x.e)).map(x => x.e.i));
     let half = 0;
@@ -268,10 +268,13 @@ const M3 = (() => {
         {id:"station", type:"circle", source:"pistes", filter:["==", ["get", "k"], "st"], paint:{"circle-radius":w(1.5, 3.5), "circle-color":"#14202B", "circle-stroke-color":"#fff", "circle-stroke-width":1.5, "circle-pitch-alignment":"map"}},
         // bergtoppen met naam en hoogte (de hoogste eerst; wat overlapt valt weg)
         {id:"peaks", type:"symbol", source:"peaks", minzoom:10.5, layout:{"icon-image":["get", "img"], "icon-anchor":"top", "icon-offset":[0, -7], "symbol-sort-key":["get", "o"], "icon-padding":6}},
-        {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(7, 14), "line-opacity":.45}},
-        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#FFC400", "line-width":w(4, 8.5)}},
-        {id:"route-core", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0F1B2A", "line-width":w(1.2, 2.5), "line-dasharray":[.2, 3]}},
-        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#fff", "line-width":w(1.5, 3), "line-dasharray":[3, 2.5]}},
+        {id:"route-shadow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0B2236", "line-width":w(9, 18), "line-opacity":.18, "line-blur":3}},
+        {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
+        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(3.6, 7.5)}},
+        {id:"route-glow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#7CC0F5", "line-width":w(1.1, 2.4), "line-opacity":.75}},
+        {id:"route-passed-case", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
+        {id:"route-passed", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#9AA9B7", "line-width":w(3.6, 7.5)}},
+        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(1.5, 3), "line-opacity":.6, "line-dasharray":[3, 2.5]}},
         // pijltjes in de rijrichting op de route
         {id:"route-arrows", type:"symbol", source:"route", filter:["==", ["get", "k"], "p"], minzoom:12, layout:{"symbol-placement":"line", "symbol-spacing":["interpolate", ["linear"], ["zoom"], 12, 60, 16, 110], "icon-image":"route-arrow", "icon-size":["interpolate", ["linear"], ["zoom"], 12, .6, 16, 1], "icon-rotation-alignment":"map", "icon-pitch-alignment":"map", "icon-allow-overlap":true, "icon-ignore-placement":true}},
         {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
@@ -304,6 +307,7 @@ const M3 = (() => {
     const A = S.area, f = [];
     // stukken met een kabelbaan niet over de grond: die tekent de kabellaag in de lucht, in de kleur van de route
     if(A && S.path?.length) f.push({type:"Feature", properties:{k:"p"}, geometry:{type:"MultiLineString", coordinates:S.path.filter(s => !aerial(s.e)).map(s => (s.rev ? [...s.e.pts].reverse() : s.e.pts).map(ll))}});
+    if(A && S.follow && S.navPassed?.length > 1) f.push({type:"Feature", properties:{k:"x"}, geometry:{type:"LineString", coordinates:S.navPassed.map(ll)}});
     if(A && S.target) f.push({type:"Feature", properties:{k:"t"}, geometry:{type:"MultiLineString", coordinates:S.target.edges.map(i => A.edges[i].pts.map(ll))}});
     return {type:"FeatureCollection", features:f};
   }
@@ -338,8 +342,8 @@ const M3 = (() => {
     const c = document.createElement("canvas"), s = 18 * SCALE, x = c.getContext("2d"); c.width = c.height = s;
     x.scale(SCALE, SCALE); x.lineCap = "round"; x.lineJoin = "round";
     const hook = () => { x.beginPath(); x.moveTo(6, 4); x.lineTo(12, 9); x.lineTo(6, 14); };
-    x.strokeStyle = "#fff"; x.lineWidth = 5; hook(); x.stroke();
-    x.strokeStyle = "#0F1B2A"; x.lineWidth = 2.6; hook(); x.stroke();
+    x.strokeStyle = "rgba(10,60,110,.55)"; x.lineWidth = 4.4; hook(); x.stroke();
+    x.strokeStyle = "#fff"; x.lineWidth = 2.4; hook(); x.stroke();
     gl.addImage("route-arrow", x.getImageData(0, 0, s, s), {pixelRatio:SCALE});
   }
   // bergtop: driehoekje met naam en hoogte eronder, met een witte rand zodat het op elke ondergrond leesbaar is

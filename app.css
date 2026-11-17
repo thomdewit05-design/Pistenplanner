@@ -1521,3 +1521,149 @@ body.following::after,body.drawing::after,body.rp-on::after,body:has(.sheet.open
 .ios .badge{background:var(--card);border:1px solid var(--card-line);border-radius:18px}
 .ios .badge.ok .b-ic{background:linear-gradient(140deg,#FFC400,#E08A1E);color:#fff}
 .ios .g-join .btn{padding:0 16px;min-width:0}
+
+/* ================= route in merkblauw ================= */
+.ios{--route:#2A8BE6;--route-ink:#fff}
+.rarrow i{border-color:#fff;filter:drop-shadow(0 0 1.5px rgba(10,60,110,.7));opacity:.95;width:7px;height:7px;border-width:0 2.6px 2.6px 0}
+.comet{display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#fff 0 28%,#9FD4FF 45%,rgba(31,127,214,0) 72%);box-shadow:0 0 18px 6px rgba(124,192,245,.65)}
+.ios .pin{border-width:2.5px;box-shadow:0 6px 16px rgba(8,30,60,.35)}
+.ios .pin.drop{animation:pinDrop .55s cubic-bezier(.2,1.4,.4,1) .9s both}
+.ios .pin.a{background:#fff;border-color:#1F7FD6}.ios .pin.a>span{background:#1F7FD6;width:10px;height:10px}
+.ios .pin.b{background:#1F7FD6;border-color:#fff}.ios .pin.b .ic{color:#fff}
+.ios .pin.v{border-color:#1F7FD6}.ios .pin.v .ic{color:#1F7FD6}
+@keyframes pinDrop{0%{opacity:0;translate:0 -18px;scale:.6}70%{opacity:1}100%{translate:0 0;scale:1}}
+.ios .nd-stats div:first-child b{color:#8CCBFF}
+.nd-prog i{background:linear-gradient(90deg,#1F7FD6,#7CC0F5)}
+.ios .nav-arrow{background:rgba(124,192,245,.14)}
+
+/* ================= animaties ================= */
+:root{--spring:cubic-bezier(.2,.9,.25,1.12);--ease-out:cubic-bezier(.2,.8,.2,1)}
+/* vensters veren binnen; tabvensters schuiven in de richting van de tab */
+.ios .picker:not([hidden]),.ios .sos:not([hidden]){animation:panelSpring .5s var(--spring) both}
+.ios .picker.tab-in:not([hidden]){animation:tabSlide .45s var(--spring) both}
+@keyframes panelSpring{from{opacity:0;transform:translateY(34px) scale(.985)}}
+@keyframes tabSlide{from{opacity:0;transform:translateX(var(--dx,36px))}}
+.ios .picker.closing,.ios .sos.closing{animation:panelDrop .24s cubic-bezier(.4,0,1,1) forwards}
+@keyframes panelDrop{to{opacity:0;transform:translateY(26px) scale(.985)}}
+/* tabbalk: een donkere pil schuift mee, het icoon springt even op */
+.tabbar{position:fixed}
+.tab-ind{position:absolute;left:7px;top:7px;height:50px;width:0;border-radius:999px;background:var(--cta);box-shadow:0 6px 16px rgba(8,24,44,.25);transition:transform .45s var(--spring),width .45s var(--spring);z-index:0}
+.tabbar button{position:relative;z-index:1;overflow:hidden}
+.tabbar button[aria-current]{background:transparent;box-shadow:none}
+.tabbar button[aria-current] .ic{animation:tabPop .45s var(--spring)}
+@keyframes tabPop{40%{transform:translateY(-3px) scale(1.15)}}
+/* knoppen: zacht indrukken en een rimpeling */
+.btn,.act>span,.tile,.pcard,.day-card,.me-badges,.me-row,.fday,.chip,.icon-btn,.fab{transition:transform .25s var(--spring),background .2s,box-shadow .2s}
+.btn:active,.act:active>span,.tile:active,.pcard:active,.day-card:active,.me-badges:active,.fday:active,.chip:active,.icon-btn:active,.fab:active{transform:scale(.96)}
+.btn,.act,.near-btn{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+/* paneel onderin veert */
+.ios .sheet{transition:transform .5s var(--spring)}
+/* schakelaars met een veer, chips die oppoppen */
+.ios .switch i::after{transition:transform .35s var(--spring)}
+.chip[aria-pressed="true"]{animation:chipPop .35s var(--spring)}
+@keyframes chipPop{50%{transform:scale(1.08)}}
+.ios .seg button{transition:background .25s,box-shadow .25s,color .2s}
+/* favorietenster popt met deeltjes */
+.fav.on .ic{color:#FFC400;fill:#FFC400}
+.fav.pop .ic{animation:favPop .5s var(--spring)}
+.fav.pop{background:radial-gradient(circle,rgba(255,196,0,.35) 0 30%,transparent 62%)}
+@keyframes favPop{40%{transform:scale(1.45) rotate(-12deg)}}
+/* kopiëren: even een vinkje */
+.copied{background:var(--ok)!important;color:#fff!important}
+.copied .ic{animation:tabPop .4s var(--spring)}
+/* toasts: glazen pil die van boven binnenveert */
+.ios .toast{border-radius:999px;padding:11px 18px;background:rgba(14,30,48,.82);box-shadow:0 12px 30px rgba(0,0,0,.25);transition:opacity .25s,transform .45s var(--spring);transform:translate(-50%,-14px) scale(.96)}
+.ios .toast.on{transform:translate(-50%,0) scale(1)}
+/* navigatie: banner zakt binnen, dashboard schuift op; bij een nieuwe aanwijzing draait de pijl */
+.ios .nav-banner:not([hidden]){animation:nbIn .55s var(--spring) both}
+.ios .nav-dash:not([hidden]){animation:ndIn .55s var(--spring) both}
+@keyframes nbIn{from{opacity:0;transform:translateY(-30px) scale(.97)}}
+@keyframes ndIn{from{opacity:0;transform:translateY(40px)}}
+.nav-banner.nb-change .nav-arrow{animation:arrowTurn .6s var(--spring)}
+.nav-banner.nb-change .nav-txt{animation:txtSlide .45s var(--ease-out)}
+@keyframes arrowTurn{0%{transform:rotate(-70deg) scale(.6);opacity:0}100%{transform:none;opacity:1}}
+@keyframes txtSlide{from{opacity:0;transform:translateX(20px)}}
+.nav-banner.near .nav-arrow{animation:arrowPulse 1s ease-in-out infinite}
+@keyframes arrowPulse{50%{transform:scale(1.1);background:rgba(124,192,245,.3)}}
+/* aangekomen */
+.arrive{position:fixed;inset:0;z-index:5500;display:grid;place-items:center;background:rgba(7,17,27,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fadeIn .3s;transition:opacity .3s}
+.arrive.out{opacity:0}
+.arr-card{width:min(86vw,320px);padding:26px 22px 20px;border-radius:30px;text-align:center;background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--glass-line);box-shadow:0 30px 60px rgba(0,0,0,.3);animation:panelSpring .6s var(--spring)}
+.arr-ic{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 10px;border-radius:22px;background:#1F7FD6;color:#fff;box-shadow:0 10px 24px rgba(31,127,214,.45);animation:tabPop .7s var(--spring) .15s both}
+.arr-ic .ic{width:30px;height:30px}
+.arr-card h3{margin:0;font:750 28px/1.1 var(--f-display);color:var(--ink)}
+.arr-card p{margin:6px 0 16px;color:var(--muted);font-weight:600}
+.arr-card .btn{width:100%;justify-content:center}
+.confetti{position:fixed;inset:0;width:100vw;height:100vh;z-index:5600;pointer-events:none}
+/* nieuwe prestatie: munt */
+.coin-pop{position:fixed;z-index:5550;left:50%;top:calc(80px + var(--safe-t));transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:12px 18px 12px 12px;border-radius:24px;
+  background:var(--glass);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--glass-line);box-shadow:0 18px 40px rgba(0,0,0,.25);animation:nbIn .6s var(--spring);transition:opacity .4s,transform .4s;color:var(--ink);max-width:calc(100vw - 24px)}
+.coin-pop.out{opacity:0;transform:translate(-50%,-20px)}
+.coin{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;background:linear-gradient(140deg,#FFD54A,#E08A1E);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 6px 16px rgba(224,138,30,.45);animation:coinSpin 1s var(--spring)}
+.coin .ic{width:24px;height:24px}
+@keyframes coinSpin{0%{transform:rotateY(540deg) scale(.4)}100%{transform:none}}
+.coin-pop small{display:block;font-size:12px;color:var(--muted);font-weight:650}.coin-pop b{display:block;font-family:var(--f-display);font-size:17px}.coin-pop i{display:block;font-style:normal;font-size:12.5px;color:var(--muted)}
+/* weerkaart: sneeuw, zonnegloed, wind en parallax */
+.hero-art{transform:translate(var(--px,0),var(--py,0)) scale(1.06);transition:transform .3s ease-out}
+.hero-snow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hero.sunny .hero-art circle{animation:sunGlow 4s ease-in-out infinite;transform-origin:330px 46px}
+@keyframes sunGlow{50%{transform:scale(1.15);opacity:1}}
+.hero.windy::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(170deg,transparent 0 38px,rgba(255,255,255,.18) 38px 40px,transparent 40px 90px);background-size:300px 300px;animation:wind 3s linear infinite;pointer-events:none;mask-image:linear-gradient(180deg,#000 0,#000 55%,transparent 75%)}
+@keyframes wind{to{background-position:300px 0}}
+/* ringen met gloed aan het eind */
+.rg-fg{filter:drop-shadow(0 0 4px color-mix(in srgb,currentColor 40%,transparent));animation:ringIn 1.2s var(--spring) both}
+/* SOS: vasthouden, een ring loopt vol */
+.ios .call{position:relative;overflow:hidden}
+.ios .call::before{content:"";position:absolute;inset:0;background:rgba(255,255,255,.25);transform:scaleX(0);transform-origin:left;pointer-events:none}
+.ios .call.holding::before{transform:scaleX(1);transition:transform .9s linear}
+.ios .call.alt::before{background:color-mix(in srgb,var(--danger) 18%,transparent)}
+/* welkomstschermen: vegen met een schuifbeweging */
+.onb-card.onb-in{animation:onbSlide .5s var(--spring) both}
+@keyframes onbSlide{from{opacity:0;transform:translateX(var(--dx,0px))}}
+.onb-art{animation:onbArt 6s ease-in-out infinite}
+@keyframes onbArt{50%{transform:translateY(-6px)}}
+/* opstartscherm: logo veert binnen met gloed, en schaalt bij het verdwijnen */
+.splash img{animation:splashLogo .9s var(--spring) both}
+@keyframes splashLogo{0%{transform:scale(.6) translateY(16px);opacity:0;filter:blur(6px)}100%{transform:none;opacity:1;filter:none}}
+.splash-name{animation:dcIn .7s var(--ease-out) .25s both}
+.splash-tag{animation:dcIn .7s var(--ease-out) .4s both}
+.splash.out img{transform:scale(1.5);opacity:0;transition:transform .55s var(--ease-out),opacity .45s}
+/* 3D-terugblik: samenvatting */
+.rp-sum{display:flex;gap:14px;flex-basis:100%;justify-content:space-around;padding-bottom:6px;border-bottom:1px solid var(--line-2);margin-bottom:6px;animation:panelSpring .6s var(--spring)}
+.rp-sum span{display:flex;flex-direction:column;align-items:center}.rp-sum b{font:700 22px/1 var(--f-display)}.rp-sum small{font-size:11px;color:var(--muted);font-weight:600}
+.rp-bar{flex-wrap:wrap}
+/* routebeschrijving: stappen vallen één voor één binnen */
+.route-fresh ol.steps li{animation:dcIn .4s var(--ease-out) both}
+.route-fresh ol.steps li:nth-child(2){animation-delay:.04s}.route-fresh ol.steps li:nth-child(3){animation-delay:.08s}.route-fresh ol.steps li:nth-child(4){animation-delay:.12s}.route-fresh ol.steps li:nth-child(5){animation-delay:.16s}.route-fresh ol.steps li:nth-child(n+6){animation-delay:.2s}
+/* markeringen en pistebordjes verschijnen zacht */
+.pnum{animation:fadeIn .35s ease-out}
+@keyframes fadeIn{from{opacity:0}}
+
+/* minder beweging: alles uit */
+@media (prefers-reduced-motion:reduce){
+  .ios .picker:not([hidden]),.ios .sos:not([hidden]),.ios .picker.tab-in:not([hidden]),.tabbar button[aria-current] .ic,.chip[aria-pressed="true"],.fav.pop .ic,.ios .nav-banner:not([hidden]),.ios .nav-dash:not([hidden]),
+  .nav-banner.nb-change .nav-arrow,.nav-banner.nb-change .nav-txt,.nav-banner.near .nav-arrow,.arr-card,.arr-ic,.coin-pop,.coin,.hero.sunny .hero-art circle,.hero.windy::after,.rg-fg,.onb-card.onb-in,.onb-art,
+  .splash img,.splash-name,.splash-tag,.rp-sum,.route-fresh ol.steps li,.pnum,.ios .pin.drop,.bars i,.dc{animation:none!important}
+  .tab-ind,.ios .sheet,.ios .toast,.hero-art{transition:none}
+}
+
+/* ================= verfijning: popups, hutten, schaduwniveaus ================= */
+.ios{--sh-3:0 24px 60px rgba(8,24,44,.28)}
+.ios .glass,.ios .sheet,.ios .tabbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.55),var(--sh-1)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .glass,.ios:not([data-theme=light]) .tabbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),var(--sh-1)}}
+.ios .pop-wrap .leaflet-popup-content-wrapper{border-radius:24px;border:1px solid var(--glass-line);box-shadow:var(--sh-3)}
+.ios .pop-wrap .leaflet-popup-content{margin:18px}
+.ios .pop-wrap{animation:panelSpring .45s var(--spring)}
+.ios .pop-btns{gap:8px}
+.ios .pop-btns button,.ios .pop-btns a{border-radius:999px;border:1px solid var(--card-line);background:var(--soft);color:var(--soft-ink);padding:10px 8px}
+.ios .pop-btns .primary{background:var(--cta);color:var(--cta-ink);border-color:transparent;box-shadow:0 6px 16px rgba(8,24,44,.2)}
+.ios .pop-btns .primary .ic{color:var(--cta-ink)}
+.ios .pop-btns .danger{color:var(--danger)}
+.ios .hut{border-width:1.5px;box-shadow:0 3px 10px rgba(8,24,44,.25)}
+.ios .wpn{box-shadow:0 4px 12px rgba(8,24,44,.3)}
+/* cijfers overal even breed, zodat ze niet verspringen tijdens het optellen */
+.tile p,.mini-stats b,.ring p b,.ms-tot b,.hero-temp,.nd-stats b,.nav-dist,.eta b,.rp-sum b{font-variant-numeric:tabular-nums}
+.coin-pop{width:min(92vw,360px)}
+.coin-pop>div{min-width:0;flex:1}

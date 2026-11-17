@@ -103,8 +103,14 @@ function onboarding(){
       <div class="onb-dots">${slides.map((_, j) => `<i class="${j === i ? "on" : ""}"></i>`).join("")}</div>
       <button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button></div>`;
     el.querySelector(".onb-skip").onclick = done;
-    el.querySelector(".onb-next").onclick = () => { buzz(); if(last) done(); else { i++; paint(); } };
+    el.querySelector(".onb-next").onclick = () => { buzz(); if(last) done(); else go(1); };
+    const card = el.querySelector(".onb-card"); card.style.setProperty("--dx", `${dirNow * 60}px`); card.classList.add("onb-in");
   };
+  // vegen tussen de schermen
+  let dirNow = 0, x0 = null;
+  const go = d => { const j = i + d; if(j < 0) return; if(j >= slides.length) return done(); dirNow = d; i = j; buzz(); paint(); };
+  el.addEventListener("pointerdown", e => { x0 = e.clientX; });
+  el.addEventListener("pointerup", e => { if(x0 == null) return; const dx = e.clientX - x0; x0 = null; if(Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); });
   paint(); document.body.appendChild(el);
 }
 
@@ -398,7 +404,7 @@ const isSide = () => SIDE_MQ.matches;
 const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
   : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
                                                  : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
-function fitArea(instant){ if(S.area) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:!instant}); }
+function fitArea(instant){ if(!S.area) return; if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
 function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
@@ -678,6 +684,44 @@ function buildSteps(path){
   return out;
 }
 
+// ---- de route: kleur, intekenen, komeet en het al afgelegde deel ----
+const ROUTE_BLUE = "#1F7FD6";
+const passedLayer = L.layerGroup().addTo(map);
+// een nieuwe route loopt in van start naar eind, daarna glijdt er één keer een lichtpuntje overheen
+function routeIntro(layers, lines){
+  if(calm()) return;
+  requestAnimationFrame(() => {
+    for(const l of layers){
+      const el = l.getElement?.(); if(!el?.getTotalLength) continue;
+      const len = el.getTotalLength();
+      el.style.transition = "none"; el.style.strokeDasharray = `${len} ${len}`; el.style.strokeDashoffset = len;
+      el.getBoundingClientRect();
+      el.style.transition = "stroke-dashoffset 1s cubic-bezier(.45,.05,.25,1)"; el.style.strokeDashoffset = "0";
+      setTimeout(() => { el.style.transition = ""; el.style.strokeDasharray = ""; el.style.strokeDashoffset = ""; }, 1100);
+    }
+    const pts = lines.flat(); if(pts.length < 2) return;
+    const cum = [0]; for(let i = 1; i < pts.length; i++) cum.push(cum[i-1] + meters(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]));
+    const tot = cum[cum.length-1] || 1, at = d => { let i = 1; while(i < cum.length - 1 && cum[i] < d) i++; const f = (d - cum[i-1]) / ((cum[i] - cum[i-1]) || 1); return [pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * f, pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * f]; };
+    const mk = L.marker(pts[0], {icon:L.divIcon({className:"", html:'<i class="comet"></i>', iconSize:[18, 18], iconAnchor:[9, 9]}), interactive:false, keyboard:false, zIndexOffset:900});
+    setTimeout(() => { mk.addTo(map); const t0 = performance.now(), T = 1500;
+      const step = now => { const k = Math.min(1, (now - t0) / T), e = k < .5 ? 2*k*k : 1 - (-2*k + 2) ** 2 / 2; mk.setLatLng(at(tot * e)); if(k < 1) requestAnimationFrame(step); else mk.remove(); };
+      requestAnimationFrame(step); }, 950);
+  });
+}
+// tijdens het navigeren: het stuk dat je al gehad hebt grijs
+function drawPassed(ns){
+  passedLayer.clearLayers(); S.navPassed = null;
+  if(!ns || !S.follow) return;
+  const out = [];
+  for(let i = 0; i < ns.i; i++) out.push(...S.steps[i].line);
+  const L0 = S.steps[ns.i]?.line || [];
+  for(let k = 0; k <= ns.k && k < L0.length; k++) out.push(L0[k]);
+  if(L0[ns.k + 1]) out.push([L0[ns.k][0] + (L0[ns.k+1][0] - L0[ns.k][0]) * ns.t, L0[ns.k][1] + (L0[ns.k+1][1] - L0[ns.k][1]) * ns.t]);
+  if(out.length < 2) return;
+  S.navPassed = out;
+  L.polyline(out, {renderer:svgR, interactive:false, color:"#ffffff", weight:11, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(passedLayer);
+  L.polyline(out, {renderer:svgR, interactive:false, color:"#9AA9B7", weight:7, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(passedLayer);
+}
 function update(){
   document.querySelectorAll("#level button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v===S.level)));
   document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v===S.mode)));
@@ -702,16 +746,18 @@ function update(){
   S.path = path; S.steps = path ? buildSteps(path) : [];
   S.lunchStep = null;
   if(path && S.lunch && S.lunchAt != null){ let c = 0, i = 0; while(i < S.steps.length && c < S.lunchAt){ c += S.steps[i].items.length; i++; } S.lunchStep = i; }
-  const sig = (path||[]).map(s => s.e.i).join(",");
-  if(sig !== S.sig){ S.sig = sig; S.navIdx = 0; S.spoken = {step:-1, pre:-1}; }
+  const sig = (path||[]).map(s => s.e.i).join(","), freshRoute = sig !== S.sig && !!sig;
+  if(sig !== S.sig){ S.sig = sig; S.navIdx = 0; S.spoken = {step:-1, pre:-1}; S.navPassed = null; passedLayer.clearLayers(); }
   routeLayer.clearLayers(); markLayer.clearLayers();
   drawDim(); drawHome();
   if(path && path.length){
-    const lines = path.map(s => s.e.pts);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:13, opacity:.45, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#FFC400", weight:8, opacity:1, lineCap:"round", lineJoin:"round"}).addTo(routeLayer);
-    L.polyline(lines, {renderer:svgR, interactive:false, color:"#0F1B2A", weight:2, opacity:.55, lineCap:"round"}).addTo(routeLayer);
-    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:"#ffffff", weight:3, opacity:.95, dashArray:"10 8"}).addTo(routeLayer);
+    // de route: strak merkblauw met een witte rand en een lichtere streep in het midden (zoals Apple Kaarten)
+    const lines = path.map(st => st.rev ? [...st.e.pts].reverse() : st.e.pts);
+    const ro = (color, weight, opacity) => ({renderer:svgR, interactive:false, color, weight, opacity, lineCap:"round", lineJoin:"round"});
+    const rl = [L.polyline(lines, ro("#0B2236", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#7CC0F5", 2.4, .75))];
+    rl.forEach(l => l.addTo(routeLayer));
+    if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:ROUTE_BLUE, weight:3, opacity:.55, dashArray:"8 8"}).addTo(routeLayer);
+    if(freshRoute){ routeIntro(rl, lines); document.body.classList.add("route-fresh"); clearTimeout(S.freshT); S.freshT = setTimeout(() => document.body.classList.remove("route-fresh"), 1400); }
   }
   const day = S.wps.length && dayRouteOn();   // dagroute: geen genummerde punten, alleen begin en eind
   if(!day) S.wps.forEach((w, i) => {
@@ -725,7 +771,7 @@ function update(){
   for(const [n, cls, html] of pins){
     if(n==null || (cls==="a" && S.fromMe && S.pos) || (cls==="b" && S.to===S.from && S.via!=null)) continue;
     const p = A.nodes[n], sz = cls==="v" ? 26 : 30;
-    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}">${html}</div>`, iconSize:[sz,sz], iconAnchor:[sz/2, sz*1.2]}),
+    L.marker([p.lat, p.lon], {icon:L.divIcon({className:"", html:`<div class="pin ${cls}${freshRoute ? " drop" : ""}">${html}</div>`, iconSize:[sz,sz], iconAnchor:[sz/2, sz*1.2]}),
       keyboard:false, interactive:false, zIndexOffset:cls==="v" ? 0 : 500}).addTo(markLayer);
   }
   if(S.lunch && S.lunchStep != null){ const p = A.nodes[S.lunch.n];
@@ -1146,12 +1192,16 @@ function updateNav(){
   const ns = S.follow ? navState() : null;
   povHeading(ns);
   if(POV.mode === "gl" && S.pos) M3.navCam(S.pos.lat, S.pos.lon, POV.rot, povZoom() - 1.3, S.area?.nodes[nearestNode(S.pos.lat, S.pos.lon).n]?.ele ?? S.pos.alt);
+  drawPassed(ns); M3.sync("route");
   if(!ns){ ban.hidden = true; renderDash(null); return; }
   const s = S.steps[ns.i], nx = S.steps[ns.i+1];
   const frac = s.len ? Math.min(1, ns.rem / s.len) : 0;
   const left = s.min * frac + S.steps.slice(ns.i+1).reduce((t, x) => t + x.min, 0);
   ban.hidden = false;
   $("navDist").textContent = km(ns.rem);
+  // nieuwe aanwijzing: pijl draait mee en de tekst schuift door; vlak voor de afslag pulseert de pijl
+  if(S.navAnimStep !== ns.i){ if(S.navAnimStep != null && !calm()){ ban.classList.remove("nb-change"); void ban.offsetWidth; ban.classList.add("nb-change"); buzz(); } S.navAnimStep = ns.i; }
+  ban.classList.toggle("near", ns.rem < 100);
   $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
   const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
@@ -1171,7 +1221,7 @@ function updateNav(){
   // gesproken aanwijzingen
   if(S.spoken.step !== ns.i){ S.spoken.step = ns.i; speak(`${uc(s.say)}${s.t!=="w" ? ", " + km(s.len).replace("km","kilometer").replace(" m"," meter") : ""}.`); }
   else if(nx && ns.rem < ANNOUNCE_AT && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak(`Over ${Math.round(ns.rem/10)*10} meter: ${nx.say}.`); }
-  else if(!nx && ns.rem < 30 && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak("Je bent op je bestemming."); }
+  else if(!nx && ns.rem < 30 && S.spoken.pre !== ns.i){ S.spoken.pre = ns.i; speak("Je bent op je bestemming."); arrived(); }
 }
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
@@ -2549,7 +2599,8 @@ async function replayDay(day){
   document.body.appendChild(bar); document.body.classList.add("rp-on");
   const end = () => { bar.remove(); document.body.classList.remove("rp-on"); };
   $("rpStop").onclick = () => { M3.stopReplay(); end(); };
-  if(!M3.replay(coords, () => { bar.querySelector("span").innerHTML = `${I("check")}Klaar! Zo zag je dag eruit.`; $("rpStop").innerHTML = `${I("close")}Sluiten`; $("rpStop").onclick = () => { M3.stopReplay(); end(); }; })) end();
+  if(!M3.replay(coords, () => { const sm = daySummary(day); if(sm?.n > 1){ const c = document.createElement("div"); c.className = "rp-sum"; c.innerHTML = `<span>${num(sm.km, 1)}<small>km</small></span><span>${num(Math.round(sm.hm))}<small>hm</small></span><span>${num(sm.runs)}<small>${tr("afdalingen")}</small></span><span>${num(Math.round(sm.vmax))}<small>km/u</small></span>`; bar.prepend(c); countUp(c); confetti(40); }
+    bar.querySelector(":scope > span").innerHTML = `${I("check")}Klaar! Zo zag je dag eruit.`; $("rpStop").innerHTML = `${I("close")}Sluiten`; $("rpStop").onclick = () => { M3.stopReplay(); end(); }; })) end();
 }
 // GPX 1.1: punten met tijd en hoogte, te openen in Strava, Garmin Connect, Komoot en dergelijke
 function dayGpx(day){
@@ -3688,10 +3739,20 @@ function setTab(t){
   buzz();
   ["picker", "status", "diary", "menu", ...Object.values(TAB_PANELS)].forEach(id => { if(id !== TAB_PANELS[t]) $(id).hidden = true; });
   $("layerMenu").hidden = true;
+  // vensters schuiven in de richting van de tab binnen
+  const dir = Math.sign(TAB_ORDER.indexOf(t) - TAB_ORDER.indexOf(TAB)) || 1, panel = $(TAB_PANELS[t]);
+  if(panel){ panel.style.setProperty("--dx", `${dir * 36}px`); panel.classList.remove("tab-in"); void panel.offsetWidth; panel.classList.add("tab-in"); }
   TAB = t; tabPaint();
   if(t === "today") openToday(); else if(t === "group") openGroup(); else if(t === "me") openMe();
 }
-function tabPaint(){ document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB)); }
+function tabPaint(){
+  document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB));
+  // de donkere pil schuift mee naar de actieve tab
+  requestAnimationFrame(() => { const b = document.querySelector(`#tabbar button[data-tab="${TAB}"]`), ind = $("tabInd"); if(!b || !ind) return;
+    ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 7}px)`; });
+}
+addEventListener("resize", tabPaint); setTimeout(tabPaint, 300);
+const TAB_ORDER = ["map", "today", "group", "me"];
 document.querySelectorAll("#tabbar button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
 // gaat een venster dicht (kruisje, vegen), dan staat de tabbalk weer op Kaart
 new MutationObserver(() => {
@@ -3781,6 +3842,7 @@ function renderToday(){
   $("tdMe").onclick = () => setTab("me");
   box.querySelectorAll(".pcard").forEach(b => b.onclick = () => goPiste(b.dataset.k === "b" ? best[+b.dataset.i].e.i : picks[+b.dataset.i].g.e.i));
   countUp(box);
+  heroWeather(box);
 }
 
 // ---- Ik: jouw skidag, je seizoen, prestaties en instellingen ----
@@ -3806,7 +3868,7 @@ function renderMe(){
       : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>${D.rec ? "" : `<button type="button" class="btn primary" id="meStart">${I("rec")}Begin met opnemen</button>`}`)
     + `</section>`
     + (sd.length ? `<section class="dc"><p class="label">${I("calendar")}${tr("Mijn seizoen")}</p><div class="me-season"><div class="ms-tot"><span>${num(sd.length)}<small>${tr("dagen")}</small></span><span>${num(Math.round(tot.km))}<small>km</small></span><span>${num(Math.round(tot.hm))}<small>hm</small></span></div>
-        <div class="bars">${bars.map(x => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div></section>` : "")
+        <div class="bars">${bars.map((x, bi) => `<i style="--h:${Math.max(6, Math.round(100 * x.s.km / bmax))}%;animation-delay:${bi * 40}ms" title="${niceDate(x.d)}: ${kmTxt(x.s.km)} km"></i>`).join("")}</div></div></section>` : "")
     + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
     + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
   $("meClose").onclick = () => box.hidden = true;
@@ -3819,6 +3881,92 @@ function renderMe(){
   $("meHelp").onclick = () => window.open(window.PP_STORE === "ios" || window.PP_STORE === "android" ? (window.PP_CONFIG?.site || "") + "support.html" : "support.html", "_blank");
   countUp(box);
 }
+
+
+// ================= animaties en microinteracties =================
+// Alles met transform en opacity, en niets als iemand "minder beweging" heeft ingesteld (calm()).
+// ripple op knoppen
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest(".btn.primary,.act,.tabbar button,.near-btn"); if(!b || calm()) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 1.2, sp = document.createElement("span");
+  sp.className = "ripple"; sp.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d/2}px;top:${e.clientY - r.top - d/2}px`;
+  b.appendChild(sp); setTimeout(() => sp.remove(), 600);
+}, {passive:true});
+// sneeuwvlokjes-confetti (aankomst, nieuwe prestatie)
+function confetti(n = 60){
+  if(calm()) return;
+  const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
+  c.className = "confetti"; c.width = innerWidth * dpr; c.height = innerHeight * dpr; document.body.appendChild(c); x.scale(dpr, dpr);
+  const cols = ["#ffffff", "#A7C7DC", "#7CC0F5", "#FFC400", "#1F7FD6"];
+  const P = Array.from({length:n}, () => ({x:innerWidth / 2 + (Math.random() - .5) * 80, y:innerHeight * .42, vx:(Math.random() - .5) * 9, vy:-Math.random() * 11 - 4, r:2 + Math.random() * 4, c:cols[Math.random() * cols.length | 0], a:Math.random() * 6, s:Math.random() < .5}));
+  const t0 = performance.now();
+  const step = now => { const t = now - t0; x.clearRect(0, 0, innerWidth, innerHeight);
+    for(const p of P){ p.vy += .28; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += .1; x.save(); x.translate(p.x, p.y); x.rotate(p.a); x.globalAlpha = Math.max(0, 1 - t / 2400); x.fillStyle = p.c;
+      if(p.s){ x.beginPath(); for(let k = 0; k < 6; k++){ x.rotate(Math.PI / 3); x.fillRect(-.6, 0, 1.2, p.r * 1.6); } } else { x.beginPath(); x.arc(0, 0, p.r, 0, 7); x.fill(); } x.restore(); }
+    if(t < 2400) requestAnimationFrame(step); else c.remove(); };
+  requestAnimationFrame(step);
+}
+// aangekomen: kaart "Je bent er!" met confetti en een succestrilling (één keer per route)
+function arrived(){
+  if(S.arrivedSig === S.sig) return; S.arrivedSig = S.sig;
+  const tot = S.steps.reduce((a, x) => ({len:a.len + x.len, min:a.min + x.min}), {len:0, min:0});
+  buzz("success"); confetti(80);
+  document.querySelector(".arrive")?.remove();
+  const el = document.createElement("div"); el.className = "arrive";
+  el.innerHTML = `<div class="arr-card"><span class="arr-ic">${I("flag")}</span><h3>Je bent er!</h3><p>${km(tot.len)} · ${fmt(tot.min)}</p><button type="button" class="btn primary">${I("check")}Mooi</button></div>`;
+  document.body.appendChild(el);
+  const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+  el.querySelector("button").onclick = close; setTimeout(close, 6000);
+}
+// nieuwe prestatie behaald: munt die binnendraait
+function badgeCheck(){
+  try{
+    const days = allDays(); if(!days.length) return;
+    const a = badgeStats(), got = BADGES.filter(b => b.v(a) >= b.goal), seen = JSON.parse(localStorage.getItem("pp-badges-seen") || "null");
+    localStorage.setItem("pp-badges-seen", JSON.stringify(got.map(b => b.t)));
+    if(!seen) return;   // eerste keer: alleen onthouden
+    const fresh = got.filter(b => !seen.includes(b.t)); if(!fresh.length) return;
+    const b = fresh[0]; buzz("success"); confetti(70);
+    document.querySelector(".coin-pop")?.remove();
+    const el = document.createElement("div"); el.className = "coin-pop";
+    el.innerHTML = `<span class="coin">${I(b.icon)}</span><div><small>Nieuwe prestatie</small><b>${b.t}</b><i>${b.d}</i></div>`;
+    document.body.appendChild(el); setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 4200);
+  }catch(e){}
+}
+setTimeout(badgeCheck, 4000); setInterval(badgeCheck, 60000);
+// weer op de bovenste kaart: vallende sneeuw, zonnegloed of wind, en lichte parallax bij het kantelen
+let heroFx = 0;
+function heroWeather(box){
+  cancelAnimationFrame(heroFx);
+  const hero = box.querySelector(".hero"); if(!hero || !S.wx || calm()) return;
+  const code = S.wx.c.weather_code, snow = [71, 73, 75, 77, 85, 86].includes(code), sun = code <= 1, wind = S.wx.c.wind_speed_10m >= 35;
+  hero.classList.toggle("sunny", sun); hero.classList.toggle("windy", wind);
+  if(!snow) return;
+  const c = document.createElement("canvas"); c.className = "hero-snow"; hero.appendChild(c);
+  const dpr = Math.min(2, devicePixelRatio || 1), W = hero.clientWidth, H = hero.clientHeight; c.width = W * dpr; c.height = H * dpr; const x = c.getContext("2d"); x.scale(dpr, dpr);
+  const F = Array.from({length:40}, () => ({x:Math.random() * W, y:Math.random() * H, r:.8 + Math.random() * 2.2, v:.3 + Math.random() * .8, d:Math.random() * 6}));
+  const step = () => { if(!c.isConnected) return; x.clearRect(0, 0, W, H); x.fillStyle = "rgba(255,255,255,.9)";
+    for(const f of F){ f.y += f.v; f.d += .02; f.x += Math.sin(f.d) * .4; if(f.y > H) { f.y = -4; f.x = Math.random() * W; } x.beginPath(); x.arc(f.x, f.y, f.r, 0, 7); x.fill(); }
+    heroFx = requestAnimationFrame(step); };
+  step();
+}
+addEventListener("deviceorientation", e => { if(e.gamma == null) return; const h = document.querySelector(".hero"); if(!h) return;
+  h.style.setProperty("--px", `${Math.max(-1, Math.min(1, e.gamma / 30)) * 8}px`); h.style.setProperty("--py", `${Math.max(-1, Math.min(1, (e.beta - 45) / 40)) * 5}px`); }, {passive:true});
+// SOS: één seconde vasthouden om te bellen (zo bel je niet per ongeluk)
+document.querySelectorAll("#sos .call").forEach(a => {
+  let t = 0, ok = false;
+  a.addEventListener("click", e => { if(!ok){ e.preventDefault(); if(!a.classList.contains("holding")) toast("Houd de knop even vast om te bellen."); } ok = false; });
+  const start = () => { a.classList.add("holding"); buzz(); t = setTimeout(() => { ok = true; a.classList.remove("holding"); buzz("success"); location.href = a.href; }, 900); };
+  const stop = () => { clearTimeout(t); a.classList.remove("holding"); };
+  a.addEventListener("pointerdown", start); ["pointerup", "pointerleave", "pointercancel"].forEach(ev => a.addEventListener(ev, stop));
+  a.addEventListener("contextmenu", e => e.preventDefault());
+});
+// kopiëren: de knop wordt even een vinkje
+document.addEventListener("click", e => { const b = e.target.closest("#sosCopy,#gCopy,.copy-btn"); if(!b) return;
+  b.classList.add("copied"); setTimeout(() => b.classList.remove("copied"), 1400); });
+// favorietenster: kleine deeltjes
+document.addEventListener("click", e => { const b = e.target.closest(".fav"); if(!b || calm()) return;
+  setTimeout(() => { if(!b.classList.contains("on")) return; b.classList.add("pop"); setTimeout(() => b.classList.remove("pop"), 600); }, 0); });
 
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
