@@ -543,7 +543,7 @@ const M3 = (() => {
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
       pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
-      canvasContextAttributes:{antialias:true}});   // gladde randen van pistes, kabels en bergkammen
+      canvasContextAttributes:{antialias:(devicePixelRatio || 1) < 2}});   // gladde randen; op een retinascherm is dat niet nodig en scheelt het veel rekenwerk
     styled = false;
     // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes
     gl.once("style.load", () => {

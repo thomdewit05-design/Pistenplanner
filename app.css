@@ -2156,3 +2156,8 @@ body:has(#layerChips[hidden]) .ov-pill{top:calc(76px + var(--safe-t))}
 /* meldingen onder de chips, niet eroverheen */
 .toast{top:calc(118px + var(--safe-t))}
 .layer-chips{right:calc(10px + var(--safe-r,0px))}
+/* prestaties: tijdens schuiven/zoomen van de kaart geen achtergrondvervaging (die moet elk beeld opnieuw); minder zware vervaging in rust */
+body.map-moving .glass,body.map-moving .sheet,body.map-moving .tabbar,body.map-moving .lchip,body.map-moving .sun-bar,body.map-moving .topbar>*,body.map-moving .fab{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+body.map-moving .sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)!important}
+.sheet,.tabbar{-webkit-backdrop-filter:saturate(170%) blur(16px);backdrop-filter:saturate(170%) blur(16px)}
+.lchip{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}

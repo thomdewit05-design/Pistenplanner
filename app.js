@@ -128,6 +128,13 @@ function onboarding(custom){
 }
 
 // ================= kaart =================
+// een getekende tegel zonder kopiëren in zijn canvas zetten (bitmaprenderer); oudere toestellen: gewoon tekenen
+function putBitmap(t, b){
+  if(typeof ImageBitmap !== "undefined" && b instanceof ImageBitmap){ try{ const c = t.getContext("bitmaprenderer"); if(c){ c.transferFromImageBitmap(b); return; } }catch(e){} }
+  t.getContext("2d").drawImage(b, 0, 0); b.close?.();
+}
+// tegels pas laden als het zoomen klaar is (niet voor elk tussenniveau tijdens het knijpen)
+L.GridLayer.mergeOptions({updateWhenZooming:false});
 const map = L.map("map", {zoomControl:false, preferCanvas:true, worldCopyJump:false, minZoom:6}).setView([46.4, 10.5], 7);
 L.control.zoom({position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);
@@ -150,7 +157,7 @@ const baseLayers = {
     createTile(c, done){
       const t = document.createElement("canvas"), r = devicePixelRatio > 1.5 ? 2 : 1;   // scherp op een retinascherm
       t.width = t.height = 256 * r;
-      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
       return t;
     }
   }))({maxZoom:19, maxNativeZoom:16, keepBuffer:3, attribution:'Winterkaart van Skipilot · hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen Terrain Tiles</a> · wegen en namen: Esri'})
@@ -160,7 +167,7 @@ map.createPane("slope").style.cssText = "z-index:350;pointer-events:none";
 const slopeLayer = new (L.GridLayer.extend({
   createTile(c, done){
     const t = document.createElement("canvas"); t.width = t.height = 256;
-    PPterrain.get("slope", c.z, c.x, c.y, 1).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+    PPterrain.get("slope", c.z, c.x, c.y, 1).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
     return t;
   }
 }))({pane:"slope", minZoom:11, maxZoom:19, maxNativeZoom:15, opacity:.85, keepBuffer:2});
@@ -170,7 +177,8 @@ const labelLayer = tiles("labels", "https://server.arcgisonline.com/ArcGIS/rest/
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.95});
 const canvas = L.canvas({padding:.4, tolerance:6});
 const svgR = L.svg({padding:.4});
-const pisteLayer = L.layerGroup().addTo(map);
+const pisteLayer = L.layerGroup().addTo(map), pisteDetail = L.layerGroup();
+function syncDetail(){ const on = !!S.pistes && map.getZoom() >= 12 && map.hasLayer(pisteLayer); if(on !== map.hasLayer(pisteDetail)) on ? pisteDetail.addTo(map) : pisteDetail.remove(); }
 map.createPane("dim").style.cssText = "z-index:405;pointer-events:none";
 const dimR = L.canvas({padding:.4, pane:"dim"});
 const dimLayer = L.layerGroup().addTo(map);     // pistes die je vanaf A niet kunt bereiken
@@ -184,7 +192,7 @@ function applyBase(){
   ((S.base==="sat" || S.base==="winter") && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
   S.base==="winter" ? roadsLayer.addTo(map) : roadsLayer.remove();
   if(M3.mode) for(const l of [...Object.values(baseLayers), labelLayer, roadsLayer]) l.remove();   // onder de 3D-kaart niets laden
-  S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
+  S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove(); syncDetail();
   S.slopeOn && !M3.mode ? slopeLayer.addTo(map) : slopeLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums; $("showPeaks").checked = S.peaksOn;
@@ -419,6 +427,12 @@ function chainFrom(ei){
   return {kind:"r", edges, start, end, e:e0, label:pisteLabel(e0), len:edges.reduce((s,i) => s + A.edges[i].len, 0)};
 }
 
+// schaduw onder de pistes en de honderden stationsstippen pas vanaf zoom 12: uitgezoomd zie je ze toch niet, en het tekenen kost tijd
+map.on("zoomend", () => syncDetail());
+// tijdens schuiven en zoomen geen wazig glas boven de kaart (dat moet elk beeld opnieuw); daarna weer wel
+let movingT = 0;
+map.on("movestart zoomstart", () => { clearTimeout(movingT); document.body.classList.add("map-moving"); });
+map.on("moveend zoomend", () => { clearTimeout(movingT); movingT = setTimeout(() => document.body.classList.remove("map-moving"), 180); });
 function drawPistes(){
   pisteLayer.clearLayers();
   const A = S.area, groups = {};
@@ -433,7 +447,8 @@ function drawPistes(){
   if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
   if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
   // zachte schaduw onder de pistes geeft diepte; daarop een witte rand en de pistekleur
-  if(runs.length) L.polyline(runs, opt({color:"#0B1A2A", weight:10, opacity:.16})).addTo(pisteLayer);
+  pisteDetail.clearLayers();
+  if(runs.length) L.polyline(runs, opt({color:"#0B1A2A", weight:10, opacity:.16})).addTo(pisteDetail);
   if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:7.5, opacity:.72})).addTo(pisteLayer);
   for(const k of ["r_u","r_f","r_g","r_b","r_B","r_r","r_s","r_x"]){
     if(!groups[k]) continue; const d = k.slice(2);
@@ -449,7 +464,8 @@ function drawPistes(){
   if(risky.length) L.polyline(risky, opt({color:"#E28A12", weight:3, dashArray:"8 6"})).addTo(pisteLayer);
   persistStatus();
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
-  st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
+  st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteDetail));
+  syncDetail();
   drawSun(); drawHeat(); syncLayerChips();
   M3.sync("pistes");
 }
