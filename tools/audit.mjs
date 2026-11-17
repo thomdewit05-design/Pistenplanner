@@ -25,7 +25,7 @@ for(const lang of LANGS){
   const p = await ctx.newPage();
   p.on("pageerror", e => problems.push(`[${lang}] fout in de pagina: ${e.message}`));
   await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForTimeout(2000);
-  await p.evaluate(async () => { const r = S.index.find(r => /Arlberg/.test(r[1])) || S.index[0]; await openArea(r[0]); }).catch(e => problems.push(`[${lang}] gebied openen: ${e.message}`));
+  await p.evaluate(async () => { const r = S.index.find(r => /Arlberg/.test(r[1])) || S.index[0]; localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); }).catch(e => problems.push(`[${lang}] gebied openen: ${e.message}`));
   await p.waitForTimeout(2000);
   const screens = [["kaart", () => {}], ["vandaag", () => setTab("today")], ["groep", () => setTab("group")], ["ik", () => setTab("me")],
     ["menu", () => { setTab("map"); openMenu(); }], ["menu-onder", () => { const m = document.getElementById("menu"); m.scrollTop = m.scrollHeight; }],
