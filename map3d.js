@@ -593,7 +593,10 @@ const M3 = (() => {
   const ovCenter = () => { const c = S.area.bounds.getCenter(); return [c.lng, c.lat]; };
   function ovCam(){
     const b = S.area?.bounds; if(!b || !gl) return null;
-    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:ovPad(), bearing:0}); }catch(e){ return null; }
+    // MapLibre telt de marge die de camera al heeft er zelf bij op; alleen het verschil meegeven (anders "past" het gebied nooit)
+    const want = ovPad(), cur = gl.getPadding?.() || {}, pad = {};
+    for(const k of ["top", "bottom", "left", "right"]) pad[k] = Math.max(0, want[k] - (cur[k] || 0));
+    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:pad, bearing:0}) || null; }catch(e){ return null; }
   }
   // knop Overzicht alleen als je flink ingezoomd bent (of het gebied uit beeld is)
   function ovCheck(){
