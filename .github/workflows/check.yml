@@ -1,0 +1,21 @@
+# Kwaliteitscontrole bij elke pull request: geen fouten in de pagina, tekst past in alle knoppen (5 talen),
+# en iconknoppen hebben een label voor VoiceOver/TalkBack. Zie tools/audit.mjs.
+name: Controle
+on:
+  pull_request:
+    paths: [index.html, app.js, app.css, i18n.js, config.js, map3d.js, terrain.js, tools/audit.mjs, .github/workflows/check.yml]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright klaarzetten
+        run: |
+          npm i --no-save --no-package-lock playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Knoppen, labels en fouten controleren
+        run: node tools/audit.mjs nl,de,fr,ru,ja

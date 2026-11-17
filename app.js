@@ -1482,6 +1482,8 @@ async function pollAction(){
 }
 async function runAction(a){
   if(a === "stop"){ if(S.follow) toggleFollow(); return; }
+  if(a === "rec"){ if(!D.rec){ startRec(); toast(tr("Skidag gestart. Veel plezier!")); } return; }
+  if(a === "recstop"){ if(D.rec) stopRec(); return; }
   if(!S.area){ toast("Open eerst een skigebied."); return; }
   actionBusy = true;
   try{
@@ -2676,6 +2678,41 @@ function renderDiary(){
   });
 }
 // je skidag terugkijken op de 3D-kaart: de camera vliegt langs je spoor
+// video van je skidag in 3D (9:16, voor Stories): het beeld van de 3D-kaart met je cijfers en het logo eroverheen
+async function recordReplay(day, coords, bar){
+  const glc = M3.gl?.getCanvas(); if(!glc) return;
+  const W = 720, H = 1280, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d"), {F, UI} = cardFonts(), sm = daySummary(day);
+  const logo = new Image(); logo.src = "icons/logo.svg"; try{ await logo.decode(); }catch(e){}
+  const draw = () => {
+    const sw = glc.width, sh = glc.height, s = Math.max(W / sw, H / sh), dw = sw * s, dh = sh * s;
+    x.drawImage(glc, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    const g = x.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, "rgba(8,20,36,.75)"); g.addColorStop(1, "rgba(8,20,36,0)"); x.fillStyle = g; x.fillRect(0, 0, W, 220);
+    const g2 = x.createLinearGradient(0, H - 300, 0, H); g2.addColorStop(0, "rgba(8,20,36,0)"); g2.addColorStop(1, "rgba(8,20,36,.8)"); x.fillStyle = g2; x.fillRect(0, H - 300, W, 300);
+    x.drawImage(logo, 36, 44, 64, 64); x.fillStyle = "#fff"; x.textAlign = "left"; x.font = `750 38px ${F}`; x.fillText("Skipilot", 116, 84);
+    x.font = `600 24px ${UI}`; x.globalAlpha = .85; x.fillText(`${day.areaName || ""} · ${niceDate(day.date)}`.slice(0, 44), 116, 116); x.globalAlpha = 1;
+    if(sm?.n > 1){ const st = [[kmTxt(sm.km), "km"], [hmTxt(sm.hm), "hm"], [String(Math.round(sm.vmax)), "km/u"], [String(sm.runs), tr("afdalingen")]];
+      st.forEach(([v, u], i) => { const X = 40 + i * 166; x.font = `800 46px ${F}`; x.fillText(v, X, H - 92); x.font = `600 22px ${UI}`; x.globalAlpha = .85; x.fillText(u, X, H - 58); x.globalAlpha = 1; }); }
+  };
+  const gl = M3.gl; gl.on("render", draw);
+  const mime = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find(m => MediaRecorder.isTypeSupported?.(m)) || "";
+  const rec = new MediaRecorder(c.captureStream(30), mime ? {mimeType:mime, videoBitsPerSecond:5e6} : undefined), parts = [];
+  rec.ondataavailable = e => e.data.size && parts.push(e.data);
+  const label = bar.querySelector(":scope > span"); label.innerHTML = `${I("rec")}${tr("Video opnemen…")}`; bar.classList.add("recording");
+  rec.start(500);
+  const finish = () => setTimeout(() => { rec.stop(); }, 1200);
+  rec.onstop = async () => {
+    gl.off("render", draw); bar.classList.remove("recording");
+    const type = (rec.mimeType || mime || "video/webm").split(";")[0], ext = type.includes("mp4") ? "mp4" : "webm";
+    const blob = new Blob(parts, {type}), file = new File([blob], `skipilot-${day.date}.${ext}`, {type});
+    label.innerHTML = `${I("check")}${tr("Video klaar")}`;
+    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file], text:`${tr("Mijn skidag")} · Skipilot`}); return; }catch(e){ if(e.name === "AbortError") return; } }
+    const url = URL.createObjectURL(blob), m = document.createElement("div"); m.className = "card-modal";
+    m.innerHTML = `<div class="card-box"><video src="${url}" controls playsinline autoplay muted loop style="max-width:100%;max-height:60vh;border-radius:16px"></video><div class="card-btns"><a class="btn primary" href="${url}" download="skipilot-${day.date}.${ext}">${I("down")}${tr("Bewaren")}</a><button type="button" class="btn ghost" data-close>${I("close")}${tr("Sluiten")}</button></div></div>`;
+    m.querySelector("[data-close]").onclick = () => { m.remove(); URL.revokeObjectURL(url); }; document.body.appendChild(m);
+  };
+  if(!M3.replay(coords, finish, {speed:1.4})) rec.stop();
+}
 // vooraf door je route vliegen: de 3D-camera volgt de route, de blauwe lijn groeit mee
 async function flyRoute(){
   if(!S.path?.length) return;
@@ -2717,10 +2754,11 @@ async function replayDay(day){
   // knop om te stoppen
   document.querySelector(".rp-bar")?.remove();
   const bar = document.createElement("div"); bar.className = "rp-bar";
-  bar.innerHTML = `<span>${I("play")}${esc(day.areaName || tr("Je skidag"))} · ${niceDate(day.date)}</span><button type="button" class="btn" id="rpStop">${I("close")}Stoppen</button>`;
+  bar.innerHTML = `<span>${I("play")}${esc(day.areaName || tr("Je skidag"))} · ${niceDate(day.date)}</span>${typeof MediaRecorder !== "undefined" ? `<button type="button" class="btn" id="rpVideo">${I("rec")}${tr("Video")}</button>` : ""}<button type="button" class="btn" id="rpStop">${I("close")}Stoppen</button>`;
   document.body.appendChild(bar); document.body.classList.add("rp-on");
   const end = () => { bar.remove(); document.body.classList.remove("rp-on"); };
   $("rpStop").onclick = () => { M3.stopReplay(); end(); };
+  $("rpVideo")?.addEventListener("click", () => { if(!requirePro("video")) return; M3.stopReplay(); recordReplay(day, coords, bar); });
   if(!M3.replay(coords, () => { const sm = daySummary(day); if(sm?.n > 1){ const c = document.createElement("div"); c.className = "rp-sum"; c.innerHTML = `<span>${num(sm.km, 1)}<small>km</small></span><span>${num(Math.round(sm.hm))}<small>hm</small></span><span>${num(sm.runs)}<small>${tr("afdalingen")}</small></span><span>${num(Math.round(sm.vmax))}<small>km/u</small></span>`; bar.prepend(c); countUp(c); confetti(40); }
     bar.querySelector(":scope > span").innerHTML = `${I("check")}Klaar! Zo zag je dag eruit.`; $("rpStop").innerHTML = `${I("close")}Sluiten`; $("rpStop").onclick = () => { M3.stopReplay(); end(); }; })) end();
 }
@@ -3747,6 +3785,7 @@ const PRO_FEATURES = [
   ["home", "bed", "Terug naar je hotel of auto"],
   ["season", "calendar", "Seizoensoverzicht en persoonlijke records"],
   ["gpx", "share", "Je skidagen als GPX-bestand"],
+  ["video", "play", "Video van je skidag in 3D om te delen"],
   ...(window.PP_STORE === "ios" ? [["noads", "ban", "Geen advertenties"]] : [])
 ];
 let PRO = (() => { try{ return JSON.parse(localStorage.getItem("pp-pro") || "null"); }catch(e){ return null; } })();
@@ -3829,9 +3868,10 @@ function openPro(f){
   const div = document.createElement("div"); div.id = "proDlg"; div.className = "pro-dlg"; div.setAttribute("role", "dialog"); div.setAttribute("aria-modal", "true");
   div.innerHTML = `<div class="pro-card">
     <div class="pro-head"><img src="icons/logo.svg" alt="" width="44" height="44"><div><p class="label">Skipilot</p><h2>Pro</h2></div><button type="button" class="icon-btn" id="proClose" aria-label="Sluiten">${I("close")}</button></div>
+    <div class="pro-hero"><b>${tr("Haal alles uit elke skidag")}</b><span>${tr("Eenmalig, geen abonnement. Steun een onafhankelijke app.")}</span></div>
     ${feat && !on ? `<p class="pro-why">${I(feat[1])}<span><b>${esc(feat[2])}</b> hoort bij Pro.</span></p>` : ""}
     ${on ? `<p class="pro-on">${I("check")}<span><b>Pro staat aan op dit apparaat.</b>${PRO.store === "ios" ? " Gekocht via de App Store." : PRO.email ? ` Gekocht met ${esc(PRO.email)}.` : ""}</span></p>` : ""}
-    <ul class="pro-list">${PRO_FEATURES.map(([, ic, t]) => `<li>${I(ic)}<span>${esc(t)}</span></li>`).join("")}</ul>
+    <ul class="pro-list pro-grid">${PRO_FEATURES.map(([k, ic, t]) => `<li class="${k === f ? "hl" : ""}">${I(ic)}<span>${esc(tr(t))}</span>${k === "video" ? `<em>${tr("Nieuw")}</em>` : ""}</li>`).join("")}</ul>
     <p class="m-hint">Alles voor je veiligheid blijft gratis: route plannen, navigatie, weer, de laatste-liftwaarschuwing en SOS. Meedoen met een groep is ook gratis.</p>
     ${on ? (IOS_PRO ? "" : `<button type="button" class="btn ghost" id="proOff">Pro op dit apparaat uitzetten</button>`) : IOS_PRO ? `
       <div class="pro-buy"><div class="pro-price"><b id="proPrice">${esc(iosPrice || PRO_CFG.price || "")}</b><span>${esc(PRO_CFG.period || "")}</span></div>
@@ -4845,7 +4885,8 @@ async function saveHealth(day){
 // ================= fase 4: skivakantie plannen =================
 const PACK = ["Ski's of snowboard", "Skischoenen", "Helm", "Skibril en zonnebril", "Skijas en -broek", "Thermokleding", "Handschoenen (en een extra paar)", "Muts en buff", "Zonnebrand en lippenbalsem", "Skipas", "Paspoort of ID-kaart", "Zorgverzekeringspas", "Oplader en powerbank", "Rugzakje"];
 const tripGet = () => { try{ return JSON.parse(localStorage.getItem("pp-trip") || "null"); }catch(e){ return null; } };
-const tripSet = t => { try{ t ? localStorage.setItem("pp-trip", JSON.stringify(t)) : localStorage.removeItem("pp-trip"); }catch(e){} };
+const tripSet = t => { try{ t ? localStorage.setItem("pp-trip", JSON.stringify(t)) : localStorage.removeItem("pp-trip"); }catch(e){}
+  if(window.PP_STORE === "ios"){ const r = t && S.index.find(x => x[0] === t.area); window.Capacitor?.nativePromise?.("Widget", "set", {key:"trip", value:t && t.from ? JSON.stringify({area:r?.[1] || "", from:t.from, to:t.to || t.from, lang:LANG}) : ""}).catch(() => {}); } };
 const dayDiff = iso => Math.ceil((new Date(iso + "T00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 864e5);
 // kaart bovenin Vandaag: aftellen naar je vakantie
 function tripCard(){

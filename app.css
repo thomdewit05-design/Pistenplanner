@@ -2000,3 +2000,20 @@ body.following,body.drawing,body.rp-on{--tab-h:0px}
 .pop-hours{display:flex;align-items:flex-start;gap:6px;margin:8px 2px 0;font-size:12.5px;color:var(--muted)}
 .pop-hours:empty{display:none}.pop-hours .ic{width:14px;height:14px;flex:none;margin-top:1px}
 .det-btns a.btn,.trip-card,.trip-add{text-decoration:none}
+
+/* ===== Fase 5: Pro, video ===== */
+.pro-hero{margin:4px 0 14px;padding:16px;border-radius:20px;background:linear-gradient(135deg,#1F7FD6,#7C3AED);color:#fff;display:grid;gap:4px}
+.pro-hero b{font:800 21px/1.2 var(--f-display)}
+.pro-hero span{font-size:13.5px;opacity:.9}
+.pro-grid{display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important}
+.pro-grid li{position:relative;display:flex!important;flex-direction:column;align-items:flex-start;gap:6px;padding:12px!important;border-radius:16px;background:var(--card,rgba(255,255,255,.7));border:1px solid var(--card-line,rgba(255,255,255,.8));font-size:13px;line-height:1.3}
+.pro-grid li .ic{width:22px;height:22px;color:var(--accent-strong,#1F7FD6)}
+.pro-grid li.hl{border-color:#E0A100;box-shadow:0 0 0 2px rgba(224,161,0,.35)}
+.pro-grid li em{position:absolute;top:8px;right:8px;font:700 10px var(--f-ui);font-style:normal;padding:2px 7px;border-radius:999px;background:#E5484D;color:#fff}
+.rp-bar.recording>span{color:#E5484D}
+.rp-bar.recording>span .ic{animation:recBlink 1s steps(2) infinite}
+@keyframes recBlink{50%{opacity:.2}}
+.pro-dlg{z-index:100000!important}
+.pro-card .pro-grid li{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#fff}
+.pro-card .pro-grid li .ic{color:#7CC0F5}
+.rp-bar{z-index:4700}
