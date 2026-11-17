@@ -85,22 +85,22 @@ function buzz(kind = "light"){
   }catch(e){}
 }
 // welkomstschermen: drie korte kaarten met wat de app doet, en waarom hij je locatie vraagt
-function onboarding(){
+function onboarding(custom){
   if(document.querySelector(".onb")) return;
   const art = k => `<svg viewBox="0 0 120 120" aria-hidden="true">${{
     route:`<path d="M14 98 60 18l46 80Z" fill="#9FC0D8"/><path d="M60 18l46 80H60Z" fill="#6E99BB"/><path d="M60 18l-9 16 5-2-3 9 7-6Z" fill="#fff"/><path d="M60 34c14 10 14 20 0 28s-14 18 2 26" fill="none" stroke="#FFC400" stroke-width="6" stroke-linecap="round"/><circle cx="60" cy="34" r="5" fill="#fff" stroke="#FFC400" stroke-width="3"/>`,
     voice:`<rect x="34" y="16" width="52" height="88" rx="12" fill="#fff" stroke="#9FC0D8" stroke-width="3"/><path d="M60 40v24M60 40l-9 9M60 40l9 9" stroke="#1D6FB0" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M45 80c4 5 9 7 15 7s11-2 15-7" stroke="#1D6FB0" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M92 46c5 4 5 14 0 18M98 40c9 7 9 23 0 30" stroke="#A7C7DC" stroke-width="4" fill="none" stroke-linecap="round"/>`,
     group:`<circle cx="42" cy="46" r="13" fill="#A7C7DC"/><circle cx="78" cy="46" r="13" fill="#1D6FB0"/><path d="M20 92c2-15 12-24 22-24s20 9 22 24Z" fill="#A7C7DC"/><path d="M56 92c2-15 12-24 22-24s20 9 22 24Z" fill="#1D6FB0"/>`}[k]}</svg>`;
-  const slides = [
+  const slides = custom?.slides || [
     ["route", "Nooit meer verdwalen op de piste", "Kies een skigebied, tik aan waar je heen wilt en Skipilot plant de route over pistes en liften die bij je niveau passen."],
     ["voice", "Navigeren met je stem", "Gesproken aanwijzingen, de 3D-kaart en de dagroute van vandaag. Je locatie blijft op je telefoon; die gebruikt de app alleen om je de weg te wijzen."],
     ["group", "Samen de berg op", "Maak een groep, deel je route en zie op de kaart waar je vrienden zijn. Klaar? Ga naar je eerste skigebied."]];
   const el = document.createElement("div"); el.className = "onb"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
   let i = 0;
-  const done = () => { try{ localStorage.setItem("pp-onboarded", "1"); }catch(e){} el.classList.add("out"); setTimeout(() => el.remove(), 350); buzz("success"); };
+  const done = () => { try{ localStorage.setItem(custom?.key || "pp-onboarded", "1"); }catch(e){} el.classList.add("out"); setTimeout(() => el.remove(), 350); buzz("success"); };
   const paint = () => {
     const [k, h, t] = slides[i], last = i === slides.length - 1;
-    el.innerHTML = `<div class="onb-card"><button type="button" class="onb-skip">Overslaan</button><div class="onb-art">${art(k)}</div><h2>${h}</h2><p>${t}</p>
+    el.innerHTML = `<div class="onb-card">${custom?.label ? `<p class="label onb-label">${custom.label}</p>` : ""}<button type="button" class="onb-skip">Overslaan</button><div class="onb-art">${custom ? `<span class="onb-ic">${I(k)}</span>` : art(k)}</div><h2>${tr(h)}</h2><p>${tr(t)}</p>
       <div class="onb-dots">${slides.map((_, j) => `<i class="${j === i ? "on" : ""}"></i>`).join("")}</div>
       <button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button></div>`;
     el.querySelector(".onb-skip").onclick = done;
@@ -243,12 +243,16 @@ function renderAreas(){
   let recent = []; try{ recent = JSON.parse(localStorage.getItem("pp-recent-q") || "[]"); }catch(e){}
   const rec = !q && recent.length ? `<li class="area-sep">${tr("Recent gezocht")}</li><li class="recent-row">${recent.map(r => `<button type="button" class="chip" data-rq="${esc(r)}">${I("clock")}${esc(r)}</button>`).join("")}</li>` : "";
   if(local && !shown.length) $("areas").querySelector(".empty")?.remove();
-  if(local || rec) $("areas").insertAdjacentHTML("afterbegin", rec + local);
+  const acts = actionHits(q);
+  const actHtml = acts.length ? `<li class="area-sep">${tr("Acties")}</li>` + acts.map((a, i) => `<li><button type="button" class="area-main srch-hit act-hit" data-act="${i}"><span class="node act-ic">${I(a.ic)}</span><span><span class="nm">${esc(tr(a.t))}</span><span class="rg">${esc(tr(a.where))}</span></span><span></span></button></li>`).join("") : "";
+  if(actHtml){ $("areas").querySelector(".empty")?.remove(); }
+  if(local || rec || actHtml) $("areas").insertAdjacentHTML("afterbegin", rec + actHtml + local);
+  $("areas").querySelectorAll("[data-act]").forEach(b => b.onclick = e => { e.stopPropagation(); remember(S.q); closePicker(); acts[+b.dataset.act].fn(); });
   $("areas").querySelectorAll("[data-rq]").forEach(b => b.onclick = () => { $("q").value = S.q = b.dataset.rq; renderAreas(); });
   $("areas").querySelectorAll(".srch-hit").forEach(b => b.onclick = e => { e.stopPropagation(); const x = localHits[+b.dataset.hit]; remember(S.q); closePicker();
     if(x.kind === "hut"){ map.setView([x.h.lat, x.h.lon], 16); hutPopup(x.h); } else goPiste(x.e.i); });
   const total = rows.length + favRows.length;
-  $("count").textContent = local && !total ? "" : rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
+  $("count").textContent = (local || acts.length) && !total ? "" : rows.length > shown.length ? `${shown.length + favRows.length} van ${total} getoond. Typ om te zoeken.` : `${total} skigebieden`;
   $("areas").querySelectorAll(".area-main:not(.srch-hit)").forEach(b => b.onclick = () => { remember(S.q); closePicker(); openArea(b.dataset.id); });
   $("areas").querySelectorAll(".fav").forEach(b => b.onclick = () => { toggleFav(b.dataset.fav); renderAreas(); });
   markOfflineAreas();
@@ -429,7 +433,7 @@ function drawPistes(){
   persistStatus();
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
   st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
-  drawSun(); drawHeat();
+  drawSun(); drawHeat(); syncLayerChips();
   M3.sync("pistes");
 }
 // paneel opzij: op een groot scherm, of op een liggende telefoon
@@ -940,7 +944,7 @@ function renderResult(){
   res.innerHTML = warn + profileHtml() + (S.lunch ? "" : `<div class="lunch-box" id="lunchBox"><button type="button" class="btn ghost" id="lunchAdd">${I("food")}Lunchstop toevoegen</button></div>`)
     + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
     + steps.map((s, i) => (i === S.lunchStep ? lunchLi() : "") + `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
-      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span></div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}${S.relax && s.t==="r" && s.items.some(x => overLevel(x.e)) ? `<span class="risk-chip">${I("warn")}Boven je niveau</span>` : ""}</div>
+      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span>${s.t!=="w" && s.e ? `<button type="button" class="st-info" data-ei="${s.e.i}" aria-label="${tr("Details")}">${I("chev")}</button>` : ""}</div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}${S.relax && s.t==="r" && s.items.some(x => overLevel(x.e)) ? `<span class="risk-chip">${I("warn")}Boven je niveau</span>` : ""}</div>
       <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
     + (S.lunchStep === steps.length ? lunchLi() : "")
     + `<li class="end"><span class="node">${atHome ? I(home.kind === "auto" ? "car" : "bed") : I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div>${homeWalk > 40 ? `<div class="st-sub">Daarna nog ${km(homeWalk)} lopen</div>` : ""}</div><span></span></li></ol>`;
@@ -949,8 +953,9 @@ function renderResult(){
   $("valley2")?.addEventListener("click", () => toValley(false));
   bindProfile();
   $("openStatus2")?.addEventListener("click", openStatus);
+  res.querySelectorAll(".st-info").forEach(b => b.onclick = ev => { ev.stopPropagation(); openDetail(+b.dataset.ei); });
   res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
-    if(ev.target.closest(".close-btn")) return;
+    if(ev.target.closest(".close-btn,.st-info")) return;
     const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
     if(!isSide()) setSheet(false);
   });
@@ -1423,7 +1428,7 @@ function apply3d(){
   $("threeBtn").setAttribute("aria-pressed", String(!!S.t3d));
   if(!want){ document.querySelector(".rp-bar")?.remove(); document.body.classList.remove("rp-on"); if(M3.mode === "view") M3.close(); return; }
   if(M3.mode === "view") return;
-  if(M3.loaded()){ M3.open("view"); if(S.pos) M3.meAt(S.pos.lat, S.pos.lon); return; }
+  if(M3.loaded()){ M3.open("view"); if(S.pos) M3.meAt(S.pos.lat, S.pos.lon); if(S.path?.length) tipOnce("fly", "Met Vlieg door de route zie je je hele route vooraf in 3D."); return; }
   document.body.classList.add("m3-loading");
   M3.load().then(() => { document.body.classList.remove("m3-loading"); apply3d(); })
     .catch(() => { document.body.classList.remove("m3-loading"); toast("De 3D-kaart kon niet laden. Probeer het later opnieuw."); S.t3d = false; save(); apply3d(); });
@@ -2648,11 +2653,12 @@ function renderDiary(){
   // pistes en liften
   const pl = sum?.pisteList || [], ll = sum?.liftList || [];
   $("diaryLists").innerHTML = (pl.length ? `<div class="d-list"><p class="label">Pistes (${pl.length})</p><div class="d-chips">${pl.map(x =>
-      `<span class="d-chip"><span class="node${isDark(x.diff) ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
+      `<span class="d-chip${day?.area === S.area?.id ? " link" : ""}" data-pn="${esc(x.name)}"><span class="node${isDark(x.diff) ? " dark" : ""}" style="--c:${DIFF[x.diff]?.col || "#888"}">${esc(x.ref) || I("ski")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (ll.length ? `<div class="d-list"><p class="label">Liften (${ll.length})</p><div class="d-chips">${ll.map(x =>
       `<span class="d-chip"><span class="node" style="background:var(--surface);color:var(--p-lift);border:1.5px solid var(--p-lift)">${I("lift")}</span>${esc(x.name)}${x.n > 1 ? ` <i>${x.n}×</i>` : ""}</span>`).join("")}</div></div>` : "")
     + (sum && sum.n > 1 ? `<div class="d-actions"><button type="button" class="btn ghost" id="dShare">${I("share")}Deel mijn dag</button><button type="button" class="btn ghost" id="dGpx">${I("route")}Exporteer GPX</button>${M3.supported && !M3.failed ? `<button type="button" class="btn primary" id="d3d">${I("layers")}Bekijk je dag in 3D</button>` : ""}</div>` : "");
   $("dShare")?.addEventListener("click", () => shareDay(day, sum));
+  $("diaryLists").querySelectorAll(".d-chip.link").forEach(c => c.onclick = () => { const g = [...S.area.groups.values()].find(g => g.t === "r" && uc(pisteLabel(g.e)) === c.dataset.pn); if(g) openDetail(g.e.i); });
   $("dGpx")?.addEventListener("click", () => exportGpx(day));
   $("d3d")?.addEventListener("click", () => replayDay(day));
   renderSeason(k); renderBadges();
@@ -3923,7 +3929,7 @@ function clearRoute(){
 // Onderin een zwevende glazen tabbalk: Kaart · Vandaag · Groep · Ik. Vandaag en Ik zijn dashboards met kaarten van matglas;
 // Groep is het bestaande groepsvenster. Tijdens navigeren, tekenen en de 3D-terugblik verdwijnt de balk.
 let TAB = "map";
-const TAB_PANELS = {today:"today", group:"group", me:"me"};
+const TAB_PANELS = {today:"today", plan:"plan", group:"group", me:"me"};
 function setTab(t){
   if(t === TAB && t !== "map"){ $(TAB_PANELS[t]).scrollTop = 0; return; }
   buzz();
@@ -3933,7 +3939,7 @@ function setTab(t){
   const dir = Math.sign(TAB_ORDER.indexOf(t) - TAB_ORDER.indexOf(TAB)) || 1, panel = $(TAB_PANELS[t]);
   if(panel){ panel.style.setProperty("--dx", `${dir * 36}px`); panel.classList.remove("tab-in"); void panel.offsetWidth; panel.classList.add("tab-in"); }
   TAB = t; tabPaint();
-  if(t === "today") openToday(); else if(t === "group") openGroup(); else if(t === "me") openMe();
+  if(t === "today") openToday(); else if(t === "plan") openPlan(); else if(t === "group") openGroup(); else if(t === "me") openMe();
 }
 function tabPaint(){
   document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB));
@@ -3942,7 +3948,7 @@ function tabPaint(){
     ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 7}px)`; });
 }
 addEventListener("resize", tabPaint); setTimeout(tabPaint, 300);
-const TAB_ORDER = ["map", "today", "group", "me"];
+const TAB_ORDER = ["map", "today", "plan", "group", "me"];
 document.querySelectorAll("#tabbar button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
 // gaat een venster dicht (kruisje, vegen), dan staat de tabbalk weer op Kaart
 new MutationObserver(() => {
@@ -4064,7 +4070,7 @@ function renderToday(){
         ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
-    + tripCard()
+    + (tripGet() && dayDiff(tripGet().to) >= 0 ? tripCard() : "")
     + `<div class="acts dc">${act("tdDay", "sun", "Dagroute")}${`<a class="act" id="tdTicket" href="${esc(ticketUrl())}" target="_blank" rel="noopener"><span>${I("ticket")}</span>${tr("Skipas")}</a>`}${act("tdHome", home?.kind === "auto" ? "car" : "bed", home ? (home.kind === "auto" ? "Naar je auto" : "Naar je hotel") : "Hotel bewaren")}${act("tdGroup", "group", "Groep")}</div>`
     + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
         ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
@@ -4483,7 +4489,7 @@ async function snowCheckNow(){
       const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${r[10] || 2400}&daily=snowfall_sum&forecast_days=2&timezone=auto`)).json();
       const cm = (j.daily?.snowfall_sum || []).reduce((a, v) => a + (v || 0), 0); if(cm < 20) continue;
       localStorage.setItem(key, String(Date.now()));
-      LN()("schedule", {notifications:[{id:7000 + (FAVS.indexOf(id) % 900), title:`${tr("Poederalarm in")} ${r[1]}`, body:`${Math.round(cm)} ${tr("cm verse sneeuw verwacht in de komende 48 uur.")}`, schedule:{at:new Date(Date.now() + 1500).toISOString()}}]}).catch(() => {});
+      LN()("schedule", {notifications:[{id:7000 + (FAVS.indexOf(id) % 900), title:`${tr("Poederalarm in")} ${r[1]}`, body:`${Math.round(cm)} ${tr("cm verse sneeuw verwacht in de komende 48 uur.")}`, extra:{url:"gebied/" + r[0]}, schedule:{at:new Date(Date.now() + 1500).toISOString()}}]}).catch(() => {});
     }catch(e){}
   }
 }
@@ -4494,7 +4500,7 @@ async function liftAlertPlan(){
   if(!D.rec || !notifCfg().lift) return;
   const [h, m] = (S.liftClose || "16:30").split(":").map(Number), at = new Date(); at.setHours(h, m - 30, 0, 0);
   if(at.getTime() < Date.now() + 60000 || !await notifAllowed(true)) return;
-  ln("schedule", {notifications:[{id:7777, title:tr("Laatste lift over 30 minuten"), body:tr("Tik om de route naar je auto of hotel te zien."), schedule:{at:at.toISOString()}}]}).catch(() => {});
+  ln("schedule", {notifications:[{id:7777, title:tr("Laatste lift over 30 minuten"), body:tr("Tik om de route naar je auto of hotel te zien."), extra:{url:"kaart"}, schedule:{at:at.toISOString()}}]}).catch(() => {});
 }
 if(NOTIF_APP){
   $("notifSec").hidden = false;
@@ -4580,7 +4586,7 @@ function detailPanel(){
     if(typeof swipeDismiss === "function") swipeDismiss(el); }
   return el;
 }
-async function openDetail(ei){
+async function _openDetail(ei){
   const ch = chainFrom(ei), e = ch.e, A = S.area, el = detailPanel(), lift = ch.kind === "l";
   const eS = A.nodes[ch.start].ele, eE = A.nodes[ch.end].ele, drop = Math.abs((eS ?? 0) - (eE ?? 0));
   const node = lift ? `<span class="node" style="background:var(--surface);color:var(--p-lift);border:2px solid var(--p-lift)">${liftIc(e.kind)}</span>`
@@ -4604,6 +4610,7 @@ async function openDetail(ei){
     <div class="det-btns"><button type="button" class="btn primary" id="detGo">${lift ? liftIc(e.kind) : I("ski")}${lift ? tr("Neem deze lift") : tr("Ski deze piste")}</button>
       ${!lift && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="detFly">${I("layers")}${tr("Vlieg erlangs in 3D")}</button>` : ""}</div>`;
   el.hidden = false; buzz("light");
+  if(!lift && isDark(e.diff) && !S.slopeOn) tipOnce("slope", "Zet de steilheidskaart aan (chip Steilheid) om de steilste stukken te zien.");
   $("detClose").onclick = () => el.hidden = true;
   $("detGo").onclick = () => { el.hidden = true; S.target = ch; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; if(S.from == null) S.from = ch.start; update(); fitRoute(); };
   $("detFly")?.addEventListener("click", async () => { el.hidden = true; const pts = chainPts(ch).map(p => [p[1], p[0]]); if(await open3dForReplay()) M3.replay(pts, null, {color:DIFF[e.diff].col, speed:1.6}); });
@@ -4671,7 +4678,7 @@ function areaInfo(){
     <button type="button" class="btn ghost" id="aiCompare">${I("swap")}${tr("Vergelijk met andere gebieden")}</button></section>`;
 }
 // skigebieden vergelijken: dit gebied naast je favorieten (of een paar grote), met verse sneeuw en sneeuwhoogte
-async function openCompare(){
+async function _openCompare(){
   const A = S.area, el = detailPanel();
   const others = [...FAVS.filter(id => id !== A.id), ...S.index.filter(r => r[0] !== A.id && r[2] === A.row[2]).sort((a, b) => b[6] - a[6]).map(r => r[0])].filter((v, i, a) => a.indexOf(v) === i).slice(0, 2);
   const rows = [A.row, ...others.map(id => S.index.find(r => r[0] === id)).filter(Boolean)];
@@ -4778,7 +4785,7 @@ function groupExtra(d){
 }
 function notifyGroup(title, body){
   if(!document.hidden || !window.Capacitor?.isNativePlatform?.()) return;
-  window.Capacitor.nativePromise("LocalNotifications", "schedule", {notifications:[{id:8000 + Math.floor(Math.random() * 900), title, body, schedule:{at:new Date(Date.now() + 1000).toISOString()}}]}).catch(() => {});
+  window.Capacitor.nativePromise("LocalNotifications", "schedule", {notifications:[{id:8000 + Math.floor(Math.random() * 900), title, body, extra:{url:"groep"}, schedule:{at:new Date(Date.now() + 1000).toISOString()}}]}).catch(() => {});
 }
 // ---- gezin: makkelijke routes en een "kind kwijt"-kaart voor het vergrendelscherm ----
 async function lostCard(name, phone){
@@ -4799,7 +4806,7 @@ async function lostCard(name, phone){
   await drawLogo(x, W / 2 - 50, 2300, 100); x.fillStyle = "rgba(255,255,255,.8)"; x.font = `600 38px ${UI}`; x.fillText("Skipilot", W / 2, 2450);
   return c;
 }
-function openLostCard(){
+function _openLostCard(){
   const el = detailPanel(); let st = {}; try{ st = JSON.parse(localStorage.getItem("pp-lost") || "{}"); }catch(e){}
   el.innerHTML = `<div class="picker-head"><div><p class="label">${tr("Gezin")}</p><h2>${tr("Kind kwijt-kaart")}</h2></div><button type="button" class="icon-btn" id="detClose" aria-label="${tr("Sluiten")}">${I("close")}</button></div>
     <p class="m-hint">${tr("Maak een achtergrond voor het vergrendelscherm van je kind, met jouw telefoonnummer. Als het kind de weg kwijt is, ziet iedereen meteen wie hij of zij moet bellen.")}</p>
@@ -4899,7 +4906,7 @@ function tripCard(){
     <div class="tc-r"><small>${new Date(t.from + "T12:00").toLocaleDateString(LOCALE, {day:"numeric", month:"short"})} – ${new Date(t.to + "T12:00").toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}</small>
       <div class="col-bar"><i style="--k:${Math.round(packed / PACK.length * 100)}%"></i></div><small>${packed}/${PACK.length} ${tr("ingepakt")}</small></div></button>`;
 }
-async function openTrip(){
+async function _openTrip(){
   const el = detailPanel(), t = tripGet() || {area:S.area?.id || FAVS[0] || "", from:"", to:"", pack:[]};
   const today = new Date().toISOString().slice(0, 10);
   const areaOpts = [...new Set([t.area, S.area?.id, ...FAVS].filter(Boolean))].map(id => S.index.find(r => r[0] === id)).filter(Boolean);
@@ -4917,7 +4924,7 @@ async function openTrip(){
   $("tpSave").onclick = () => { const a = $("tpArea").value, f = $("tpFrom").value, to = $("tpTo").value || f;
     if(!a || a === "__pick" || !f){ toast(tr("Kies een gebied en een begindatum.")); return; }
     if(to < f){ toast(tr("De einddatum ligt voor de begindatum.")); return; }
-    const cur = tripGet() || {}; tripSet({...cur, area:a, from:f, to, pack:cur.pack || []}); tripRemind(); buzz("success"); toast(tr("Vakantie bewaard. Het aftellen begint!")); openTrip(); if(!$("today").hidden) renderToday(); };
+    const cur = tripGet() || {}; tripSet({...cur, area:a, from:f, to, pack:cur.pack || []}); tripRemind(); buzz("success"); toast(tr("Vakantie bewaard. Het aftellen begint!")); detailGo(_openTrip, true); if(!$("today").hidden) renderToday(); };
   el.querySelectorAll("[data-pk]").forEach(cb => cb.onchange = () => { const cur = tripGet() || {area:$("tpArea").value, from:$("tpFrom").value, to:$("tpTo").value};
     cur.pack = [...el.querySelectorAll("[data-pk]:checked")].map(x => +x.dataset.pk); tripSet(cur.from ? cur : {...cur}); buzz("select");
     if(cur.pack.length === PACK.length){ buzz("success"); confetti(50); toast(tr("Alles ingepakt. Goede reis!")); } });
@@ -4949,7 +4956,7 @@ function tripRemind(){
   const at = new Date(t.from + "T18:00"); at.setDate(at.getDate() - 1); if(at.getTime() < Date.now()) return;
   const r = S.index.find(x => x[0] === t.area);
   window.Capacitor.nativePromise("LocalNotifications", "requestPermissions", {}).then(() =>
-    window.Capacitor.nativePromise("LocalNotifications", "schedule", {notifications:[{id:7600, title:`${tr("Morgen naar")} ${r?.[1] || ""}!`, body:tr("Check je paklijst en download het gebied voor offline gebruik."), schedule:{at:at.toISOString()}}]})).catch(() => {});
+    window.Capacitor.nativePromise("LocalNotifications", "schedule", {notifications:[{id:7600, title:`${tr("Morgen naar")} ${r?.[1] || ""}!`, body:tr("Check je paklijst en download het gebied voor offline gebruik."), extra:{url:"reis"}, schedule:{at:at.toISOString()}}]})).catch(() => {});
 }
 // ---- hutten: lunch hier en openingstijden (OpenStreetMap) ----
 const ohCache = new Map();
@@ -4974,6 +4981,156 @@ async function downloadArea(btn){
   try{ localStorage.setItem("pp-dl-" + A.id, String(Date.now())); }catch(e){}
   buzz("success"); toast(`${A.row[1]}: ${tiles.length} ${tr("kaarttegels bewaard voor offline.")}`, 3500);
 }
+
+// ================= structuur: terugnavigatie, links naar elk scherm, Plannen, acties, lagenchips =================
+// ---- detailvensters onthouden waar je vandaan kwam (terugpijl) ----
+const dHist = [];
+function detailGo(fn, back){
+  if(!back) dHist.push(fn); if(dHist.length > 12) dHist.shift();
+  fn();
+  const el = $("detail"); if(!el || el.hidden) return;
+  el.querySelector(".det-back")?.remove();
+  if(dHist.length > 1){ const b = document.createElement("button"); b.type = "button"; b.className = "det-back"; b.setAttribute("aria-label", tr("Terug"));
+    b.innerHTML = `${I("chev")}<span>${tr("Terug")}</span>`; b.onclick = () => { dHist.pop(); detailGo(dHist[dHist.length - 1], true); buzz("select"); };
+    el.prepend(b); }
+}
+new MutationObserver(() => { const el = $("detail"); if(el && el.hidden && dHist.length) dHist.length = 0; })
+  .observe(document.body, {subtree:true, attributes:true, attributeFilter:["hidden"]});
+// terug: het bovenste venster sluiten (Android-terugknop, Escape)
+function navBack(){
+  const top = [".wrapped", ".card-modal", ".cam-full", "#proDlg", ".onb"].map(q => document.querySelector(q)).find(Boolean);
+  if(top){ top.querySelector(".wr-x,[data-close],#proClose,.onb-skip")?.click() || top.remove(); return true; }
+  const det = $("detail"); if(det && !det.hidden){ if(dHist.length > 1){ dHist.pop(); detailGo(dHist[dHist.length - 1], true); } else det.hidden = true; return true; }
+  for(const id of ["sos", "layerMenu", "menu", "status", "picker", "diary"]){ const el = $(id); if(el && !el.hidden){ id === "menu" ? closeMenu() : id === "picker" ? closePicker() : el.hidden = true; return true; } }
+  if(TAB !== "map"){ setTab("map"); return true; }
+  if(S.draw){ stopDraw?.(); return true; }
+  return false;
+}
+document.addEventListener("keydown", e => { if(e.key === "Escape" && document.querySelector(".wrapped,.card-modal,.cam-full,#detail:not([hidden])")) navBack(); });
+(() => { const cap = window.Capacitor; if(!cap?.isNativePlatform?.() || !cap.registerPlugin) return;
+  try{ const App = cap.registerPlugin("App"); App.addListener("backButton", () => { if(!navBack()) App.minimizeApp?.(); }); }catch(e){} })();
+// ---- links naar elk scherm: #vandaag, #plannen, #groep, #ik, #kaart, #piste/<nr>, #dag/<jjjjmmdd> (ook skipilot://open/...) ----
+const ROUTES = {kaart:"map", vandaag:"today", plannen:"plan", groep:"group", ik:"me"};
+function routeHash(){
+  const h = decodeURIComponent(location.hash.slice(1)), [a, b] = h.split("/");
+  if(ROUTES[a]){ setTab(ROUTES[a]); clearHash(); return true; }
+  if(a === "piste" && S.area && S.area.edges[+b]){ setTab("map"); openDetail(+b); clearHash(); return true; }
+  if(a === "dag" && /^\d{8}$/.test(b || "")){ D.view = b === todayKey() ? null : b; openDiary(); clearHash(); return true; }
+  if(a === "reis"){ openTrip(); clearHash(); return true; }
+  if(a === "gebied" && b && S.index.some(r => r[0] === b)){ clearHash(); (S.area?.id === b ? Promise.resolve() : openArea(b)).then(() => setTab("today")); return true; }
+  return false;
+}
+const clearHash = () => { try{ history.replaceState(null, "", "#" + (S.area?.id || "")); }catch(e){} };
+addEventListener("hashchange", e => { if(routeHash()) e.stopImmediatePropagation(); }, true);
+setTimeout(() => { if(location.hash.length > 1) routeHash(); }, 2500);
+// ---- meldingen openen het juiste scherm ----
+(() => { const cap = window.Capacitor; if(!cap?.isNativePlatform?.() || !cap.registerPlugin) return;
+  try{ cap.registerPlugin("LocalNotifications").addListener("localNotificationActionPerformed", ev => { const u = ev?.notification?.extra?.url; if(u) setTimeout(() => { location.hash = u; }, 300); }); }catch(e){} })();
+// ---- Plannen: alles om vooruit te kijken op één plek ----
+function openPlan(){ $("plan").hidden = false; renderPlan(); }
+function renderPlan(){
+  const box = $("plan"), A = S.area, t = tripGet();
+  const tile = (id, ic, title, sub, col) => `<button type="button" class="plan-tile" id="${id}"><span class="pt-ic" style="background:${col}">${I(ic)}</span><b>${tr(title)}</b><small>${tr(sub)}</small></button>`;
+  const favRows = FAVS.map(id => S.index.find(r => r[0] === id)).filter(Boolean).slice(0, 8);
+  box.innerHTML = dashHead(tr("Vooruitkijken"), "Plannen", "plClose")
+    + (t && dayDiff(t.to) >= 0 ? tripCard().replace('class="trip-card dc"', 'class="trip-card dc big"') : `<button type="button" class="trip-add dc big" id="tripOpen">${I("calendar")}<span><b>${tr("Plan je skivakantie")}</b><small>${tr("Aftellen, weer, paklijst en route")}</small></span>${I("chev")}</button>`)
+    + `<div class="plan-grid">
+        ${tile("plTrip", "calendar", "Reisplanner", "Data, weer en paklijst", "linear-gradient(135deg,#1F7FD6,#7C3AED)")}
+        ${tile("plCompare", "swap", "Vergelijken", "Gebieden naast elkaar", "linear-gradient(135deg,#1F9D57,#0F8B8D)")}
+        ${tile("plDay", "sun", "Dagroute", A ? "Mooiste route van vandaag" : "Kies eerst een gebied", "linear-gradient(135deg,#E0A100,#F06A1D)")}
+        ${tile("plLunch", "food", "Lunch plannen", "Hut op het juiste moment", "linear-gradient(135deg,#D9264B,#E5484D)")}
+        ${tile("plArea", "search", "Skigebied kiezen", A ? A.row[1] : "1883 gebieden", "linear-gradient(135deg,#5E6E80,#2B3A4B)")}
+        ${tile("plOffline", "down", "Offline", "Gebied op je telefoon", "linear-gradient(135deg,#0F4C86,#2B7FC4)")}
+      </div>`
+    + (favRows.length ? `<section class="dc"><p class="label">${I("star")}${tr("Je favorieten")}</p><div class="fav-list">${favRows.map(r => `<button type="button" class="fav-row" data-area="${r[0]}"><span class="cc">${esc(r[2])}</span><b>${esc(r[1])}</b><small>${r[6]} km · ${r[10] ?? "?"} m</small>${I("chev")}</button>`).join("")}</div></section>`
+      : `<section class="dc"><p class="m-hint">${tr("Zet skigebieden bij je favorieten (ster) om ze hier snel te openen en te vergelijken.")}</p></section>`);
+  $("plClose").onclick = () => box.hidden = true;
+  $("tripOpen")?.addEventListener("click", openTrip); $("plTrip").onclick = openTrip;
+  $("plCompare").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } openCompare(); };
+  $("plDay").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); dayRoute(); };
+  $("plLunch").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); if(!S.path?.length) dayRoute(); setTimeout(lunchForm, 400); };
+  $("plArea").onclick = () => { box.hidden = true; openPicker(); };
+  $("plOffline").onclick = () => { setTab("map"); $("layerMenu").hidden = false; renderOffline(); setTimeout(() => $("offlineBox")?.scrollIntoView({block:"center"}), 200); };
+  box.querySelectorAll("[data-area]").forEach(b => b.onclick = () => { box.hidden = true; openArea(b.dataset.area); setTab("map"); });
+}
+// ---- acties in de zoekbalk: "begin skidag", "steilheid", "reisplanner", "niveau"… ----
+function actionList(){
+  const L = (id, ic, t, fn, where) => ({id, ic, t, fn, where});
+  const layer = id => () => { const c = $(id); c.checked = !c.checked; c.dispatchEvent(new Event("change")); syncLayerChips(); };
+  return [
+    D.rec ? L("rs", "stop", "Stop skidag", stopRec, "Skidagboek") : L("rb", "rec", "Begin skidag", startRec, "Skidagboek"),
+    L("val", "down", "Naar het dal", () => runAction("valley"), "Navigatie"),
+    L("home", "bed", "Naar mijn hotel of auto", () => runAction("home"), "Navigatie"),
+    L("hut", "food", "Naar de dichtstbijzijnde hut", () => runAction("hut"), "Navigatie"),
+    L("sos", "alert", "SOS en noodnummers", () => $("sosBtn")?.click(), "Veiligheid"),
+    L("slope", "warn", "Steilheidskaart", layer("slopeToggle"), "Kaartlagen"),
+    L("sun", "sun", "Zon en schaduw", layer("sunToggle"), "Kaartlagen"),
+    L("heat", "star", "Mijn sporen (heatmap)", layer("heatToggle"), "Kaartlagen"),
+    L("3d", "layers", "3D-kaart", () => $("threeBtn")?.click(), "Kaart"),
+    L("trip", "calendar", "Reisplanner", openTrip, "Plannen"),
+    L("cmp", "swap", "Gebieden vergelijken", openCompare, "Plannen"),
+    L("day", "sun", "Dagroute van vandaag", dayRoute, "Plannen"),
+    L("diary", "book", "Skidagboek", openDiary, "Ik"),
+    L("wrap", "star", "Jouw seizoen in beeld", openWrapped, "Ik"),
+    L("lost", "user", "Kind kwijt-kaart", openLostCard, "Gezin"),
+    L("grp", "group", "Groep", () => setTab("group"), "Groep"),
+    L("lvl", "ski", "Niveau en voorkeuren", () => openMenuAt("level"), "Instellingen"),
+    L("voice", "sound", "Stem en navigatie", () => openMenuAt("voice"), "Instellingen"),
+    L("theme", "moon", "Thema en taal", () => openMenuAt("themeSeg"), "Instellingen"),
+    L("notif", "alert", "Meldingen en Gezondheid", () => openMenuAt("snowAlert"), "Instellingen"),
+    L("pro", "star", "Skipilot Pro", () => openPro(), "Pro"),
+  ];
+}
+function actionHits(q){
+  if(q.length < 2) return [];
+  return actionList().filter(a => norm(tr(a.t) + " " + a.t + " " + tr(a.where)).includes(q)).slice(0, 5);
+}
+function openMenuAt(id){
+  setTab("map"); openMenu();
+  setTimeout(() => { const el = $(id) || document.querySelector(`#${id}`); const sec = el?.closest(".m-sec") || el; if(!sec) return;
+    sec.scrollIntoView({block:"start", behavior:calm() ? "auto" : "smooth"}); sec.classList.remove("flash"); void sec.offsetWidth; sec.classList.add("flash"); }, 250);
+}
+// zoeken in de instellingen
+function menuFilter(q){
+  q = norm(q.trim());
+  document.querySelectorAll("#menu .m-sec").forEach(sec => {
+    if(!q){ sec.style.display = ""; sec.querySelectorAll(".switch,.seg,label,.btn").forEach(x => x.classList.remove("m-hit")); return; }
+    const hit = norm(sec.textContent).includes(q); sec.style.display = hit ? "" : "none";
+  });
+}
+// ---- lagenchips op de kaart: in één tik aan of uit ----
+const LAYER_CHIPS = [["slopeToggle", "warn", "Steilheid"], ["sunToggle", "sun", "Zon"], ["heatToggle", "star", "Heatmap"], ["colChip", "check", "Gereden"], ["nightToggle2", "moon", "Avond"]];
+function syncLayerChips(){
+  const box = $("layerChips"); if(!box) return;
+  box.hidden = !S.area;
+  box.innerHTML = LAYER_CHIPS.map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
+    return `<button type="button" class="lchip" data-lc="${id}" aria-pressed="${on}">${I(ic)}${tr(t)}</button>`; }).join("");
+  box.querySelectorAll("[data-lc]").forEach(b => b.onclick = () => { const id = b.dataset.lc; buzz("select");
+    if(id === "colChip"){ showCollected(!S.colOn); syncLayerChips(); return; }
+    const c = $(id); c.checked = !c.checked; c.dispatchEvent(new Event("change")); setTimeout(syncLayerChips, 50); });
+}
+["slopeToggle", "sunToggle", "heatToggle", "nightToggle2", "nightToggle"].forEach(id => $(id)?.addEventListener("change", () => setTimeout(syncLayerChips, 50)));
+// ---- nieuw in Skipilot: één keer een korte rondleiding na de update ----
+function whatsNew(){
+  if(FIRST_RUN){ try{ localStorage.setItem("pp-new-2", "1"); }catch(e){} return; }
+  if(localStorage.getItem("pp-new-2")) return;
+  onboarding({key:"pp-new-2", label:tr("Nieuw in Skipilot"), slides:[
+    ["warn", "Steilheidskaart", "Zie in één oogopslag hoe steil een helling is. Zet hem aan met de chip Steilheid op de kaart."],
+    ["sun", "Zon en schaduw met een tijdschuif", "Kies een tijd en zie welke pistes dan in de zon liggen."],
+    ["calendar", "Plannen", "Reisplanner met aftellen, paklijst en weer, gebieden vergelijken en de dagroute op één plek."],
+    ["play", "Je skidag als video", "Bekijk je dag in 3D en deel hem als video op Instagram of TikTok."]]});
+}
+setTimeout(whatsNew, 3500);
+// ---- slimme tips: hooguit één per dag, elke tip maar één keer ----
+function tipOnce(key, text){
+  try{ if(localStorage.getItem("pp-tip-" + key) || localStorage.getItem("pp-tipday") === todayKey()) return;
+    localStorage.setItem("pp-tip-" + key, "1"); localStorage.setItem("pp-tipday", todayKey()); }catch(e){ return; }
+  setTimeout(() => toast(`${tr("Tip")}: ${tr(text)}`, 5000), 900);
+}
+function openDetail(...a){ detailGo(() => _openDetail(...a)); }
+function openCompare(...a){ detailGo(() => _openCompare(...a)); }
+function openTrip(...a){ detailGo(() => _openTrip(...a)); }
+function openLostCard(...a){ detailGo(() => _openLostCard(...a)); }
 // seizoensdoel in kilometers
 const GOALS = [100, 200, 300, 500, 1000];
 function goalKm(){ return +(localStorage.getItem("pp-goal") || 0); }
@@ -5056,7 +5213,7 @@ function swipeDismiss(el){
   // grote titel klapt in tot een compacte kop met matglas
   el.addEventListener("scroll", () => el.classList.toggle("scrolled", el.scrollTop > 36), {passive:true});
 }
-["today", "me", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
+["today", "me", "plan", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
 
 // ================= menu en instellingen =================
 const APP_VERSION = "2.0";
@@ -5118,7 +5275,8 @@ function renderInstall(){
   $("installBtn")?.addEventListener("click", async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); });
 }
 function openMenu(){ $("menu").hidden = false; syncMenu(); fillAds("menu"); }
-function closeMenu(){ $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
+$("menuSearch").oninput = e => menuFilter(e.target.value);
+function closeMenu(){ $("menuSearch").value = ""; menuFilter(""); $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
 $("menuBtn").onclick = openMenu;
 $("menuClose").onclick = closeMenu;
 document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").hidden) closeMenu(); });

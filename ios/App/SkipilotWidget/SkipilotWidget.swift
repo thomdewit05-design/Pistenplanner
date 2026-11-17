@@ -471,7 +471,7 @@ struct AreaView: View {
 struct AreaWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotArea", provider: AreaProvider()) { entry in
-            AreaView(entry: entry).containerBackground(for: .widget) {
+            AreaView(entry: entry).widgetURL(URL(string: "skipilot://open/vandaag")).containerBackground(for: .widget) {
                 LinearGradient(colors: [navyTop, navy], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }
@@ -589,7 +589,7 @@ struct DayView: View {
 struct DayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotDay", provider: DayProvider()) { entry in
-            DayView(entry: entry).containerBackground(for: .widget) {
+            DayView(entry: entry).widgetURL(URL(string: "skipilot://open/ik")).containerBackground(for: .widget) {
                 LinearGradient(colors: [navyTop, navy], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }
@@ -666,7 +666,7 @@ struct TripView: View {
 struct TripWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotTrip", provider: TripProvider()) { entry in
-            TripView(entry: entry).containerBackground(for: .widget) {
+            TripView(entry: entry).widgetURL(URL(string: "skipilot://open/plannen")).containerBackground(for: .widget) {
                 LinearGradient(colors: [Color(red: 0.12, green: 0.5, blue: 0.84), Color(red: 0.49, green: 0.23, blue: 0.93)], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }
