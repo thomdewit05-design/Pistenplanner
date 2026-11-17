@@ -8,3 +8,7 @@
 
 De koppen staan in `captions.json`, de opmaak in `compose.html` (canvas 1290×2796, een schermafbeelding van de app in een telefoonframe).
 Andere formaten (1320×2868, 1290×2796, 1284×2778, 1179×2556) zijn een kwestie van schalen; de verhouding is gelijk.
+
+## Echte schermafbeeldingen (`echt/`)
+Acht screenshots van de echte app (Ski Arlberg) in hetzelfde ontwerp: `echt/1206x2622/nl-1..8.jpg` en `echt/1290x2796/nl-1..8.jpg`.
+Bronnen in `echt/src/`, koppen in `echt/captions.json`, opmaak in `echt/compose.html`.
