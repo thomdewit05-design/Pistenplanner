@@ -2299,3 +2299,6 @@ body:has(.sheet.open) .toast:not(.low){top:calc(var(--safe-t) + 10px);bottom:aut
 .sheet:has(#goBtn) .od-row:has(.od-clear){grid-template-columns:14px minmax(0,1fr) auto auto;gap:6px}
 /* blokken in een scrollend scherm krimpen niet (anders drukte de vervaging onderaan de lijst met Instellingen in elkaar): het scherm scrolt */
 .dash>*,.group>*,.diary>*,.menu>*,.sheet .sheet-body>*{flex-shrink:0}
+/* SOS: de belknoppen en de rest krimpen niet als het scherm vol is (anders werd "Bel 112" afgesneden); het scherm scrolt */
+.sos>*{flex-shrink:0}
+.sos .call b{white-space:nowrap}
