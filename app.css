@@ -2648,7 +2648,9 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .cal-m p b{text-transform:none}
 .cmp{min-width:0}
 /* rondleiding op een klein scherm: ruimte boven de kaart, zodat "Overslaan" niet over de tekening valt */
-@media (orientation:portrait) and (max-height:700px){ .onb{padding-top:calc(52px + var(--safe-t))} .onb .onb-art{max-height:30vh} }
+@media (orientation:portrait) and (max-height:700px){ .onb{padding-top:calc(64px + var(--safe-t));place-items:start center} .onb .onb-art{max-height:26vh} .onb h2{font-size:22px} .onb p{font-size:15px} .onb-card{gap:10px} }
+/* vergelijken op het smalste scherm: kleiner, en liever een regel extra dan buiten de kolom */
+@media (max-width:350px){ .cmp td,.cmp th{font-size:12px;white-space:normal;overflow-wrap:anywhere} .cmp .km-sub{white-space:normal;font-size:11px} .cmp th:first-child{width:19%} }
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}
