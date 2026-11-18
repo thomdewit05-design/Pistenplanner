@@ -126,6 +126,10 @@ for(const phone of PHONES){
       small.forEach(x => problems.push(`[${tag}] ${t}: tekst kleiner dan 12 px (${x})`));
     }
     await p.evaluate(() => setTab("map")); await p.waitForTimeout(300);
+    // instellingen: een dichte sectie toont alleen zijn kop
+    const ms = await p.evaluate(() => { openMenu(); return [...document.querySelectorAll("#menu .m-sec:not(.open):not([hidden])")].filter(s => [...s.children].some(c => c.tagName !== "H3" && c.offsetParent !== null)).map(s => s.querySelector("h3")?.textContent.trim()); });
+    ms.forEach(x => problems.push(`[${tag}] instellingen: dichte sectie "${x}" toont inhoud`));
+    await p.evaluate(() => closeMenu()); await p.waitForTimeout(200);
     // SOS: de belknop is volledig zichtbaar (niet in elkaar gedrukt), ook op een klein scherm
     await p.evaluate(() => document.getElementById("sosBtn").click()); await p.waitForTimeout(600);
     const sos = await p.evaluate(() => { const c = document.getElementById("sosMain"), b = c.querySelector("b").getBoundingClientRect(), r = c.getBoundingClientRect();
