@@ -31,3 +31,5 @@ jobs:
         run: node tools/perf.mjs
       - name: Weerlaag (antwoorden van de weerdiensten omzetten, sneeuwhoogte alleen met meting)
         run: node tools/weather.mjs
+      - name: Locatie op de berg (gps-storing, aankomen, onbekend gebied)
+        run: node tools/gps.mjs

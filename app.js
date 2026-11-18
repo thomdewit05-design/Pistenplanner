@@ -270,7 +270,8 @@ const officialKm = r => OFFICIAL_KM[String(r[0]).slice(0, 8)] || null;
 const kmShort = r => { const o = officialKm(r); return o ? `${o[0]} km` : `${r[6]} km ${tr("gemeten")}`; };
 // volledig (detail, download, vergelijken): beide getallen, elk benoemd
 const kmFull = r => { const o = officialKm(r); return o ? `${o[0]} km ${tr("volgens het gebied")} · ${r[6]} km ${tr("gemeten")}` : `${r[6]} km ${tr("gemeten")}`; };
-const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
+// een mislukte poging wordt niet onthouden: anders blijft na één netwerkstoring een heel blok gebieden onbereikbaar tot de app opnieuw start
+const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }).catch(e => { delete shards[n]; throw e; });
 
 function renderCountries(){
   const rc = {}; S.index.forEach(r => { const g = r[12] || "alpen"; rc[g] = (rc[g]||0)+1; });
@@ -1358,8 +1359,13 @@ function startWatch(){
   if(S.watch != null) return true;
   if(!("geolocation" in navigator)){ toast("Dit apparaat geeft geen locatie door."); return false; }
   S.watch = navigator.geolocation.watchPosition(onPos, err => {
-    toast(err.code===1 ? "Locatie geweigerd. Sta locatie toe in je browserinstellingen." : "Locatie niet gevonden. Probeer het buiten opnieuw.", 3500);
-    stopWatch();
+    // Alleen een geweigerde toestemming stopt de locatie. Even geen ontvangst (gondel, tunnel, binnen) is tijdelijk:
+    // de dienst blijft zoeken, en opname en navigatie lopen door zodra er weer een positie is.
+    if(err.code === 1){
+      toast(window.PP_STORE === "ios" || window.PP_STORE === "android" ? "Locatie geweigerd. Sta locatie toe voor Skipilot in de instellingen van je telefoon." : "Locatie geweigerd. Sta locatie toe in je browserinstellingen.", 4000);
+      stopWatch(); return;
+    }
+    if(Date.now() - (S.gpsWarn || 0) > 90000){ S.gpsWarn = Date.now(); toast("Even geen gps-ontvangst. De app zoekt door.", 3000); }
   }, {enableHighAccuracy:true, maximumAge:3000, timeout:25000});
   $("locBtn").classList.add("on");
   return true;
@@ -1369,6 +1375,7 @@ function stopWatch(){
   setTimeout(renderSpeedo, 0);
   if(S.watch != null) navigator.geolocation.clearWatch(S.watch);
   S.watch = null; S.pos = null; S.follow = false; keepAwake(false); povApply();
+  document.body.classList.remove("following");   // anders blijft het scherm in de navigatie-indeling staan, zonder tabbalk
   $("locBtn").classList.remove("on","follow");
   meMarker?.remove(); meCircle?.remove(); meMarker = meCircle = null;
   update();
@@ -1390,8 +1397,14 @@ async function onPos(p){
   const inArea = S.area && S.area.bounds.pad(0.15).contains(ll);
   if(!inArea && S.index.length){
     const near = S.index.map(r => ({r, d:meters(S.pos.lat, S.pos.lon, r[5], r[4])})).sort((a,b)=>a.d-b.d)[0];
-    if(near && near.d < 15000 && near.r[0] !== S.area?.id){
-      toast(`Je bent bij ${near.r[1]}. Kaart geladen.`); await openArea(near.r[0], {keepView:true});
+    // Eén keer per gebied: anders opent elke nieuwe positie het gebied (of het downloadscherm) opnieuw, breekt dat een lopende
+    // download af, en kun je niet rustig een ander gebied bekijken.
+    S.nearSeen ||= new Set();
+    if(near && near.d < 15000 && near.r[0] !== S.area?.id && !S.nearSeen.has(near.r[0]) && !document.querySelector(".dl-gate")){
+      S.nearSeen.add(near.r[0]);
+      const had = isDownloaded(near.r[0]);
+      await openArea(near.r[0], {keepView:true});
+      if(had && S.area?.id === near.r[0]) toast(`Je bent bij ${near.r[1]}. Kaart geladen.`);
     }
   }
   if(S.area && (S.fromMe || S.follow)){
@@ -1399,7 +1412,9 @@ async function onPos(p){
     if(S.fromMe && (first || S.from == null)){ S.from = nn.n; update(); }
     // van de route af (en wel in het skigebied): opnieuw plannen vanaf waar je nu bent
     else if(S.follow && S.path && nn.d < 400 && distToRoute() > OFF_ROUTE){
-      if(++S.offCount >= 2){ dropPassed(); S.fromMe = true; S.from = nn.n; S.offCount = 0; toast("Je bent van de route af. Nieuwe route berekend."); speak("Je bent van de route af. Nieuwe route berekend."); update(); }
+      // pas opnieuw rekenen als je sinds de vorige keer echt verplaatst bent: anders herhaalt dit zich bij elke positie
+      const moved = !S.offPos || meters(S.offPos.lat, S.offPos.lon, S.pos.lat, S.pos.lon) > 80;
+      if(++S.offCount >= 2 && moved){ S.offPos = {lat:S.pos.lat, lon:S.pos.lon}; dropPassed(); S.fromMe = true; S.from = nn.n; S.offCount = 0; toast("Je bent van de route af. Nieuwe route berekend."); speak("Je bent van de route af. Nieuwe route berekend."); update(); }
     } else S.offCount = 0;
   }
   if(firstFix && !S.follow){ firstFix = false; map.setView(ll, Math.max(map.getZoom(), 15)); }
@@ -2091,11 +2106,16 @@ async function snowObs(r){
   obsSave(key, out || {none:1}); return out;
 }
 const obsLine = o => o ? `${tr("gemeten")} · ${esc(o.name)} (${o.ele} m)` : tr("geen meting in de buurt");
+// de gemeten sneeuwhoogte ophalen, los van het weer; eindigt altijd (meting, of "geen meting")
+function loadObs(A){
+  const id = A.id;
+  snowObs(A.row).then(o => o, () => null).then(o => { A.obs = o || null; A.obsDone = true; if(S.area?.id !== id) return; const c = wxCache[id]; if(c) renderWeather(c.d, c.saved); });
+}
 async function loadWeather(){
   const A = S.area; if(!A) return;
   const id = A.id, r = A.row, hi = r[10] ?? 2400, lo = r[9] ?? 1200;
   const c = wxCache[id];
-  if(c && Date.now() - c.t < 30*60e3) return renderWeather(c.d);
+  if(c && Date.now() - c.t < 30*60e3){ renderWeather(c.d, c.saved); if(!A.obsDone) loadObs(A); return; }
   $("wxSum").innerHTML = `<span class="wx-loading">Weer en sneeuw laden…</span>`; $("wxBody").innerHTML = "";
   try{
     const P = wxPoints(A), d = await Promise.all([metGet(P.top.lat, P.top.lon, P.top.ele), metGet(P.dal.lat, P.dal.lon, P.dal.ele)]);
@@ -2103,17 +2123,24 @@ async function loadWeather(){
     wxCache[id] = {t:Date.now(), d};
     try{ localStorage.setItem("pp-wx:" + id, JSON.stringify({t:Date.now(), d})); }catch(e){}
     if(S.area?.id === id) renderWeather(d);
-    snowObs(r).then(o => { if(S.area?.id !== id) return; A.obs = o || null; A.obsDone = true; const c2 = wxCache[id]; if(c2) renderWeather(c2.d); });
+    loadObs(A);
   }catch(e){
     const old = wxStore(id);
     if(S.area?.id !== id) return;
-    if(old && Date.now() - old.t < 36*3600e3){ wxCache[id] = {t:0, d:old.d}; renderWeather(old.d, old.t); }
+    if(old && Date.now() - old.t < 36*3600e3){ wxCache[id] = {t:0, d:old.d, saved:old.t}; renderWeather(old.d, old.t); loadObs(A); }
     else { $("wxSum").innerHTML = `${I("cloud")}<span class="wx-loading">Weer niet beschikbaar. Geen verbinding?</span><button type="button" class="btn ghost wx-retry" id="wxRetry">${I("reset")}Opnieuw</button>`;
       $("wxRetry").onclick = ev => { ev.stopPropagation(); loadWeather(); }; S.wxFail = id; if(!$("today").hidden) renderToday(); }
   }
 }
 function renderWeather(d, savedAt){
-  const A = S.area, r = A.row, top = d[0], dal = d[1], c = top.current, cd = dal.current;
+  const A = S.area, r = A.row, top = d[0], dal = d[1];
+  let c = top.current, cd = dal.current;
+  // Bewaard weer (zonder bereik): niet de waarden van het moment van bewaren als "nu" tonen, maar het uur van nu uit de reeks.
+  if(savedAt && top.hourly?.time){
+    const now = locIso(new Date()).slice(0, 13) + ":00", i = top.hourly.time.indexOf(now), j = dal.hourly?.time?.indexOf(now) ?? -1;
+    if(i >= 0) c = {...c, time:now, temperature_2m:top.hourly.temperature_2m[i], apparent_temperature:top.hourly.temperature_2m[i], wind_speed_10m:top.hourly.wind_speed_10m?.[i] ?? c.wind_speed_10m};
+    if(j >= 0) cd = {...cd, time:now, temperature_2m:dal.hourly.temperature_2m[j]};
+  }
   const [txt, ic] = wxInfo(c.weather_code);
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
   // sneeuw van de afgelopen 24 uur: alleen als die gemeten is (station), of als de bron de voorbije uren meelevert; anders onbekend
@@ -2160,7 +2187,7 @@ function renderWeather(d, savedAt){
       <div class="wx-cell"><span>${I("thermo")}0°-grens</span><b>${c.freezing_level_height != null ? Math.round(c.freezing_level_height/50)*50 : "–"}<small> m</small></b><small>vriespunt${c.flEst ? ` <span class="est">≈</span>` : ""}</small></div>
     </div>
     <div class="wx-days">${days}</div>
-    <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}${top.src ? `<a class="wx-src" href="https://www.met.no/en" target="_blank" rel="noopener">${top.src}</a>` : "Open-Meteo"}${obs ? ` · <a class="wx-src" href="${obs.url}" target="_blank" rel="noopener">${obs.src}</a>` : ""} · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${top.ele ?? r[10] ?? "?"}/${dal.ele ?? r[9] ?? "?"} m${top.daily.sure ? " · na dag 5 onzeker" : ""}</span>
+    <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard ${new Date(savedAt).toLocaleDateString(LOCALE, {weekday:"short"})} ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}${top.src ? `<a class="wx-src" href="https://www.met.no/en" target="_blank" rel="noopener">${top.src}</a>` : "Open-Meteo"}${obs ? ` · <a class="wx-src" href="${obs.url}" target="_blank" rel="noopener">${obs.src}</a>` : ""} · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${top.ele ?? r[10] ?? "?"}/${dal.ele ?? r[9] ?? "?"} m${top.daily.sure ? " · na dag 5 onzeker" : ""}</span>
       ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>
     ${avScale()}
     <div class="best-snow" id="bestSnow"></div>
@@ -4459,7 +4486,7 @@ function renderToday(){
   const html = dashHead(`${greeting()} · ${tr("vandaag in")}`, esc(r[1]), "tdClose")
     + `<section class="hero dc sky-${heroSky().k}${w ? "" : " nowx"}">${heroSkyline(A)}<div class="hero-txt">
         <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : `<b class="hero-name">${S.wxFail === A.id ? tr("Weer niet beschikbaar") : tr("Weer laden…")}</b>`}</p>
-        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
+        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}${w.savedAt ? ` · ${tr("bewaard")} ${new Date(w.savedAt).toLocaleDateString(LOCALE, {weekday:"short"})} ${new Date(w.savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})}` : ""}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
         ${w || S.wxFail !== A.id ? (!w ? tile("snow", "Vers", null, "cm", "") : w.fresh != null ? tile("snow", "Vers", num(Math.round(w.fresh)), "cm", w.obs?.fresh != null ? tr("gemeten, 24 uur") : `${tr("laatste 24 uur")} <span class="est">≈</span>`)
@@ -4600,6 +4627,8 @@ function arrived(){
   el.innerHTML = `<div class="arr-card"><span class="arr-ic">${I("flag")}</span><h3>Je bent er!</h3><p>${km(tot.len)} · ${fmt(tot.min)}</p><button type="button" class="btn primary">${I("check")}Mooi</button></div>`;
   document.body.appendChild(el);
   const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+  // de navigatie is klaar: scherm en gps niet aan laten staan
+  if(S.follow) setTimeout(() => { if(S.follow) toggleFollow(); }, 1200);
   el.querySelector("button").onclick = () => { close(); askReview(); }; setTimeout(close, 6000);
 }
 // nieuwe prestatie behaald: munt die binnendraait
