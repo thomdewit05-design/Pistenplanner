@@ -17,9 +17,11 @@ const M3 = (() => {
   const SCALE = 2;   // plaatjes voor pistenummers en hutten op dubbele resolutie
   const HUT_COL = {h:"#7A2E0E", r:"#8A4B12", f:"#8A4B12", c:"#6B3FA0", b:"#6B3FA0", p:"#1F5FCC", v:"#0F7A6B", d:"#4A5A6E", s:"#C2410C", o:"#15803D"};
 
-  const supported = (() => {
-    try{ const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); }catch(e){ return false; }
-  })();
+  // bij het opstarten alleen kijken of het toestel WebGL kent; een echte proefcontext maken kostte opstarttijd (lukt het later toch niet, dan vangt failGl dat op)
+  const supported = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
+  // Scherpte van de 3D-kaart: op een telefoon met een 3x-scherm is 1,75x ruim scherp genoeg en scheelt het een kwart van de pixels
+  // die elk beeld berekend moeten worden; met batterij sparen nog iets lager.
+  const glRatio = () => Math.min(devicePixelRatio || 1, saving() ? 1.25 : 1.75);
   const loaded = () => !!window.maplibregl && !failed;
   function load(){
     if(window.maplibregl) return Promise.resolve();
@@ -40,7 +42,8 @@ const M3 = (() => {
   const baseSource = (size = 256) => { const bt = baseTiles();
     return {type:"raster", tiles:bt.tiles, tileSize:size, maxzoom:bt.maxzoom, attribution:bt.attribution}; };
   function baseTiles(){
-    if(S.base === "winter") return {tiles:[WINTER], maxzoom:17, attribution:baseLayers.winter.options.attribution};
+    if(S.base === "winter") return {tiles:[WINTER], maxzoom:14,   // net als de hoogte: alleen gedownloade tegels (op een retinascherm dubbel zo scherp getekend)
+       attribution:baseLayers.winter.options.attribution};
     const b = baseLayers[S.base], o = b.options, url = b._url.replace("{r}", "");
     const subs = typeof o.subdomains === "string" ? o.subdomains.split("") : (o.subdomains || []);
     return {tiles:url.includes("{s}") ? subs.map(s => url.replace("{s}", s)) : [url], maxzoom:o.maxNativeZoom ?? o.maxZoom ?? 18, attribution:o.attribution || ""};
@@ -242,10 +245,12 @@ const M3 = (() => {
       sources:{
         base:baseSource(), basehd:baseSource(TS),
         labels:{type:"raster", tiles:[LABELS], tileSize:TS, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:TS, maxzoom:18},
-        dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium", attribution:DEM_ATTR},
+        // hoogte, schaduw en steilheid tot zoom 14: dat is precies wat bij het downloaden van een gebied is opgeslagen, dus 3D werkt
+        // zonder bereik en hoeft onderweg niets op te halen (dichterbij wordt hetzelfde reliëf gewoon uitgerekt)
+        dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:14, encoding:"terrarium", attribution:DEM_ATTR},
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
-        shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
-        slope:{type:"raster", tiles:[SLOPE], tileSize:256, minzoom:11, maxzoom:15},
+        shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:14, encoding:"terrarium"},
+        slope:{type:"raster", tiles:[SLOPE], tileSize:256, minzoom:11, maxzoom:14},
         pistes:{type:"geojson", data:EMPTY}, sun:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
       },
       layers:[
@@ -377,9 +382,20 @@ const M3 = (() => {
   // ---------- eigen tegels ----------
   // skidem://   hoogtetegels, opgeschoond (zonder pieken) door terrain.js
   // skiwinter:// de winterkaart, ook getekend door terrain.js; beide in een worker, zodat de kaart niet hapert
+  // Een tegel die eenmaal gevraagd is, wordt altijd afgemaakt. Beweegt de camera (vlucht door de route, navigatie), dan breekt
+  // MapLibre elk beeld tegels af en vraagt ze meteen opnieuw; brak het rekenwerk dan ook af, dan kwam er nooit één klaar en bleef
+  // het scherm wit. Wie dezelfde tegel opnieuw vraagt terwijl hij nog onderweg is, krijgt die ene uitkomst.
+  // (Alleen een uitkomst waar niemand meer op wacht wordt doorgegeven: twee bronnen die dezelfde tegel willen, krijgen elk hun eigen plaatje.)
+  const tileFree = new Map();   // sleutel → aanvragen waarvan de vrager is afgehaakt
   const tileFrom = kind => async (params, abort) => {
-    const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url);
-    return {data:await PPterrain.get(kind, +m[1], +m[2], +m[3], kind === "winter" && RETINA ? 2 : 1, abort?.signal)};
+    const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url), r = kind === "winter" && RETINA ? 2 : 1, key = kind + "/" + m[1] + "/" + m[2] + "/" + m[3];
+    const free = tileFree.get(key);
+    let p = free && free.pop();
+    if(!p){ p = PPterrain.get(kind, +m[1], +m[2], +m[3], r); }
+    const drop = () => { const l = tileFree.get(key); if(l){ const i = l.indexOf(p); if(i >= 0) l.splice(i, 1); if(!l.length) tileFree.delete(key); } };
+    // haakt de vrager af terwijl de tegel nog onderweg is: bewaren voor wie hem hierna vraagt (hooguit 20 s)
+    abort?.signal?.addEventListener("abort", () => { const l = tileFree.get(key) || []; l.push(p); tileFree.set(key, l); setTimeout(drop, 20000); }, {once:true});
+    return {data:await p};
   };
 
   // ---------- pistenummers en hutten als plaatjes ----------
@@ -480,7 +496,7 @@ const M3 = (() => {
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     if(dirty.has("slope") && gl.getLayer("slope")) gl.setLayoutProperty("slope", "visibility", S.slopeOn ? "visible" : "none");
     if(dirty.has("sun")){ gl.getSource("sun")?.setData(sunData()); sunShadeLayer(); gl.setSky(skyNow()); }
-    if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); }
+    if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); if(gl.setPixelRatio && gl.getPixelRatio() !== glRatio()) gl.setPixelRatio(glRatio()); }
     if(dirty.has("peaks")) gl.getSource("peaks").setData(peaksData());
     dirty.clear();
   }
@@ -498,7 +514,7 @@ const M3 = (() => {
     if(!proto){ maplibregl.addProtocol("skidem", tileFrom("dem")); maplibregl.addProtocol("skiwinter", tileFrom("winter")); maplibregl.addProtocol("skislope", tileFrom("slope")); proto = true; }
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
-      pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
+      pixelRatio:glRatio(), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
       canvasContextAttributes:{antialias:(devicePixelRatio || 1) < 2}});   // gladde randen; op een retinascherm is dat niet nodig en scheelt het veel rekenwerk
     styled = false;
     // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes
@@ -579,7 +595,7 @@ const M3 = (() => {
     return guardEle;
   }
   function guardElevation(){
-    if(mode !== "view" || !gl) return;
+    if(mode !== "view" || !gl || (rp && !rp.ended)) return;   // tijdens de vlucht regelt de vlucht de hoogte zelf
     const c = gl.getCenter(), t = gl.queryTerrainElevation(c);
     if(t != null && t > 0){ if(!gl.getCenterClampedToGround()) gl.setCenterClampedToGround(true); return; }
     const fb = fallbackEle(c.lat, c.lng) * EXAG;
@@ -653,6 +669,7 @@ const M3 = (() => {
   // ---------- je skidag terugkijken ----------
   // De camera vliegt langs het spoor van die dag; het paarse spoor groeit mee achter een stip aan.
   let rp = null;
+  const FLY_Z = 14.8;   // de tegels gaan niet verder dan zoom 14 (gedownload), dus dichterbij vliegen vraagt niets extra's op
   function replay(coords, done, opt = {}){
     if(!gl || coords.length < 2) return false;
     stopReplay();
@@ -680,21 +697,33 @@ const M3 = (() => {
         gl.getSource("replay")?.setData({type:"Feature", geometry:{type:"LineString", coordinates:[...coords.slice(0, i + 1), p]}});
         rp.mk.setLngLat(p);
         if(dist(p, ahead) > 8){ const db = ((brg(p, ahead) - rp.bearing) % 360 + 540) % 360 - 180; rp.bearing += db * .04; }
-        gl.jumpTo({center:p, bearing:rp.bearing, zoom:14.8, pitch:64});
+        // De hoogte van het punt onder de camera zelf meegeven (net als bij navigeren): zolang de hoogtetegels er nog niet zijn rekent
+        // MapLibre met 0 m en hangt de camera in de berg; dan zie je alleen een wit vlak.
+        const tq = gl.queryTerrainElevation(p), ele = tq != null && tq > 0 ? tq : fallbackEle(p[1], p[0]) * EXAG;
+        gl.jumpTo({center:p, bearing:rp.bearing, zoom:FLY_Z, pitch:64, elevation:ele});
         if(k < 1){ rp.raf = requestAnimationFrame(step); return; }
         // klaar: het hele spoor in beeld
         const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
-        gl.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], {padding:80, pitch:55, duration:1800});
-        const cb = rp.done; rp.mk.remove(); rp = {ended:true}; cb?.();
+        gl.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], {padding:{top:70, bottom:110, left:40, right:40}, pitch:55, duration:1800});
+        const cb = rp.done; rp.mk.remove(); rp = {ended:true}; gl.setCenterClampedToGround?.(true); cb?.();
       };
-      gl.easeTo({center:coords[0], zoom:14.8, pitch:64, bearing:rp.bearing, duration:1500});
-      setTimeout(() => { if(rp && !rp.ended){ rp.t0 = performance.now(); rp.raf = requestAnimationFrame(step); } }, 1550);
+      gl.setPadding({top:0, bottom:0, left:0, right:0});   // tijdens de vlucht is het paneel weg: het hele scherm is kaart
+      gl.setCenterClampedToGround?.(false);   // tijdens de vlucht bepalen wij de hoogte van het midden
+      const t0q = gl.queryTerrainElevation(coords[0]), ele0 = t0q != null && t0q > 0 ? t0q : fallbackEle(coords[0][1], coords[0][0]) * EXAG;
+      gl.easeTo({center:coords[0], zoom:FLY_Z, pitch:64, bearing:rp.bearing, elevation:ele0, duration:1500});
+      // pas wegvliegen als het landschap bij het startpunt er staat (hooguit 5 s wachten): anders vloog je boven een leeg, wit vlak
+      let started = false;
+      const go = () => { if(started || !rp || rp.ended) return; started = true; rp.t0 = performance.now(); rp.raf = requestAnimationFrame(step); };
+      setTimeout(() => { if(!gl || !rp) return;
+        gl.jumpTo({center:coords[0], zoom:FLY_Z, pitch:64, bearing:rp.bearing, elevation:ele0});   // de hoogte vastzetten terwijl we op het landschap wachten
+        if(gl.areTilesLoaded()) go(); else { gl.once("idle", go); setTimeout(go, 5000); } }, 1550);
     };
     if(styled) start(); else gl.once("style.load", start);
     return true;
   }
   function stopReplay(){
     if(!rp) return;
+    if(gl && mode === "view") gl.setCenterClampedToGround?.(true);
     cancelAnimationFrame(rp.raf); rp.mk?.remove(); rp = null;
     if(!gl) return;
     for(const id of ["replay", "replay-case"]) if(gl.getLayer(id)) gl.removeLayer(id);
