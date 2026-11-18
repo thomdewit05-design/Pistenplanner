@@ -689,18 +689,33 @@ const M3 = (() => {
       gl.addLayer({id:"replay", type:"line", source:"replay", layout:line, paint:{"line-color":opt.color || "#7C3AED", "line-width":4.5}});
       const el = document.createElement("div"); el.className = "rp-dot";
       const mk = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1"}).setLngLat(coords[0]).addTo(gl);
-      rp = {mk, raf:0, t0:performance.now(), bearing:brg(coords[0], at(Math.min(total, 150)).p), done};
+      rp = {mk, raf:0, t0:performance.now(), bearing:brg(coords[0], at(Math.min(total, 150)).p), pitch:64, done};
       const step = now => {
         if(!rp) return;
         const k = Math.min(1, (now - rp.t0) / T), d = total * (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);   // rustig optrekken en afremmen
-        const {p, i} = at(d), ahead = at(Math.min(total, d + 160)).p;
+        const {p, i} = at(d), ahead = at(Math.min(total, d + 320)).p;   // ver vooruit kijken: het beeld draait rustig mee in plaats van elke bocht te volgen
         gl.getSource("replay")?.setData({type:"Feature", geometry:{type:"LineString", coordinates:[...coords.slice(0, i + 1), p]}});
         rp.mk.setLngLat(p);
-        if(dist(p, ahead) > 8){ const db = ((brg(p, ahead) - rp.bearing) % 360 + 540) % 360 - 180; rp.bearing += db * .04; }
+        if(dist(p, ahead) > 8){ const db = ((brg(p, ahead) - rp.bearing) % 360 + 540) % 360 - 180; rp.bearing += db * .025; }
         // De hoogte van het punt onder de camera zelf meegeven (net als bij navigeren): zolang de hoogtetegels er nog niet zijn rekent
         // MapLibre met 0 m en hangt de camera in de berg; dan zie je alleen een wit vlak.
         const tq = gl.queryTerrainElevation(p), ele = tq != null && tq > 0 ? tq : fallbackEle(p[1], p[0]) * EXAG;
-        gl.jumpTo({center:p, bearing:rp.bearing, zoom:FLY_Z, pitch:64, elevation:ele});
+        // Niet door de berg: de camera hangt schuin achter het punt. Draait het beeld mee, dan kan daar een helling of kam staan.
+        // We meten de grond onder de kijklijn (op drie plekken tussen punt en camera) en kijken steiler omlaag tot de lijn vrij is;
+        // steiler kijken tilt de camera op en haalt hem dichterbij.
+        const mpp = 40075016.686 * Math.cos(p[1] * rad) / (512 * 2 ** FLY_Z), Lm = 1.5 * gl.getCanvas().clientHeight * mpp;   // afstand camera–punt in meters
+        const back = (rp.bearing + 180) * rad, clear = pitch => {
+          const D = Lm * Math.sin(pitch * rad), H = Lm * Math.cos(pitch * rad);
+          for(const f of [.4, .7, 1]){
+            const m = D * f, q = [p[0] + m * Math.sin(back) / (R * rad * Math.cos(p[1] * rad)), p[1] + m * Math.cos(back) / (R * rad)];
+            const g0 = gl.queryTerrainElevation(q), g = g0 != null && g0 > 0 ? g0 : fallbackEle(q[1], q[0]) * EXAG;
+            if(g + 70 > ele + H * f) return false;
+          }
+          return true;
+        };
+        let want = 64; while(want > 28 && !clear(want)) want -= 4;
+        rp.pitch += (want - rp.pitch) * (want < rp.pitch ? .2 : .03);   // snel omhoog als er iets in de weg staat, rustig terug
+        gl.jumpTo({center:p, bearing:rp.bearing, zoom:FLY_Z, pitch:rp.pitch, elevation:ele});
         if(k < 1){ rp.raf = requestAnimationFrame(step); return; }
         // klaar: het hele spoor in beeld
         const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
