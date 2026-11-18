@@ -160,7 +160,7 @@ const baseLayers = {
     createTile(c, done){
       const t = document.createElement("canvas"), r = devicePixelRatio > 1.5 ? 2 : 1;   // scherp op een retinascherm
       t.width = t.height = 256 * r;
-      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
+      PPterrain.get(darkMap() ? "winterd" : "winter", c.z, c.x, c.y, r).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
       return t;
     }
   }))({maxZoom:19, maxNativeZoom:16, keepBuffer:3, attribution:'Winterkaart van Skipilot · hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen Terrain Tiles</a> · wegen en namen: Esri'})
@@ -5498,7 +5498,13 @@ function applyTheme(){
   let t = "light"; try{ t = localStorage.getItem("pp-theme") || "light"; }catch(e){}
   if(t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   document.querySelectorAll("#themeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === t)));
+  // de winterkaart is in de donkere stand gedempt: opnieuw tekenen als de stand wisselt
+  const dk = darkMap(); if(applyTheme.dk !== undefined && applyTheme.dk !== dk){ try{ baseLayers.winter.redraw(); }catch(e){} document.body.classList.toggle("map-dark", dk); }
+  applyTheme.dk = dk; document.body?.classList.toggle("map-dark", dk);
 }
+function darkMap(){ const t = document.documentElement.dataset.theme; return t === "dark" || (!t && matchMedia("(prefers-color-scheme:dark)").matches); }
+window.ppDarkMap = darkMap;
+try{ matchMedia("(prefers-color-scheme:dark)").addEventListener("change", () => applyTheme()); }catch(e){}
 applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
 function syncMenu(){

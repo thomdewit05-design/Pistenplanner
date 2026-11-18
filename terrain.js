@@ -113,7 +113,7 @@
     }
     return any ? w : null;
   }
-  async function winter(z, x, y, r = 1){
+  async function winter(z, x, y, r = 1, dark = false){
     // hoogte van hetzelfde zoomniveau, ook voor een scherpe tegel (r = 2): de hoogtegegevens zelf zijn niet fijner dan ~10-30 m,
     // dus een niveau dieper gaf geen beter beeld maar wel vier keer zoveel tegels om op te halen
     const S = 256 * r, zd = Math.min(DEM_MAX, z), sc = 2 ** (z - zd) * r;   // sc = uitvoerpixels per hoogtepixel
@@ -153,9 +153,9 @@
     }
     const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + .5) / 2 ** z))) ;
     const mpp = 40075016.686 * Math.cos(lat) / (256 * r * 2 ** z);
-    const ex = z <= 10 ? 2.2 : z <= 12 ? 1.6 : 1.3;           // uitgezoomd wat meer reliëf, anders wordt het vlak
+    const ex = z <= 10 ? 2.2 : z <= 12 ? 1.6 : z >= 15 ? 1.15 : 1.3;           // uitgezoomd wat meer reliëf, anders wordt het vlak
     // hoogtelijnen, zoals op een pistekaart: dichter als je verder inzoomt; elke vijfde iets donkerder
-    const ze = z + Math.log2(r), step = ze >= 15 ? 50 : ze >= 13 ? 100 : ze >= 11 ? 200 : 0;
+    const ze = z + Math.log2(r), step = ze >= 16 ? 20 : ze >= 15 ? 50 : ze >= 13 ? 100 : ze >= 11 ? 200 : 0;
     const out = new ImageData(S, S), o = out.data;
     for(let j = 0; j < S; j++) for(let i = 0; i < S; i++){
       const k = (j + 1) * E + i + 1, h = hh[k];
@@ -178,7 +178,8 @@
         if(step){
           const band = Math.floor(h / step), bR = Math.floor(hh[k + 1] / step), bD = Math.floor(hh[k + E] / step);
           if(band !== bR || band !== bD){
-            const big = Math.max(band, bR, bD) % 5 === 0, m = (big ? .42 : .24) * (1 - rock * .6);
+            // ver ingezoomd is het reliëf zelf niet fijner; duidelijke lijnen geven dan houvast
+            const big = Math.max(band, bR, bD) % 5 === 0, m = (big ? (ze >= 16 ? .55 : .42) : (ze >= 16 ? .3 : .24)) * (1 - rock * .6);
             R = mix(R, 92, m); G = mix(G, 114, m); B = mix(B, 148, m);
           }
         }
@@ -190,6 +191,8 @@
       const m = vw[i]; if(!m) continue;
       o[p] = mix(o[p], 138, m); o[p+1] = mix(o[p+1], 118, m); o[p+2] = mix(o[p+2], 104, m);
     }
+    // donkere stand: dezelfde kaart, gedempt blauwgrijs in plaats van fel wit
+    if(dark) for(let p = 0; p < o.length; p += 4){ o[p] = o[p] * .36 + 6; o[p+1] = o[p+1] * .44 + 6; o[p+2] = o[p+2] * .56 + 8; }
     return out;
   }
 
@@ -240,11 +243,11 @@
     if(kind === "keep"){ const b = await demBlob(z, x, y); return {size:b.size}; }
     if(kind === "dem"){ const t = await dem(z, x, y); if(!t) throw new Error("buiten de kaart"); return bitmap(t.img); }
     if(kind === "slope") return bitmap(await slope(z, x, y, r || 1));
-    const k = `${z}/${x}/${y}/${r || 1}`;
+    const dark = kind === "winterd", k = `${dark ? "d" : ""}${z}/${x}/${y}/${r || 1}`;
     let img = done.get(k);
     if(img){ done.delete(k); done.set(k, img); }
     else {
-      img = await winter(z, x, y, r || 1);
+      img = await winter(z, x, y, r || 1, dark);
       done.set(k, img); if(done.size > 24) done.delete(done.keys().next().value);
     }
     return bitmap(img);

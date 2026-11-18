@@ -391,7 +391,7 @@ const M3 = (() => {
     const m = /(\d+)\/(\d+)\/(\d+)(?:\.png)?$/.exec(params.url), r = kind === "winter" && RETINA ? 2 : 1, key = kind + "/" + m[1] + "/" + m[2] + "/" + m[3];
     const free = tileFree.get(key);
     let p = free && free.pop();
-    if(!p){ p = PPterrain.get(kind, +m[1], +m[2], +m[3], r); }
+    if(!p){ p = PPterrain.get(kind === "winter" && window.ppDarkMap?.() ? "winterd" : kind, +m[1], +m[2], +m[3], r); }
     const drop = () => { const l = tileFree.get(key); if(l){ const i = l.indexOf(p); if(i >= 0) l.splice(i, 1); if(!l.length) tileFree.delete(key); } };
     // haakt de vrager af terwijl de tegel nog onderweg is: bewaren voor wie hem hierna vraagt (hooguit 20 s)
     abort?.signal?.addEventListener("abort", () => { const l = tileFree.get(key) || []; l.push(p); tileFree.set(key, l); setTimeout(drop, 20000); }, {once:true});
