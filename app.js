@@ -991,11 +991,11 @@ function renderResult(){
   const nP = steps.filter((s, i) => s.t==="r" && steps[i-1]?.t !== "r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} ${nP === 1 ? "afdaling" : "afdalingen"}</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} ${nP === 1 ? "afdaling" : "afdalingen"}</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? (ov => `<span class="stat ${ov ? "off" : "care"}">${I("warn")}${ov ? "Boven je niveau" : "Buiten je instellingen"}</span>`)(path.some(x => x.e.t==="r" && overLevel(x.e))) : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
-      ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn">${I("layers")}Vlieg door de route</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
-      ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Route wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
+      ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn" title="Vlieg door de route">${I("layers")}3D-vlucht</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
+      ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("povBtn")?.addEventListener("click", () => setPov(true));
   $("valleyBtn").onclick = e => valleyChoice(e.currentTarget);
@@ -4192,10 +4192,10 @@ function renderToday(){
     days = Dd.time.slice(i0, i0 + 4).map((t, k) => { const i = i0 + k, [dt, di] = wxInfo(Dd.weather_code[i]), sn = Dd.snowfall_sum[i] || 0;
       return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
   }
-  const html = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
+  const html = dashHead(`${greeting()} · ${tr("vandaag in")}`, esc(r[1]), "tdClose")
     + `<section class="hero dc sky-${heroSky().k}${w ? "" : " nowx"}">${heroSkyline(A)}<div class="hero-txt">
-        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : `<b class="hero-name">${esc(r[1])}</b>`}</p>
-        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `${tr("Weer niet beschikbaar.")} <button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : tr("Weer en sneeuw laden…")}</p>
+        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : `<b class="hero-name">${S.wxFail === A.id ? tr("Weer niet beschikbaar") : tr("Weer laden…")}</b>`}</p>
+        <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
         ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
@@ -4265,7 +4265,9 @@ function renderMe(){
         <div class="goal">${goalKm() ? `<div class="goal-bar"><div class="goal-t"><b>${tr("Seizoensdoel")}</b><span>${num(Math.round(Math.min(tot.km, goalKm())))} / ${goalKm()} km</span></div><div class="goal-track"><i style="--k:${Math.min(100, tot.km / goalKm() * 100).toFixed(1)}%"></i></div></div>` : `<p class="goal-q">${tr("Stel een seizoensdoel in")}</p>`}
           <div class="chips goal-chips">${GOALS.map(g => `<button type="button" class="chip" data-goal="${g}" aria-pressed="${goalKm() === g}">${g} km</button>`).join("")}</div></div></section>
       ${weekChallenges()}${seasonCal(sd)}
-      <button type="button" class="wr-tease dc" id="meWrapped"><span class="wr-tease-art">${I("star")}</span><span><b>${tr("Jouw seizoen in beeld")}</b><small>${tr("Je hoogtepunten om te delen")}</small></span>${I("chev")}</button>` : "")
+      <button type="button" class="wr-tease dc" id="meWrapped"><span class="wr-tease-art">${I("star")}</span><span><b>${tr("Jouw seizoen in beeld")}</b><small>${tr("Je hoogtepunten om te delen")}</small></span>${I("chev")}</button>`
+      : `<section class="dc me-empty"><p class="label">${I("calendar")}${tr("Mijn seizoen")}</p><div class="ms-tot"><span>0<small>${tr("dagen")}</small></span><span>0<small>km</small></span><span>0<small>hm</small></span></div>
+        <p class="muted">${tr("Na je eerste skidag zie je hier je seizoen, je records en je prestaties.")}</p><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span>${I(b.icon)}</span>`).join("")}</div></section>`)
     + (a ? `<button type="button" class="me-badges dc" id="meBadges"><div><p class="label">${I("star")}${tr("Prestaties")}</p><b>${got.length} / ${BADGES.length}</b><div class="bdg-row">${BADGES.slice(0, 8).map(b => `<span class="${b.v(a) >= b.goal ? "ok" : ""}">${I(b.icon)}</span>`).join("")}</div></div>${I("chev")}</button>` : "")
     + `<section class="me-list dc">${row("meDiary2", "book", "#7C3AED", "Skidagboek", tr("Je dagen, records en GPX"))}${row("meSettings", "gear", "#5E6E80", "Instellingen", tr("Niveau, stem, kaart en taal"))}${$("proSec") && !$("proSec").hidden ? row("mePro", "star", "#E0A100", "Skipilot Pro", "") : ""}${row("meHelp", "help", "#1D6FB0", "Hulp en contact", "")}</section>`;
   $("meClose").onclick = () => box.hidden = true;
@@ -4713,7 +4715,10 @@ function sunTimeline(edges){
     cells.push({h, lit:sun.alt > 2 && len && acc / len >= SUN_MIN});
   }
   S.sunAt = keep;
-  return `<div class="sun-tl">${cells.map(c => `<span class="${c.lit ? "lit" : "sh"}" title="${c.h}:30"><i></i><small>${c.h}</small></span>`).join("")}</div>`;
+  const lit = cells.filter(c => c.lit), first = lit[0]?.h, last = lit[lit.length - 1]?.h;
+  const cap = !lit.length ? tr("Hele dag schaduw") : lit.length === cells.length ? tr("Hele dag zon") : `${tr("Zon van")} ${first} ${tr("tot")} ${last + 1} ${tr("uur")}`;
+  return `<div class="sun-tl">${cells.map(c => `<span class="${c.lit ? "lit" : "sh"}" title="${c.h}:30"><i></i><small>${c.h}</small></span>`).join("")}</div>
+    <p class="sun-cap"><i class="k lit"></i>${tr("zon")}<i class="k sh"></i>${tr("schaduw")}<b>${cap}</b></p>`;
 }
 // temperatuur op een hoogte: tussen dal en top in (uit het weer van het gebied)
 function tempAt(ele){
