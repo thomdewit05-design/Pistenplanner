@@ -2589,6 +2589,9 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .ai-km b{color:var(--ink);font-weight:650}
 .km-sub{display:block;font-size:12px;font-weight:500;color:var(--muted)}
 .nw-src{display:block;font-size:12px;opacity:.75;font-weight:500}
+/* weer: onzekere dagen lichter, bron als link */
+.wx-day.unsure{opacity:.55}
+.wx-src{color:inherit;text-decoration:underline;text-underline-offset:2px}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}

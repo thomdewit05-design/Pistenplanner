@@ -1963,6 +1963,111 @@ function avScale(){
 const wxCache = {};
 const wxStore = id => { try{ return JSON.parse(localStorage.getItem("pp-wx:" + id) || "null"); }catch(e){ return null; } };
 const deg = t => `${Math.round(t)}°`;
+// ================= weerbron: MET Norway (api.met.no) =================
+// De Noorse weerdienst levert wereldwijd een voorspelling onder CC BY 4.0: gratis, ook in een betaalde app, met bronvermelding.
+// Het antwoord wordt omgezet naar de vorm die de rest van de app verwacht (current / hourly / daily).
+// Wat deze bron niet levert, blijft leeg in plaats van geschat: windstoten, zicht in meters, sneeuwhoogte en sneeuw van de afgelopen 24 uur.
+WX[68] = ["Natte sneeuw", "snow"];
+const MET_SYM = {clearsky:0, fair:1, partlycloudy:2, cloudy:3, fog:45, lightrain:61, rain:63, heavyrain:65, lightrainshowers:80, rainshowers:81, heavyrainshowers:82,
+  lightsleet:68, sleet:68, heavysleet:68, lightsleetshowers:68, sleetshowers:68, heavysleetshowers:68, lightsnow:71, snow:73, heavysnow:75, lightsnowshowers:85, snowshowers:85, heavysnowshowers:86};
+const metCode = sym => { if(!sym) return 3; const b = sym.replace(/_(day|night|polartwilight)$/, ""); return b.includes("thunder") ? 95 : MET_SYM[b] ?? 3; };
+const pad2 = n => String(n).padStart(2, "0");
+const locIso = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+// centimeters verse sneeuw uit millimeters neerslag: bij vorst ongeveer 1 cm per mm, rond het vriespunt de helft, daarboven regen
+const snowOf = (mm, t) => mm * (t <= 0 ? 1 : t < 1.5 ? .5 : 0);
+function metToOm(j, alt){
+  const ts = j?.properties?.timeseries; if(!ts?.length) throw new Error("geen gegevens");
+  const H = {time:[], temperature_2m:[], wind_speed_10m:[], snowfall:[], precipitation:[]}, sym = [];
+  for(let i = 0; i < ts.length; i++){
+    const d = ts[i].data, det = d.instant.details, t0 = new Date(ts[i].time).getTime();
+    // het eerste deel is per uur, daarna per 6 uur: die blokken worden over de uren verdeeld
+    const n = d.next_1_hours ? 1 : d.next_6_hours ? 6 : 0, b = d.next_1_hours || d.next_6_hours; if(!n) continue;
+    const nx = ts[i + 1]?.data.instant.details, T0 = det.air_temperature, T1 = nx?.air_temperature ?? T0, W0 = det.wind_speed * 3.6, W1 = (nx?.wind_speed ?? det.wind_speed) * 3.6;
+    const mm = (b.details?.precipitation_amount || 0) / n;
+    for(let k = 0; k < n; k++){ const f = k / n, T = T0 + (T1 - T0) * f;
+      H.time.push(locIso(new Date(t0 + k * 3600e3)).slice(0, 13) + ":00"); H.temperature_2m.push(+T.toFixed(1)); H.wind_speed_10m.push(+(W0 + (W1 - W0) * f).toFixed(1));
+      H.precipitation.push(+mm.toFixed(2)); H.snowfall.push(+snowOf(mm, T).toFixed(2)); sym.push(b.summary?.symbol_code); }
+  }
+  const D = {time:[], weather_code:[], temperature_2m_max:[], temperature_2m_min:[], snowfall_sum:[], wind_speed_10m_max:[], sure:[]}, by = new Map();
+  H.time.forEach((t, i) => { const k = t.slice(0, 10); if(!by.has(k)) by.set(k, []); by.get(k).push(i); });
+  let dn = 0;
+  for(const [k, idx] of by){
+    // het weerbeeld van de dag: wat tussen 8 en 17 uur het vaakst voorkomt
+    const day = idx.filter(i => { const h = +H.time[i].slice(11, 13); return h >= 8 && h <= 17; }), use = day.length ? day : idx, cnt = {};
+    for(const i of use){ const c = metCode(sym[i]); cnt[c] = (cnt[c] || 0) + 1; }
+    const code = +Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || b - a)[0], T = idx.map(i => H.temperature_2m[i]);
+    D.time.push(k); D.weather_code.push(code); D.temperature_2m_max.push(Math.max(...T)); D.temperature_2m_min.push(Math.min(...T));
+    D.snowfall_sum.push(+idx.reduce((a, i) => a + H.snowfall[i], 0).toFixed(1)); D.wind_speed_10m_max.push(Math.max(...idx.map(i => H.wind_speed_10m[i])));
+    // hoe zeker: de eerste drie dagen goed, daarna redelijk, vanaf dag 6 onzeker
+    D.sure.push(dn < 3 ? 2 : dn < 5 ? 1 : 0); dn++;
+  }
+  const d0 = ts[0].data, det = d0.instant.details, T = det.air_temperature;
+  const current = {time:locIso(new Date(ts[0].time)), temperature_2m:T, apparent_temperature:det.apparent_air_temperature ?? T, weather_code:metCode((d0.next_1_hours || d0.next_6_hours)?.summary?.symbol_code),
+    wind_speed_10m:det.wind_speed * 3.6, wind_gusts_10m:null, visibility:null, fog:det.fog_area_fraction ?? null, cloud:det.cloud_area_fraction ?? null, snow_depth:null,
+    // nulgradengrens: afgeleid uit de temperatuur op deze hoogte (0,65 °C per 100 m); een schatting
+    freezing_level_height:alt != null ? Math.max(0, alt + T / .0065) : null, flEst:true};
+  return {current, hourly:H, daily:D, src:"MET Norway", updated:j.properties.meta?.updated_at || null};
+}
+const metCache = new Map();
+// voorspelling voor één punt; een half uur bewaard (de dienst vraagt om niet vaker te vragen dan nodig, en om coördinaten op 4 decimalen)
+function metGet(lat, lon, alt){
+  const key = `${(+lat).toFixed(4)},${(+lon).toFixed(4)},${Math.round(alt || 0)}`, hit = metCache.get(key);
+  if(hit && Date.now() - hit.t < 30 * 60e3) return hit.p;
+  // de lopende aanvraag wordt gedeeld, zodat twee schermen tegelijk niet twee keer vragen
+  const p = fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${(+lat).toFixed(4)}&lon=${(+lon).toFixed(4)}${alt != null ? `&altitude=${Math.round(alt)}` : ""}`)
+    .then(res => { if(!res.ok) throw new Error(res.status); return res.json(); }).then(j => metToOm(j, alt));
+  metCache.set(key, {t:Date.now(), p}); p.catch(() => metCache.delete(key));
+  return p;
+}
+// de voorspelling geldt voor een plek waar je echt staat: het hoogste en het laagste liftstation (niet het middelpunt van het gebied)
+function wxPoints(A){
+  const r = A.row; let hi = null, lo = null;
+  for(const e of A.edges || []){ if(e.t !== "l") continue;
+    for(const i of [e.a, e.b]){ const n = A.nodes[i]; if(!n || n.ele == null) continue; if(!hi || n.ele > hi.ele) hi = n; if(!lo || n.ele < lo.ele) lo = n; } }
+  const ll = n => n ? [n.lat ?? n[0], n.lon ?? n[1]] : null, H = hi && ll(hi), L = lo && ll(lo);
+  return {top:H && H[0] != null ? {lat:H[0], lon:H[1], ele:hi.ele} : {lat:r[5], lon:r[4], ele:r[10] ?? 2400}, dal:L && L[0] != null ? {lat:L[0], lon:L[1], ele:lo.ele} : {lat:r[5], lon:r[4], ele:r[9] ?? 1200}};
+}
+
+// ================= gemeten sneeuwhoogte =================
+// Een meting bij een station in de buurt, of niets: geen getal uit een weermodel.
+// Oostenrijk: automatische stations van GeoSphere Austria (CC BY 4.0). Zwitserland: IMIS-stations van het SLF (CC BY 4.0), alleen in de apps
+// omdat die dienst geen aanroepen vanuit een webpagina toestaat.
+const OBS_KM = 15;
+const nativeGet = async url => { const C = window.Capacitor; if(!C?.isNativePlatform?.()) return null;
+  const r = await C.nativePromise("CapacitorHttp", "request", {url, method:"GET"}); return typeof r?.data === "string" ? JSON.parse(r.data) : r?.data ?? null; };
+const obsStore = (k, ms) => { try{ const v = JSON.parse(localStorage.getItem(k) || "null"); return v && Date.now() - v.t < ms ? v.d : null; }catch(e){ return null; } };
+const obsSave = (k, d) => { try{ localStorage.setItem(k, JSON.stringify({t:Date.now(), d})); }catch(e){} };
+const kmBetween = (a, b, c, d) => { const R = 6371, p = Math.PI / 180, x = (d - b) * p * Math.cos((a + c) / 2 * p), y = (c - a) * p; return Math.sqrt(x * x + y * y) * R; };
+const niceName = n => String(n || "").toLowerCase().replace(/(^|[\s\-\/])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+// stations binnen 15 km op een hoogte die bij het gebied past, hoogste eerst: op de berg ligt de sneeuw waar het om gaat
+const obsNear = (list, r) => list.map(s => ({...s, km:kmBetween(r[5], r[4], s.lat, s.lon)})).filter(s => s.km <= OBS_KM && s.ele >= (r[9] ?? 0) - 200 && s.ele <= (r[10] ?? 9000) + 300).sort((a, b) => b.ele - a.ele);
+async function snowObs(r){
+  const key = "pp-obs:" + r[0], hit = obsStore(key, 60 * 60e3); if(hit) return hit.none ? null : hit;
+  let out = null;
+  try{
+    if(r[2] === "AT" || r[2] === "DE" || r[2] === "IT"){
+      let st = obsStore("pp-obs-at", 30 * 864e5);
+      if(!st){ const m = await (await fetch("https://dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min/metadata")).json();
+        st = m.stations.filter(x => x.is_active).map(x => ({id:x.id, name:x.name, lat:x.lat, lon:x.lon, ele:x.altitude})); obsSave("pp-obs-at", st); }
+      const near = obsNear(st, r).slice(0, 6);
+      if(near.length){ const j = await (await fetch(`https://dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min?parameters=SCHNEE&${near.map(s => "station_ids=" + s.id).join("&")}&output_format=geojson`)).json();
+        for(const s of near){ const f = j.features?.find(f => f.properties.station === s.id), v = f?.properties.parameters.SCHNEE?.data?.at(-1);
+          if(v != null){ out = {cm:Math.round(v), name:niceName(s.name), ele:Math.round(s.ele), at:j.timestamps?.at(-1), src:"GeoSphere Austria", url:"https://data.hub.geosphere.at"}; break; } } }
+    }
+    if(!out && (r[2] === "CH" || r[2] === "LI" || r[2] === "IT" || r[2] === "AT" || r[2] === "FR")){
+      let st = obsStore("pp-obs-ch", 30 * 864e5);
+      if(!st){ const m = await nativeGet("https://measurement-api.slf.ch/public/api/imis/stations");
+        if(m){ st = m.filter(x => x.type === "SNOW_FLAT").map(x => ({id:x.code, name:x.label, lat:x.lat, lon:x.lon, ele:x.elevation})); obsSave("pp-obs-ch", st); } }
+      const near = st ? obsNear(st, r).slice(0, 6) : [];
+      if(near.length){ let ds = obsStore("pp-obs-ch-d", 60 * 60e3);
+        if(!ds){ ds = await nativeGet("https://measurement-api.slf.ch/public/api/imis/daily-snow?period_in_days=1"); if(ds) obsSave("pp-obs-ch-d", ds); }
+        for(const s of near){ const v = (ds || []).filter(x => x.station_code === s.id && x.HS != null).at(-1);
+          if(v){ out = {cm:Math.round(v.HS), fresh:v.HN_1D != null ? Math.round(v.HN_1D) : null, name:s.name, ele:Math.round(s.ele), at:v.measure_date, src:"WSL-Institut SLF", url:"https://www.slf.ch"}; break; } } }
+    }
+  }catch(e){ return null; }   // geen verbinding of een storing bij de dienst: nu geen getal, straks opnieuw proberen
+  obsSave(key, out || {none:1}); return out;
+}
+const obsLine = o => o ? `${tr("gemeten")} · ${esc(o.name)} (${o.ele} m)` : tr("geen meting in de buurt");
 async function loadWeather(){
   const A = S.area; if(!A) return;
   const id = A.id, r = A.row, hi = r[10] ?? 2400, lo = r[9] ?? 1200;
@@ -1970,15 +2075,12 @@ async function loadWeather(){
   if(c && Date.now() - c.t < 30*60e3) return renderWeather(c.d);
   $("wxSum").innerHTML = `<span class="wx-loading">Weer en sneeuw laden…</span>`; $("wxBody").innerHTML = "";
   try{
-    const url = "https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
-      latitude:`${r[5]},${r[5]}`, longitude:`${r[4]},${r[4]}`, elevation:`${hi},${lo}`, timezone:"auto", forecast_days:"7", past_days:"1",
-      current:"temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,visibility,snow_depth,freezing_level_height",
-      hourly:"snowfall,temperature_2m,wind_speed_10m", daily:"weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,wind_speed_10m_max"});
-    const res = await fetch(url); if(!res.ok) throw new Error(res.status);
-    const d = await res.json(); if(!Array.isArray(d) || d.length < 2) throw new Error("data");
+    const P = wxPoints(A), d = await Promise.all([metGet(P.top.lat, P.top.lon, P.top.ele), metGet(P.dal.lat, P.dal.lon, P.dal.ele)]);
+    d[0].ele = Math.round(P.top.ele); d[1].ele = Math.round(P.dal.ele);
     wxCache[id] = {t:Date.now(), d};
     try{ localStorage.setItem("pp-wx:" + id, JSON.stringify({t:Date.now(), d})); }catch(e){}
     if(S.area?.id === id) renderWeather(d);
+    snowObs(r).then(o => { if(S.area?.id !== id) return; A.obs = o || null; A.obsDone = true; const c2 = wxCache[id]; if(c2) renderWeather(c2.d); });
   }catch(e){
     const old = wxStore(id);
     if(S.area?.id !== id) return;
@@ -1991,9 +2093,13 @@ function renderWeather(d, savedAt){
   const A = S.area, r = A.row, top = d[0], dal = d[1], c = top.current, cd = dal.current;
   const [txt, ic] = wxInfo(c.weather_code);
   const H = top.hourly, hourIdx = H.time.indexOf(c.time.slice(0, 13) + ":00");
-  const fresh = hourIdx >= 0 ? H.snowfall.slice(Math.max(0, hourIdx - 23), hourIdx + 1).reduce((s, x) => s + (x || 0), 0) : 0;
-  const depth = Math.round((c.snow_depth || 0) * 100);
-  S.wx = {d, c, cd, fresh, depth, txt, ic, savedAt, area:A.id}; S.wxFail = null; M3.sync("sky");
+  // sneeuw van de afgelopen 24 uur: alleen als die gemeten is (station), of als de bron de voorbije uren meelevert; anders onbekend
+  const obs = A.obs || null, sum = a => a.reduce((s, x) => s + (x || 0), 0);
+  const fresh = obs?.fresh != null ? obs.fresh : hourIdx >= 23 ? sum(H.snowfall.slice(hourIdx - 23, hourIdx + 1)) : null;
+  const next24 = sum(H.snowfall.slice(Math.max(0, hourIdx), Math.max(0, hourIdx) + 24));
+  // sneeuwhoogte: gemeten bij een station, of (oude bewaarde gegevens) uit het model; anders geen getal
+  const depth = obs ? obs.cm : c.snow_depth != null ? Math.round(c.snow_depth * 100) : null;
+  S.wx = {d, c, cd, fresh, next24, depth, obs, txt, ic, savedAt, area:A.id}; S.wxFail = null; M3.sync("sky");
   if(!$("today").hidden) setTimeout(renderToday, 0);
   $("wxSum").innerHTML = `<svg class="ic wx-ic"><use href="#i-${ic}"/></svg>
     <span class="wx-now"><b>${deg(c.temperature_2m)}<span>top · ${deg(cd.temperature_2m)} dal</span></b>
@@ -2001,33 +2107,37 @@ function renderWeather(d, savedAt){
     <svg class="ic chev"><use href="#i-chev"/></svg>`;
   const notes = [];
   if(c.wind_gusts_10m >= 60) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (stoten tot ${Math.round(c.wind_gusts_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
+  else if(c.wind_gusts_10m == null && c.wind_speed_10m >= 45) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (gemiddeld ${Math.round(c.wind_speed_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
   // poederdag en sneeuw op komst
   const Dd = top.daily, i0 = Math.max(0, Dd.time.indexOf(c.time.slice(0, 10)));
   const coming = Dd.snowfall_sum.slice(i0 + 1, i0 + 4).reduce((a, x) => a + (x || 0), 0);
   if(fresh >= 15) notes.push(`<p class="notice good">${I("snow")}<span><strong>Poederdag!</strong> ${Math.round(fresh)} cm verse sneeuw in 24 uur. Vroeg erbij zijn loont: pistes in de schaduw blijven het langst poederig.</span></p>`);
   else if(coming >= 10) notes.push(`<p class="notice info">${I("snow")}<span><strong>Sneeuw op komst:</strong> de komende drie dagen ongeveer ${Math.round(coming)} cm.</span></p>`);
-  if(c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Slecht zicht op de top</strong> (${c.visibility < 200 ? "minder dan 200 m" : Math.round(c.visibility/100)*100 + " m"}). Blijf op gemarkeerde pistes.</span></p>`);
+  if(c.visibility == null && c.fog >= 50) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Mist op de top.</strong> Blijf op gemarkeerde pistes.</span></p>`);
+  if(c.visibility != null && c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Slecht zicht op de top</strong> (${c.visibility < 200 ? "minder dan 200 m" : Math.round(c.visibility/100)*100 + " m"}). Blijf op gemarkeerde pistes.</span></p>`);
   const D = top.daily, today = c.time.slice(0, 10), start = Math.max(0, D.time.indexOf(today));
   const days = D.time.slice(start, start + 4).map((t, k) => {
     const i = start + k, [dt, di] = wxInfo(D.weather_code[i]);
     const name = k===0 ? "Vandaag" : k===1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"});
     const sn = D.snowfall_sum[i] || 0;
-    return `<div class="wx-day" title="${dt}"><b>${name}</b><svg class="ic"><use href="#i-${di}"/></svg>
+    return `<div class="wx-day${D.sure?.[i] === 0 ? " unsure" : ""}" title="${dt}"><b>${name}</b><svg class="ic"><use href="#i-${di}"/></svg>
       <span class="t">${deg(D.temperature_2m_max[i])} <i>${deg(D.temperature_2m_min[i])}</i></span><span class="sn">${sn >= 0.5 ? `${Math.round(sn)} cm` : ""}</span></div>`;
   }).join("");
   const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]];
-  const vis = c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".", DEC)} km` : `${Math.round(c.visibility/10)*10} m`;
+  const vis = c.visibility == null ? "" : c.visibility >= 10000 ? "> 10 km" : c.visibility >= 1000 ? `${(c.visibility/1000).toFixed(1).replace(".", DEC)} km` : `${Math.round(c.visibility/10)*10} m`;
   $("wxBody").innerHTML = (notes.length ? `<div style="padding:0 14px">${notes.join("")}</div>` : "") + `
     <div class="wx-grid">
-      <div class="wx-cell"><span>${I("wind")}Wind</span><b>${Math.round(c.wind_speed_10m)}<small> km/u</small></b><small>stoten ${Math.round(c.wind_gusts_10m)}</small></div>
-      <div class="wx-cell"><span>${I("thermo")}Gevoel</span><b>${deg(c.apparent_temperature)}</b><small>op ${r[10] ?? "?"} m</small></div>
-      <div class="wx-cell"><span>${I("eye")}Zicht</span><b>${vis}</b><small>op de top</small></div>
-      <div class="wx-cell"><span>${I("snow")}Sneeuw</span><b>${depth}<small> cm</small></b><small>op de top (model)</small></div>
-      <div class="wx-cell"><span>${I("snow")}Vers</span><b>${Math.round(fresh)}<small> cm</small></b><small>laatste 24 uur</small></div>
-      <div class="wx-cell"><span>${I("thermo")}0°-grens</span><b>${Math.round(c.freezing_level_height/50)*50}<small> m</small></b><small>vriespunt</small></div>
+      <div class="wx-cell"><span>${I("wind")}Wind</span><b>${Math.round(c.wind_speed_10m)}<small> km/u</small></b><small>${c.wind_gusts_10m != null ? `stoten ${Math.round(c.wind_gusts_10m)}` : "gemiddeld, op de top"}</small></div>
+      <div class="wx-cell"><span>${I("thermo")}Gevoel</span><b>${deg(c.apparent_temperature)}</b><small>op ${top.ele ?? r[10] ?? "?"} m</small></div>
+      ${c.visibility != null ? `<div class="wx-cell"><span>${I("eye")}Zicht</span><b>${vis}</b><small>op de top</small></div>`
+        : `<div class="wx-cell"><span>${I("cloud")}Bewolking</span><b>${c.cloud != null ? Math.round(c.cloud) : "–"}<small> %</small></b><small>${c.fog >= 20 ? `mist ${Math.round(c.fog)}%` : "op de top"}</small></div>`}
+      <div class="wx-cell"><span>${I("snow")}Sneeuw</span><b>${depth != null ? depth : "–"}<small>${depth != null ? " cm" : ""}</small></b><small>${obs ? obsLine(obs) : depth != null ? "op de top (model)" : A.obsDone ? obsLine(null) : "meting zoeken…"}</small></div>
+      ${fresh != null ? `<div class="wx-cell"><span>${I("snow")}Vers</span><b>${Math.round(fresh)}<small> cm</small></b><small>${obs?.fresh != null ? "gemeten, 24 uur" : "laatste 24 uur"}</small></div>`
+        : `<div class="wx-cell"><span>${I("snow")}Verwacht</span><b>${Math.round(next24)}<small> cm</small></b><small>komende 24 uur <span class="est">≈</span></small></div>`}
+      <div class="wx-cell"><span>${I("thermo")}0°-grens</span><b>${c.freezing_level_height != null ? Math.round(c.freezing_level_height/50)*50 : "–"}<small> m</small></b><small>vriespunt${c.flEst ? ` <span class="est">≈</span>` : ""}</small></div>
     </div>
     <div class="wx-days">${days}</div>
-    <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}Open-Meteo · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${r[10] ?? "?"}/${r[9] ?? "?"} m</span>
+    <div class="wx-foot"><span>${savedAt ? `<b class="offline-tag">Offline</b> bewaard om ${new Date(savedAt).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"})} · ` : ""}${top.src ? `<a class="wx-src" href="https://www.met.no/en" target="_blank" rel="noopener">${top.src}</a>` : "Open-Meteo"}${obs ? ` · <a class="wx-src" href="${obs.url}" target="_blank" rel="noopener">${obs.src}</a>` : ""} · ${c.time.slice(11, 16)} uur · temperatuur top/dal: ${top.ele ?? r[10] ?? "?"}/${dal.ele ?? r[9] ?? "?"} m${top.daily.sure ? " · na dag 5 onzeker" : ""}</span>
       ${av ? `<a href="${av[0]}" target="_blank" rel="noopener" title="${av[1]}">${I("warn")}Lawinebericht</a>` : `<a href="https://www.avalanches.org/" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`}</div>
     ${avScale()}
     <div class="best-snow" id="bestSnow"></div>
@@ -2056,8 +2166,8 @@ function bestSnow(c, cd, fresh){
     else if(t >= 3){ sc = -t * (lit ? 2 : 1) + up * 1.6 + (lit ? 0 : 6); why = lit ? "Zachte sneeuw" : "Hoog en in de schaduw: de sneeuw blijft stevig"; }
     else if(spring && lit && t > -2 && hr >= 10 && hr <= 13.5){ sc = 20 + up / 2; why = "Zon op de helling: zachte voorjaarssneeuw (firn)"; }
     else { sc = (lit ? 10 : 4) + up * .7 - (t < -12 ? 3 : 0); why = lit ? "In de zon, de sneeuw blijft koud en stroef" : "Koude, stroeve sneeuw"; }
-    if(c.visibility < 1500){ if(ele < 1900){ sc += 6; why = "Lager tussen de bomen: beter zicht"; } else sc -= 6; }
-    if((c.wind_gusts_10m || 0) >= 50) sc -= up * .8;
+    if(c.visibility != null ? c.visibility < 1500 : c.fog >= 50){ if(ele < 1900){ sc += 6; why = "Lager tussen de bomen: beter zicht"; } else sc -= 6; }
+    if((c.wind_gusts_10m ?? c.wind_speed_10m * 1.4 ?? 0) >= 50) sc -= up * .8;
     const g = groups.get(e.key) || {e, len:0, sc:0, why:{}};
     g.len += e.len; g.sc += sc * e.len; g.why[why] = (g.why[why] || 0) + e.len; groups.set(e.key, g);
   }
@@ -2260,7 +2370,9 @@ window.addEventListener("hashchange", () => {
 
 // weerrisico: hoge liften bij harde wind
 function computeRisk(c, fresh){
-  const A = S.area, gust = Math.round(c.wind_gusts_10m || 0), top = A.row[10] ?? 0, before = S.risk?.lifts.size || 0;
+  // zonder gemeten windstoten rekenen we met de gemiddelde wind en lagere grenzen (45 en 62 km/u in plaats van 65 en 90 km/u aan stoten)
+  const noGust = c.wind_gusts_10m == null, k = noGust ? 65 / 45 : 1;
+  const A = S.area, gust = Math.round((noGust ? c.wind_speed_10m : c.wind_gusts_10m) * k || 0), top = A.row[10] ?? 0, before = S.risk?.lifts.size || 0;
   const AERIAL = new Set(["gondola","cable_car","chair_lift","mixed_lift"]);
   const lifts = new Set();
   if(gust >= 65){
@@ -2269,7 +2381,7 @@ function computeRisk(c, fresh){
       if(gust >= 90 || (g.top ?? 0) >= top - 500) g.edges.forEach(i => lifts.add(i));
     }
   }
-  S.risk = {lifts, gust, fresh, reason:`windstoten tot ${gust} km/u op ${top} m`};
+  S.risk = {lifts, gust, fresh, reason:noGust ? `wind ${Math.round(c.wind_speed_10m)} km/u op ${top} m` : `windstoten tot ${gust} km/u op ${top} m`};
   if(lifts.size || before){ drawPistes(); update(); }
   if(!$("status").hidden) renderStatus();
 }
@@ -4315,9 +4427,11 @@ function renderToday(){
         <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
-        ${w || S.wxFail !== A.id ? tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", `${tr("laatste 24 uur")} <span class="est">≈</span>`) : ""}
-        ${w || S.wxFail !== A.id ? tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", `${tr("op de top")} <span class="est">≈</span>`) : ""}
-        ${!(w || S.wxFail !== A.id) ? "" : tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
+        ${w || S.wxFail !== A.id ? (!w ? tile("snow", "Vers", null, "cm", "") : w.fresh != null ? tile("snow", "Vers", num(Math.round(w.fresh)), "cm", w.obs?.fresh != null ? tr("gemeten, 24 uur") : `${tr("laatste 24 uur")} <span class="est">≈</span>`)
+          : tile("snow", "Verwacht", num(Math.round(w.next24 || 0)), "cm", `${tr("komende 24 uur")} <span class="est">≈</span>`)) : ""}
+        ${w || S.wxFail !== A.id ? (!w ? tile("depth", "Sneeuw", null, "cm", "") : w.depth != null ? tile("depth", "Sneeuw", num(w.depth), "cm", w.obs ? obsLine(w.obs) : `${tr("op de top")} <span class="est">≈</span>`)
+          : A.obsDone ? "" : tile("depth", "Sneeuw", null, "cm", tr("meting zoeken…"))) : ""}
+        ${!(w || S.wxFail !== A.id) ? "" : tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w && w.c.wind_gusts_10m != null ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
         ${tile("lift", "Liften", num(liftKeys.size), "", windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")} <span class="est">≈</span></span>` : liftKeys.size > openKeys.size ? `${liftKeys.size - openKeys.size} ${tr("door jou gesloten")}` : tr("in dit gebied"))}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
@@ -4748,8 +4862,8 @@ async function snowCheckNow(){
     const r = S.index.find(x => x[0] === id); if(!r) continue;
     const key = "pp-snowtold:" + id; if(Date.now() - +(localStorage.getItem(key) || 0) < 48 * 3600e3) continue;
     try{
-      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${r[10] || 2400}&daily=snowfall_sum&forecast_days=2&timezone=auto`)).json();
-      const cm = (j.daily?.snowfall_sum || []).reduce((a, v) => a + (v || 0), 0); if(cm < 20) continue;
+      const j = await metGet(r[5], r[4], r[10] || 2400);
+      const cm = j.hourly.snowfall.slice(0, 48).reduce((a, v) => a + (v || 0), 0); if(cm < 20) continue;
       localStorage.setItem(key, String(Date.now()));
       LN()("schedule", {notifications:[{id:7000 + (FAVS.indexOf(id) % 900), title:`${tr("Poederalarm in")} ${r[1]}`, body:`${Math.round(cm)} ${tr("cm verse sneeuw verwacht in de komende 48 uur.")}`, extra:{url:"gebied/" + r[0]}, schedule:{at:new Date(Date.now() + 1500).toISOString()}}]}).catch(() => {});
     }catch(e){}
@@ -4962,10 +5076,9 @@ async function _openCompare(){
   el.hidden = false; $("detClose").onclick = () => el.hidden = true;
   rows.forEach(async (r, i) => {
     try{
-      const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${r[10] || 2400}&current=snow_depth&hourly=snowfall&daily=snowfall_sum&past_days=1&forecast_days=4&timezone=auto`)).json();
-      const hi = j.hourly.time.indexOf(j.current.time.slice(0, 13) + ":00"), fresh = hi >= 0 ? j.hourly.snowfall.slice(Math.max(0, hi - 23), hi + 1).reduce((a, x) => a + (x || 0), 0) : 0;
-      const di = j.daily.time.indexOf(j.current.time.slice(0, 10)), coming = j.daily.snowfall_sum.slice(di + 1, di + 4).reduce((a, x) => a + (x || 0), 0);
-      if($("cmpD" + i)){ $("cmpD" + i).textContent = `${Math.round((j.current.snow_depth || 0) * 100)} cm`; $("cmpF" + i).textContent = `${Math.round(fresh)} cm`; $("cmpC" + i).textContent = `${Math.round(coming)} cm`; }
+      const [j, o] = await Promise.all([metGet(r[5], r[4], r[10] || 2400), snowObs(r)]);
+      const di = Math.max(0, j.daily.time.indexOf(j.current.time.slice(0, 10))), coming = j.daily.snowfall_sum.slice(di + 1, di + 4).reduce((a, x) => a + (x || 0), 0);
+      if($("cmpD" + i)){ $("cmpD" + i).innerHTML = o ? `${o.cm} cm<small class="km-sub">${tr("gemeten")}</small>` : "–"; $("cmpF" + i).innerHTML = o?.fresh != null ? `${o.fresh} cm<small class="km-sub">${tr("gemeten")}</small>` : "–"; $("cmpC" + i).innerHTML = `${Math.round(coming)} cm <span class="est">≈</span>`; }
     }catch(e){ if($("cmpD" + i)) $("cmpD" + i).textContent = "–"; }
   });
 }
@@ -5211,8 +5324,8 @@ async function tripInfo(id){
     <p class="sure s${sure[0]}">${I("snow")}${sure[1]} <small class="est">${tr("schatting op hoogte")}</small></p><div id="tpWx"></div>
     <div class="det-btns"><a class="btn ghost" href="${nav}" target="_blank" rel="noopener">${I("car")}${tr("Route ernaartoe")}</a><a class="btn ghost" href="https://www.google.com/search?q=${encodeURIComponent(r[1] + " skipas prijs")}" target="_blank" rel="noopener">${I("ticket")}${tr("Skipasprijzen")}</a></div></section>`;
   try{
-    const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${hi || 2400}&current=snow_depth&daily=weather_code,temperature_2m_max,snowfall_sum&forecast_days=7&timezone=auto`)).json();
-    if($("tpDepth")) $("tpDepth").innerHTML = `${Math.round((j.current.snow_depth || 0) * 100)}<i> cm</i>`;
+    const [j, o] = await Promise.all([metGet(r[5], r[4], hi || 2400), snowObs(r)]);
+    if($("tpDepth")) $("tpDepth").innerHTML = o ? `${o.cm}<i> cm</i>` : "–";
     const t = tripGet(), D = j.daily;
     const days = D.time.map((d, i) => ({d, i})).filter(x => !t || t.area !== id || !t.from || (x.d >= t.from && x.d <= (t.to || t.from)));
     const show = days.length ? days : D.time.map((d, i) => ({d, i}));
