@@ -2859,7 +2859,10 @@ async function recordReplay(day, coords, bar){
 async function flyRoute(){
   if(!S.path?.length) return;
   const coords = [];
-  for(const s of S.path){ const pts = s.rev ? [...s.e.pts].reverse() : s.e.pts; for(const p of pts){ const c = [p[1], p[0]]; const l = coords[coords.length - 1]; if(!l || l[0] !== c[0] || l[1] !== c[1]) coords.push(c); } }
+  const lifts = [];   // welke stukken van de vlucht over een lift gaan: daar volgt het bolletje de kabel in plaats van de grond
+  for(const s of S.path){ const pts = s.rev ? [...s.e.pts].reverse() : s.e.pts, a = Math.max(0, coords.length - 1);
+    for(const p of pts){ const c = [p[1], p[0]]; const l = coords[coords.length - 1]; if(!l || l[0] !== c[0] || l[1] !== c[1]) coords.push(c); }
+    if(s.e.t === "l") lifts.push({a, b:coords.length - 1, i:s.e.i}); }
   if(coords.length < 2) return;
   if(!await open3dForReplay()) return;
   document.querySelector(".rp-bar")?.remove();
@@ -2868,7 +2871,7 @@ async function flyRoute(){
   document.body.appendChild(bar); document.body.classList.add("rp-on");
   const end = () => { M3.stopReplay(); bar.remove(); document.body.classList.remove("rp-on"); };
   $("rpStop").onclick = end;
-  if(!M3.replay(coords, () => { bar.querySelector(":scope > span").innerHTML = `${I("check")}${tr("Klaar voor de start!")}`; $("rpStop").innerHTML = `${I("close")}${tr("Sluiten")}`; }, {color:ROUTE_BLUE, speed:2.2})) end();
+  if(!M3.replay(coords, () => { bar.querySelector(":scope > span").innerHTML = `${I("check")}${tr("Klaar voor de start!")}`; $("rpStop").innerHTML = `${I("close")}${tr("Sluiten")}`; }, {lifts, color:ROUTE_BLUE, speed:2.2})) end();
 }
 async function open3dForReplay(){
   if(!M3.loaded()){
