@@ -29,6 +29,14 @@ for(const lang of LANGS){
   if(lang === "nl"){ const bad = await p.evaluate(() => Object.entries(OFFICIAL_KM).filter(([k, v]) => { const r = S.index.filter(r => r[0].startsWith(k));
       return r.length !== 1 || !(v[0] > 0) || !v[1] || !/^\d{4}\/\d{2}$/.test(v[2]) || v[0] < r[0][6] * .95; }).map(([k]) => k));
     bad.forEach(k => problems.push(`opgave van het gebied klopt niet voor ${k}`)); }
+  // deelgebieden: elk deel en elk groot gebied bestaat, en een deel openen geeft de hele pistekaart van het grote gebied
+  if(lang === "nl"){ const bad = await p.evaluate(async () => { const out = [];
+      for(const [k, v] of Object.entries(PARENT_AREA)){ if(S.index.filter(r => r[0].startsWith(k)).length !== 1 || S.index.filter(r => r[0].startsWith(v)).length !== 1 || PARENT_AREA[v]) out.push(k); }
+      const part = S.index.find(r => r[1] === "Courchevel"), whole = S.index.find(r => r[1] === "Les Trois Vallées");
+      localStorage.setItem("pp-dl-" + whole[0], JSON.stringify({v:1, t:Date.now()})); await openArea(part[0]);
+      if(S.area?.id !== whole[0] || S.area.edges.filter(e => e.t === "r").length < 600) out.push("Courchevel opent niet de hele pistekaart");
+      return out; });
+    bad.forEach(k => problems.push(`deelgebied klopt niet: ${k}`)); }
   await p.evaluate(async () => { const r = S.index.find(r => /Arlberg/.test(r[1])) || S.index[0]; localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); }).catch(e => problems.push(`[${lang}] gebied openen: ${e.message}`));
   await p.waitForTimeout(2000);
   const screens = [["kaart", () => {}], ["vandaag", () => setTab("today")], ["groep", () => setTab("group")], ["ik", () => setTab("me")],
