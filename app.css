@@ -2387,3 +2387,23 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .cc{background:none;font-size:26px;letter-spacing:0;width:34px}
 .onb .onb-skip{position:fixed;top:calc(var(--safe-t) + 14px);right:18px;left:auto}
 .onb-q .seg{display:flex}.onb-q .seg button{flex:1 1 0}
+/* ===== ontwerp 6: Vandaag, Pro en de reisplanner ===== */
+/* Vandaag: de rest van het gebied zit achter één rij */
+.more-area{display:flex;flex-direction:column;gap:14px}
+.more-area>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-l);font-weight:650;font-size:var(--t-md);cursor:pointer}
+.more-area>summary::-webkit-details-marker{display:none}
+.more-area>summary .ic{width:18px;height:18px;color:var(--accent)}
+.more-area>summary .ic:last-child{margin-left:auto;color:var(--faint);transition:transform .2s}
+.more-area[open]>summary .ic:last-child{transform:rotate(180deg)}
+.more-area[open]>summary{margin-bottom:14px}
+.more-area>section,.more-area>div{margin-bottom:14px}
+.more-area>section.dc:not(:has(.hscroll)){background:var(--card);border:1px solid var(--card-line);border-radius:var(--r-l);padding:14px 16px}
+/* zonder weer: de ene tegel (liften) over de volle breedte */
+.tiles>.tile:only-child{grid-column:1/-1}
+/* Pro: prijs en koopknop blijven in beeld */
+.pro-card .pro-buy{position:sticky;bottom:-18px;z-index:2;margin:0 -18px;padding:12px 18px;background:#0B1E30;border-top:1px solid rgba(167,199,220,.18)}
+/* reisplanner: vinkjes in de stijl van de app */
+.pack input[type=checkbox]{-webkit-appearance:none;appearance:none;width:24px;height:24px;flex:none;margin:0;border-radius:8px;border:2px solid color-mix(in srgb,var(--ink) 28%,transparent);background:var(--card);display:inline-grid;place-items:center;vertical-align:middle;cursor:pointer}
+.pack input[type=checkbox]:checked{background:var(--cta);border-color:var(--cta)}
+.pack input[type=checkbox]:checked::after{content:"";width:6px;height:11px;border:solid var(--cta-ink,#fff);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.pack label{display:flex;align-items:center;gap:12px;min-height:44px}
