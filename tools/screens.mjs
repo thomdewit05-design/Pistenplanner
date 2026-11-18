@@ -132,6 +132,13 @@ for(const phone of PHONES){
     const ms = await p.evaluate(() => { openMenu(); return [...document.querySelectorAll("#menu .m-sec:not(.open):not([hidden])")].filter(s => [...s.children].some(c => c.tagName !== "H3" && c.offsetParent !== null)).map(s => s.querySelector("h3")?.textContent.trim()); });
     ms.forEach(x => problems.push(`[${tag}] instellingen: dichte sectie "${x}" toont inhoud`));
     await p.evaluate(() => closeMenu()); await p.waitForTimeout(200);
+    // lichte weergave: de energiebesparingsmodus van iOS zet hem stil aan (geen melding, schakelaar blijft uit, geen wazig glas) en weer uit
+    const lite = await p.evaluate(async () => { document.getElementById("toast").classList.remove("on"); setPower(.8, true, true); await new Promise(r => setTimeout(r, 150));
+      const bf = e => { const c = getComputedStyle(e); return (c.backdropFilter && c.backdropFilter !== "none") || (c.webkitBackdropFilter && c.webkitBackdropFilter !== "none"); };
+      const r = {on:document.documentElement.classList.contains("lite"), saver:document.documentElement.classList.contains("saver"), toast:document.getElementById("toast").classList.contains("on"),
+        sw:document.getElementById("saverToggle").checked, blur:[...document.querySelectorAll("*")].filter(bf).map(e => e.id || e.className).slice(0, 4)};
+      setPower(.8, true, false); r.off = !document.documentElement.classList.contains("lite"); return r; });
+    if(!lite.on || lite.saver || lite.toast || lite.sw || lite.blur.length || !lite.off) problems.push(`[${tag}] lichte weergave klopt niet: ${JSON.stringify(lite)}`);
     // SOS: de belknop is volledig zichtbaar (niet in elkaar gedrukt), ook op een klein scherm
     await p.evaluate(() => document.getElementById("sosBtn").click()); await p.waitForTimeout(600);
     const sos = await p.evaluate(() => { const c = document.getElementById("sosMain"), b = c.querySelector("b").getBoundingClientRect(), r = c.getBoundingClientRect();

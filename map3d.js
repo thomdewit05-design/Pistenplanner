@@ -21,7 +21,7 @@ const M3 = (() => {
   const supported = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
   // Scherpte van de 3D-kaart: op een telefoon met een 3x-scherm is 1,75x ruim scherp genoeg en scheelt het een kwart van de pixels
   // die elk beeld berekend moeten worden; met batterij sparen nog iets lager.
-  const glRatio = () => Math.min(devicePixelRatio || 1, saving() ? 1.25 : 1.75);
+  const glRatio = () => Math.min(devicePixelRatio || 1, light() ? 1.25 : 1.75);
   const loaded = () => !!window.maplibregl && !failed;
   function load(){
     if(window.maplibregl) return Promise.resolve();
@@ -367,7 +367,7 @@ const M3 = (() => {
   function snowFx(){
     cancelAnimationFrame(snowRaf); document.querySelector(".m3-snow")?.remove();
     const code = S.wx?.c?.weather_code ?? 0;
-    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches || saving()) return;
+    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches || light()) return;
     const c = document.createElement("canvas"); c.className = "m3-snow"; gl.getContainer().appendChild(c);
     const x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
     const fit = () => { c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr; };

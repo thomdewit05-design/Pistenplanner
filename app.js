@@ -6,13 +6,17 @@ const $ = id => document.getElementById(id);
 const HIDDEN = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "hidden");
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // batterij sparen: zelf aangezet, of vanzelf onder 20% (als het toestel de batterijstand doorgeeft)
-const POWER = {low:false};
+const POWER = {low:false, lite:false};
 const saving = () => !!(S?.saver || POWER.low);
-function applySaver(){ const on = saving(); document.documentElement.classList.toggle("saver", on); window.M3?.sync?.("sky"); }
+// lichte weergave: bij batterij sparen, en ook als iOS in de energiebesparingsmodus staat. iOS halveert dan de beeldsnelheid en knijpt de processor;
+// met alle effecten aan gaat de app dan haperen. Dit gaat stil: geen melding, en de schakelaar 'Batterij sparen' verandert niet.
+const light = () => saving() || POWER.lite;
+function applySaver(){ const h = document.documentElement; h.classList.toggle("saver", saving()); h.classList.toggle("lite", light()); window.M3?.sync?.("sky"); }
 // Batterij sparen gaat vanzelf aan bij een accu van 20% of lager (niet aan de lader). Alleen de echte accustand telt:
 // de energiebesparingsmodus van iOS zetten veel mensen altijd aan, en dan ging sparen bij elke start aan met een onjuiste melding.
 // level: 0..1, of onbekend (kleiner dan of gelijk aan 0, of geen getal): dan verandert er niets.
-function setPower(level, charging){
+function setPower(level, charging, lowPower){
+  if(lowPower !== undefined && POWER.lite !== !!lowPower){ POWER.lite = !!lowPower; applySaver(); }
   if(!(level > 0)) return;
   const was = POWER.low; POWER.low = !charging && level <= .2;
   if(was === POWER.low) return;
@@ -27,8 +31,9 @@ navigator.getBattery?.().then(b => { const upd = () => setPower(b.level, b.charg
   b.addEventListener("levelchange", upd); b.addEventListener("chargingchange", upd); upd(); }).catch(() => {});
 // iOS-app: de webweergave geeft de accustand niet door, dus die elke 5 minuten bij de app opvragen
 if(window.PP_STORE === "ios" && !navigator.getBattery){ const ask = async () => { try{ const r = await window.Capacitor?.nativePromise?.("Nav", "battery", {});
-  if(r) setPower(r.level, r.charging); }catch(e){} };
-  window.ppAskBattery = ask; setTimeout(ask, 3000); setInterval(ask, 5 * 60000); }
+  if(r) setPower(r.level, r.charging, !!r.lowPower); }catch(e){} };
+  window.ppAskBattery = ask; ask(); setTimeout(ask, 3000); setInterval(ask, 5 * 60000);
+  document.addEventListener("visibilitychange", () => { if(!document.hidden) ask(); }); }
 function animHidden(el, ms = 220){
   if(!el) return;
   let want = el.hasAttribute("hidden"), timer = 0;
@@ -4190,7 +4195,7 @@ function goPiste(ei){
     TAB = "map"; tabPaint(); update(); fitRoute();
   };
   // View Transitions: het venster gaat vloeiend over in de kaart met de route
-  if(document.startViewTransition && !calm()) document.startViewTransition(go); else go();
+  if(document.startViewTransition && !calm() && !light()) document.startViewTransition(go); else go();
 }
 // berg-illustratie voor de bovenste kaart (zelfde stijl als het logo en de App Store-header)
 const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -5569,7 +5574,7 @@ function perfStart(){
 }
 function perfReport(){
   const A = S.area;
-  return [`Skipilot ${APP_VERSION} · ${window.PP_STORE || "web"} · ${innerWidth}x${innerHeight}@${devicePixelRatio} · ${A ? A.row[1] : "geen gebied"} · ${LANG}`,
+  return [`Skipilot ${APP_VERSION} · ${light() ? "licht" : "vol"}${POWER.lite ? " (iOS energiebesparing)" : ""} · ${window.PP_STORE || "web"} · ${innerWidth}x${innerHeight}@${devicePixelRatio} · ${A ? A.row[1] : "geen gebied"} · ${LANG}`,
     ...PERF.log.map(x => `${x.at}  ${String(x.ms).padStart(5)} ms  ${x.what}${x.act ? "  ← " + x.act : ""}  [${x.tab}${x.d3 ? "/3D" : ""}]`)].join("\n") || "Geen haperingen gemeten.";
 }
 $("perfToggle").checked = localStorage.getItem("pp-perf") === "1";
