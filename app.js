@@ -4233,9 +4233,9 @@ function renderToday(){
         <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
-        ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
-        ${tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top")}
-        ${tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
+        ${w || S.wxFail !== A.id ? tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur") : ""}
+        ${w || S.wxFail !== A.id ? tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top") : ""}
+        ${!(w || S.wxFail !== A.id) ? "" : tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
         ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
@@ -4247,14 +4247,17 @@ function renderToday(){
     + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu <span class="est">≈</span></p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
     + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
+    // Het belangrijkste staat bovenaan (weer, liften, jouw dag, aanraders); de rest zit achter één rij, zodat het scherm geen negen blokken lang is.
+    + `<details class="more-area" id="tdMore"${S.moreOpen ? " open" : ""}><summary>${I("flag")}<span>${tr("Meer over dit gebied")}</span>${I("chev")}</summary>`
     + freeSection() + wxCharts() + collectSection(A) + areaInfo()
     + camsSection(A)
-    + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
+    + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section></details>`;
   // Het weer en de webcams komen later binnen en tekenen dit scherm opnieuw: dan niets doen als er niets veranderd is,
   // en de kaarten niet opnieuw laten binnenkomen (dat flikkerde en kostte elke keer een volledige opbouw).
   if(box._h === html && box.firstElementChild) return;
   box.classList.toggle("still", !box._fresh); box._fresh = false;
   box._h = html; box.innerHTML = html;
+  $("tdMore")?.addEventListener("toggle", e => { S.moreOpen = e.target.open; box._h = ""; });
   $("tdClose").onclick = () => box.hidden = true;
   $("tdRetry")?.addEventListener("click", () => { S.wxFail = null; renderToday(); loadWeather(); });
   $("tdDay").onclick = () => { setTab("map"); dayRoute(); };
