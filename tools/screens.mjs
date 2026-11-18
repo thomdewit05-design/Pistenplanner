@@ -200,6 +200,16 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   console.log(`${tag}: bovenste blok van Vandaag eindigt op ${td}px van ${innerHeightOf(phone)}px`);
   if(!td || td > innerHeightOf(phone) + 2) problems.push(`[${tag}] Vandaag: het bovenste blok past niet zonder scrollen (${td}px)`);
   await shot("vandaag");
+  // de zonbalk staat niet achter de regel onderaan
+  const sunOv = await p.evaluate(async () => { setTab("map"); window.isPro = () => true; S.sunOn = true; drawSun(); await new Promise(r => setTimeout(r, 400));
+    const a = document.getElementById("sunBar").getBoundingClientRect(), b = document.getElementById("sheet").getBoundingClientRect();
+    const hit = a.height > 0 && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; S.sunOn = false; drawSun(); return {hit, h:Math.round(a.height)}; });
+  if(sunOv.hit || !sunOv.h) problems.push(`[${tag}] de zonbalk overlapt de regel onderaan of ontbreekt (${JSON.stringify(sunOv)})`);
+  // de reisplanner vanuit Plannen vult de breedte naast de tabkolom (geen smalle lade over de tab)
+  const trip = await p.evaluate(async () => { setTab("plan"); await new Promise(r => setTimeout(r, 300)); openTrip(); await new Promise(r => setTimeout(r, 700));
+    const d = document.getElementById("detail"), r = d.getBoundingClientRect(), f = d.querySelector(".trip-form").getBoundingClientRect(), i = document.getElementById("tpInfo").getBoundingClientRect();
+    const out = {w:Math.round(r.width), need:innerWidth - 90, side:i.left >= f.right - 1, ox:getComputedStyle(d).overflowX}; d.hidden = true; return out; });
+  if(trip.w < trip.need || !trip.side || trip.ox !== "hidden") problems.push(`[${tag}] reisplanner liggend klopt niet: ${JSON.stringify(trip)}`);
   // SOS: beide belknoppen en je locatie tegelijk in beeld
   await p.evaluate(() => { setTab("map"); document.getElementById("sosBtn").click(); }); await p.waitForTimeout(600);
   const so = await p.evaluate(() => [...document.querySelectorAll("#sos .call:not([hidden]), #sos .sos-loc")].map(e => e.getBoundingClientRect()).every(r => r.height > 30 && r.top >= 0 && r.bottom <= innerHeight + 1));
