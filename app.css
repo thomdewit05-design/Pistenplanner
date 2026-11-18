@@ -2583,6 +2583,12 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   .art *,.badge,.emb.ok::after,.coin-emb,.tab-ind.go,.hut,.menu .m-sec,.hero.cloudy::before,.sheet,.sheet.open,#detail.picker{animation:none!important}
   .a-draw{stroke-dashoffset:0}
 }
+/* ===== informatie die klopt: opgave, meting of schatting, elk benoemd ===== */
+.ai-km{display:flex;gap:8px;align-items:flex-start;margin:10px 0 2px;font-size:var(--t-xs,12px);line-height:1.4;color:var(--muted)}
+.ai-km .ic{width:15px;height:15px;flex:none;margin-top:1px;color:var(--faint)}
+.ai-km b{color:var(--ink);font-weight:650}
+.km-sub{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.nw-src{display:block;font-size:12px;opacity:.75;font-weight:500}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}
