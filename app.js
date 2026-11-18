@@ -527,36 +527,57 @@ function boardFlat(e){
   const g = (e.drop || 0) / e.len;
   return g < .04 ? 2 : g < .07 ? 1 : 0;
 }
-function graph(bias){
-  const A = S.area, out = A.nodes.map(() => []), R = RELAX, sun = S.sunny && !S.night ? sunShade() : null, tour = tourOn();
-  for(const e of A.edges){
-    if(S.closed.has(e.i)) continue;
-    const k = bias?.has(e.i) ? .05 : 1;
-    if(e.t==="r"){
-      const lv = DIFF[e.diff].lvl, over = k===1 && overLevel(e);
-      if(over && !(R >= 3 || (R >= 2 && lv !== 4 && lv <= S.level + 1))) continue;
-      if(S.night && k===1 && !e.f.includes("l")) continue;          // avondskiën: alleen verlichte pistes
-      // snowboard: vlakke en licht oplopende stukken kosten veel tijd en moeite (steppen of lopen)
-      const fl = S.board ? boardFlat(e) : 0;
-      const m = e.len / (DIFF[e.diff].spd * S.pace) * (fl === 2 ? 3 : fl === 1 ? 1.6 : 1);
-      const avoid = (S.noMogul && e.f.includes("m") ? 3 : 1) * (over ? (lv===4 ? 6 : 3) : 1)   // buckelpiste vermijden, boven je niveau alleen als het moet
-                  * (fl === 2 ? 3 : fl === 1 ? 1.4 : 1)
-                  * (sun && sun.alt > 2 && sun.v[e.i] < SUN_MIN ? 2.5 : 1);                    // zon opzoeken: schaduwpistes liever niet
-      // toeristisch: de rustigste pistes, en een lange afdaling is juist mooi (pistes tellen lichter dan liften en lopen)
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" || tour ? m*DIFF[e.diff].pen : m) * (tour ? .7 : 1)});
-    } else if(e.t==="l"){
-      if(S.night && k===1 && !A.nightLifts.has(e.i)) continue;   // 's avonds alleen liften bij verlichte pistes
-      const m = e.dur/60 + LIFT_WAIT;
-      const avoid = (S.noDrag || tour) && DRAG.has(e.kind) ? 4 : S.board && DRAG.has(e.kind) && e.kind !== "magic_carpet" ? 3 : 1;   // sleeplift vermijden: alleen als het niet anders kan
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)});
-      // met de lift naar beneden kan, maar skiën heeft de voorkeur
-      if(e.down && (S.down || R >= 1)) out[e.b].push({to:e.a, e, rev:true, min:m, cost:(m*1.5 + 10) * (tour ? 4 : 1)});
-    } else {
-      if(e.extra && R < 1) continue;
-      const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, c = m * (e.extra ? 3 : 1.5) * (S.board ? 2 : 1);   // met een plank lopen is zwaarder
-      out[e.a].push({to:e.b, e, rev:false, min:m, cost:c}); out[e.b].push({to:e.a, e, rev:true, min:m, cost:c});
-    }
+// de bogen van één piste, lift of loopstuk: [[knooppunt, boog], …]; k = .05 voor een piste die je zelf koos (die moet erin)
+function edgeArcs(e, k, c){
+  if(S.closed.has(e.i)) return null;
+  const A = c.A, R = c.R, sun = c.sun, tour = c.tour;
+  if(e.t==="r"){
+    const lv = DIFF[e.diff].lvl, over = k===1 && overLevel(e);
+    if(over && !(R >= 3 || (R >= 2 && lv !== 4 && lv <= S.level + 1))) return null;
+    if(S.night && k===1 && !e.f.includes("l")) return null;          // avondskiën: alleen verlichte pistes
+    // snowboard: vlakke en licht oplopende stukken kosten veel tijd en moeite (steppen of lopen)
+    const fl = S.board ? boardFlat(e) : 0;
+    const m = e.len / (DIFF[e.diff].spd * S.pace) * (fl === 2 ? 3 : fl === 1 ? 1.6 : 1);
+    const avoid = (S.noMogul && e.f.includes("m") ? 3 : 1) * (over ? (lv===4 ? 6 : 3) : 1)   // buckelpiste vermijden, boven je niveau alleen als het moet
+                * (fl === 2 ? 3 : fl === 1 ? 1.4 : 1)
+                * (sun && sun.alt > 2 && sun.v[e.i] < SUN_MIN ? 2.5 : 1);                    // zon opzoeken: schaduwpistes liever niet
+    // toeristisch: de rustigste pistes, en een lange afdaling is juist mooi (pistes tellen lichter dan liften en lopen)
+    return [[e.a, {to:e.b, e, rev:false, min:m, cost:k * avoid * (S.mode==="easy" || tour ? m*DIFF[e.diff].pen : m) * (tour ? .7 : 1)}]];
   }
+  if(e.t==="l"){
+    if(S.night && k===1 && !A.nightLifts.has(e.i)) return null;   // 's avonds alleen liften bij verlichte pistes
+    const m = e.dur/60 + LIFT_WAIT;
+    const avoid = (S.noDrag || tour) && DRAG.has(e.kind) ? 4 : S.board && DRAG.has(e.kind) && e.kind !== "magic_carpet" ? 3 : 1;   // sleeplift vermijden: alleen als het niet anders kan
+    const arcs = [[e.a, {to:e.b, e, rev:false, min:m, cost:k*m*avoid + (avoid > 1 ? 5 : 0)}]];
+    // met de lift naar beneden kan, maar skiën heeft de voorkeur
+    if(e.down && (S.down || R >= 1)) arcs.push([e.b, {to:e.a, e, rev:true, min:m, cost:(m*1.5 + 10) * (tour ? 4 : 1)}]);
+    return arcs;
+  }
+  if(e.extra && R < 1) return null;
+  const m = e.len / WALK_SPD + .5 + (e.climb || 0) / 10, cst = m * (e.extra ? 3 : 1.5) * (S.board ? 2 : 1);   // met een plank lopen is zwaarder
+  return [[e.a, {to:e.b, e, rev:false, min:m, cost:cst}], [e.b, {to:e.a, e, rev:true, min:m, cost:cst}]];
+}
+// De graaf wordt per gebied en per instelling één keer gebouwd en daarna hergebruikt: een dagroute vraagt hem honderden keren.
+// Met "bias" (zelf gekozen pistes) worden alleen de knooppunten van die pistes opnieuw gemaakt, in dezelfde volgorde als voorheen.
+function graph(bias){
+  const A = S.area, R = RELAX, sun = S.sunny && !S.night ? sunShade() : null, tour = tourOn(), c = {A, R, sun, tour};
+  // gesloten pistes als drie getallen (aantal, som, kwadraatsom): goedkoop en verandert bij elke wijziging
+  let cn = 0, cs = 0, cq = 0; for(const i of S.closed){ cn++; cs += i; cq += i * i; }
+  const sig = [S.level, S.free, S.night, S.board, S.noMogul, S.noDrag, S.down, S.mode, S.pace, tour, sun ? sun.key : 0, A.edges.length, A.nodes.length, cn, cs, cq].join("|");
+  if(!A.gc || A.gc.sig !== sig) A.gc = {sig, r:[]};
+  const G = A.gc.r[R] || (A.gc.r[R] = {out:null, sp:new Map()});
+  let base = G.out;
+  if(!base){
+    base = G.out = A.nodes.map(() => []);
+    for(const e of A.edges){ const arcs = edgeArcs(e, 1, c); if(arcs) for(const [n, arc] of arcs) base[n].push(arc); }
+  }
+  graph.memo = G.sp;   // kortste routes die bij deze graaf al zijn uitgerekend (zie shortest)
+  if(!bias || !bias.size) return base;
+  const out = base.slice(), touched = new Set();
+  for(const i of bias){ const e = A.edges[i]; if(e){ touched.add(e.a); touched.add(e.b); } }
+  for(const n of touched) out[n] = base[n].filter(arc => !bias.has(arc.e.i));
+  for(const i of bias){ const e = A.edges[i], arcs = e && edgeArcs(e, .05, c); if(arcs) for(const [n, arc] of arcs) out[n].push(arc); }
+  for(const n of touched) out[n].sort((x, y) => x.e.i - y.e.i);
   return out;
 }
 // extra loopstukjes tot 250 m tussen punten die in de kaart net niet op elkaar aansluiten
@@ -589,24 +610,31 @@ function nearestReachable(a, b){
   return best;
 }
 function dijkstra(a, b, out = graph()){
-  const n = out.length, dist = new Float64Array(n).fill(Infinity), prev = new Array(n), heap = [[0,a]]; dist[a] = 0;
+  const n = out.length, dist = new Float64Array(n).fill(Infinity), prev = new Array(n), from = new Int32Array(n), heap = [[0,a]]; dist[a] = 0;
   const push = it => { heap.push(it); let i = heap.length-1; while(i>0){ const p=(i-1)>>1; if(heap[p][0]<=heap[i][0]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
   const pop = () => { const top = heap[0], last = heap.pop(); if(heap.length){ heap[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<heap.length&&heap[l][0]<heap[m][0]) m=l; if(r<heap.length&&heap[r][0]<heap[m][0]) m=r; if(m===i) break; [heap[m],heap[i]]=[heap[i],heap[m]]; i=m; } } return top; };
   while(heap.length){
     const [d,u] = pop();
     if(d > dist[u]) continue;
     if(u===b) break;
-    for(const s of out[u]){ const nd = d + s.cost; if(nd < dist[s.to]){ dist[s.to] = nd; prev[s.to] = {...s, from:u}; push([nd, s.to]); } }
+    for(const s of out[u]){ const nd = d + s.cost; if(nd < dist[s.to]){ dist[s.to] = nd; prev[s.to] = s; from[s.to] = u; push([nd, s.to]); } }
   }
-  return {dist, prev};
+  return {dist, prev, from};
 }
 function shortest(a, b, bias){
   if(a==null || b==null) return null;
   if(a===b) return [];
-  const {dist, prev} = dijkstra(a, b, graph(bias));
-  if(dist[b]===Infinity) return null;
-  const path = []; let v = b; while(v!==a){ const s = prev[v]; path.unshift(s); v = s.from; }
-  return path;
+  // dezelfde vraag bij dezelfde graaf (een dagroute en de lunchzoeker stellen hem tientallen keren): uit het geheugen
+  const out = graph(bias), memo = graph.memo;
+  let bk = ""; if(bias && bias.size){ let s = 0, q = 0; for(const i of bias){ s += i; q += i * i; } bk = bias.size + "." + s + "." + q; }
+  const key = a + ">" + b + ">" + bk, hit = memo.get(key);
+  if(hit !== undefined) return hit && hit.map(s => ({...s}));
+  const {dist, prev, from} = dijkstra(a, b, out);
+  let path = null;
+  if(dist[b] !== Infinity){ path = []; let v = b; while(v!==a){ path.push({...prev[v], from:from[v]}); v = from[v]; } path.reverse(); }
+  if(memo.size > 4000) memo.clear();
+  memo.set(key, path);
+  return path && path.map(s => ({...s}));
 }
 // getekende route: punten (n) en hele pistes (p) achter elkaar
 function wpLegs(){
@@ -916,13 +944,21 @@ function renderExtra(){
   });
 }
 
+// een knop die rekenwerk start: eerst laten zien dat de tik is aangekomen, dan pas rekenen (anders lijkt de app te bevriezen)
+function busyThen(btn, label, fn){
+  if(btn){ btn.disabled = true; btn.classList.add("busy"); btn.innerHTML = `<i class="spin"></i>${tr(label)}`; }
+  requestAnimationFrame(() => setTimeout(() => { try{ fn(); } finally{ if(btn?.isConnected){ btn.disabled = false; btn.classList.remove("busy"); } } }, 0));
+}
+let pendingDetail = null;
+const detailNow = () => sheet.classList.contains("open") || sheet.classList.contains("dragging") || isSide();
+function ensureDetail(){ if(pendingDetail){ const f = pendingDetail; pendingDetail = null; f(); } }
 function renderResult(){
-  const res = $("result"), peek = $("peek");
+  const res = $("result"), peek = $("peek"); pendingDetail = null;
   if(S.from==null || S.to==null){
     res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`;
     peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Waar wil je heen?" : "Kies je bestemming"}</b>${S.from==null ? "Tik een piste of een punt op de kaart aan, of neem de dagroute van vandaag." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
       <div class="cta">${S.from==null ? `<button type="button" class="btn primary day-btn" id="dayBtn">${I("sun")}Dagroute van vandaag</button>` : ""}<button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button>${ticketBtnHtml()}${homeBtnHtml(true)}</div></div>`;
-    $("dayBtn")?.addEventListener("click", () => dayRoute());
+    $("dayBtn")?.addEventListener("click", e => busyThen(e.currentTarget, "Route zoeken…", () => dayRoute()));
     $("homeBtn")?.addEventListener("click", goHome); $("homeSet")?.addEventListener("click", homeMenu);
     $("drawBtn2").onclick = startDraw;
     return setPeek();
@@ -993,30 +1029,36 @@ function renderResult(){
   const homeWalk = atHome ? meters(home.lat, home.lon, S.area.nodes[S.to].lat, S.area.nodes[S.to].lon) : 0;
   const lunchLi = () => `<li class="lunch"><span class="node">${I("food")}</span><div class="st-body"><div class="st-title"><span>Lunch bij ${esc(S.lunch.name)}</span></div><div class="st-sub">Rond ${hhmm(S.lunch.eta)} · ${S.lunch.dur} min pauze</div></div><div class="st-right"><span class="st-time">${fmt(S.lunch.dur)}</span></div></li>`;
   const endLabel = atHome ? (home.kind === "auto" ? "Bij je auto" : "Bij je hotel") : lastWp ? (lastWp.k === "p" ? `Einde ${lastWp.ch.label}` : nodeLabel(S.to)) : S.target ? `Einde ${S.target.label}` : S.to===S.from && S.via!=null ? "Terug bij je vertrekpunt" : nodeLabel(S.to);
-  res.innerHTML = warn + profileHtml() + (S.lunch ? "" : `<div class="lunch-box" id="lunchBox"><button type="button" class="btn ghost" id="lunchAdd">${I("food")}Lunchstop toevoegen</button></div>`)
-    + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
-    + steps.map((s, i) => (i === S.lunchStep ? lunchLi() : "") + `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
-      <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span>${s.t!=="w" && s.e ? `<button type="button" class="st-info" data-ei="${s.e.i}" aria-label="${tr("Details")}">${I("chev")}</button>` : ""}</div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}${S.relax && s.t==="r" && s.items.some(x => overLevel(x.e)) ? `<span class="risk-chip">${I("warn")}Boven je niveau</span>` : ""}</div>
-      <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
-    + (S.lunchStep === steps.length ? lunchLi() : "")
-    + `<li class="end"><span class="node">${atHome ? I(home.kind === "auto" ? "car" : "bed") : I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div>${homeWalk > 40 ? `<div class="st-sub">Daarna nog ${km(homeWalk)} lopen</div>` : ""}</div><span></span></li></ol>`;
-  $("lunchAdd")?.addEventListener("click", lunchForm);
+  // De routebeschrijving (honderden regels bij een dagroute) pas opbouwen als je hem kunt zien: met het paneel open, of opzij op een groot scherm.
+  // Ingeklapt zie je alleen de samenvatting; de lijst maken kostte bij elke wijziging de meeste tijd.
+  const detail = () => {
+    res.innerHTML = warn + profileHtml() + (S.lunch ? "" : `<div class="lunch-box" id="lunchBox"><button type="button" class="btn ghost" id="lunchAdd">${I("food")}Lunchstop toevoegen</button></div>`)
+      + `<div class="route-head"><p class="label">Routebeschrijving</p><span>${steps.length} stappen</span></div><ol class="steps">`
+      + steps.map((s, i) => (i === S.lunchStep ? lunchLi() : "") + `<li data-i="${i}" class="${s.cls}" style="${s.color ? `--c:${s.color}` : ""}">${s.node}
+        <div class="st-body"><div class="st-title">${s.t==="r" && s.turn && s.turn!=="rechtdoor" ? I(s.icon) : ""}<span>${esc(s.title)}</span>${s.t!=="w" && s.e ? `<button type="button" class="st-info" data-ei="${s.e.i}" aria-label="${tr("Details")}">${I("chev")}</button>` : ""}</div><div class="st-sub">${esc(s.sub)}</div>${s.late ? `<span class="late-tag">${I("clock")}Om ${hhmm(s.eta)}, na sluitingstijd</span>` : ""}${s.t==="l" && S.risk?.lifts.has(s.e.i) ? `<span class="risk-chip">${I("wind")}Mogelijk dicht door wind</span>` : ""}${S.relax && s.t==="r" && s.items.some(x => overLevel(x.e)) ? `<span class="risk-chip">${I("warn")}Boven je niveau</span>` : ""}</div>
+        <div class="st-right"><span class="st-time">${fmt(s.min)}</span>${s.t!=="w" ? `<button type="button" class="close-btn" data-i="${i}" title="Afsluiten en omrijden" aria-label="${s.t==="l" ? "Lift" : "Piste"} afsluiten">${I("ban")}</button>` : ""}</div></li>`).join("")
+      + (S.lunchStep === steps.length ? lunchLi() : "")
+      + `<li class="end"><span class="node">${atHome ? I(home.kind === "auto" ? "car" : "bed") : I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div>${homeWalk > 40 ? `<div class="st-sub">Daarna nog ${km(homeWalk)} lopen</div>` : ""}</div><span></span></li></ol>`;
+    $("lunchAdd")?.addEventListener("click", lunchForm);
+    $("valley2")?.addEventListener("click", () => toValley(false));
+    bindProfile();
+    $("openStatus2")?.addEventListener("click", openStatus);
+    res.querySelectorAll(".st-info").forEach(b => b.onclick = ev => { ev.stopPropagation(); openDetail(+b.dataset.ei); });
+    res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
+      if(ev.target.closest(".close-btn,.st-info")) return;
+      const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
+      if(!isSide()) setSheet(false);
+    });
+    res.querySelectorAll(".close-btn").forEach(b => b.onclick = () => {
+      const s = steps[+b.dataset.i]; setClosed(s.items.map(x => x.e.i), true);
+      if(S.target && s.items.some(x => S.target.edges.includes(x.e.i))) S.target = null;
+      toast(`${s.t==="l" ? "Lift" : "Piste"} gesloten. Nieuwe route berekend.`);
+      drawPistes(); update();
+    });
+  };
+  if(detailNow()){ pendingDetail = null; detail(); }
+  else { pendingDetail = detail; res.innerHTML = warn; }
   if(S.lunch) renderExtra();   // de lunchtijd is nu bekend
-  $("valley2")?.addEventListener("click", () => toValley(false));
-  bindProfile();
-  $("openStatus2")?.addEventListener("click", openStatus);
-  res.querySelectorAll(".st-info").forEach(b => b.onclick = ev => { ev.stopPropagation(); openDetail(+b.dataset.ei); });
-  res.querySelectorAll("li[data-i]").forEach(li => li.onclick = ev => {
-    if(ev.target.closest(".close-btn,.st-info")) return;
-    const s = steps[+li.dataset.i]; map.fitBounds(L.latLngBounds(s.line), {...sheetPad(), maxZoom:17});
-    if(!isSide()) setSheet(false);
-  });
-  res.querySelectorAll(".close-btn").forEach(b => b.onclick = () => {
-    const s = steps[+b.dataset.i]; setClosed(s.items.map(x => x.e.i), true);
-    if(S.target && s.items.some(x => S.target.edges.includes(x.e.i))) S.target = null;
-    toast(`${s.t==="l" ? "Lift" : "Piste"} gesloten. Nieuwe route berekend.`);
-    drawPistes(); update();
-  });
   setPeek();
 }
 function renderClosed(){
@@ -1597,10 +1639,11 @@ function setMini(on){
   sheetMini = on; try{ localStorage.setItem("pp-sheet-mini", on ? "1" : "0"); }catch(e){}
   setPeek();
 }
-function setSheet(open){ sheet.classList.toggle("open", open); }
+function setSheet(open){ if(open) ensureDetail(); sheet.classList.toggle("open", open); }
+SIDE_MQ.addEventListener?.("change", () => ensureDetail());
 (() => {   // veeggebaar op de greep
   const h = $("handle"); let y0 = null, moved = false, base = 0, lastY = 0, lastT = 0, vel = 0;
-  h.addEventListener("pointerdown", e => { y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; moved = false; base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
+  h.addEventListener("pointerdown", e => { y0 = lastY = e.clientY; lastT = performance.now(); vel = 0; moved = false; ensureDetail(); base = sheet.getBoundingClientRect().top; h.setPointerCapture(e.pointerId); sheet.classList.add("dragging"); });
   h.addEventListener("pointermove", e => { if(y0==null) return; const dy = e.clientY - y0; if(Math.abs(dy) > 5) moved = true;
     const now = performance.now(); if(now > lastT){ vel = .7 * vel + .3 * (e.clientY - lastY) / (now - lastT); lastY = e.clientY; lastT = now; }
     // boven de hoogste stand: rubberband
@@ -3560,6 +3603,7 @@ setInterval(() => { if(S.area && (S.sunOn || S.sunny)){ drawSun(); if(S.sunny) u
 // ================= lunchstop =================
 function lunchForm(){
   if(!requirePro("lunch")) return;
+  ensureDetail();
   const box = $("lunchBox"); if(!box) return;
   box.innerHTML = `<div class="lunch-form"><p class="label">Lunchstop</p>
     <div class="lf-row"><label>Lunchen rond<input type="time" id="lfAt" value="${S.lunchPref?.at || "12:30"}" step="300"></label>
@@ -3569,7 +3613,7 @@ function lunchForm(){
   $("lfGo").onclick = () => planLunch($("lfAt").value || "12:30", +$("lfDur").value || 60);
   $("lfCancel").onclick = () => update();
 }
-function planLunch(at, dur, quiet){
+function planLunch(at, dur, quiet, noDraw){
   const A = S.area, huts = (A.huts || []).filter(h => A.nodes[h.node] && isFood(h));
   S.lunchPref = {at, dur};
   if(!S.path || !S.path.length){ toast("Kies eerst een route, dan zoekt de app een plek voor de lunch."); return; }
@@ -3588,10 +3632,10 @@ function planLunch(at, dur, quiet){
     const score = Math.abs(eta - want) + .6 * Math.max(0, extra) + (h.kind === "b" || h.kind === "f" ? 15 : 0) + (h.name ? 0 : 20);
     if(!best || score < best.score) best = {h, score, eta};
   }
-  if(!best){ S.lunch = keep; update(); if(!quiet) toast("Geen hut of restaurant gevonden die in je route past."); return; }
+  if(!best){ S.lunch = keep; if(!noDraw) update(); if(!quiet) toast("Geen hut of restaurant gevonden die in je route past."); return; }
   const k = HUT_KIND[best.h.kind] || HUT_KIND.r;
   S.lunch = {n:best.h.node, at, dur, name:best.h.name || k[0], kind:best.h.kind};
-  update(); if(quiet) return; fitRoute();
+  if(!noDraw) update(); if(quiet) return; fitRoute();
   const eta = S.lunch.eta ?? best.eta;
   toast(Math.abs(eta - want) > 30 ? `Lunch bij ${S.lunch.name} rond ${hhmm(eta)}. Dichter bij ${at} lukt niet met deze route.` : `Lunch bij ${S.lunch.name} rond ${hhmm(eta)}.`, 4000);
 }
@@ -3728,6 +3772,7 @@ function dayRoute(extra = 0){
   const pick = [], used = new Set();
   const far = c => pick.length ? Math.min(...pick.map(p => meters(p.mid[0], p.mid[1], c.mid[0], c.mid[1]))) : 1000;
   // terug naar het begin; lukt dat niet zonder pistes boven je niveau, dan eindigt de dag onderaan de laatste piste
+  const dMemo = new Map(), distFrom = n => dMemo.get(n) || (dMemo.set(n, dijkstra(n, null, out).dist), dMemo.get(n));   // elke afstandsberekening maar één keer
   const build = (list, back = true) => [{k:"n", n:start}, ...list.map(c => ({k:"p", ei:c.ei})), ...(back ? [{k:"n", n:start}] : [])];
   let back = true;
   let path = null, mins = 0;
@@ -3737,7 +3782,7 @@ function dayRoute(extra = 0){
     const c = pool.sort((x, y) => y.s - x.s)[0]; used.add(c.ei);
     // in de volgorde waarin je ze het makkelijkst na elkaar skiet: steeds de dichtstbijzijnde volgende
     const list = [...pick, c], order = []; let cur = start, left = [...list];
-    while(left.length){ const d = dijkstra(cur, null, out).dist; left.sort((x, y) => d[x.ch.start] - d[y.ch.start]); const n = left.shift(); order.push(n); cur = n.ch.end; }
+    while(left.length){ const d = distFrom(cur); left.sort((x, y) => d[x.ch.start] - d[y.ch.start]); const n = left.shift(); order.push(n); cur = n.ch.end; }
     S.wps = build(order); let p = computePath(), b = true;
     if(p && S.relax){ S.wps = build(order, false); const q = computePath(); if(q && !S.relax){ p = q; b = false; } }
     if(!p || (S.relax && round < 8)) continue;   // liever niets boven je niveau of buiten je instellingen
@@ -3748,11 +3793,13 @@ function dayRoute(extra = 0){
   if(!pick.length){ S.wps = []; update(); toast("Voor dit gebied lukt geen dagroute."); return; }
   S.wps = build(pick, back);
   S.day = {key:wpsSig(), extra};
-  update();
-  // lunch rond half één, als je dag daar overheen loopt
-  if(t0 < toMin("12:15") && t0 + mins > toMin("12:15") && (A.huts || []).some(isFood)) planLunch("12:30", 60, true);
+  // lunch rond half één, als je dag daar overheen loopt (de lunchzoeker heeft alleen de route nodig, nog geen getekend scherm)
+  if(t0 < toMin("12:15") && t0 + mins > toMin("12:15") && (A.huts || []).some(isFood)){
+    S.target = null; S.via = null; S.from = wpStart(S.wps[0]); S.to = wpEnd(S.wps[S.wps.length-1]); S.path = computePath();
+    planLunch("12:30", 60, true, true);
+  }
   S.day.key = wpsSig();
-  update(); fitRoute();
+  update(); requestAnimationFrame(fitRoute);   // eerst het paneel tonen, dan de kaart verschuiven
   buzz("success");
   toast(`Dagroute: ${pick.length} pistes${S.lunch ? `, lunch bij ${S.lunch.name}` : ""}. Morgen weer een andere.`, 4000);
 }
@@ -4113,7 +4160,7 @@ function heroSkyline(A){
     ${top[3] ? `<g class="hs-lbl"><circle cx="${tx.toFixed(0)}" cy="${(ty - 2).toFixed(0)}" r="2.6" fill="#fff"/><text x="${Math.min(W - 6, Math.max(6, tx)).toFixed(0)}" y="${(ty - 9).toFixed(0)}" text-anchor="${tx > W - 80 ? "end" : tx < 80 ? "start" : "middle"}">${esc(top[3])} · ${top[2].toLocaleString(LOCALE)} m</text></g>` : ""}
   </svg>`;
 }
-function openToday(){ $("today").hidden = false; renderToday(); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); }
+function openToday(){ const b = $("today"); b.hidden = false; b._fresh = true; b._h = ""; renderToday(); if(S.area && (!S.wx || S.wx.area !== S.area.id)) loadWeather(); }
 function renderToday(){
   const box = $("today"), A = S.area;
   if(!A){ box.innerHTML = dashHead(greeting(), "Vandaag", "tdClose") + `<div class="dash-empty"><img src="icons/logo.svg" alt="" class="empty-art"><p>Kies eerst een skigebied, dan zie je hier het weer, de sneeuw en de mooiste pistes van vandaag.</p><button type="button" class="btn primary" id="tdPick">${I("search")}Kies een skigebied</button></div>`;
@@ -4136,7 +4183,7 @@ function renderToday(){
     days = Dd.time.slice(i0, i0 + 4).map((t, k) => { const i = i0 + k, [dt, di] = wxInfo(Dd.weather_code[i]), sn = Dd.snowfall_sum[i] || 0;
       return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
   }
-  box.innerHTML = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
+  const html = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
     + `<section class="hero dc sky-${heroSky().k}">${heroSkyline(A)}<div class="hero-txt">
         <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : sk}</p>
         <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `${tr("Weer niet beschikbaar.")} <button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : tr("Weer en sneeuw laden…")}</p>
@@ -4159,6 +4206,11 @@ function renderToday(){
     + freeSection() + wxCharts() + collectSection(A) + areaInfo()
     + camsSection(A)
     + `<section class="dc"><p class="label">${I("warn")}${tr("Lawinegevaar")}</p>${avScale()}${(() => { const av = AVALANCHE_REGION[`${r[2]}|${r[3]}`] || AVALANCHE[r[2]]; return `<a class="btn ghost av-link" href="${av ? av[0] : "https://www.avalanches.org/"}" target="_blank" rel="noopener">${I("warn")}Lawinebericht</a>`; })()}</section>`;
+  // Het weer en de webcams komen later binnen en tekenen dit scherm opnieuw: dan niets doen als er niets veranderd is,
+  // en de kaarten niet opnieuw laten binnenkomen (dat flikkerde en kostte elke keer een volledige opbouw).
+  if(box._h === html && box.firstElementChild) return;
+  box.classList.toggle("still", !box._fresh); box._fresh = false;
+  box._h = html; box.innerHTML = html;
   $("tdClose").onclick = () => box.hidden = true;
   $("tdRetry")?.addEventListener("click", () => { S.wxFail = null; renderToday(); loadWeather(); });
   $("tdDay").onclick = () => { setTab("map"); dayRoute(); };
@@ -5385,6 +5437,47 @@ function swipeDismiss(el){
 ["today", "me", "plan", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
 
 // ================= menu en instellingen =================
+// ================= hapermeter (Menu › App › Prestaties tonen) =================
+// Telt beelden die te lang duurden en onthoudt wat de app toen deed, zodat een hapering op een echte telefoon terug te vinden is.
+const PERF = {on:false, log:[], spans:[], act:"", actT:0};
+const PERF_FNS = ["dayRoute", "openArea", "update", "renderResult", "renderToday", "renderMe", "renderPlan", "renderGroup", "renderAreas", "renderDiary", "renderStatus", "renderWeather",
+  "drawPistes", "drawNumbers", "drawHuts", "drawPeaks", "drawSun", "drawHeat", "drawArrows", "fitRoute", "fitArea", "planLunch", "computePath", "defaultRoute", "onPos", "apply3d", "openDetail",
+  "setTab", "openPicker", "openTrip", "openCompare", "renderSeason", "renderBadges", "loadWeather", "buildSteps", "toggleFollow", "navTick", "applyBase", "showCollected", "ensureDetail"];
+function perfStart(){
+  if(PERF.on) return; PERF.on = true;
+  for(const n of PERF_FNS){ const f = window[n]; if(typeof f !== "function" || f._p) continue;
+    const w = function(...a){ const t = performance.now(); try{ return f.apply(this, a); } finally{ const d = performance.now() - t; if(d > 24) PERF.spans.push([n, d, t]); } };
+    w._p = 1; try{ window[n] = w; }catch(e){} }
+  addEventListener("pointerdown", e => { const t = e.target.closest?.("button,a,label,[id]"); PERF.act = t ? (t.id ? "#" + t.id : (t.textContent || "").trim().slice(0, 24)) : "kaart"; PERF.actT = performance.now(); }, true);
+  const el = document.createElement("button"); el.type = "button"; el.id = "perfBox"; el.className = "perf-box"; el.setAttribute("aria-label", "Prestaties"); document.body.appendChild(el);
+  el.onclick = async () => { const txt = perfReport(); try{ await navigator.clipboard.writeText(txt); toast(tr("Lijst met haperingen gekopieerd."), 2500); }catch(e){ try{ await navigator.share({text:txt}); }catch(e2){ prompt("Haperingen", txt); } } };
+  let last = performance.now(), t0 = last, frames = 0, skip = true;
+  document.addEventListener("visibilitychange", () => { skip = true; });
+  const tick = t => {
+    if(!PERF.on){ el.remove(); return; }
+    const d = t - last; last = t; frames++;
+    if(skip) skip = false;
+    else if(d > 90 && d < 8000){
+      const sp = PERF.spans.filter(s => s[2] >= t - d - 20).sort((x, y) => y[1] - x[1]).slice(0, 3).map(s => `${s[0]} ${Math.round(s[1])}`);
+      const act = t - PERF.actT < 1500 + d ? PERF.act : "";
+      PERF.log.push({at:new Date().toTimeString().slice(0, 8), ms:Math.round(d), what:sp.join(", ") || "tekenen", act, tab:typeof TAB !== "undefined" ? TAB : "", d3:M3.mode || ""});
+      if(PERF.log.length > 40) PERF.log.shift();
+    }
+    PERF.spans = PERF.spans.filter(s => s[2] > t - 3000);
+    if(t - t0 >= 1000){ const fps = Math.round(frames * 1000 / (t - t0)); el.textContent = `${fps} · ${PERF.log.length}`; el.classList.toggle("bad", fps < 40); frames = 0; t0 = t; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function perfReport(){
+  const A = S.area;
+  return [`Skipilot ${APP_VERSION} · ${window.PP_STORE || "web"} · ${innerWidth}x${innerHeight}@${devicePixelRatio} · ${A ? A.row[1] : "geen gebied"} · ${LANG}`,
+    ...PERF.log.map(x => `${x.at}  ${String(x.ms).padStart(5)} ms  ${x.what}${x.act ? "  ← " + x.act : ""}  [${x.tab}${x.d3 ? "/3D" : ""}]`)].join("\n") || "Geen haperingen gemeten.";
+}
+$("perfToggle").checked = localStorage.getItem("pp-perf") === "1";
+$("perfToggle").onchange = e => { try{ localStorage.setItem("pp-perf", e.target.checked ? "1" : "0"); }catch(x){} if(e.target.checked) perfStart(); else PERF.on = false; };
+if($("perfToggle").checked) setTimeout(perfStart, 0);
+
 const APP_VERSION = "1.1.0";
 function applyTheme(){
   // standaard licht: de ijsblauwe huisstijl (in het menu kun je automatisch of donker kiezen)

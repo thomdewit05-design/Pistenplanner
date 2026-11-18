@@ -2161,3 +2161,15 @@ body.map-moving .glass,body.map-moving .sheet,body.map-moving .tabbar,body.map-m
 body.map-moving .sheet{background:color-mix(in srgb,var(--surface) 96%,transparent)!important}
 .sheet,.tabbar{-webkit-backdrop-filter:saturate(170%) blur(16px);backdrop-filter:saturate(170%) blur(16px)}
 .lchip{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+/* prestaties: lange lijsten alleen tekenen waar je kijkt */
+ol.steps>li{content-visibility:auto;contain-intrinsic-size:auto 58px}
+#areas>li{content-visibility:auto;contain-intrinsic-size:auto 56px}
+.dash.still .dc{animation:none}
+/* hapermeter */
+.perf-box{position:fixed;z-index:100002;top:calc(4px + var(--safe-t));left:50%;transform:translateX(-50%);padding:3px 9px;border-radius:999px;border:0;background:rgba(15,27,42,.82);color:#7CF29A;font:700 11px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.02em}
+.perf-box.bad{color:#FF8A7A}
+/* routepijltjes: een paar keer oplichten bij een nieuwe route en dan stilstaan, zonder schaduwfilter (eindeloos animeren met een filter kostte continu rekenkracht) */
+.rarrow i{animation:rflow 1.6s ease-in-out 2;filter:none}
+.btn .spin{width:16px;height:16px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.busy{opacity:.85}
