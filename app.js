@@ -265,6 +265,15 @@ const OFFICIAL_KM = {b4c1b4b8:[1200, "dolomitisuperski.com", "2025/26"], "68b126
   "1eeb56a8":[188, "austria.info", "2025/26"], fa9477e2:[410, "valais.ch", "2025/26"], efaa82d7:[265, "Grand Massif", "2025/26"], e587928e:[214, "tirol.at", "2025/26"],
   "7c2f2690":[239, "Ischgl / Samnaun", "2025/26"], "4ae9b0cb":[225, "Arosa Lenzerheide", "2025/26"], "94cb050e":[250, "Serre Chevalier", "2025/26"], "775634f8":[310, "Les Sybelles", "2025/26"],
   bbbfaa27:[150, "Zillertal Arena", "2025/26"], "0e7ba1fd":[142, "Mayrhofen", "2025/26"]};
+// ================= deelgebieden =================
+// Een aantal gebieden in de lijst is een deel van een groter, aaneengesloten skigebied (Courchevel in Les Trois Vallées,
+// Lech/Zürs in Ski Arlberg). Wie zo'n deel opent, krijgt de hele pistekaart van het grote gebied, ingezoomd op het gekozen deel:
+// anders ontbreken pistes die wel op de pistekaart van het gebied staan. Bepaald uit de brongegevens (welke pistes bij beide
+// gebieden horen) en de gebouwde netwerken (wat echt aan elkaar vastzit). Sleutel en waarde: de eerste 8 tekens van het id.
+const PARENT_AREA = {"05ec7627":"e7c4c03b", "075db540":"68b126bc", "097fee0c":"fc76f378", "13ba8696":"68b126bc", "23365b5c":"68b126bc", "29248afe":"53410fc6", "3ab7375c":"68b126bc", "3bfbf3fc":"e615b3d3", "4230b270":"3768b8c9", "4236aff4":"e7c4c03b", "44e5bfbf":"70b5c16a", "45c1ed53":"70b5c16a", "4bcf6fac":"00add16c", "4f8cc7c8":"f83cb97a", "52277e01":"f5fcc0e5", "5f7de23f":"1fd29b02", "66e67247":"53410fc6", "7382bc3c":"02196b1e", "7563abec":"02196b1e", "83250142":"f83cb97a", "8ab6f8a4":"70b5c16a", "a52b30a5":"1fd29b02", "ab812531":"4ae9b0cb", "b66cd0bd":"68b126bc", "b9dc9702":"1fd29b02", "c321766d":"f5fcc0e5", "c443cc10":"3768b8c9", "c5107fc2":"53410fc6", "c75c6ca0":"e615b3d3", "d8574809":"15f974c6", "dec537b6":"91c44085", "e13d9d82":"68b126bc", "f47f7e05":"91c44085", "fae4cdfb":"bd78d227"};
+const parentRow = id => { const p = PARENT_AREA[String(id).slice(0, 8)]; return p ? S.index.find(r => r[0].startsWith(p)) || null : null; };
+// het gebied dat werkelijk geopend wordt voor dit id
+const areaKey = id => parentRow(id)?.[0] || id;
 const officialKm = r => OFFICIAL_KM[String(r[0]).slice(0, 8)] || null;
 // kort (lijst, bovenbalk): het getal van het gebied als we dat hebben, anders het gemeten getal met de naam erbij
 const kmShort = r => { const o = officialKm(r); return o ? `${o[0]} km` : `${r[6]} km ${tr("gemeten")}`; };
@@ -296,9 +305,9 @@ function toggleFav(id){
 // vlag van een land uit de tweeletterige code (de letters als "regional indicator"); onbekend: de code zelf
 const flagOf = cc => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : esc(cc || "");
 function areaRow(r, dist){
-  return `<li><button type="button" class="area-main" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
+  return `<li><button type="button" class="area-main" data-id="${r[0]}" aria-current="${S.area?.id===areaKey(r[0])}">
       <span class="cc">${flagOf(r[2])}</span>
-      <span><span class="nm">${esc(r[1])}</span><span class="rg">${dist != null ? `${(dist/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
+      <span><span class="nm">${esc(r[1])}</span><span class="rg">${dist != null ? `${(dist/1000).toFixed(0)} km van je · ` : ""}${parentRow(r[0]) ? `${tr("deel van")} ${esc(parentRow(r[0])[1])}` : `${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}`}</span></span>
       <span class="km">${officialKm(r) ? officialKm(r)[0] : r[6]}<small>${officialKm(r) ? tr("km opgave") : tr("km gemeten")}</small></span></button>
     <button type="button" class="fav${isFav(r[0]) ? " on" : ""}" data-fav="${r[0]}" aria-pressed="${isFav(r[0])}" aria-label="${isFav(r[0]) ? "Uit favorieten halen" : "Als favoriet bewaren"}: ${esc(r[1])}"><svg class="ic"><use href="#i-star"/></svg></button></li>`;
 }
@@ -351,6 +360,10 @@ function openPicker(){ $("picker").hidden = false; renderAreas(); setTimeout(() 
 function closePicker(){ $("picker").hidden = true; }
 
 async function openArea(id, opts={}){
+  // een deelgebied: het grote gebied openen, en straks inzoomen op het gekozen deel
+  const part = S.index.find(r => r[0] === id), whole = part && parentRow(id);
+  const focus = whole ? {name:part[1], lat:part[5], lon:part[4]} : null;
+  if(whole) id = whole[0];
   const row = S.index.find(r => r[0]===id); if(!row) return;
   const tok = S.openTok = (S.openTok || 0) + 1; $("dlGate")?._close?.(false);   // een ander gebied gekozen: het oude downloadscherm weg
   $("areaName").textContent = row[1]; $("areaStats").textContent = "Kaart laden…";
@@ -420,6 +433,9 @@ async function openArea(id, opts={}){
   $("ticketCard").href = ticketUrl(); $("ticketCard").hidden = false;
   drawPistes(); buildNumbers(); drawHuts(); loadHuts(); peakLayer.clearLayers(); loadPeaks();
   if(!opts.keepView) fitArea(!!$("splash") && !$("splash").classList.contains("out"));
+  // een deelgebied gekozen: de hele pistekaart is geladen, het beeld staat op het gekozen deel
+  if(focus && !opts.keepView){ setTimeout(() => { map.setView([focus.lat, focus.lon], 13, {animate:false}); userMoved = true; }, 60);
+    toast(`${focus.name} ${tr("hoort bij")} ${row[1]}: ${tr("je ziet de hele pistekaart.")}`, 4000); }
   if(S.fromMe && S.pos) { S.from = nearestNode(S.pos.lat, S.pos.lon).n; S.to = null; S.pick = "to"; }
   else { S.from = S.to = null; S.lunch = null; S.tour = null; S.pick = "from"; }   // nieuw gebied: een kale kaart, geen voorgestelde route
   try{ history.replaceState(null, "", "#" + id); }catch(e){}
@@ -1390,7 +1406,7 @@ async function onPos(p){
   const inArea = S.area && S.area.bounds.pad(0.15).contains(ll);
   if(!inArea && S.index.length){
     const near = S.index.map(r => ({r, d:meters(S.pos.lat, S.pos.lon, r[5], r[4])})).sort((a,b)=>a.d-b.d)[0];
-    if(near && near.d < 15000 && near.r[0] !== S.area?.id){
+    if(near && near.d < 15000 && areaKey(near.r[0]) !== S.area?.id){
       toast(`Je bent bij ${near.r[1]}. Kaart geladen.`); await openArea(near.r[0], {keepView:true});
     }
   }
