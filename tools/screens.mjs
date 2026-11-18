@@ -106,6 +106,26 @@ for(const phone of PHONES){
       await shot("tab-" + t);
     }
     await p.evaluate(() => setTab("map")); await p.waitForTimeout(300);
+    // een melding is klein en valt niet over een kop of de bovenbalk (kaart, en een scherm als Vandaag)
+    for(const where of ["map", "today"]){
+      await p.evaluate(w => { setTab(w); toast("Dit is een melding om de plek te testen.", 4000); }, where); await p.waitForTimeout(500);
+      const tt = await p.evaluate(() => { const r = document.getElementById("toast").getBoundingClientRect();
+        const heads = [...document.querySelectorAll(".topbar > *, .dash-head, .picker-head")].filter(e => e.offsetParent !== null).map(e => e.getBoundingClientRect());
+        return {h:Math.round(r.height), over:heads.some(q => r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top)}; });
+      if(tt.h > 90) problems.push(`[${tag}] melding (${where}) is ${tt.h}px hoog`);
+      if(tt.over) problems.push(`[${tag}] melding (${where}) valt over een kop of de bovenbalk`);
+    }
+    await p.evaluate(() => { setTab("map"); document.getElementById("toast").classList.remove("on"); }); await p.waitForTimeout(200);
+    // tekst is nergens kleiner dan 12 px (kaartlabels en de tabbalk uitgezonderd)
+    for(const t of ["today", "plan", "me"]){
+      await p.evaluate(t => setTab(t), t); await p.waitForTimeout(350);
+      const small = await p.evaluate(() => { const out = new Set(); const panel = [...document.querySelectorAll(".dash")].find(e => !e.hidden && e.offsetParent !== null); if(!panel) return [];
+        for(const el of panel.querySelectorAll("*")){ if(!el.offsetParent || el.closest("svg")) continue; const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+          if(own && parseFloat(getComputedStyle(el).fontSize) < 12) out.add(`${el.className || el.tagName} ${getComputedStyle(el).fontSize}`); }
+        return [...out].slice(0, 5); });
+      small.forEach(x => problems.push(`[${tag}] ${t}: tekst kleiner dan 12 px (${x})`));
+    }
+    await p.evaluate(() => setTab("map")); await p.waitForTimeout(300);
     // SOS: de belknop is volledig zichtbaar (niet in elkaar gedrukt), ook op een klein scherm
     await p.evaluate(() => document.getElementById("sosBtn").click()); await p.waitForTimeout(600);
     const sos = await p.evaluate(() => { const c = document.getElementById("sosMain"), b = c.querySelector("b").getBoundingClientRect(), r = c.getBoundingClientRect();

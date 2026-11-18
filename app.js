@@ -433,6 +433,7 @@ function chainFrom(ei){
 
 // schaduw onder de pistes en de honderden stationsstippen pas vanaf zoom 12: uitgezoomd zie je ze toch niet, en het tekenen kost tijd
 map.on("zoomend", () => { syncDetail(); scalePistes(); });
+map.on("popupopen", () => document.body.classList.add("pop-open")); map.on("popupclose", () => document.body.classList.remove("pop-open"));
 // tijdens schuiven en zoomen geen wazig glas boven de kaart (dat moet elk beeld opnieuw); daarna weer wel
 let movingT = 0;
 map.on("movestart zoomstart", () => { clearTimeout(movingT); document.body.classList.add("map-moving"); });
