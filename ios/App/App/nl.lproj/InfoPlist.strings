@@ -1,0 +1,6 @@
+/* Toestemmingsteksten van Skipilot */
+"NSLocationWhenInUseUsageDescription" = "Skipilot gebruikt je locatie om te laten zien waar je op de piste bent, je langs je route te leiden en je skidagboek bij te houden. Je locatie blijft op je telefoon, tenzij je hem met je groep deelt.";
+"NSUserTrackingUsageDescription" = "Skipilot is gratis dankzij advertenties. Met jouw toestemming passen de advertenties beter bij je interesses. Je kunt dit altijd wijzigen in Instellingen.";
+"NSHealthUpdateUsageDescription" = "Skipilot bewaart je skidagen als training afdalingsskiën in Apple Gezondheid, met afstand en geschatte calorieën.";
+"NSCameraUsageDescription" = "Skipilot gebruikt de camera als je een foto aan je skidag toevoegt.";
+"NSPhotoLibraryAddUsageDescription" = "Skipilot bewaart de afbeelding of video van je skidag in je fotobibliotheek als je daarvoor kiest.";
