@@ -2853,7 +2853,7 @@ async function flyRoute(){
   document.body.appendChild(bar); document.body.classList.add("rp-on");
   const end = () => { M3.stopReplay(); bar.remove(); document.body.classList.remove("rp-on"); };
   $("rpStop").onclick = end;
-  if(!M3.replay(coords, () => { bar.querySelector(":scope > span").innerHTML = `${I("check")}${tr("Klaar voor de start!")}`; $("rpStop").innerHTML = `${I("close")}${tr("Sluiten")}`; }, {color:"#1F7FD6", speed:2.2})) end();
+  if(!M3.replay(coords, () => { bar.querySelector(":scope > span").innerHTML = `${I("check")}${tr("Klaar voor de start!")}`; $("rpStop").innerHTML = `${I("close")}${tr("Sluiten")}`; }, {color:ROUTE_BLUE, speed:2.2})) end();
 }
 async function open3dForReplay(){
   if(!M3.loaded()){

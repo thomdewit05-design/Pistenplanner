@@ -137,7 +137,7 @@ const M3 = (() => {
         v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
     };
     const soft = [1, 1, 1, .6], dark = [.08, .13, .17, 1], grey = [.6, .65, .7, 1], pole = [.2, .24, .3, 1];
-    const navy = [1, 1, 1, .95], gold = [.12, .5, .84, 1];   // liften op je route: blauw met een witte rand, net als de route
+    const navy = [1, 1, 1, .95], gold = [.557, .169, .902, 1];   // liften op je route: paars (#8E2BE6) met een witte rand, net als de route
     // liften op je route: net als de route op de grond geel met een donkere rand, maar dan langs de kabel
     const onRoute = new Set((S.path || []).filter(x => aerial(x.e)).map(x => x.e.i));
     let half = 0;

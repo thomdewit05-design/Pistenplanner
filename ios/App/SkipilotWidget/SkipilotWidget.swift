@@ -432,6 +432,7 @@ struct AreaView: View {
         if let a = entry.area {
             switch family {
             case .accessoryInline: inline(a, tr)
+            case .accessoryCircular: circular(a, tr)
             case .accessoryRectangular: rectangular(a, tr)
             case .systemMedium: medium(a, tr)
             case .systemLarge: large(a, tr)
@@ -576,19 +577,49 @@ struct AreaView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    // toegangsscherm, breed: temperatuur en gebied, sneeuw, en een balk met de liftentijd (of de waarschuwing van de dag)
     @ViewBuilder func rectangular(_ a: SharedArea, _ tr: Tr) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(a.name).font(.headline).lineLimit(1)
-            if let w = entry.weather {
-                Label("\(temp(w.topTemp, tr)) · \(tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu"))", systemImage: WeatherService.symbol(w.code))
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 5) {
+                if let w = entry.weather {
+                    Image(systemName: WeatherService.symbol(w.code)).font(.system(size: 15, weight: .semibold))
+                    Text(temp(w.topTemp, tr)).font(.system(size: 18, weight: .bold, design: .rounded))
+                }
+                Text(a.name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7).opacity(0.85)
+                Spacer(minLength: 0)
             }
-            if let w = entry.weather, let al = Info.alert(w, tr) {
-                Label(al.text, systemImage: al.icon).lineLimit(1)
-            } else if let l = Info.lifts(a, at: entry.date, tr) {
-                Label(l.text, systemImage: l.icon).lineLimit(1)
+            .widgetAccentable()
+            if let w = entry.weather {
+                Label(snowLine(w, tr).text, systemImage: "snowflake").font(.system(size: 12, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            if let w = entry.weather, let al = Info.alert(w, tr), w.fresh24 < 15 {
+                Label(al.text, systemImage: al.icon).font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
+            } else if let st = Info.liftState(a, at: entry.date, tr) {
+                HStack(spacing: 5) {
+                    Image(systemName: "cablecar.fill").font(.system(size: 10, weight: .semibold))
+                    ProgressView(value: st.progress).progressViewStyle(.linear)
+                    Text(st.progress > 0 && st.progress < 1 ? st.right : st.left).font(.system(size: 11, weight: .semibold, design: .rounded)).lineLimit(1).fixedSize()
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // toegangsscherm, rond: weer, temperatuur en verse sneeuw
+    @ViewBuilder func circular(_ a: SharedArea, _ tr: Tr) -> some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            if let w = entry.weather {
+                VStack(spacing: -1) {
+                    Image(systemName: WeatherService.symbol(w.code)).font(.system(size: 12, weight: .semibold))
+                    Text(temp(w.topTemp, tr)).font(.system(size: 17, weight: .bold, design: .rounded)).minimumScaleFactor(0.7).lineLimit(1).widgetAccentable()
+                    if w.fresh24 >= 1 { Text("\(tr.num(w.fresh24)) cm").font(.system(size: 9, weight: .heavy, design: .rounded)) }
+                }
+                .padding(.horizontal, 4)
+            } else {
+                Image(systemName: "mountain.2.fill").font(.system(size: 18, weight: .semibold))
+            }
+        }
     }
 
     @ViewBuilder func inline(_ a: SharedArea, _ tr: Tr) -> some View {
@@ -619,7 +650,7 @@ struct AreaWidget: Widget {
         }
         .configurationDisplayName("Skigebied")
         .description("Weer, verse sneeuw, liftentijden en waarschuwingen in je skigebied.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 
@@ -657,16 +688,27 @@ struct DayView: View {
                 Gauge(value: min(d.km, 40), in: 0...40) {
                     Image(systemName: "figure.skiing.downhill")
                 } currentValueLabel: {
-                    Text(tr.num(d.km, digits: d.km < 10 ? 1 : 0)).font(.system(size: 15, weight: .bold, design: .rounded))
+                    VStack(spacing: -2) {
+                        Text(tr.num(d.km, digits: d.km < 10 ? 1 : 0)).font(.system(size: 15, weight: .bold, design: .rounded))
+                        Text("km").font(.system(size: 8, weight: .heavy))
+                    }
                 }
-                .gaugeStyle(.accessoryCircular)
+                .gaugeStyle(.accessoryCircularCapacity)
             case .accessoryInline:
                 Text("\(Image(systemName: "figure.skiing.downhill")) \(tr.num(d.km, digits: 1)) km · \(tr.num(d.hm)) hm")
             case .accessoryRectangular:
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.headline)
-                    Text("\(tr.num(d.km, digits: 1)) km · \(tr.num(d.hm)) \(tr.t("hm", "m vert", "Hm"))")
-                    Text("\(d.runs) \(tr.t("afdalingen", "runs", "Abfahrten")) · \(tr.num(d.vmax)) km/h")
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "figure.skiing.downhill").font(.system(size: 13, weight: .semibold))
+                        Text(tr.num(d.km, digits: 1)).font(.system(size: 19, weight: .bold, design: .rounded))
+                        Text("km").font(.system(size: 12, weight: .semibold))
+                        Spacer(minLength: 0)
+                        Text(title).font(.system(size: 11, weight: .semibold)).opacity(0.8).lineLimit(1)
+                    }
+                    .widgetAccentable()
+                    ProgressView(value: min(1, max(0, d.km / 40))).progressViewStyle(.linear)
+                    Text("\(tr.num(d.hm)) \(tr.t("hm", "m vert", "Hm")) · \(d.runs) \(tr.t("afd.", "runs", "Abf.")) · \(tr.num(d.vmax)) km/h")
+                        .font(.system(size: 12, weight: .medium)).lineLimit(1).minimumScaleFactor(0.7)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             case .systemMedium:
@@ -803,14 +845,26 @@ struct TripView: View {
             let onTrip = n <= 0 && (daysLeft(t.to) ?? 0) >= 0
             switch family {
             case .accessoryCircular:
-                VStack(spacing: 0) {
-                    Text(onTrip ? "⛷" : "\(max(0, n))").font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text(onTrip ? tr.t("nu", "now", "jetzt") : tr.t("dagen", "days", "Tage")).font(.system(size: 9, weight: .semibold))
+                ZStack {
+                    AccessoryWidgetBackground()
+                    VStack(spacing: -2) {
+                        if onTrip { Image(systemName: "figure.skiing.downhill").font(.system(size: 18, weight: .bold)) }
+                        else { Text("\(max(0, n))").font(.system(size: 21, weight: .bold, design: .rounded)).minimumScaleFactor(0.6).lineLimit(1).widgetAccentable() }
+                        Text(onTrip ? tr.t("nu", "now", "jetzt") : (n == 1 ? tr.t("dag", "day", "Tag") : tr.t("dagen", "days", "Tage"))).font(.system(size: 9, weight: .heavy))
+                    }
+                    .padding(.horizontal, 4)
                 }
             case .accessoryRectangular:
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(t.area).font(.headline).lineLimit(1)
-                    Text(onTrip ? tr.t("Je bent op skivakantie!", "You're on your ski trip!", "Du bist im Skiurlaub!") : "\(tr.t("Nog", "Still", "Noch")) \(n) \(tr.t("dagen", "days", "Tage"))")
+                HStack(spacing: 8) {
+                    if onTrip { Image(systemName: "figure.skiing.downhill").font(.system(size: 26, weight: .bold)).widgetAccentable() }
+                    else { Text("\(max(0, n))").font(.system(size: 32, weight: .bold, design: .rounded)).minimumScaleFactor(0.6).lineLimit(1).widgetAccentable() }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(onTrip ? tr.t("Je bent op skivakantie!", "You're on your ski trip!", "Du bist im Skiurlaub!") : (n == 1 ? tr.t("dag tot", "day until", "Tag bis") : tr.t("dagen tot", "days until", "Tage bis")))
+                            .font(.system(size: 11, weight: .semibold)).opacity(0.8).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(t.area).font(.system(size: 14, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
+                        if let r = range(t, tr) { Text(r).font(.system(size: 11, weight: .medium)).opacity(0.8).lineLimit(1) }
+                    }
+                    Spacer(minLength: 0)
                 }
             case .accessoryInline:
                 Text("\(Image(systemName: "snowflake")) \(onTrip ? t.area : "\(n) \(tr.t("dagen tot", "days to", "Tage bis")) \(t.area)")")
