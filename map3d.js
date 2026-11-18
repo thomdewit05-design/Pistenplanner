@@ -267,7 +267,7 @@ const M3 = (() => {
         labels:{type:"raster", tiles:[LABELS], tileSize:TS, maxzoom:18}, roads:{type:"raster", tiles:[ROADS], tileSize:TS, maxzoom:18},
         // hoogte, schaduw en steilheid tot zoom 14: dat is precies wat bij het downloaden van een gebied is opgeslagen, dus 3D werkt
         // zonder bereik en hoeft onderweg niets op te halen (dichterbij wordt hetzelfde reliëf gewoon uitgerekt)
-        dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:14, encoding:"terrarium", attribution:DEM_ATTR},
+        dem:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:14, encoding:"terrarium", attribution:/Mapzen/.test(baseSource().attribution || "") ? "" : DEM_ATTR},   // niet twee keer dezelfde bron noemen
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:14, encoding:"terrarium"},
         slope:{type:"raster", tiles:[SLOPE], tileSize:256, minzoom:11, maxzoom:14},
@@ -575,8 +575,12 @@ const M3 = (() => {
     gl.once("style.load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd
       styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks", "sky", "sun"]); flush(); ovCheck();
-      el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
+    // bronvermelding ingeklapt achter het i-knopje, tot je er zelf op tikt: de kaart klapt hem anders bij elke stijlwissel weer open, over de kaart heen
+    let attrUser = false;
+    const attrShut = () => { if(attrUser) return; const c = el.querySelector(".maplibregl-ctrl-attrib"); if(!c) return; c.classList.remove("maplibregl-compact-show"); c.removeAttribute("open"); };
+    el.addEventListener("click", e => { if(e.target.closest(".maplibregl-ctrl-attrib-button")) attrUser = !attrUser; }, true);
+    gl.on("styledata", attrShut); gl.on("resize", attrShut); gl.on("idle", attrShut);
     gl.on("moveend", ovCheck);
     // zodra het eerste beeld staat: de scherpe tegels erover laten komen
     hdOn = false;

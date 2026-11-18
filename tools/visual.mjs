@@ -33,7 +33,7 @@ for(const [set, viewport, theme] of SETS){
   await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
   await ctx.addInitScript(t => { window.PP_STORE = "ios"; localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", "nl"); localStorage.setItem("pp-theme", t);
     // een vaste skidag, zodat Ik en de prestaties gevuld zijn
-    localStorage.setItem("pp-day:2026-01-14", JSON.stringify({areaName:"Ski Arlberg", pts:[], sum:{n:900, km:31.4, hm:6200, runs:17, vmax:71, secs:5.2 * 3600, lifts:15, jumps:3, airMax:600, from:new Date(2026, 0, 14, 8, 40).getTime(), pisteList:[{ref:"12", name:"Kapall", diff:"s"}]}}));
+    localStorage.setItem("pp-day:20260114", JSON.stringify({areaName:"Ski Arlberg", pts:[], sum:{n:900, km:31.4, hm:6200, runs:17, vmax:71, secs:5.2 * 3600, lifts:15, jumps:3, airMax:600, from:new Date(2026, 0, 14, 8, 40).getTime(), pisteList:[{ref:"12", name:"Kapall", diff:"s"}]}}));
     const N = Date; const fixed = new N(2026, 0, 15, 10, 30).getTime(); Date.now = () => fixed; }, theme);
   const p = await ctx.newPage();
   await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() => typeof S !== "undefined" && S.index.length > 0);
