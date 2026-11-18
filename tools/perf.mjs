@@ -50,6 +50,18 @@ for(const [name, code, limit] of STEPS){
   const bad = ms > limit; if(bad) fails++;
   console.log(`${name.padEnd(28)} ${String(ms).padStart(5)} ms  (grens ${limit})${bad ? "  TE TRAAG" : ""}`);
 }
+// Beeldsnelheid tijdens de zwaarste animaties: het gemiddelde beeld mag (op de 4x vertraagde processor) niet langer duren dan de grens.
+const ANIMS = [
+  ["tabs wisselen", `for(const t of ["today", "plan", "me", "map"]){ setTab(t); await new Promise(r => setTimeout(r, 450)); }`, 60],
+  ["paneel open en dicht", `setSheet(true); await new Promise(r => setTimeout(r, 600)); setSheet(false); await new Promise(r => setTimeout(r, 500));`, 60],
+  ["piste kiezen", `const e = S.area.edges.find(e => e.t === "l" && e.pts.length > 1); selectOnMap([e.i], e.pts[0], null); await new Promise(r => setTimeout(r, 900)); clearSel();`, 60],
+];
+for(const [name, code, limit] of ANIMS){
+  const r = await p.evaluate(async code => { const f = []; let last = performance.now(), go = true; const tick = n => { f.push(n - last); last = n; if(go) requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+    await (0, eval)(`(async () => { ${code} })()`); go = false; const v = f.slice(1); return {avg:Math.round(v.reduce((a, x) => a + x, 0) / v.length), max:Math.round(Math.max(...v)), n:v.length}; }, code);
+  const bad = r.avg > limit; if(bad) fails++;
+  console.log(`${("beeld: " + name).padEnd(28)} ${String(r.avg).padStart(5)} ms gemiddeld per beeld, langste ${r.max} ms  (grens ${limit})${bad ? "  TE TRAAG" : ""}`);
+}
 if(errors.length){ fails += errors.length; errors.forEach(e => console.log("fout in de pagina: " + e)); }
 await browser.close(); server.close();
 console.log(fails ? `\n${fails} handelingen te traag of met fouten.` : "\nAlle handelingen binnen de grens.");

@@ -2592,6 +2592,28 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 /* weer: onzekere dagen lichter, bron als link */
 .wx-day.unsure{opacity:.55}
 .wx-src{color:inherit;text-decoration:underline;text-underline-offset:2px}
+/* ===== beweging 2 ===== */
+/* gekozen piste of lift: de rest van de kaart dimt even */
+.leaflet-overlay-pane canvas{transition:opacity .28s var(--ease-out)}
+.sel-flash .leaflet-overlay-pane canvas{opacity:.45}
+/* melding met een vinkje dat zich tekent */
+.ok-draw{width:18px;height:18px;flex:none;vertical-align:-4px;margin-right:8px;fill:none;stroke:#5BE08A;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.ok-draw circle{stroke-dasharray:63;stroke-dashoffset:63;animation:okDraw .45s var(--ease-out) forwards}
+.ok-draw path{stroke-dasharray:16;stroke-dashoffset:16;animation:okDraw .3s .35s var(--ease-out) forwards}
+@keyframes okDraw{to{stroke-dashoffset:0}}
+/* bewaarde skidag vliegt naar de tab Ik */
+.day-fly{position:fixed;z-index:5600;left:50%;top:42%;translate:-50% -50%;display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:22px;background:var(--cta);color:#fff;box-shadow:0 16px 40px rgba(8,24,44,.35);pointer-events:none;
+  animation:dayPop .35s var(--spring) both}
+.day-fly .ic{width:20px;height:20px}
+.day-fly b{font:700 20px/1 var(--f-display)}.day-fly small{font-size:12px;opacity:.8}
+.day-fly.go{animation:dayPop .35s var(--spring) both,dayGo .7s .45s cubic-bezier(.5,0,.3,1) forwards}
+@keyframes dayPop{from{scale:.5;opacity:0}}
+@keyframes dayGo{to{transform:translate(var(--fx),var(--fy)) scale(.18);opacity:.2}}
+.tabbar button.got .ic{animation:tabPop .6s var(--spring)}
+/* start: het logo groeit de kaart in */
+.splash.out img{transform:scale(2.6);transition:transform .6s var(--ease-out),opacity .5s}
+.splash.out .splash-name,.splash.out .splash-tag,.splash.out .splash-bar{opacity:0;transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.leaflet-overlay-pane canvas{transition:none}.ok-draw circle,.ok-draw path{animation:none;stroke-dashoffset:0}.day-fly{display:none}}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}

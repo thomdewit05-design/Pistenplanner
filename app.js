@@ -90,6 +90,9 @@ try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
                           pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, saver:!!s.saver, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
   mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, saver:S.saver, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+// melding dat iets gelukt is: met een vinkje dat zich tekent
+const okToast = (m, ms = 2600) => { toast(m, ms); const t = $("toast"); if(!t) return;
+  t.insertAdjacentHTML("afterbegin", '<svg class="ok-draw" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>'); };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m;
   // bij een open paneel boven het paneel (niet over de tekst erin); in een scherm als Vandaag onderaan boven de tabbalk
   const full = [...document.querySelectorAll(".picker")].some(e => !e.hidden), sh = $("sheet");
@@ -1251,10 +1254,30 @@ function selectOnMap(edges, latlng, pop){
   const ll = Array.isArray(latlng) ? latlng : [latlng.lat, latlng.lng];
   L.marker(ll, {interactive:false, keyboard:false, zIndexOffset:900, icon:L.divIcon({className:"", iconSize:[22, 22], iconAnchor:[11, 11], html:'<div class="sel-dot"></div>'})}).addTo(selLayer);
   M3.select?.(lines, ll);
+  if(lines.length && !calm()){
+    // de rest van de kaart dimt even, zodat je ziet wat je gekozen hebt
+    document.body.classList.remove("sel-flash"); void document.body.offsetWidth; document.body.classList.add("sel-flash");
+    clearTimeout(selectOnMap._t); selectOnMap._t = setTimeout(() => document.body.classList.remove("sel-flash"), 700);
+    // bij een lift loopt een stip over de kabel in de rijrichting (twee keer, daarna stil)
+    const e0 = A.edges[edges[0]];
+    if(e0?.t === "l" && e0.pts?.length > 1) cableDot(e0.pts);
+  }
   const off = () => { if(selPop === pop) clearSel(); };
   pop?.on?.(pop instanceof L.Popup ? "remove" : "close", off);
 }
-function clearSel(){ selLayer.clearLayers(); selPop = null; M3.select?.(null); }
+let cableRaf = 0;
+function cableDot(pts){
+  cancelAnimationFrame(cableRaf);
+  const seg = [], tot = pts.reduce((a, p, i) => { if(i){ const d = meters(pts[i - 1][0], pts[i - 1][1], p[0], p[1]); seg.push(d); return a + d; } return 0; }, 0); if(!(tot > 0)) return;
+  const dot = L.circleMarker(pts[0], {renderer:selR, interactive:false, radius:5, color:"#fff", weight:2, fillColor:"#1E88FF", fillOpacity:1}).addTo(selLayer);
+  const t0 = performance.now(), dur = 1500, loops = 2;
+  const step = now => { const k = (now - t0) / dur; if(k >= loops || !selLayer.hasLayer(dot)){ selLayer.removeLayer(dot); return; }
+    let d = (k % 1) * tot, i = 0; while(i < seg.length - 1 && d > seg[i]){ d -= seg[i]; i++; }
+    const f = Math.min(1, d / (seg[i] || 1)), a = pts[i], b = pts[i + 1]; dot.setLatLng([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    cableRaf = requestAnimationFrame(step); };
+  cableRaf = requestAnimationFrame(step);
+}
+function clearSel(){ cancelAnimationFrame(cableRaf); selLayer.clearLayers(); selPop = null; M3.select?.(null); }
 
 // ================= GPS en navigatie =================
 let wakeLock = null;
@@ -3136,7 +3159,7 @@ async function exportGpx(day){
   }catch(e){ if(e?.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  toast("GPX-bestand opgeslagen.");
+  okToast("GPX-bestand opgeslagen.");
 }
 
 // ================= dagkaart =================
@@ -3305,11 +3328,23 @@ function startRec(){
 }
 function stopRec(){
   D.rec = false; const day = today(); day.sum = daySummary(day); saveDay(day); dSaveSettings(); keepAwake();
-  toast("Opname gestopt. Je dag is bewaard.");
+  okToast("Opname gestopt. Je dag is bewaard.");
+  dayFly(day.sum);
   setTimeout(() => checkBadges(true), 2500);
   if(day.sum?.km >= 8) setTimeout(askReview, 6000); else setTimeout(offerWrapped, 5000);
   saveHealth(day);
   diaryLive(); renderDiary(); window.ppAds?.native?.pause?.(); liftAlertPlan();
+}
+// De bewaarde skidag vouwt samen en vliegt naar de tab Ik: zo zie je waar hij terechtkomt.
+function dayFly(sm){
+  const tab = document.querySelector('#tabbar button[data-tab="me"]'); if(!tab || calm() || !sm) return;
+  const el = document.createElement("div"); el.className = "day-fly";
+  el.innerHTML = `${I("ski")}<b>${(+sm.km || 0).toLocaleString(LOCALE, {maximumFractionDigits:1})} km</b><small>${Math.round(sm.hm || 0).toLocaleString(LOCALE)} hm</small>`;
+  document.body.appendChild(el);
+  const a = el.getBoundingClientRect(), b = tab.getBoundingClientRect();
+  el.style.setProperty("--fx", `${b.left + b.width / 2 - (a.left + a.width / 2)}px`); el.style.setProperty("--fy", `${b.top + b.height / 2 - (a.top + a.height / 2)}px`);
+  el.classList.add("go");
+  setTimeout(() => { el.remove(); tab.classList.add("got"); setTimeout(() => tab.classList.remove("got"), 700); }, 1150);
 }
 // winterseizoen: juli t/m juni, genoemd naar de twee jaren ("2026–27")
 const seasonOf = k => { const y = +k.slice(0,4), m = +k.slice(4,6); const a = m >= 7 ? y : y - 1; return `${a}–${String(a + 1).slice(2)}`; };
@@ -4530,6 +4565,18 @@ document.addEventListener("pointerdown", e => {
   b.appendChild(sp); setTimeout(() => sp.remove(), 600);
 }, {passive:true});
 // sneeuwvlokjes-confetti (aankomst, nieuwe prestatie)
+// sneeuwvlokken die van boven naar beneden dwarrelen (bij aankomst)
+function snowfall(n = 40){
+  if(calm()) return;
+  const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
+  c.className = "confetti"; c.width = innerWidth * dpr; c.height = innerHeight * dpr; document.body.appendChild(c); x.scale(dpr, dpr);
+  const P = Array.from({length:n}, () => ({x:Math.random() * innerWidth, y:-20 - Math.random() * innerHeight * .6, v:1.2 + Math.random() * 2.2, r:1.5 + Math.random() * 3, w:Math.random() * 6, s:.6 + Math.random()}));
+  const t0 = performance.now(), dur = 3200;
+  const step = now => { const t = now - t0; x.clearRect(0, 0, innerWidth, innerHeight); x.fillStyle = "#fff";
+    for(const p of P){ p.y += p.v; p.w += .03 * p.s; x.globalAlpha = Math.max(0, Math.min(.9, 1.2 - t / dur)); x.beginPath(); x.arc(p.x + Math.sin(p.w) * 10, p.y, p.r, 0, 7); x.fill(); }
+    if(t < dur) requestAnimationFrame(step); else c.remove(); };
+  requestAnimationFrame(step);
+}
 function confetti(n = 60){
   if(calm()) return;
   const c = document.createElement("canvas"), x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
@@ -4547,7 +4594,7 @@ function confetti(n = 60){
 function arrived(){
   if(S.arrivedSig === S.sig) return; S.arrivedSig = S.sig;
   const tot = S.steps.reduce((a, x) => ({len:a.len + x.len, min:a.min + x.min}), {len:0, min:0});
-  buzz("success"); confetti(80);
+  buzz("success"); confetti(80); snowfall(45);
   document.querySelector(".arrive")?.remove();
   const el = document.createElement("div"); el.className = "arrive";
   el.innerHTML = `<div class="arr-card"><span class="arr-ic">${I("flag")}</span><h3>Je bent er!</h3><p>${km(tot.len)} · ${fmt(tot.min)}</p><button type="button" class="btn primary">${I("check")}Mooi</button></div>`;
@@ -5307,7 +5354,7 @@ async function _openTrip(){
   $("tpSave").onclick = () => { const a = $("tpArea").value, f = $("tpFrom").value, to = $("tpTo").value || f;
     if(!a || a === "__pick" || !f){ toast(tr("Kies een gebied en een begindatum.")); return; }
     if(to < f){ toast(tr("De einddatum ligt voor de begindatum.")); return; }
-    const cur = tripGet() || {}; tripSet({...cur, area:a, from:f, to, pack:cur.pack || []}); tripRemind(); buzz("success"); toast(tr("Vakantie bewaard. Het aftellen begint!")); detailGo(_openTrip, true); if(!$("today").hidden) renderToday(); };
+    const cur = tripGet() || {}; tripSet({...cur, area:a, from:f, to, pack:cur.pack || []}); tripRemind(); buzz("success"); okToast(tr("Vakantie bewaard. Het aftellen begint!")); detailGo(_openTrip, true); if(!$("today").hidden) renderToday(); };
   el.querySelectorAll("[data-pk]").forEach(cb => cb.onchange = () => { const cur = tripGet() || {area:$("tpArea").value, from:$("tpFrom").value, to:$("tpTo").value};
     cur.pack = [...el.querySelectorAll("[data-pk]:checked")].map(x => +x.dataset.pk); tripSet(cur.from ? cur : {...cur}); buzz("select");
     if(cur.pack.length === PACK.length){ buzz("success"); confetti(50); toast(tr("Alles ingepakt. Goede reis!")); } });
