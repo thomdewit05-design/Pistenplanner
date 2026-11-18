@@ -67,8 +67,17 @@
       </array>
     </dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Skipilot uses the camera when you add a photo to your ski day.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Skipilot saves the image or video of your ski day to your photo library when you choose to save it.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Skipilot can read your heart rate during a ski day to show it in your ski diary.</string>
+	<string>Skipilot does not read data from Apple Health. It only saves your ski days as workouts when you turn that on.</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>nl</string><string>en</string><string>de</string><string>fr</string><string>it</string>
+		<string>es</string><string>pt-PT</string><string>ru</string><string>zh-Hans</string><string>ja</string>
+	</array>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Skipilot saves your ski days as a downhill skiing workout in Apple Health, with distance and estimated calories.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

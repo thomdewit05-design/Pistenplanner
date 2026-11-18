@@ -1482,7 +1482,7 @@ function updateNav(){
 function toggleFollow(){
   setTimeout(renderSpeedo, 0);
   document.body.classList.toggle("following", !S.follow);
-  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); hush(); povApply(); update(); updateNav(); window.ppAds?.native?.pause?.(); return; }
+  if(S.follow){ S.follow = false; keepAwake(false); $("locBtn").classList.remove("follow"); hush(); povApply(); update(); updateNav(); return; }   // geen advertentie na het stoppen: je staat dan vaak nog op de piste
   if(!startWatch()) return;
   S.follow = true; S.spoken = {step:-1, pre:-1}; keepAwake(true); $("locBtn").classList.add("follow"); buzz("medium");
   if(!isSide()) setSheet(false);
@@ -5587,7 +5587,7 @@ function actionList(){
     L("voice", "sound", "Stem en navigatie", () => openMenuAt("voice"), "Instellingen"),
     L("theme", "moon", "Thema en taal", () => openMenuAt("themeSeg"), "Instellingen"),
     L("notif", "alert", "Meldingen en Gezondheid", () => openMenuAt("snowAlert"), "Instellingen"),
-    L("pro", "star", "Skipilot Pro", () => openPro(), "Pro"),
+    ...(proLive() ? [L("pro", "star", "Skipilot Pro", () => openPro(), "Pro")] : []),
   ];
 }
 function actionHits(q){
@@ -5739,6 +5739,9 @@ function swipeDismiss(el){
 ["today", "me", "plan", "group", "diary", "menu", "status", "picker", "sos"].forEach(id => swipeDismiss($(id)));
 
 // ================= menu en instellingen =================
+// testgereedschap alleen tonen als het aan staat (zie het versienummer in het menu)
+const debugOn = () => { try{ return localStorage.getItem("pp-debug") === "1"; }catch(e){ return false; } };
+function debugRows(){ const on = debugOn(); const pr = $("perfToggle")?.closest("label"); if(pr) pr.hidden = !on; const ad = $("adState"); if(ad) ad.hidden = !on || !ad.textContent; }
 // ================= hapermeter (Menu › App › Prestaties tonen) =================
 // Telt beelden die te lang duurden en onthoudt wat de app toen deed, zodat een hapering op een echte telefoon terug te vinden is.
 const PERF = {on:false, log:[], spans:[], act:"", actT:0};
@@ -5799,7 +5802,13 @@ function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
   $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("watchTap").checked = S.watchTap; $("watchRow").hidden = window.PP_STORE !== "ios"; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("sunny").checked = S.sunny; $("nightToggle").checked = S.night;
   $("setName").value = G.name || "";
-  $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden · kaartdata ${DATA_V}`;
+  $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden`;
+  // Testgereedschap (status van de advertenties, hapermeter) staat niet in het menu van gebruikers: zeven keer tikken op het versienummer zet het aan of uit.
+  let verTaps = 0, verT = 0;
+  $("menuVer").onclick = () => { clearTimeout(verT); verT = setTimeout(() => verTaps = 0, 1500);
+    if(++verTaps < 7) return; verTaps = 0; const on = localStorage.getItem("pp-debug") !== "1";
+    try{ localStorage.setItem("pp-debug", on ? "1" : "0"); }catch(e){} debugRows(); toast(on ? "Testgereedschap staat aan." : "Testgereedschap staat uit."); };
+  debugRows();
   renderStorage(); renderInstall();
 }
 async function renderStorage(){

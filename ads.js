@@ -41,7 +41,7 @@
     // waarom er wel of geen advertentie is, zichtbaar in het menu (anders zie je niet of het aan Google of aan de app ligt)
     let state = "Starten…", track = "";
     const TRACK = {authorized:"toegestaan", denied:"geweigerd (of uit in Instellingen > Privacy > Volgen)", restricted:"niet mogelijk op dit toestel", notDetermined:"nog niet gevraagd"};
-    const setState = s => { state = s; const el = document.getElementById("adState"); if(el){ el.hidden = false; el.textContent = "Advertenties: " + s + (track ? ` · Volgen: ${TRACK[track] || track}` : ""); } };
+    const setState = s => { state = s; const el = document.getElementById("adState"); if(el){ el.hidden = localStorage.getItem("pp-debug") !== "1"; el.textContent = "Advertenties: " + s + (track ? ` · Volgen: ${TRACK[track] || track}` : ""); } };
     const plugin = () => window.Capacitor?.Plugins?.AdMob;
     const NO_AD = {0:"interne fout bij Google", 1:"ongeldig verzoek (klopt het advertentieblok-ID?)", 2:"geen netwerk", 3:"Google heeft nog geen advertentie voor deze app (gebruikelijk bij een nieuwe app of zolang de app in AdMob wordt beoordeeld)", 8:"de app-ID in AdMob past niet bij dit advertentieblok"};
     // ook als het routepaneel helemaal open staat (je leest dan de routebeschrijving, de kaart is toch bedekt)

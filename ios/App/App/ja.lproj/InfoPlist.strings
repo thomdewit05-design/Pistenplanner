@@ -1,0 +1,6 @@
+/* Toestemmingsteksten van Skipilot */
+"NSLocationWhenInUseUsageDescription" = "Skipilot は位置情報を使って、ゲレンデ上の現在地の表示、ルート案内、スキー日記の記録を行います。グループと共有しない限り、位置情報は端末内にとどまります。";
+"NSUserTrackingUsageDescription" = "Skipilot は広告により無料で提供されています。許可すると、広告があなたの興味により合うようになります。設定でいつでも変更できます。";
+"NSHealthUpdateUsageDescription" = "Skipilot はスキーの記録をダウンヒルスキーのワークアウトとして Apple ヘルスケアに保存します（距離と推定カロリーを含む）。";
+"NSCameraUsageDescription" = "スキー日に写真を追加するとき、Skipilot はカメラを使用します。";
+"NSPhotoLibraryAddUsageDescription" = "保存を選んだとき、Skipilot はスキー日の画像またはビデオを写真ライブラリに保存します。";
