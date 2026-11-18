@@ -2173,3 +2173,8 @@ ol.steps>li{content-visibility:auto;contain-intrinsic-size:auto 58px}
 .btn .spin{width:16px;height:16px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 .btn.busy{opacity:.85}
+/* prestaties: wazig glas alleen op de grote vlakken (paneel, tabbalk, bovenbalk, menu's). Kleine knoppen, chips en tegels in scrollende
+   schermen krijgen een bijna dekkende achtergrond zonder vervaging: dat ziet er vrijwel hetzelfde uit en scheelt per beeld veel rekenwerk. */
+.fab,.fab.glass,.lchip,.ov-pill,.tile,.hero-alt,.m-search,.wr-x,.leaflet-control-zoom a,.ios .toast,.ios .prof-tip,.sb-x{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.fab.glass,.ov-pill.glass{background:color-mix(in srgb,var(--surface) 93%,transparent)}
+.lchip{background:rgba(255,255,255,.93)}

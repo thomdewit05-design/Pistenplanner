@@ -17,9 +17,8 @@ const M3 = (() => {
   const SCALE = 2;   // plaatjes voor pistenummers en hutten op dubbele resolutie
   const HUT_COL = {h:"#7A2E0E", r:"#8A4B12", f:"#8A4B12", c:"#6B3FA0", b:"#6B3FA0", p:"#1F5FCC", v:"#0F7A6B", d:"#4A5A6E", s:"#C2410C", o:"#15803D"};
 
-  const supported = (() => {
-    try{ const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); }catch(e){ return false; }
-  })();
+  // bij het opstarten alleen kijken of het toestel WebGL kent; een echte proefcontext maken kostte opstarttijd (lukt het later toch niet, dan vangt failGl dat op)
+  const supported = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
   const loaded = () => !!window.maplibregl && !failed;
   function load(){
     if(window.maplibregl) return Promise.resolve();
