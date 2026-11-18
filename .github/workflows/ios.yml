@@ -76,6 +76,8 @@ jobs:
           KEY="$RUNNER_TEMP/AuthKey_$KEY_ID.p8"
           printf '%s\n' "$KEY_P8" > "$KEY"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          # oude ontwikkelcertificaten van eerdere builds intrekken; anders zit het account na een aantal builds aan het maximum
+          ruby tools/asc-cleanup.rb "$KEY" || echo "::warning::Certificaten opruimen lukte niet; de build gaat verder."
           # bouwnummer loopt vanzelf op; het versienummer (1.0) staat in het Xcode-project als MARKETING_VERSION
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/Skipilot.xcarchive" \
