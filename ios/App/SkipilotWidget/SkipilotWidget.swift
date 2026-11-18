@@ -233,6 +233,19 @@ enum Info {
         return Line(icon: "cablecar", text: tr.t("Open tot \(c) · nog \(left)", "Open until \(c) · \(left) left", "Offen bis \(c) · noch \(left)"), warn: cm - now <= 30)
     }
 
+    // voor de liftbalk: tekst links, tekst rechts en hoe ver de dag is (0 tot 1)
+    struct LiftState { let left: String; let right: String; let progress: Double; let warn: Bool }
+    static func liftState(_ a: SharedArea, at date: Date, _ tr: Tr) -> LiftState? {
+        guard let o = a.open, let c = a.close, let om = minutes(o), let cm = minutes(c), cm > om else { return nil }
+        let hm = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let now = (hm.hour ?? 0) * 60 + (hm.minute ?? 0)
+        if now < om { return LiftState(left: tr.t("Open om \(o)", "Open at \(o)", "Öffnet \(o)"), right: c, progress: 0, warn: false) }
+        if now >= cm { return LiftState(left: tr.t("Liften dicht", "Lifts closed", "Lifte zu"), right: tr.t("morgen \(o)", "tomorrow \(o)", "morgen \(o)"), progress: 1, warn: false) }
+        let p = Double(now - om) / Double(cm - om)
+        return LiftState(left: tr.t("Nog \(tr.duration(minutes: cm - now))", "\(tr.duration(minutes: cm - now)) left", "Noch \(tr.duration(minutes: cm - now))"),
+                         right: tr.t("tot \(c)", "until \(c)", "bis \(c)"), progress: min(1, max(0, p)), warn: cm - now <= 30)
+    }
+
     // het belangrijkste dat je moet weten voor je de berg op gaat
     static func alert(_ w: Weather, _ tr: Tr) -> Line? {
         if let g = w.gusts, g >= 60 {
@@ -252,6 +265,111 @@ enum Info {
 
     static func fresh(_ w: Weather, _ tr: Tr) -> Line {
         Line(icon: "snowflake", text: tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm Neuschnee"), warn: w.fresh24 >= 1)
+    }
+}
+
+// ---------- vormgeving: lucht, bergen, tegels ----------
+// Eén stijl voor alle widgets: een lucht die meekleurt met het weer en het uur, een bergsilhouet onderin,
+// grote ronde cijfers en rustige tegels in plaats van regels tekst.
+func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r / 255, green: g / 255, blue: b / 255) }
+
+struct Ridge: Shape {
+    let pts: [CGFloat]   // hoogtes tussen 0 en 1, gelijk verdeeld over de breedte
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let n = CGFloat(max(1, pts.count - 1))
+        p.move(to: CGPoint(x: r.minX, y: r.maxY))
+        for (i, h) in pts.enumerated() {
+            p.addLine(to: CGPoint(x: r.minX + r.width * CGFloat(i) / n, y: r.maxY - r.height * h))
+        }
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct Sky: View {
+    var code: Int? = nil
+    var date: Date = Date()
+    var colors: [Color]? = nil
+
+    static func palette(_ code: Int?, _ date: Date) -> [Color] {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let h = Double(c.hour ?? 12) + Double(c.minute ?? 0) / 60
+        if h >= 21.5 || h < 5 { return [rgb(9, 20, 44), rgb(27, 46, 92)] }          // nacht
+        if h >= 18.5 { return [rgb(74, 52, 128), rgb(24, 36, 84)] }                 // schemering
+        if let k = code, (45...48).contains(k) || k >= 51 { return [rgb(74, 92, 122), rgb(138, 156, 184)] }   // mist, regen, sneeuw
+        if code == 3 { return [rgb(62, 98, 150), rgb(128, 158, 198)] }              // bewolkt
+        if h < 8 { return [rgb(232, 150, 110), rgb(92, 138, 206)] }                 // ochtend
+        if h >= 16 { return [rgb(236, 158, 84), rgb(84, 108, 182)] }                // gouden uur
+        return [rgb(26, 104, 214), rgb(104, 170, 240)]                              // heldere dag
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(colors: colors ?? Sky.palette(code, date), startPoint: .top, endPoint: .bottom)
+            Ridge(pts: [0.30, 0.52, 0.40, 0.78, 0.55, 0.92, 0.60, 0.74, 0.44, 0.58, 0.34])
+                .fill(Color.white.opacity(0.13)).frame(height: 78)
+            Ridge(pts: [0.55, 0.36, 0.62, 0.42, 0.30, 0.50, 0.78, 0.52, 0.66, 0.40, 0.60])
+                .fill(navy.opacity(0.30)).frame(height: 50)
+        }
+    }
+}
+
+// klein etiket met pictogram: licht (op de lucht) of gevuld (valt op)
+struct Chip: View {
+    let icon: String
+    let text: String
+    var strong = false
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 10, weight: .bold))
+            Text(text).font(.system(size: 11, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .foregroundStyle(strong ? navy : Color.white)
+        .background(strong ? Color.white.opacity(0.94) : Color.white.opacity(0.18), in: Capsule())
+    }
+}
+
+// tegel met een waarde en een bijschrift
+struct Tile: View {
+    let icon: String
+    let value: String
+    let label: String
+    var warn = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Image(systemName: icon).font(.system(size: 11, weight: .bold)).opacity(0.85)
+            Text(value).font(.system(size: 16, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(label).font(.system(size: 10, weight: .semibold)).opacity(0.78).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 9).padding(.vertical, 6)
+        .foregroundStyle(warn ? navy : Color.white)
+        .background(warn ? gold.opacity(0.95) : Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+// balk met de liftentijd: hoe ver de skidag is, en hoe lang de liften nog open zijn
+struct LiftBar: View {
+    let area: SharedArea
+    let date: Date
+    let tr: Tr
+    var body: some View {
+        if let st = Info.liftState(area, at: date, tr) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Image(systemName: "cablecar.fill").font(.system(size: 10, weight: .bold))
+                    Text(st.left).lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 2)
+                    Text(st.right).opacity(0.8).lineLimit(1)
+                }
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(st.warn ? gold : Color.white)
+                ProgressView(value: st.progress).progressViewStyle(.linear).tint(st.warn ? gold : Color.white).scaleEffect(x: 1, y: 0.7, anchor: .center)
+            }
+        }
     }
 }
 
@@ -333,102 +451,125 @@ struct AreaView: View {
         return Line(icon: "snowflake", text: t, warn: w.fresh24 >= 1)
     }
 
+    func freshText(_ w: Weather, _ tr: Tr) -> String {
+        tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu")
+    }
+
+    // kop: naam van het gebied in kleine kapitalen, weerpictogram rechts
+    @ViewBuilder func header(_ a: SharedArea, _ w: Weather?) -> some View {
+        HStack(alignment: .top, spacing: 4) {
+            Text(a.name.uppercased()).font(.system(size: 10.5, weight: .heavy)).tracking(0.7)
+                .lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Color.white.opacity(0.92))
+            Spacer(minLength: 2)
+            if let w = w { Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.system(size: 19)) }
+        }
+    }
+
     @ViewBuilder func small(_ a: SharedArea, _ tr: Tr) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(a.name).font(.caption.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(.white.opacity(0.85))
+        VStack(alignment: .leading, spacing: 0) {
+            header(a, entry.weather)
             if let w = entry.weather {
-                HStack(spacing: 5) {
-                    Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title3)
-                    Text(temp(w.topTemp, tr)).font(.system(size: 30, weight: .bold, design: .rounded)).minimumScaleFactor(0.7).foregroundStyle(.white)
+                Text(temp(w.topTemp, tr)).font(.system(size: 40, weight: .semibold, design: .rounded))
+                    .lineLimit(1).minimumScaleFactor(0.6).foregroundStyle(Color.white).widgetAccentable()
+                Spacer(minLength: 2)
+                if let al = Info.alert(w, tr), w.fresh24 < 15 {
+                    Chip(icon: al.icon, text: al.text, strong: true)
+                } else {
+                    Chip(icon: "snowflake", text: freshText(w, tr), strong: w.fresh24 >= 1)
                 }
-                Spacer(minLength: 0)
-                LineView(line: snowLine(w, tr))
-                if let al = Info.alert(w, tr), w.fresh24 < 15 { LineView(line: al) }
-                else if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
+                LiftBar(area: a, date: entry.date, tr: tr).padding(.top, 6)
             } else {
                 Spacer(minLength: 0)
-                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(soft)
-                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l) }
+                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption.weight(.semibold)).foregroundStyle(Color.white.opacity(0.85))
                 Spacer(minLength: 0)
+                LiftBar(area: a, date: entry.date, tr: tr)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder func forecast(_ w: Weather, _ tr: Tr, count: Int) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+    // de komende dagen als kolommen in een paneel
+    @ViewBuilder func forecast(_ w: Weather, _ tr: Tr, count: Int, compact: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 0) {
             ForEach(w.days.prefix(count), id: \.date) { d in
-                HStack(spacing: 6) {
-                    Text(tr.weekday(d.date)).font(.caption.weight(.semibold)).frame(width: 30, alignment: .leading)
-                    Image(systemName: WeatherService.symbol(d.code)).symbolRenderingMode(.multicolor).frame(width: 22)
-                    Text("\(temp(d.max, tr)) / \(temp(d.min, tr))").font(.caption.monospacedDigit())
-                    Spacer(minLength: 0)
-                    if d.snow >= 1 { Text("\(tr.num(d.snow)) cm").font(.caption2.weight(.semibold)).foregroundStyle(gold) }
+                VStack(spacing: 3) {
+                    Text(tr.weekday(d.date).uppercased()).font(.system(size: 10, weight: .heavy)).tracking(0.5).opacity(0.85)
+                    Image(systemName: WeatherService.symbol(d.code)).symbolRenderingMode(.multicolor).font(.system(size: 17)).frame(height: 22)
+                    Text(temp(d.max, tr)).font(.system(size: 15, weight: .bold, design: .rounded))
+                    if !compact { Text(temp(d.min, tr)).font(.system(size: 11, weight: .semibold, design: .rounded)).opacity(0.7) }
+                    Text(d.snow >= 1 ? "\(tr.num(d.snow)) cm" : " ").font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .foregroundStyle(navy)
+                        .background(Color.white.opacity(d.snow >= 1 ? 0.94 : 0), in: Capsule())
                 }
+                .frame(maxWidth: .infinity)
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Color.white)
+        .padding(.vertical, 7).padding(.horizontal, 4)
+        .background(Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     @ViewBuilder func medium(_ a: SharedArea, _ tr: Tr) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             small(a, tr)
             if let w = entry.weather {
-                VStack(alignment: .leading, spacing: 5) {
-                    forecast(w, tr, count: 3)
-                    Spacer(minLength: 0)
-                    LineView(line: Line(icon: "house.fill", text: tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"), warn: false))
-                    if let s = w.sunset { LineView(line: Line(icon: "sunset.fill", text: tr.t("Zon onder \(s)", "Sunset \(s)", "Sonnenuntergang \(s)"), warn: false)) }
+                VStack(spacing: 6) {
+                    forecast(w, tr, count: 3, compact: true)
+                    HStack(spacing: 6) {
+                        Chip(icon: "house.fill", text: tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"))
+                        if let s = w.sunset { Chip(icon: "sunset.fill", text: s) }
+                        Spacer(minLength: 0)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
     }
 
     @ViewBuilder func large(_ a: SharedArea, _ tr: Tr) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(a.name).font(.headline).lineLimit(1).foregroundStyle(.white)
+                    Text(a.name.uppercased()).font(.system(size: 11, weight: .heavy)).tracking(0.8).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Color.white.opacity(0.92))
                     if let w = entry.weather {
-                        Text("\(WeatherService.describe(w.code, tr)) · \(tr.t("boven", "top", "oben")) \(tr.height(a.hi))").font(.caption).foregroundStyle(soft)
+                        Text(WeatherService.describe(w.code, tr)).font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(Color.white).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 0)
                 if let w = entry.weather {
                     HStack(spacing: 6) {
-                        Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.title)
-                        Text(temp(w.topTemp, tr)).font(.system(size: 36, weight: .bold, design: .rounded)).foregroundStyle(.white)
+                        Image(systemName: WeatherService.symbol(w.code)).symbolRenderingMode(.multicolor).font(.system(size: 28))
+                        Text(temp(w.topTemp, tr)).font(.system(size: 38, weight: .semibold, design: .rounded)).foregroundStyle(Color.white).widgetAccentable()
                     }
                 }
             }
             if let w = entry.weather {
                 if let al = Info.alert(w, tr) {
-                    LineView(line: al, font: .footnote)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(gold.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                    HStack(spacing: 6) {
+                        Image(systemName: al.icon).font(.system(size: 12, weight: .bold))
+                        Text(al.text).font(.system(size: 12, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(navy).padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(gold.opacity(0.96), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 5) {
-                    GridRow {
-                        LineView(line: Info.fresh(w, tr), font: .footnote)
-                        if let s = w.snowDepth { LineView(line: Line(icon: "mountain.2.fill", text: tr.t("\(tr.num(s)) cm sneeuw", "\(tr.num(s)) cm snow", "\(tr.num(s)) cm Schnee"), warn: false), font: .footnote) }
-                    }
-                    GridRow {
-                        LineView(line: Line(icon: "wind", text: w.gusts.map { "\(tr.num(w.wind)) km/h · \(tr.t("stoten", "gusts", "Böen")) \(tr.num($0))" } ?? "\(tr.num(w.wind)) km/h", warn: (w.gusts ?? 0) >= 60), font: .footnote)
-                        if let v = w.visibility { LineView(line: Line(icon: "eye", text: tr.t("Zicht \(tr.distance(v))", "Visibility \(tr.distance(v))", "Sicht \(tr.distance(v))"), warn: v < 300), font: .footnote) }
-                    }
-                    GridRow {
-                        LineView(line: Line(icon: "house.fill", text: tr.t("Dal \(temp(w.valleyTemp, tr))", "Valley \(temp(w.valleyTemp, tr))", "Tal \(temp(w.valleyTemp, tr))"), warn: false), font: .footnote)
-                        if let f = w.freezing { LineView(line: Line(icon: "thermometer.snowflake", text: tr.t("Vriesgrens \(tr.height(f))", "Freezing level \(tr.height(f))", "Nullgradgrenze \(tr.height(f))"), warn: false), font: .footnote) }
-                    }
+                HStack(spacing: 6) {
+                    Tile(icon: "snowflake", value: "\(tr.num(w.fresh24)) cm", label: tr.t("vers", "fresh", "Neuschnee"), warn: w.fresh24 >= 15)
+                    Tile(icon: "mountain.2.fill", value: w.snowDepth.map { "\(tr.num($0)) cm" } ?? "–", label: tr.t("sneeuw", "snow", "Schnee"))
+                    Tile(icon: "wind", value: "\(tr.num(w.wind)) km/h", label: w.gusts.map { "\(tr.t("stoten", "gusts", "Böen")) \(tr.num($0))" } ?? tr.t("wind", "wind", "Wind"), warn: (w.gusts ?? 0) >= 60)
                 }
-                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l, font: .footnote) }
-                if let s = w.sunset { LineView(line: Line(icon: "sunset.fill", text: tr.t("Zon onder \(s)", "Sunset \(s)", "Sonnenuntergang \(s)"), warn: false), font: .footnote) }
-                Divider().overlay(Color.white.opacity(0.2))
+                HStack(spacing: 6) {
+                    Tile(icon: "eye", value: w.visibility.map { tr.distance($0) } ?? "–", label: tr.t("zicht", "visibility", "Sicht"), warn: (w.visibility ?? 9999) < 300)
+                    Tile(icon: "house.fill", value: temp(w.valleyTemp, tr), label: tr.t("dal", "valley", "Tal"))
+                    Tile(icon: "thermometer.snowflake", value: w.freezing.map { tr.height($0) } ?? "–", label: tr.t("vriesgrens", "freezing level", "Nullgrad"))
+                }
+                LiftBar(area: a, date: entry.date, tr: tr)
                 forecast(w, tr, count: 3)
             } else {
                 Spacer(minLength: 0)
-                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption).foregroundStyle(soft)
-                if let l = Info.lifts(a, at: entry.date, tr) { LineView(line: l, font: .footnote) }
+                Text(tr.t("Weer laden…", "Loading weather…", "Wetter wird geladen…")).font(.caption.weight(.semibold)).foregroundStyle(Color.white.opacity(0.85))
+                LiftBar(area: a, date: entry.date, tr: tr)
             }
             Spacer(minLength: 0)
         }
@@ -460,9 +601,10 @@ struct AreaView: View {
 
     @ViewBuilder func empty(_ tr: Tr) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: "mountain.2.fill").font(.title2).foregroundStyle(gold)
+            Image(systemName: "mountain.2.fill").font(.system(size: 24, weight: .bold)).foregroundStyle(Color.white)
+            Spacer(minLength: 0)
             Text(tr.t("Open een skigebied in Skipilot", "Open a ski area in Skipilot", "Öffne ein Skigebiet in Skipilot"))
-                .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Color.white)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -472,7 +614,7 @@ struct AreaWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotArea", provider: AreaProvider()) { entry in
             AreaView(entry: entry).widgetURL(URL(string: "skipilot://open/vandaag")).containerBackground(for: .widget) {
-                LinearGradient(colors: [navyTop, navy], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Sky(code: entry.weather?.code, date: entry.date)
             }
         }
         .configurationDisplayName("Skigebied")
@@ -528,51 +670,81 @@ struct DayView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             case .systemMedium:
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title).font(.caption.weight(.bold)).foregroundStyle(gold)
-                        bigKm(d, tr)
+                HStack(spacing: 14) {
+                    VStack(spacing: 6) {
+                        dayTitle(title)
+                        ring(d, tr, size: 88)
                         Spacer(minLength: 0)
-                        if !d.area.isEmpty { Text(d.area).font(.caption2).lineLimit(1).foregroundStyle(soft) }
                     }
-                    VStack(alignment: .leading, spacing: 5) {
-                        stats(d, tr, all: true)
+                    .frame(width: 96)
+                    VStack(spacing: 6) {
+                        HStack(spacing: 6) {
+                            Tile(icon: "arrow.down.right", value: tr.num(d.hm), label: tr.t("hoogtemeters", "m vertical", "Höhenmeter"))
+                            Tile(icon: "figure.skiing.downhill", value: "\(d.runs)", label: tr.t("afdalingen", "runs", "Abfahrten"))
+                        }
+                        HStack(spacing: 6) {
+                            Tile(icon: "speedometer", value: "\(tr.num(d.vmax))", label: tr.t("km/u top", "km/h top", "km/h max"))
+                            if let sec = d.secs, sec > 0 {
+                                Tile(icon: "clock", value: tr.duration(minutes: sec / 60), label: tr.t("op de piste", "on the slopes", "auf der Piste"))
+                            } else {
+                                Tile(icon: "cablecar.fill", value: "\(d.lifts)", label: tr.t("liften", "lifts", "Lifte"))
+                            }
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             default:
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.caption.weight(.bold)).foregroundStyle(gold)
-                    bigKm(d, tr)
+                VStack(spacing: 5) {
+                    dayTitle(title)
+                    ring(d, tr, size: 74)
                     Spacer(minLength: 0)
-                    stats(d, tr, all: false)
+                    HStack(spacing: 0) {
+                        mini("\(tr.num(d.hm))", tr.t("hm", "m vert", "Hm"))
+                        mini("\(d.runs)", tr.t("afd.", "runs", "Abf."))
+                        mini("\(tr.num(d.vmax))", "km/h")
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "figure.skiing.downhill").font(.title2).foregroundStyle(gold)
+                Image(systemName: "figure.skiing.downhill").font(.system(size: 24, weight: .bold)).foregroundStyle(Color.white)
+                Spacer(minLength: 0)
                 Text(tr.t("Start het skidagboek in Skipilot", "Start the ski diary in Skipilot", "Starte das Skitagebuch in Skipilot"))
-                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Color.white)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
-    @ViewBuilder func bigKm(_ d: SharedDay, _ tr: Tr) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(tr.num(d.km, digits: 1)).font(.system(size: 32, weight: .bold, design: .rounded))
-            Text("km").font(.caption.weight(.semibold))
+    @ViewBuilder func dayTitle(_ title: String) -> some View {
+        HStack {
+            Text(title.uppercased()).font(.system(size: 10.5, weight: .heavy)).tracking(0.7).foregroundStyle(Color.white.opacity(0.92)).lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .foregroundStyle(.white)
     }
 
-    @ViewBuilder func stats(_ d: SharedDay, _ tr: Tr, all: Bool) -> some View {
-        LineView(line: Line(icon: "arrow.down.right", text: "\(tr.num(d.hm)) \(tr.t("hoogtemeters", "m vertical", "Höhenmeter"))", warn: false))
-        LineView(line: Line(icon: "figure.skiing.downhill", text: all ? "\(d.runs) \(tr.t("afdalingen", "runs", "Abfahrten"))" : "\(d.runs) \(tr.t("afd.", "runs", "Abf.")) · \(d.lifts) \(tr.t("liften", "lifts", "Lifte"))", warn: false))
-        if all { LineView(line: Line(icon: "cablecar", text: "\(d.lifts) \(tr.t("liften", "lifts", "Lifte"))", warn: false)) }
-        LineView(line: Line(icon: "speedometer", text: "\(tr.num(d.vmax)) km/h max", warn: false))
-        if let s = d.secs, s > 0 { LineView(line: Line(icon: "clock", text: tr.t("\(tr.duration(minutes: s / 60)) op de piste", "\(tr.duration(minutes: s / 60)) on the slopes", "\(tr.duration(minutes: s / 60)) auf der Piste"), warn: false)) }
+    // ring die volloopt tot 40 km, met de kilometers erin
+    @ViewBuilder func ring(_ d: SharedDay, _ tr: Tr, size: CGFloat) -> some View {
+        ZStack {
+            Circle().stroke(Color.white.opacity(0.2), lineWidth: 8)
+            Circle().trim(from: 0, to: CGFloat(min(1, max(0.02, d.km / 40))))
+                .stroke(gold, style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90))
+            VStack(spacing: -2) {
+                Text(tr.num(d.km, digits: d.km < 100 ? 1 : 0)).font(.system(size: size * 0.29, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6).widgetAccentable()
+                Text("km").font(.system(size: size * 0.13, weight: .heavy)).opacity(0.8)
+            }
+            .foregroundStyle(Color.white).padding(.horizontal, 12)
+        }
+        .frame(width: size, height: size)
+    }
+
+    @ViewBuilder func mini(_ value: String, _ label: String) -> some View {
+        VStack(spacing: 0) {
+            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(label).font(.system(size: 9, weight: .heavy)).opacity(0.75).lineLimit(1)
+        }
+        .foregroundStyle(Color.white).frame(maxWidth: .infinity)
     }
 
     func isToday(_ ymd: String) -> Bool {
@@ -590,7 +762,7 @@ struct DayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotDay", provider: DayProvider()) { entry in
             DayView(entry: entry).widgetURL(URL(string: "skipilot://open/ik")).containerBackground(for: .widget) {
-                LinearGradient(colors: [navyTop, navy], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Sky(colors: [rgb(16, 44, 96), rgb(38, 96, 178)])
             }
         }
         .configurationDisplayName("Skidag")
@@ -643,31 +815,42 @@ struct TripView: View {
             case .accessoryInline:
                 Text("\(Image(systemName: "snowflake")) \(onTrip ? t.area : "\(n) \(tr.t("dagen tot", "days to", "Tage bis")) \(t.area)")")
             default:
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(onTrip ? tr.t("Op vakantie", "On holiday", "Im Urlaub") : tr.t("Nog", "Still", "Noch")).font(.caption.weight(.bold)).foregroundStyle(gold)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(onTrip ? "⛷" : "\(max(0, n))").font(.system(size: 40, weight: .bold, design: .rounded)).foregroundStyle(.white)
-                        if !onTrip { Text(tr.t("dagen", "days", "Tage")).font(.caption.weight(.semibold)).foregroundStyle(.white) }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text((onTrip ? tr.t("Op vakantie", "On holiday", "Im Urlaub") : tr.t("Nog", "Only", "Noch")).uppercased())
+                        .font(.system(size: 10.5, weight: .heavy)).tracking(0.7).foregroundStyle(Color.white.opacity(0.92))
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text(onTrip ? "⛷" : "\(max(0, n))").font(.system(size: 44, weight: .semibold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6).foregroundStyle(Color.white).widgetAccentable()
+                        if !onTrip { Text(n == 1 ? tr.t("dag", "day", "Tag") : tr.t("dagen", "days", "Tage")).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Color.white.opacity(0.9)) }
                     }
-                    Spacer(minLength: 0)
-                    Text(t.area).font(.caption.weight(.semibold)).lineLimit(2).foregroundStyle(soft)
+                    Spacer(minLength: 2)
+                    Text(t.area).font(.system(size: 13, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(Color.white)
+                    if let r = range(t, tr) { Chip(icon: "calendar", text: r).padding(.top, 5) }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "calendar").font(.title2).foregroundStyle(gold)
-                Text(tr.t("Plan je skivakantie in Skipilot", "Plan your ski trip in Skipilot", "Plane deinen Skiurlaub in Skipilot")).font(.caption.weight(.semibold)).foregroundStyle(.white)
+                Image(systemName: "calendar").font(.system(size: 24, weight: .bold)).foregroundStyle(Color.white)
+                Spacer(minLength: 0)
+                Text(tr.t("Plan je skivakantie in Skipilot", "Plan your ski trip in Skipilot", "Plane deinen Skiurlaub in Skipilot")).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Color.white)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+    }
+
+    // "13 feb – 20 feb"
+    func range(_ t: SharedTrip, _ tr: Tr) -> String? {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+        guard let a = f.date(from: t.from), let b = f.date(from: t.to) else { return nil }
+        let style = Date.FormatStyle.dateTime.day().month(.abbreviated).locale(tr.locale)
+        return "\(a.formatted(style)) – \(b.formatted(style))"
     }
 }
 struct TripWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "SkipilotTrip", provider: TripProvider()) { entry in
             TripView(entry: entry).widgetURL(URL(string: "skipilot://open/plannen")).containerBackground(for: .widget) {
-                LinearGradient(colors: [Color(red: 0.12, green: 0.5, blue: 0.84), Color(red: 0.49, green: 0.23, blue: 0.93)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Sky(colors: [rgb(92, 58, 214), rgb(40, 132, 226)])
             }
         }
         .configurationDisplayName("Skivakantie")
