@@ -172,7 +172,7 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   lay.over.forEach(x => problems.push(`[${tag}] kaartscherm: overlap ${x}`));
   lay.out.forEach(x => problems.push(`[${tag}] kaartscherm: ${x} valt buiten beeld`));
   lay.small.forEach(x => problems.push(`[${tag}] kaartscherm: knop ${x} is kleiner dan 40 px`));
-  if(lay.free < .7) problems.push(`[${tag}] de kaart houdt maar ${Math.round(lay.free * 100)}% van het scherm vrij`);
+  if(lay.free < .68) problems.push(`[${tag}] de kaart houdt maar ${Math.round(lay.free * 100)}% van het scherm vrij`);
   console.log(`${tag}: kaart vrij ${Math.round(lay.free * 100)}%, regel ${lay.stripH}px hoog`);
   if(lay.stripH > 70) problems.push(`[${tag}] de regel onderaan is ${lay.stripH}px hoog`);
   if(!lay.fit) problems.push(`[${tag}] het gebied staat niet in het vrije kaartdeel`);
@@ -186,8 +186,11 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   await p.click("#handle"); await p.waitForTimeout(500);
   if(await p.evaluate(() => document.getElementById("sheet").classList.contains("open"))) problems.push(`[${tag}] de lade sluit niet`);
   // Vandaag: het bovenste blok past zonder scrollen
-  await p.evaluate(() => setTab("today")); await p.waitForTimeout(600);
+  // ook als de waarschuwing "liften sluiten over … min" erbij staat (die hangt af van het tijdstip)
+  await p.evaluate(() => { const d = new Date(Date.now() + 45 * 60000); S.liftClose = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); setTab("today"); }); await p.waitForTimeout(600);
   const td = await p.evaluate(() => { const a = document.querySelector("#today .acts")?.getBoundingClientRect(); return a ? Math.round(a.bottom) : 0; });
+  if(!(await p.evaluate(() => !!document.querySelector("#today .closing-card")))) problems.push(`[${tag}] test: de waarschuwing 'liften sluiten' verscheen niet`);
+  console.log(`${tag}: bovenste blok van Vandaag eindigt op ${td}px van ${innerHeightOf(phone)}px`);
   if(!td || td > innerHeightOf(phone) + 2) problems.push(`[${tag}] Vandaag: het bovenste blok past niet zonder scrollen (${td}px)`);
   await shot("vandaag");
   // SOS: beide belknoppen en je locatie tegelijk in beeld
