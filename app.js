@@ -3844,8 +3844,13 @@ function planLunch(at, dur, quiet, noDraw){
   // per knooppunt één plek; alleen plekken die je kunt bereiken, de 40 die het dichtst bij je route liggen
   const byNode = new Map(); for(const h of huts){ const o = byNode.get(h.node); if(!o || (!o.name && h.name)) byNode.set(h.node, h); }
   const reach = reachFrom(S.from), route = S.path.map(x => A.nodes[x.to]);
+  // Eerst goedkoop schatten welke plekken kansrijk zijn: hoe ver van de route, en hoe laat je daar ongeveer langskomt.
+  // Alleen voor de beste 14 wordt de route echt doorgerekend (voorheen voor 40: dat kostte op een telefoon een halve seconde).
+  const cum = []; S.path.reduce((t, x, i) => (cum[i] = t + x.min), 0);
   const cands = [...byNode.values()].filter(h => reach[h.node] < Infinity)
-    .map(h => ({h, d:Math.min(...route.map(p => meters(p.lat, p.lon, h.lat, h.lon)))})).sort((a, b) => a.d - b.d).slice(0, 40);
+    .map(h => { let d = Infinity, j = 0; route.forEach((p, i) => { const m = meters(p.lat, p.lon, h.lat, h.lon); if(m < d){ d = m; j = i; } });
+      return {h, d, pre:Math.abs(t0 + cum[j] - want) + d / 40 + (h.kind === "b" || h.kind === "f" ? 15 : 0) + (h.name ? 0 : 20)}; })
+    .filter(c => c.d < 2500).sort((a, b) => a.pre - b.pre).slice(0, 14);
   const keep = S.lunch; let best = null;
   for(const {h} of cands){
     S.lunch = {n:h.node, at, dur};
