@@ -92,6 +92,15 @@ for(const phone of PHONES){
         const f = getComputedStyle(panel, "::after");
         return {last:Math.round(last), tab:Math.round(document.querySelector(".tabbar").getBoundingClientRect().top), fade:f.position === "sticky" && parseFloat(f.height) > 60};
       });
+      // geen blok mag in elkaar gedrukt worden (dan valt er inhoud weg in plaats van dat het scherm scrolt)
+      const sq = await p.evaluate(() => { const panel = [...document.querySelectorAll(".dash, .picker")].find(e => !e.hidden && e.offsetParent !== null); if(!panel) return [];
+        return [...panel.children].filter(c => c.scrollHeight > c.clientHeight + 2 && getComputedStyle(c).overflowY !== "auto" && getComputedStyle(c).overflowY !== "scroll").map(c => `${c.className.split(" ")[0]} ${c.clientHeight}/${c.scrollHeight}`); });
+      sq.forEach(x => problems.push(`[${tag}] ${t}: blok in elkaar gedrukt (${x})`));
+      if(t === "me"){
+        const st = await p.evaluate(() => { const b = document.getElementById("meSettings"); if(!b) return "ontbreekt"; b.scrollIntoView({block:"center"}); const q = b.getBoundingClientRect();
+          const hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return q.height < 40 ? `te laag (${Math.round(q.height)}px)` : hit && b.contains(hit) ? "" : "niet aan te tikken"; });
+        if(st) problems.push(`[${tag}] ik: knop Instellingen ${st}`);
+      }
       if(r && !r.fade) problems.push(`[${tag}] ${t}: geen vervaging onderaan, inhoud schemert achter de tabbalk door`);
       if(r && r.last > r.tab + 2) problems.push(`[${tag}] ${t}: onderste inhoud valt achter de tabbalk (${r.last} > ${r.tab})`);
       await shot("tab-" + t);
