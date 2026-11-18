@@ -48,13 +48,16 @@
     const sheetOpen = () => document.getElementById("sheet")?.classList.contains("open");
     const want = () => ready && !(typeof proActive === "function" && proActive()) && !(typeof S !== "undefined" && S.follow)
       && (sheetOpen() || PANELS.some(id => { const el = document.getElementById(id); return el && !el.hidden; }));
+    // De tabbalk en de panelen maken alleen ruimte als er echt een advertentie in beeld staat (klasse "admob"):
+    // gevraagd én geladen. Lukt het tonen niet of komt er geen advertentie, dan blijft alles op zijn plek staan.
+    let loaded = false;
+    const place = () => document.body.classList.toggle("admob", shown && loaded);
     async function sync(){
-      const on = want(); if(on === shown) return; shown = on;
-      document.body.classList.toggle("admob", on);
+      const on = want(); if(on === shown){ place(); return; } shown = on; place();
       try{
         if(on && !made){ made = true; await call("showBanner", {adId:ios.banner || TEST, adSize:"ADAPTIVE_BANNER", position:"BOTTOM_CENTER", margin:0, isTesting:!ios.banner}); }
         else await call(on ? "resumeBanner" : "hideBanner");
-      }catch(e){ made = false; shown = false; setState("de balk kon niet starten (" + (e?.message || e) + ")"); }
+      }catch(e){ made = false; shown = false; loaded = false; place(); setState("de balk kon niet starten (" + (e?.message || e) + ")"); }
     }
     // de vraag zelf stelt de app (NavPlugin.swift, Tracking) zodra hij actief is; hier wachten we op het antwoord, pas daarna start Google
     async function askTracking(){
@@ -68,10 +71,10 @@
       try{
         // meldingen van de advertenties zelf: geladen of waarom niet; bij "geen advertentie" over een minuut opnieuw
         const p = plugin();
-        p?.addListener?.("bannerAdLoaded", () => setState(ios.banner ? "aan" : "aan (proefadvertenties)"));
+        p?.addListener?.("bannerAdLoaded", () => { loaded = true; place(); setState(ios.banner ? "aan" : "aan (proefadvertenties)"); });
         p?.addListener?.("bannerAdFailedToLoad", e => {
           setState(`geen balk: ${NO_AD[e?.code] || e?.message || "onbekende fout"}${e?.code != null ? ` (code ${e.code})` : ""}`);
-          made = false; shown = false; clearTimeout(retryT);
+          made = false; shown = false; loaded = false; place(); clearTimeout(retryT);   // geen advertentie: de tabbalk terug op zijn plek
           call("removeBanner").catch(() => {}).finally(() => { retryT = setTimeout(sync, 60000); });
         });
         // eerst Apples vraag om te mogen volgen (App Tracking Transparency), vóór Google iets laadt of verzamelt
