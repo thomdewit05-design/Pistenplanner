@@ -193,6 +193,28 @@
     }
     // donkere stand: dezelfde kaart, gedempt blauwgrijs in plaats van fel wit
     if(dark) for(let p = 0; p < o.length; p += 4){ o[p] = o[p] * .36 + 6; o[p+1] = o[p+1] * .44 + 6; o[p+2] = o[p+2] * .56 + 8; }
+    // hoogtegetallen bij de dikke lijnen, ver ingezoomd: per vak van 128 px hooguit één, op de plek waar de lijn het dichtst bij het midden loopt
+    if(step && ze >= 15){
+      const big = step * 5, cell = 128 * r, mar = 20 * r, labs = [];
+      for(let cy = cell / 2; cy < S; cy += cell) for(let cx = cell / 2; cx < S; cx += cell){
+        let best = null, bd = 1e9;
+        for(let j = Math.max(mar, cy - cell / 2 + 4); j < Math.min(S - mar, cy + cell / 2 - 4); j += 2) for(let i = Math.max(mar, cx - cell / 2 + 4); i < Math.min(S - mar, cx + cell / 2 - 4); i += 2){
+          const k = (j + 1) * E + i + 1, a = Math.floor(hh[k] / big), b = Math.floor(hh[k + 1] / big), c = Math.floor(hh[k + E] / big);
+          if(a === b && a === c) continue;
+          const d = (i - cx) * (i - cx) + (j - cy) * (j - cy);
+          if(d < bd){ bd = d; best = {x:i, y:j, v:Math.max(a, b, c) * big}; }
+        }
+        if(best && best.v > 0) labs.push(best);
+      }
+      if(labs.length) try{
+        const g = canvas2d(S, S);
+        g.putImageData(out, 0, 0);
+        g.font = `600 ${9.5 * r}px -apple-system,system-ui,sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+        g.lineWidth = 3 * r; g.strokeStyle = dark ? "rgba(34,50,74,.9)" : "rgba(246,250,255,.9)"; g.fillStyle = dark ? "#B4C4DA" : "#51688A";
+        for(const l of labs){ g.strokeText(String(l.v), l.x, l.y); g.fillText(String(l.v), l.x, l.y); }
+        return g.getImageData(0, 0, S, S);
+      }catch(e){}
+    }
     return out;
   }
 

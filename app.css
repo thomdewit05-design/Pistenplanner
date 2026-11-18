@@ -2287,3 +2287,13 @@ body:has(.sheet.open) .toast:not(.low){top:calc(var(--safe-t) + 10px);bottom:aut
 .sheet .peek-empty .cta .btn.ghost{flex:1 1 auto;white-space:normal;overflow:visible;padding:9px 12px}
 .sheet .cta .btn.ghost{flex:1 1 auto;min-width:max-content;overflow:visible;text-overflow:clip;padding:7px 12px}
 .sheet .cta #gSendBtn{flex:0 0 44px;min-width:44px}
+/* ===== vormgeving D: de laatste punten uit het plan ===== */
+/* route wissen zit achter het kruisje bij de bestemming, zodra er een route is */
+.od-clear{display:none}
+.sheet:has(#goBtn) .od-clear{display:grid}
+.tab-ind{transition:transform .45s var(--spring),width .45s var(--spring),opacity .2s}
+/* ver ingezoomd: de naam van de piste naast het nummer */
+.pname{display:none;font:650 11px/1 var(--f-ui);font-style:normal;margin-left:5px;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.zin .pnum:has(.pname){display:inline-flex;align-items:center;width:auto;padding:0 7px 0 5px}
+.zin .pname{display:inline-block}
+.sheet:has(#goBtn) .od-row:has(.od-clear){grid-template-columns:14px minmax(0,1fr) auto auto;gap:6px}

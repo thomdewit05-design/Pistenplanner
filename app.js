@@ -402,14 +402,16 @@ let numFor = null;
 function drawNumbers(){
   if(numFor !== numLabels){ numLayer.clearLayers(); numFor = numLabels; }
   const on = S.area && S.nums && S.pistes && map.getZoom() >= 14;
+  // ver ingezoomd staat de naam van de piste naast het nummer (dan is er ruimte voor)
+  const zin = map.getZoom() >= 15, gapX = zin ? 130 : 34; map.getContainer().classList.toggle("zin", zin);
   const b = map.getBounds().pad(.1); let n = 0; const shown = [];
   for(const lab of numLabels){
     // geen bordjes over elkaar heen: binnen 34 px van een ander bordje laten we hem weg
     let want = on && b.contains(lab.at) && n < 160;
-    if(want){ const pt = map.latLngToContainerPoint(lab.at); want = !shown.some(q => Math.abs(q.x - pt.x) < 34 && Math.abs(q.y - pt.y) < 22); if(want){ shown.push(pt); n++; } }
+    if(want){ const pt = map.latLngToContainerPoint(lab.at); want = !shown.some(q => Math.abs(q.x - pt.x) < gapX && Math.abs(q.y - pt.y) < 22); if(want){ shown.push(pt); n++; } }
     if(!want){ if(lab.m && numLayer.hasLayer(lab.m)) numLayer.removeLayer(lab.m); continue; }
     lab.m ||= L.marker(lab.at, {interactive:false, keyboard:false, icon:L.divIcon({className:"", iconSize:null,
-      html:`<span class="pnum ${lab.e.diff}" style="background:${DIFF[lab.e.diff].col}">${esc(lab.e.ref)}</span>`})});
+      html:`<span class="pnum ${lab.e.diff}" style="background:${DIFF[lab.e.diff].col}">${esc(lab.e.ref)}${lab.e.name ? `<i class="pname">${esc(lab.e.name)}</i>` : ""}</span>`})});
     if(!numLayer.hasLayer(lab.m)) lab.m.addTo(numLayer);
   }
 }
@@ -430,12 +432,20 @@ function chainFrom(ei){
 }
 
 // schaduw onder de pistes en de honderden stationsstippen pas vanaf zoom 12: uitgezoomd zie je ze toch niet, en het tekenen kost tijd
-map.on("zoomend", () => syncDetail());
+map.on("zoomend", () => { syncDetail(); scalePistes(); });
 // tijdens schuiven en zoomen geen wazig glas boven de kaart (dat moet elk beeld opnieuw); daarna weer wel
 let movingT = 0;
 map.on("movestart zoomstart", () => { clearTimeout(movingT); document.body.classList.add("map-moving"); });
 map.on("moveend zoomend", () => { clearTimeout(movingT); movingT = setTimeout(() => document.body.classList.remove("map-moving"), 180); });
+// ver ingezoomd worden pistes en liften dikker getekend, zodat ze niet als draadjes in een groot vlak liggen
+const pisteScale = () => { const z = map.getZoom(); return z >= 16 ? 1.7 : z >= 15 ? 1.4 : z >= 14 ? 1.15 : 1; };
+let pisteZk = 1;
+function scalePistes(){
+  const k = pisteScale(); if(k === pisteZk) return; pisteZk = k;
+  for(const g of [pisteLayer, pisteDetail]) g.eachLayer(l => { if(l.options?.bw) l.setStyle({weight:l.options.bw * k}); });
+}
 function drawPistes(){
+  pisteZk = pisteScale();
   pisteLayer.clearLayers();
   const A = S.area, groups = {};
   for(const e of A.edges){
@@ -445,7 +455,8 @@ function drawPistes(){
     (groups[k] ||= []).push(e.pts);
   }
   const runs = Object.keys(groups).filter(k => k.startsWith("r_")).flatMap(k => groups[k]);
-  const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", smoothFactor:1.5, ...o});   // iets minder punten per lijn: sneller tekenen, geen zichtbaar verschil
+  const zk = pisteScale();
+  const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", smoothFactor:1.5, ...o, bw:o.weight, weight:o.weight * zk});   // iets minder punten per lijn: sneller tekenen, geen zichtbaar verschil
   if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
   if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
   // zachte schaduw onder de pistes geeft diepte; daarop een witte rand en de pistekleur
@@ -982,7 +993,7 @@ function renderResult(){
                                  <div class="cta">${altBtn || `<button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button>`}<button type="button" class="btn ghost" id="clearBtn">${I("close")}Route wissen</button></div></div>`;
     $("altBtn")?.addEventListener("click", () => { S.to = alt.n; update(); fitRoute(); });
     $("suggestBtn")?.addEventListener("click", () => { defaultRoute(); update(); fitRoute(); });
-    $("clearBtn").onclick = clearRoute;
+    $("clearBtn")?.addEventListener("click", clearRoute);
     return setPeek();
   }
   const path = S.path, steps = S.steps;
@@ -995,12 +1006,12 @@ function renderResult(){
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn" title="Vlieg door de route">${I("layers")}3D-vlucht</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
-      ${homeBtnHtml()}<button type="button" class="btn ghost" id="clearBtn" title="Route stoppen en van de kaart halen">${I("close")}Wissen</button>${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
+      ${homeBtnHtml()}${G.code ? `<button type="button" class="btn ghost" id="gSendBtn" title="Stuur deze route naar je groep" aria-label="Stuur deze route naar je groep">${I("send")}</button>` : ""}</div>`;
   $("goBtn").onclick = toggleFollow;
   $("povBtn")?.addEventListener("click", () => setPov(true));
   $("valleyBtn").onclick = e => valleyChoice(e.currentTarget);
   $("flyBtn")?.addEventListener("click", flyRoute);
-  $("clearBtn").onclick = clearRoute;
+  $("clearBtn")?.addEventListener("click", clearRoute);
   $("homeBtn")?.addEventListener("click", goHome);
   $("gSendBtn")?.addEventListener("click", sendPlan);
   $("goAllBtn")?.addEventListener("click", startAll);
@@ -1682,6 +1693,7 @@ function placeInput(inp, key){
   inp.addEventListener("focus", () => { inp.select(); if(!isSide()) setSheet(true); });
 }
 placeInput($("from"), "from"); placeInput($("to"), "to");
+$("toClear").onclick = clearRoute;
 $("swap").onclick = () => {
   if(S.target){ S.from = S.target.end; S.to = S.target.start; S.target = null; }
   else if(S.via!=null && S.to===S.from){ /* rondje: omdraaien verandert niets */ }
@@ -4076,10 +4088,12 @@ function setTab(t){
   if(t === "today") openToday(); else if(t === "plan") openPlan(); else if(t === "group") openGroup(); else if(t === "me") openMe();
 }
 function tabPaint(){
-  document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", b.dataset.tab === TAB));
+  // met het menu open is geen enkele tab actief (het menu hoort bij geen van de vijf)
+  const menuOpen = !$("menu").hidden, ind0 = $("tabInd"); if(ind0) ind0.style.opacity = menuOpen ? "0" : "";
+  document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", !menuOpen && b.dataset.tab === TAB));
   // de donkere pil schuift mee naar de actieve tab
   requestAnimationFrame(() => { const b = document.querySelector(`#tabbar button[data-tab="${TAB}"]`), ind = $("tabInd"); if(!b || !ind) return;
-    ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 7}px)`; });
+    ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 6}px)`; });
 }
 addEventListener("resize", tabPaint); setTimeout(tabPaint, 300);
 const TAB_ORDER = ["map", "today", "plan", "group", "me"];
@@ -5556,9 +5570,9 @@ function renderInstall(){
     : card(`<b>Op je beginscherm zetten</b>Open het browsermenu (⋮) en kies <b style="display:inline">App installeren</b> of <b style="display:inline">Toevoegen aan startscherm</b>.`);
   $("installBtn")?.addEventListener("click", async () => { if(!installEvt) return; installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; renderInstall(); });
 }
-function openMenu(){ $("menu").hidden = false; syncMenu(); fillAds("menu"); }
+function openMenu(){ $("menu").hidden = false; tabPaint(); syncMenu(); fillAds("menu"); }
 $("menuSearch").oninput = e => menuFilter(e.target.value);
-function closeMenu(){ $("menuSearch").value = ""; menuFilter(""); $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
+function closeMenu(){ setTimeout(tabPaint, 0); $("menuSearch").value = ""; menuFilter(""); $("menu").hidden = true; document.querySelectorAll("[data-clear].sure").forEach(x => { x.classList.remove("sure"); x.textContent = x.dataset.label; }); }
 $("menuBtn").onclick = openMenu;
 $("menuClose").onclick = closeMenu;
 document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").hidden) closeMenu(); });
