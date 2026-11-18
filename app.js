@@ -108,18 +108,28 @@ function onboarding(custom){
     group:`<circle cx="42" cy="46" r="13" fill="#A7C7DC"/><circle cx="78" cy="46" r="13" fill="#1D6FB0"/><path d="M20 92c2-15 12-24 22-24s20 9 22 24Z" fill="#A7C7DC"/><path d="M56 92c2-15 12-24 22-24s20 9 22 24Z" fill="#1D6FB0"/>`}[k]}</svg>`;
   const slides = custom?.slides || [
     ["route", "Nooit meer verdwalen op de piste", "Kies een skigebied, tik aan waar je heen wilt en Skipilot plant de route over pistes en liften die bij je niveau passen."],
-    ["voice", "Navigeren met je stem", "Gesproken aanwijzingen, de 3D-kaart en de dagroute van vandaag. Je locatie blijft op je telefoon; die gebruikt de app alleen om je de weg te wijzen."],
-    ["group", "Samen de berg op", "Maak een groep, deel je route en zie op de kaart waar je vrienden zijn. Klaar? Ga naar je eerste skigebied."]];
+    ["ask", "Hoe ski jij?", "Dan past de eerste route meteen bij je. Je kunt dit later altijd aanpassen."],
+    ["where", "Waar ga je skiën?", "Kies een skigebied en download het één keer. Daarna werkt alles op de berg, ook zonder bereik."]];
   const el = document.createElement("div"); el.className = "onb"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
   let i = 0;
   const done = () => { try{ localStorage.setItem(custom?.key || "pp-onboarded", "1"); }catch(e){} el.classList.add("out"); setTimeout(() => el.remove(), 350); buzz("success"); };
   const paint = () => {
     const [k, h, t] = slides[i], last = i === slides.length - 1;
-    el.innerHTML = `<div class="onb-card">${custom?.label ? `<p class="label onb-label">${custom.label}</p>` : ""}<button type="button" class="onb-skip">Overslaan</button><div class="onb-art">${custom ? `<span class="onb-ic">${I(k)}</span>` : art(k)}</div><h2>${tr(h)}</h2><p>${tr(t)}</p>
+    // "ask": ski's of snowboard en je niveau (dezelfde knoppen als in de instellingen); "where": bij mij in de buurt of zelf zoeken
+    const seg = (id, opts) => `<div class="seg onb-seg" data-for="${id}">${opts.map(([v, lab, sw]) => `<button type="button" data-v="${v}" aria-pressed="${id === "gear" ? (v === "board") === !!S.board : +v === S.level}">${sw ? `<span class="sw" style="background:${sw}"></span>` : ""}${lab}</button>`).join("")}</div>`;
+    const body = k === "ask" ? `<div class="onb-q"><p class="label">Je gaat op</p>${seg("gear", [["ski", "Ski's"], ["board", "Snowboard"]])}<p class="label">Jouw niveau</p>${seg("level", [["1", "Makkelijk", "var(--p-blue)"], ["2", "Gemiddeld", "var(--p-red)"], ["3", "Moeilijk", "var(--p-black)"]])}</div>`
+      : k === "where" ? `<div class="onb-q"><button type="button" class="btn primary" id="onbNear">${I("locate")}Bij mij in de buurt</button><button type="button" class="btn ghost" id="onbSearch">${I("search")}Zelf zoeken</button></div>`
+      : `<div class="onb-art">${custom ? `<span class="onb-ic">${I(k)}</span>` : art(k)}</div>`;
+    const ownBtns = k === "where";
+    el.innerHTML = `<div class="onb-card">${custom?.label ? `<p class="label onb-label">${custom.label}</p>` : ""}<button type="button" class="onb-skip">Overslaan</button>${k === "ask" || k === "where" ? "" : body}<h2>${tr(h)}</h2><p>${tr(t)}</p>${k === "ask" || k === "where" ? body : ""}
       <div class="onb-dots">${slides.map((_, j) => `<i class="${j === i ? "on" : ""}"></i>`).join("")}</div>
-      <button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button></div>`;
+      ${ownBtns ? "" : `<button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button>`}</div>`;
     el.querySelector(".onb-skip").onclick = done;
-    el.querySelector(".onb-next").onclick = () => { buzz(); if(last) done(); else go(1); };
+    el.querySelector(".onb-next")?.addEventListener("click", () => { buzz(); if(last) done(); else go(1); });
+    el.querySelectorAll(".onb-seg button").forEach(b => b.onclick = () => { buzz("select"); document.querySelector(`#${b.parentElement.dataset.for} [data-v="${b.dataset.v}"]`)?.click();
+      b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+    el.querySelector("#onbNear")?.addEventListener("click", () => { done(); $("nearBtn")?.click(); });
+    el.querySelector("#onbSearch")?.addEventListener("click", () => { done(); setTimeout(() => $("q")?.focus(), 400); });
     const card = el.querySelector(".onb-card"); card.style.setProperty("--dx", `${dirNow * 60}px`); card.classList.add("onb-in");
   };
   // vegen tussen de schermen
@@ -231,9 +241,11 @@ function toggleFav(id){
   const r = S.index.find(x => x[0] === id);
   toast(isFav(id) ? `${r?.[1] || "Gebied"} staat bij je favorieten.` : `${r?.[1] || "Gebied"} is geen favoriet meer.`);
 }
+// vlag van een land uit de tweeletterige code (de letters als "regional indicator"); onbekend: de code zelf
+const flagOf = cc => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : esc(cc || "");
 function areaRow(r, dist){
   return `<li><button type="button" class="area-main" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
-      <span class="cc">${r[2]}</span>
+      <span class="cc">${flagOf(r[2])}</span>
       <span><span class="nm">${esc(r[1])}</span><span class="rg">${dist != null ? `${(dist/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
       <span class="km">${r[6]}<small>km piste</small></span></button>
     <button type="button" class="fav${isFav(r[0]) ? " on" : ""}" data-fav="${r[0]}" aria-pressed="${isFav(r[0])}" aria-label="${isFav(r[0]) ? "Uit favorieten halen" : "Als favoriet bewaren"}: ${esc(r[1])}"><svg class="ic"><use href="#i-star"/></svg></button></li>`;
@@ -5293,9 +5305,9 @@ function renderPlan(){
       </div>`
     + (() => { const l = downloadedList(), tot = l.reduce((t, d) => t + (d.b || 0), 0);
         return `<section class="dc" id="plDl" hidden><p class="label">${I("down")}${tr("Gedownloade gebieden")}${tot ? ` · ${fmtMB(tot)} MB` : ""}</p>${l.length
-          ? `<div class="fav-list">${l.map(d => `<button type="button" class="fav-row" data-area="${d.id}"><span class="cc">${esc(d.row[2])}</span><b>${esc(d.row[1])}</b><small>${d.b ? fmtMB(d.b) + " MB · " : ""}${new Date(d.t).toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}</small>${I("chev")}</button>`).join("")}</div>`
+          ? `<div class="fav-list">${l.map(d => `<button type="button" class="fav-row" data-area="${d.id}"><span class="cc">${flagOf(d.row[2])}</span><b>${esc(d.row[1])}</b><small>${d.b ? fmtMB(d.b) + " MB · " : ""}${new Date(d.t).toLocaleDateString(LOCALE, {day:"numeric", month:"short"})}</small>${I("chev")}</button>`).join("")}</div>`
           : `<p class="m-hint">${tr("Nog geen gebieden gedownload. Kies een skigebied om het te downloaden.")}</p>`}</section>`; })()
-    + (favRows.length ? `<section class="dc"><p class="label">${I("star")}${tr("Je favorieten")}</p><div class="fav-list">${favRows.map(r => `<button type="button" class="fav-row" data-area="${r[0]}"><span class="cc">${esc(r[2])}</span><b>${esc(r[1])}</b><small>${r[6]} km · ${r[10] ?? "?"} m</small>${I("chev")}</button>`).join("")}</div></section>`
+    + (favRows.length ? `<section class="dc"><p class="label">${I("star")}${tr("Je favorieten")}</p><div class="fav-list">${favRows.map(r => `<button type="button" class="fav-row" data-area="${r[0]}"><span class="cc">${flagOf(r[2])}</span><b>${esc(r[1])}</b><small>${r[6]} km · ${r[10] ?? "?"} m</small>${I("chev")}</button>`).join("")}</div></section>`
       : `<section class="dc"><p class="m-hint">${tr("Zet skigebieden bij je favorieten (ster) om ze hier snel te openen en te vergelijken.")}</p></section>`);
   $("plClose").onclick = () => box.hidden = true;
   $("tripOpen")?.addEventListener("click", openTrip);
