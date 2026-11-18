@@ -2182,3 +2182,44 @@ ol.steps>li{content-visibility:auto;contain-intrinsic-size:auto 58px}
    (vervaging boven bewegende inhoud moet elk beeld opnieuw berekend worden) */
 .sheet.dragging{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:color-mix(in srgb,var(--surface) 96%,transparent)!important}
 .ios .picker.scrolled>.picker-head,.ios .picker.scrolled .dash-head,.ios .picker.scrolled .menu-head{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--bg)!important}
+/* ===== vormgeving A: fouten eruit ===== */
+/* 1. niets schemert meer onder of achter de tabbalk: een vervaging die onderaan het scrollende scherm meeloopt */
+.dash,.group,.diary,.menu{padding-bottom:0;--fade:#C8DCEB}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) :is(.dash,.group,.diary,.menu){--fade:#081320}}
+.ios[data-theme=dark] :is(.dash,.group,.diary,.menu){--fade:#081320}
+.dash::after,.group::after,.diary::after,.menu::after,.sheet .sheet-body::after{content:"";flex:none;position:sticky;bottom:0;z-index:6;pointer-events:none;
+  height:calc(var(--tab-h) + var(--safe-b) + 34px);margin-top:auto;background:linear-gradient(180deg,transparent 0,var(--fade) 34px)}
+.sheet .sheet-body{padding-bottom:0;--fade:#DCE9F3}
+.sheet .sheet-body::after{margin-left:-18px;margin-right:-18px;height:calc(var(--tab-h) + var(--safe-b) + 26px);background:linear-gradient(180deg,transparent 0,var(--fade) 26px)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .sheet .sheet-body{--fade:#0B1826}}
+.ios[data-theme=dark] .sheet .sheet-body{--fade:#0B1826}
+body.admob :is(.dash,.group,.diary,.menu)::after{height:calc(var(--tab-h) + var(--safe-b) + 104px)}
+body.admob .sheet.open .sheet-body{padding-bottom:0}
+body.admob .sheet.open .sheet-body::after{height:calc(var(--tab-h) + var(--safe-b) + 96px)}
+body.following .sheet-body::after,body.drawing .sheet-body::after,body.rp-on .sheet-body::after{height:calc(var(--safe-b) + 18px);background:none}
+/* 2. meldingen: dekkend, op een vaste plek, nooit over de tekst van een open paneel of scherm */
+.toast,.ios .toast{background:#0F2236;color:#fff;max-width:min(340px,calc(100% - 40px));line-height:1.3;padding:10px 16px;border-radius:18px;font-size:14px}
+.toast.low,.toast.over-sheet{top:auto;bottom:calc(var(--tab-h) + var(--safe-b) + 18px)}
+body.admob .toast.low,body.admob .toast.over-sheet{bottom:calc(var(--tab-h) + var(--safe-b) + 88px)}
+/* 3. "Plan je skivakantie" is een kaart zoals de rest */
+.trip-add{background:var(--card);border:1px solid var(--card-line);border-radius:24px;padding:14px 16px;font:inherit;-webkit-appearance:none;appearance:none}
+.trip-add>.ic:last-child{width:18px;height:18px;color:var(--muted);flex:none;transform:rotate(-90deg)}
+/* 5. de kop boven een gescrold scherm heeft de kleur van de pagina, met een dunne lijn eronder */
+.ios .picker.scrolled>.picker-head,.ios .picker.scrolled .dash-head,.ios .picker.scrolled .menu-head{background:#E9F2F9!important;box-shadow:0 1px 0 rgba(15,40,70,.1)}
+@media (prefers-color-scheme:dark){.ios:not([data-theme=light]) .picker.scrolled :is(.picker-head,.dash-head,.menu-head){background:#0E1D2E!important;box-shadow:0 1px 0 rgba(255,255,255,.08)}}
+.ios[data-theme=dark] .picker.scrolled :is(.picker-head,.dash-head,.menu-head){background:#0E1D2E!important;box-shadow:0 1px 0 rgba(255,255,255,.08)}
+/* 6. de hero is lager, en zonder weer een rustige kaart met alleen het gebied */
+.hero{height:164px}
+.hero-temp{font-size:56px}.hero-temp span{font-size:32px}
+.hero.nowx .hero-art .sun,.hero.nowx .hero-art .moon{display:none}
+.hero-name{font:750 24px/1.15 var(--f-display);letter-spacing:-.01em}
+.hero.nowx .hero-txt{max-width:none;right:18px}
+.hero.nowx .hero-sub{margin-top:6px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.hero-retry{margin-left:0}
+.nodata{font-style:normal;color:var(--faint,var(--muted))}
+:is(.dash,.group,.diary,.menu)::after{margin-left:-18px;margin-right:-18px}
+.hero.nowx .hero-retry{background:rgba(12,40,70,.42);padding:5px 12px}
+.hero.nowx .hero-sub{flex-direction:column;align-items:flex-start}
+.toast,.ios .toast{max-width:min(360px,calc(100% - 28px));width:max-content}
+.toast.over-sheet{bottom:auto;top:calc(var(--safe-t) + 10px)}
+body.admob .toast.over-sheet{bottom:auto}
