@@ -17,6 +17,8 @@ jobs:
         run: |
           npm i --no-save --no-package-lock playwright@1.49.1
           npx playwright install --with-deps chromium
+      - name: Gegevensbestanden zijn geldige JSON
+        run: python3 -c "import json,glob; [json.load(open(f, encoding='utf-8')) for f in sorted(glob.glob('data/*.json'))]; print('ok')"
       - name: Knoppen, labels en fouten controleren
         run: node tools/audit.mjs nl,de,fr,ru,ja
       - name: Routeberekening testen (niveau, gesloten liften, gezinsmodus)
