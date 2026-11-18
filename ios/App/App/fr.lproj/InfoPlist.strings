@@ -1,0 +1,6 @@
+/* Toestemmingsteksten van Skipilot */
+"NSLocationWhenInUseUsageDescription" = "Skipilot utilise votre position pour montrer où vous êtes sur les pistes, vous guider le long de votre itinéraire et enregistrer votre journal de ski. Votre position reste sur votre téléphone, sauf si vous la partagez avec votre groupe.";
+"NSUserTrackingUsageDescription" = "Skipilot est gratuit grâce à la publicité. Avec votre accord, les annonces correspondent mieux à vos centres d'intérêt. Vous pouvez modifier ce choix à tout moment dans Réglages.";
+"NSHealthUpdateUsageDescription" = "Skipilot enregistre vos journées de ski comme entraînement de ski alpin dans Apple Santé, avec la distance et les calories estimées.";
+"NSCameraUsageDescription" = "Skipilot utilise l'appareil photo lorsque vous ajoutez une photo à votre journée de ski.";
+"NSPhotoLibraryAddUsageDescription" = "Skipilot enregistre l'image ou la vidéo de votre journée de ski dans votre photothèque lorsque vous le choisissez.";

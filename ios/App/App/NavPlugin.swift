@@ -177,7 +177,7 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         let km = call.getDouble("km") ?? 0, kcal = call.getDouble("kcal") ?? 0
         guard end > start else { return call.resolve(["saved": false, "reason": "time"]) }
         let types: Set<HKSampleType> = [HKObjectType.workoutType(), HKQuantityType(.distanceDownhillSnowSports), HKQuantityType(.activeEnergyBurned)]
-        healthStore.requestAuthorization(toShare: types, read: [HKQuantityType(.heartRate)]) { ok, _ in
+        healthStore.requestAuthorization(toShare: types, read: []) { ok, _ in   // alleen schrijven: de app leest niets uit Gezondheid
             guard ok else { return call.resolve(["saved": false, "reason": "denied"]) }
             let cfg = HKWorkoutConfiguration(); cfg.activityType = .downhillSkiing; cfg.locationType = .outdoor
             let builder = HKWorkoutBuilder(healthStore: self.healthStore, configuration: cfg, device: .local())

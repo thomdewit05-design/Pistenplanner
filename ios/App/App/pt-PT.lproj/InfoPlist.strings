@@ -1,0 +1,6 @@
+/* Toestemmingsteksten van Skipilot */
+"NSLocationWhenInUseUsageDescription" = "O Skipilot usa a sua localização para mostrar onde está nas pistas, guiá-lo ao longo do percurso e registar o seu diário de esqui. A localização fica no telemóvel, a menos que a partilhe com o seu grupo.";
+"NSUserTrackingUsageDescription" = "O Skipilot é gratuito graças aos anúncios. Com a sua autorização, os anúncios correspondem melhor aos seus interesses. Pode alterar isto a qualquer momento em Definições.";
+"NSHealthUpdateUsageDescription" = "O Skipilot guarda os seus dias de esqui como treino de esqui alpino na Saúde da Apple, com a distância e as calorias estimadas.";
+"NSCameraUsageDescription" = "O Skipilot usa a câmara quando adiciona uma fotografia ao seu dia de esqui.";
+"NSPhotoLibraryAddUsageDescription" = "O Skipilot guarda a imagem ou o vídeo do seu dia de esqui na fototeca quando escolhe guardar.";
