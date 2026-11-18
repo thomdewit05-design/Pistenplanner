@@ -658,7 +658,8 @@ const M3 = (() => {
 
   // ---------- overzicht ----------
   // hoe de camera staat als je het hele skigebied ziet (noorden boven)
-  const ovPad = () => { const side = isSide(); return {top:side ? 90 : padTop(), left:side ? 440 : 24, right:80, bottom:side ? 24 : padBottom()}; };
+  const ovPad = () => { if(typeof isLand === "function" && isLand()){ const q = landPad(); return {top:q.paddingTopLeft[1], left:q.paddingTopLeft[0], right:q.paddingBottomRight[0], bottom:q.paddingBottomRight[1]}; }
+    const side = isSide(); return {top:side ? 90 : padTop(), left:side ? 440 : 24, right:80, bottom:side ? 24 : padBottom()}; };
   // met padding legt MapLibre het midden zelf in het vrije deel; dus het echte midden van het gebied meegeven
   const ovCenter = () => { const c = S.area.bounds.getCenter(); return [c.lng, c.lat]; };
   function ovCam(){
