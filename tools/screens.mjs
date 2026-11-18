@@ -3,7 +3,7 @@
 // - na het openen van een gebied staat het hele gebied in het vrije deel van de kaart (niet onder het paneel)
 // - de tabbalk staat onderaan; de zonbalk verschijnt en botst nergens mee
 // (3D heeft internet nodig voor MapLibre en wordt hier niet getest)
-// - Vandaag, Plannen, Groep en Ik: de onderste inhoud komt boven de tabbalk uit
+// - Vandaag, Plannen, Groep en Ik: de onderste inhoud komt boven de tabbalk uit, en loopt onderaan weg in een vervaging
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { readFile, mkdir } from "node:fs/promises";
@@ -89,8 +89,10 @@ for(const phone of PHONES){
         const panel = [...document.querySelectorAll(".dash, .picker")].find(e => !e.hidden && e.offsetParent !== null); if(!panel) return null;
         panel.scrollTop = panel.scrollHeight; const kids = [...panel.querySelectorAll("section, .dc, button, a")].filter(e => e.offsetParent !== null);
         const last = kids.reduce((m, e) => Math.max(m, e.getBoundingClientRect().bottom), 0);
-        return {last:Math.round(last), tab:Math.round(document.querySelector(".tabbar").getBoundingClientRect().top)};
+        const f = getComputedStyle(panel, "::after");
+        return {last:Math.round(last), tab:Math.round(document.querySelector(".tabbar").getBoundingClientRect().top), fade:f.position === "sticky" && parseFloat(f.height) > 60};
       });
+      if(r && !r.fade) problems.push(`[${tag}] ${t}: geen vervaging onderaan, inhoud schemert achter de tabbalk door`);
       if(r && r.last > r.tab + 2) problems.push(`[${tag}] ${t}: onderste inhoud valt achter de tabbalk (${r.last} > ${r.tab})`);
       await shot("tab-" + t);
     }

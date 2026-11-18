@@ -73,7 +73,10 @@ try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
                           pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, saver:!!s.saver, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
   mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, saver:S.saver, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
-let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
+let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m;
+  // bij een open paneel boven het paneel (niet over de tekst erin); in een scherm als Vandaag onderaan boven de tabbalk
+  const full = [...document.querySelectorAll(".picker")].some(e => !e.hidden), sh = $("sheet");
+  t.classList.toggle("low", full); t.classList.toggle("over-sheet", !full && !!sh?.classList.contains("open")); t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
 const meters = (a1, o1, a2, o2) => { const k = Math.cos((a1+a2)/2*Math.PI/180); return Math.hypot((o2-o1)*111320*k, (a2-a1)*110540); };
@@ -985,10 +988,10 @@ function renderResult(){
   const path = S.path, steps = S.steps;
   const tot = path.reduce((s,x)=>s+x.min,0) + (S.lunchStep != null ? S.lunch.dur : 0), pisteM = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+x.e.len,0);
   const down = path.filter(s=>s.e.t==="r").reduce((s,x)=>s+Math.max(0,x.e.drop||0),0);
-  const nP = steps.filter(s=>s.t==="r").length, nL = steps.filter(s=>s.t==="l").length;
+  const nP = steps.filter((s, i) => s.t==="r" && steps[i-1]?.t !== "r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} pistes</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} ${nP === 1 ? "afdaling" : "afdalingen"}</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? `<span class="stat off">${I("warn")}${path.some(x => x.e.t==="r" && overLevel(x.e)) ? "Boven je niveau" : "Buiten je instellingen"}</span>` : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn">${I("layers")}Vlieg door de route</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
@@ -3204,7 +3207,7 @@ function profileHtmlNow(W0){
         <path d="${area}" class="prof-area" fill="url(#profGrad)"/>
         ${segs}
         <text x="${padL}" y="${H - 5}" text-anchor="start">0 km</text>
-        <text x="${W - padR}" y="${H - 5}" text-anchor="end">${km(pd.total)}</text>
+        <text x="${W - padR}" y="${H - 5}" text-anchor="end">${km(pd.total)} ${tr("met liften")}</text>
         <line id="profCross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" class="cross" visibility="hidden"/>
         <circle id="profDot" r="4.5" class="dot" visibility="hidden"/>
         <rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent" id="profHit"/>
@@ -4176,7 +4179,7 @@ function renderToday(){
   const openKeys = new Set(lifts.filter(e => !S.closed.has(e.i)).map(e => e.key ?? e.i));
   const windRisk = [...(S.risk?.lifts || [])].filter(i => !S.closed.has(i)).length;
   const nowM = new Date().getHours() * 60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
-  const sk = '<i class="skel"></i>';
+  const sk = S.wxFail === A.id ? '<i class="nodata">–</i>' : '<i class="skel"></i>';
   const tile = (icon, label, val, unit, sub) => `<div class="tile">${I(icon)}<span>${label}</span><p>${val ?? sk}${val != null && unit ? `<small>${unit}</small>` : ""}</p>${sub ? `<small class="t-sub">${sub}</small>` : ""}</div>`;
   const home = getHome?.();
   const act = (id, icon, label) => `<button type="button" class="act" id="${id}"><span>${I(icon)}</span>${label}</button>`;
@@ -4190,14 +4193,14 @@ function renderToday(){
       return `<div class="fday"><small>${k === 0 ? "Vandaag" : k === 1 ? "Morgen" : new Date(t + "T12:00").toLocaleDateString(LOCALE, {weekday:"short"})}</small>${I(di)}<b>${deg(Dd.temperature_2m_max[i])}</b><i>${deg(Dd.temperature_2m_min[i])}</i>${sn >= .5 ? `<em>${I("snow")}${Math.round(sn)} cm</em>` : "<em></em>"}</div>`; }).join("");
   }
   const html = dashHead(greeting(), `${tr("Vandaag in")} ${esc(r[1])}`, "tdClose")
-    + `<section class="hero dc sky-${heroSky().k}">${heroSkyline(A)}<div class="hero-txt">
-        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : sk}</p>
+    + `<section class="hero dc sky-${heroSky().k}${w ? "" : " nowx"}">${heroSkyline(A)}<div class="hero-txt">
+        <p class="hero-temp">${w ? `${num(Math.round(w.c.temperature_2m))}<span>°</span>` : `<b class="hero-name">${esc(r[1])}</b>`}</p>
         <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `${tr("Weer niet beschikbaar.")} <button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : tr("Weer en sneeuw laden…")}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
         ${tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur")}
-        ${tile("thermo", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top")}
-        ${tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : ""))}
+        ${tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top")}
+        ${tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
         ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
@@ -4807,7 +4810,7 @@ function areaInfo(){
   if(A.nightLifts?.size) dna.push(["moon", "Avondskiën"]);
   if(km.f / tot > .08) dna.push(["ski", "Veel skiroutes"]);
   const lo = r[9] ?? 0, hi = r[10] ?? 0;
-  return `<section class="dc area-info"><p class="label">${I("map")}${tr("Over dit gebied")}</p>
+  return `<section class="dc area-info"><p class="label">${I("flag")}${tr("Over dit gebied")}</p>
     <div class="ai-top"><svg viewBox="0 0 120 120" class="ai-donut"><circle cx="60" cy="60" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="16"/>${arcs}<text x="60" y="58" text-anchor="middle" class="ai-n">${Math.round(tot)}</text><text x="60" y="74" text-anchor="middle" class="ai-u">km piste</text></svg>
       <ul class="ai-leg">${seg.map(([k, col, nm]) => `<li><i style="background:${col}"></i>${tr(nm)}<b>${Math.round(km[k])} km</b></li>`).join("")}</ul></div>
     <div class="ai-alt"><span>${lo} m</span><div class="ai-altbar"><i style="--a:${lo / 4000 * 100}%;--b:${hi / 4000 * 100}%"></i></div><span>${hi} m</span></div>
@@ -4868,7 +4871,7 @@ function collectSection(A){
   const c = collected(A); if(!c.all.length) return "";
   const R = 30, C = 2 * Math.PI * R, rows = [["g", "#22984A", "Groen"], ["b", "#1E66CC", "Blauw"], ["r", "#D22E2E", "Rood"], ["s", "#121417", "Zwart"], ["f", "#E08A1E", "Skiroute"]].filter(x => c.by[x[0]]);
   const allBlack = c.by.s && c.by.s.got === c.by.s.n;
-  return `<section class="dc collect"><p class="label">${I("star")}${tr("Pistes verzameld")}</p>
+  return `<section class="dc collect"><p class="label">${I("check")}${tr("Pistes verzameld")}</p>
     <div class="col-top"><svg viewBox="0 0 80 80" class="col-ring"><circle cx="40" cy="40" r="${R}" class="rg-bg"/><circle cx="40" cy="40" r="${R}" fill="none" stroke="#E0A100" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - c.pct)}" transform="rotate(-90 40 40)" style="--dash:${C}" class="rg-fg"/><text x="40" y="46" text-anchor="middle" class="col-pct">${Math.round(c.pct * 100)}%</text></svg>
       <div><b>${c.got.size} / ${c.all.length}</b><small>${tr("pistes van")} ${esc(A.row[1])}</small>${allBlack ? `<span class="col-badge">${I("star")}${tr("Alle zwarte pistes!")}</span>` : ""}</div></div>
     <div class="col-rows">${rows.map(([k, col, nm]) => `<div><span><i style="background:${col}"></i>${tr(nm)}</span><div class="col-bar"><i style="--k:${(c.by[k].got / c.by[k].n * 100).toFixed(0)}%;background:${col}"></i></div><b>${c.by[k].got}/${c.by[k].n}</b></div>`).join("")}</div>

@@ -2043,6 +2043,8 @@ for(const [l, add] of Object.entries({"en": {"Om": "At", "staat de zon te laag. 
 for(const [l, add] of Object.entries({"en": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "No falling snow in 3D, group updates less often. Turns on by itself below 20%."}, "de": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Kein Schneefall in 3D, Gruppe seltener aktualisiert. Schaltet sich unter 20 % selbst ein."}, "fr": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Pas de neige qui tombe en 3D, groupe mis à jour moins souvent. S'active tout seul sous 20 %."}, "it": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Niente neve che cade in 3D, gruppo aggiornato meno spesso. Si attiva da solo sotto il 20%."}, "es": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Sin nieve cayendo en 3D, el grupo se actualiza menos. Se activa solo por debajo del 20 %."}, "pt": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Sem neve a cair em 3D, grupo atualizado menos vezes. Liga-se sozinho abaixo de 20%."}, "ru": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "Без падающего снега в 3D, группа обновляется реже. Включается сама при заряде ниже 20%."}, "zh": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "3D中不显示降雪,群组更新频率降低。电量低于20%时自动开启。"}, "ja": {"Geen vallende sneeuw in 3D, groep minder vaak bijgewerkt. Gaat vanzelf aan onder 20%.": "3Dの降雪を止め、グループの更新を減らします。残量20%未満で自動的にオン。"}})) Object.assign(EXACT[l], add);
 // Hapermeter
 for(const [l, add] of Object.entries({"en": {"Prestaties tonen": "Show performance", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Counts stutters and shows where they happen. Tap the counter to copy the list.", "Lijst met haperingen gekopieerd.": "Stutter list copied.", "Route zoeken…": "Finding route…"}, "de": {"Prestaties tonen": "Leistung anzeigen", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Zählt Ruckler und zeigt, wo sie entstehen. Tippe auf den Zähler, um die Liste zu kopieren.", "Lijst met haperingen gekopieerd.": "Liste der Ruckler kopiert.", "Route zoeken…": "Route wird gesucht…"}, "fr": {"Prestaties tonen": "Afficher les performances", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Compte les saccades et montre où elles se produisent. Touche le compteur pour copier la liste.", "Lijst met haperingen gekopieerd.": "Liste des saccades copiée.", "Route zoeken…": "Recherche de l'itinéraire…"}, "it": {"Prestaties tonen": "Mostra prestazioni", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Conta gli scatti e mostra dove nascono. Tocca il contatore per copiare l'elenco.", "Lijst met haperingen gekopieerd.": "Elenco degli scatti copiato.", "Route zoeken…": "Ricerca del percorso…"}, "es": {"Prestaties tonen": "Mostrar rendimiento", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Cuenta los tirones y muestra dónde ocurren. Toca el contador para copiar la lista.", "Lijst met haperingen gekopieerd.": "Lista de tirones copiada.", "Route zoeken…": "Buscando ruta…"}, "pt": {"Prestaties tonen": "Mostrar desempenho", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Conta as falhas e mostra onde acontecem. Toca no contador para copiar a lista.", "Lijst met haperingen gekopieerd.": "Lista de falhas copiada.", "Route zoeken…": "A procurar rota…"}, "ru": {"Prestaties tonen": "Показывать производительность", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "Считает подтормаживания и показывает, где они возникают. Нажмите на счётчик, чтобы скопировать список.", "Lijst met haperingen gekopieerd.": "Список подтормаживаний скопирован.", "Route zoeken…": "Поиск маршрута…"}, "zh": {"Prestaties tonen": "显示性能", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "统计卡顿并显示发生的位置。点按计数器即可复制列表。", "Lijst met haperingen gekopieerd.": "卡顿列表已复制。", "Route zoeken…": "正在查找路线…"}, "ja": {"Prestaties tonen": "パフォーマンスを表示", "Telt haperingen en laat zien waar ze ontstaan. Tik op het tellertje om de lijst te kopiëren.": "カクつきを数え、どこで起きたかを表示します。カウンターをタップするとリストをコピーします。", "Lijst met haperingen gekopieerd.": "カクつきのリストをコピーしました。", "Route zoeken…": "ルートを検索中…"}})) Object.assign(EXACT[l], add);
+// vormgeving A
+for(const [l, add] of Object.entries({"en": {"1 afdaling": "1 run", "met liften": "incl. lifts"}, "de": {"1 afdaling": "1 Abfahrt", "met liften": "mit Liften"}, "fr": {"1 afdaling": "1 descente", "met liften": "avec remontées"}, "it": {"1 afdaling": "1 discesa", "met liften": "con impianti"}, "es": {"1 afdaling": "1 descenso", "met liften": "con remontes"}, "pt": {"1 afdaling": "1 descida", "met liften": "com teleféricos"}, "ru": {"1 afdaling": "1 спуск", "met liften": "с подъёмниками"}, "zh": {"1 afdaling": "1 次滑降", "met liften": "含缆车"}, "ja": {"1 afdaling": "滑走1本", "met liften": "リフト含む"}})) Object.assign(EXACT[l], add);
 // getallen: ook met een (smalle) harde spatie als duizendtalscheiding, zoals in het Frans ("1 625"); PX zoekt op het oorspronkelijke patroon
 const P = (rx, en, de) => [new RegExp(rx.replaceAll("[\\d.,]", "[\\d.,\u00a0\u202f]")), en, de, new RegExp(rx).source];
 const PATTERNS = [
@@ -2126,6 +2128,7 @@ const PATTERNS = [
  P("^" + N + " km piste · klaar om (.+)$", (m) => `${m[1]} km of runs · done at ${m[2]}`, (m) => `${m[1]} km Piste · fertig um ${m[2]}`),
  P("^Aankomst rond (.+)$", (m) => `Arrival around ${m[1]}`, (m) => `Ankunft gegen ${m[1]}`),
  P("^(\\d+) pistes$", (m) => `${m[1]} runs`, (m) => `${m[1]} Pisten`),
+ P("^(\\d+) afdalingen$", (m) => `${m[1]} runs`, (m) => `${m[1]} Abfahrten`),
  P("^(\\d+) liften$", (m) => `${m[1]} lifts`, (m) => `${m[1]} Lifte`),
  P("^" + N + " hm dalen$", (m) => `${m[1]} m descent`, (m) => `${m[1]} Hm Abfahrt`),
  P("^(\\d+) stappen$", (m) => `${m[1]} steps`, (m) => `${m[1]} Schritte`),
@@ -2277,6 +2280,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `${m[1]} km de pistes · terminé à ${m[2]}`,
   "^Aankomst rond (.+)$": (m) => `Arrivée vers ${m[1]}`,
   "^(\\d+) pistes$": (m) => `${m[1]} pistes`,
+  "^(\\d+) afdalingen$": (m) => `${m[1]} descentes`,
   "^(\\d+) liften$": (m) => `${m[1]} remontées`,
   "^([\\d.,]+) hm dalen$": (m) => `${m[1]} m de descente`,
   "^(\\d+) stappen$": (m) => `${m[1]} étapes`,
@@ -2416,6 +2420,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `${m[1]} km di piste · fine alle ${m[2]}`,
   "^Aankomst rond (.+)$": (m) => `Arrivo verso le ${m[1]}`,
   "^(\\d+) pistes$": (m) => `${m[1]} piste`,
+  "^(\\d+) afdalingen$": (m) => `${m[1]} discese`,
   "^(\\d+) liften$": (m) => `${m[1]} impianti`,
   "^([\\d.,]+) hm dalen$": (m) => `${m[1]} m di discesa`,
   "^(\\d+) stappen$": (m) => `${m[1]} tappe`,
@@ -2554,6 +2559,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `${m[1]} km de pistas · listo a las ${m[2]}`,
   "^Aankomst rond (.+)$": (m) => `Llegada hacia las ${m[1]}`,
   "^(\\d+) pistes$": (m) => `${m[1]} pistas`,
+  "^(\\d+) afdalingen$": (m) => `${m[1]} descensos`,
   "^(\\d+) liften$": (m) => `${m[1]} remontes`,
   "^([\\d.,]+) hm dalen$": (m) => `${m[1]} m de bajada`,
   "^(\\d+) stappen$": (m) => `${m[1]} pasos`,
@@ -2693,6 +2699,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `${m[1]} km de pistas · termina às ${m[2]}`,
   "^Aankomst rond (.+)$": (m) => `Chegada por volta das ${m[1]}`,
   "^(\\d+) pistes$": (m) => `${m[1]} pistas`,
+  "^(\\d+) afdalingen$": (m) => `${m[1]} descidas`,
   "^(\\d+) liften$": (m) => `${m[1]} teleféricos`,
   "^([\\d.,]+) hm dalen$": (m) => `${m[1]} m de descida`,
   "^(\\d+) stappen$": (m) => `${m[1]} passos`,
@@ -2832,6 +2839,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `${m[1]} км трасс · готово в ${m[2]}`,
   "^Aankomst rond (.+)$": (m) => `Прибытие около ${m[1]}`,
   "^(\\d+) pistes$": (m) => `трасс: ${m[1]}`,
+  "^(\\d+) afdalingen$": (m) => `спусков: ${m[1]}`,
   "^(\\d+) liften$": (m) => `подъёмников: ${m[1]}`,
   "^([\\d.,]+) hm dalen$": (m) => `${m[1]} м спуска`,
   "^(\\d+) stappen$": (m) => `шагов: ${m[1]}`,
@@ -2971,6 +2979,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `雪道 ${m[1]} 公里 · ${m[2]} 结束`,
   "^Aankomst rond (.+)$": (m) => `约 ${m[1]} 到达`,
   "^(\\d+) pistes$": (m) => `${m[1]} 条雪道`,
+  "^(\\d+) afdalingen$": (m) => `${m[1]} 次滑降`,
   "^(\\d+) liften$": (m) => `${m[1]} 条缆车`,
   "^([\\d.,]+) hm dalen$": (m) => `下降 ${m[1]} 米`,
   "^(\\d+) stappen$": (m) => `${m[1]} 步`,
@@ -3110,6 +3119,7 @@ const PX = {
   "^([\\d.,]+) km piste · klaar om (.+)$": (m) => `コース${m[1]}km · ${m[2]}に終了`,
   "^Aankomst rond (.+)$": (m) => `${m[1]}頃到着`,
   "^(\\d+) pistes$": (m) => `コース${m[1]}本`,
+  "^(\\d+) afdalingen$": (m) => `滑走${m[1]}本`,
   "^(\\d+) liften$": (m) => `リフト${m[1]}本`,
   "^([\\d.,]+) hm dalen$": (m) => `滑降${m[1]}m`,
   "^(\\d+) stappen$": (m) => `${m[1]}ステップ`,
