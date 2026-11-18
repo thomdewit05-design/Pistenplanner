@@ -3,6 +3,7 @@
 // - na het openen van een gebied staat het hele gebied in het vrije deel van de kaart (niet onder het paneel)
 // - de tabbalk staat onderaan; de zonbalk verschijnt en botst nergens mee
 // (3D heeft internet nodig voor MapLibre en wordt hier niet getest)
+// - liggend: kaart over het hele scherm, niets overlapt, de regel schuift uit tot een lade, Vandaag en SOS passen op één scherm
 // - Vandaag, Plannen, Groep en Ik: de onderste inhoud komt boven de tabbalk uit, en loopt onderaan weg in een vervaging
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
@@ -21,6 +22,7 @@ const server = createServer(async (rq, res) => {
 if(SHOTS) await mkdir(SHOTS, {recursive:true});
 
 const browser = await chromium.launch();
+const innerHeightOf = phone => devices[phone].viewport.height;
 const problems = [];
 const PHONES = ["iPhone 15", "iPhone SE", "iPhone 15 Pro Max"];
 for(const phone of PHONES){
@@ -138,6 +140,62 @@ for(const phone of PHONES){
     await shot("sos");
     await ctx.close();
   }
+}
+// ---------- liggend: kaart over het hele scherm, tabs links, kaartknoppen rechts, onderaan één regel die uitschuift tot een lade ----------
+for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
+  const tag = phone;
+  const ctx = await browser.newContext({...devices[phone], serviceWorkers:"block"});
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  await ctx.addInitScript(() => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", "nl"); });
+  const p = await ctx.newPage();
+  p.on("pageerror", e => problems.push(`[${tag}] fout in de pagina: ${e.message}`));
+  await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForTimeout(1800);
+  const shot = async n => { if(SHOTS) await p.screenshot({path:join(SHOTS, `${phone.replace(/ /g, "")}-${n}.png`)}); };
+  // kiezer: de lijst met gebieden is zichtbaar
+  const pk = await p.evaluate(() => { const l = document.querySelector("#picker .areas"), r = l.getBoundingClientRect(), f = l.querySelector("li")?.getBoundingClientRect(); return {h:Math.round(r.height), first:!!f && f.height > 30 && f.top < innerHeight}; });
+  if(pk.h < 150 || !pk.first) problems.push(`[${tag}] kiezer: de lijst met gebieden is niet zichtbaar (${pk.h}px)`);
+  await shot("kiezer");
+  await p.evaluate(async () => { closePicker(); const r = S.index.find(r => /Arlberg/.test(r[1])); localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); });
+  await p.waitForTimeout(1600);
+  // kaartscherm: niets overlapt, alles binnen beeld, de kaart houdt de ruimte, het gebied staat in het vrije deel
+  const lay = await p.evaluate(() => {
+    const els = [["tabs", document.querySelector(".tabbar")], ["regel", document.getElementById("sheet")], ...[...document.querySelectorAll(".topbar > *, .fabs > *")].map(e => [e.id || e.className, e])]
+      .filter(([, e]) => e && !e.hidden && getComputedStyle(e).display !== "none" && getComputedStyle(e).visibility !== "hidden" && e.getBoundingClientRect().width > 0).map(([n, e]) => { const r = e.getBoundingClientRect(); return {n, l:r.left, t:r.top, r:r.right, b:r.bottom}; });
+    const over = [], out = [];
+    for(let i = 0; i < els.length; i++){ const a = els[i]; if(a.l < -1 || a.t < -1 || a.r > innerWidth + 1 || a.b > innerHeight + 1) out.push(a.n);
+      for(let j = i + 1; j < els.length; j++){ const c = els[j]; if(a.l < c.r - 1 && a.r > c.l + 1 && a.t < c.b - 1 && a.b > c.t + 1) over.push(a.n + " / " + c.n); } }
+    const used = els.reduce((s, e) => s + (e.r - e.l) * (e.b - e.t), 0), small = els.filter(e => e.n !== "tabs" && e.n !== "regel" && (e.r - e.l < 40 || e.b - e.t < 40)).map(e => e.n);
+    const b = S.area.bounds, nw = map.latLngToContainerPoint(b.getNorthWest()), se = map.latLngToContainerPoint(b.getSouthEast());
+    const tabs = els.find(e => e.n === "tabs"), strip = els.find(e => e.n === "regel");
+    return {over, out, small, free:1 - used / (innerWidth * innerHeight), fit:nw.x >= tabs.r - 4 && se.x <= innerWidth - 50 && nw.y >= 0 && se.y <= strip.t + 4, stripH:Math.round(strip.b - strip.t)};
+  });
+  lay.over.forEach(x => problems.push(`[${tag}] kaartscherm: overlap ${x}`));
+  lay.out.forEach(x => problems.push(`[${tag}] kaartscherm: ${x} valt buiten beeld`));
+  lay.small.forEach(x => problems.push(`[${tag}] kaartscherm: knop ${x} is kleiner dan 40 px`));
+  if(lay.free < .7) problems.push(`[${tag}] de kaart houdt maar ${Math.round(lay.free * 100)}% van het scherm vrij`);
+  console.log(`${tag}: kaart vrij ${Math.round(lay.free * 100)}%, regel ${lay.stripH}px hoog`);
+  if(lay.stripH > 70) problems.push(`[${tag}] de regel onderaan is ${lay.stripH}px hoog`);
+  if(!lay.fit) problems.push(`[${tag}] het gebied staat niet in het vrije kaartdeel`);
+  await shot("kaart");
+  // de regel schuift uit tot een lade en weer terug
+  await p.evaluate(() => dayRoute()); await p.waitForTimeout(1500);
+  await p.click("#peek .eta"); await p.waitForTimeout(600);
+  const dr = await p.evaluate(() => { const s = document.getElementById("sheet"), r = s.getBoundingClientRect(); return {open:s.classList.contains("open"), h:Math.round(r.height), w:Math.round(r.width), steps:!!document.querySelector("ol.steps li")}; });
+  if(!dr.open || dr.h < innerHeightOf(phone) - 30 || !dr.steps) problems.push(`[${tag}] de lade opent niet goed (${JSON.stringify(dr)})`);
+  await shot("lade");
+  await p.click("#handle"); await p.waitForTimeout(500);
+  if(await p.evaluate(() => document.getElementById("sheet").classList.contains("open"))) problems.push(`[${tag}] de lade sluit niet`);
+  // Vandaag: het bovenste blok past zonder scrollen
+  await p.evaluate(() => setTab("today")); await p.waitForTimeout(600);
+  const td = await p.evaluate(() => { const a = document.querySelector("#today .acts")?.getBoundingClientRect(); return a ? Math.round(a.bottom) : 0; });
+  if(!td || td > innerHeightOf(phone) + 2) problems.push(`[${tag}] Vandaag: het bovenste blok past niet zonder scrollen (${td}px)`);
+  await shot("vandaag");
+  // SOS: beide belknoppen en je locatie tegelijk in beeld
+  await p.evaluate(() => { setTab("map"); document.getElementById("sosBtn").click(); }); await p.waitForTimeout(600);
+  const so = await p.evaluate(() => [...document.querySelectorAll("#sos .call:not([hidden]), #sos .sos-loc")].map(e => e.getBoundingClientRect()).every(r => r.height > 30 && r.top >= 0 && r.bottom <= innerHeight + 1));
+  if(!so) problems.push(`[${tag}] SOS: de belknoppen en de locatie staan niet tegelijk in beeld`);
+  await shot("sos");
+  await ctx.close();
 }
 await browser.close(); server.close();
 console.log(problems.length ? problems.join("\n") + `\n\n${problems.length} problemen.` : "Alle schermen in orde.");

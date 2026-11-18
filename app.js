@@ -507,11 +507,18 @@ function drawPistes(){
   drawSun(); drawHeat(); syncLayerChips();
   M3.sync("pistes");
 }
-// paneel opzij: op een groot scherm, of op een liggende telefoon
-const SIDE_MQ = matchMedia("(min-width:900px), (orientation:landscape) and (max-height:500px)");
+// paneel opzij: alleen op een groot scherm. Een liggende telefoon heeft een eigen indeling (zie "liggend" in app.css):
+// de kaart over het hele scherm, de tabs als kolom links, de kaartknoppen rechts en onderaan één regel die uitschuift tot een lade.
 const LAND_MQ = matchMedia("(orientation:landscape) and (max-height:500px)");
+const SIDE_MQ = matchMedia("(min-width:900px) and (min-height:501px)");
 const isSide = () => SIDE_MQ.matches;
-const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
+const isLand = () => LAND_MQ.matches;
+const landSync = () => document.body.classList.toggle("land", isLand());
+landSync();
+// liggend: links de tabkolom (en de lade als die open staat), rechts de kaartknoppen, onder de regel
+const landPad = () => { const sh = $("sheet"), open = sh.classList.contains("open"), rail = document.body.classList.contains("following") ? 12 : 70;
+  return {paddingTopLeft:[rail + (open ? sh.offsetWidth + 12 : 0), 58], paddingBottomRight:[66, open ? 16 : 70]}; };
+const sheetPad = () => isLand() ? landPad()
   : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
                                                  : {paddingTopLeft:[20, padTop()], paddingBottomRight:[70, padBottom()]};
 // wat het paneel en de tabbalk onderaan echt bedekken (het paneel loopt door achter de tabbalk), en de chips bovenaan
@@ -1693,7 +1700,9 @@ function setMini(on){
   sheetMini = on; try{ localStorage.setItem("pp-sheet-mini", on ? "1" : "0"); }catch(e){}
   setPeek();
 }
-function setSheet(open){ if(open) ensureDetail(); sheet.classList.toggle("open", open); }
+function setSheet(open){ if(open) ensureDetail(); const was = sheet.classList.contains("open"); sheet.classList.toggle("open", open);
+  // liggend verandert de vrije kaartruimte als de lade open of dicht gaat: route of gebied opnieuw in beeld
+  if(isLand() && was !== open && !S.follow && typeof map !== "undefined") setTimeout(() => { if(S.path?.length) fitRoute(); else if(S.area && !userMoved) fitArea(true); }, 260); }
 SIDE_MQ.addEventListener?.("change", () => ensureDetail());
 (() => {   // veeggebaar op de greep
   const h = $("handle"); let y0 = null, moved = false, base = 0, lastY = 0, lastT = 0, vel = 0;
@@ -3522,7 +3531,8 @@ function showAt(ll, zoom){
   if(POV.mode === "gl") return;                                   // de 3D-kaart volgt je zelf (M3.navCam)
   if(POV.on){ map.setView(ll, z, {animate:true}); return; }   // gekantelde platte kaart: het midden van de kaart is jouw plek
   let dx = 0, dy = 0;
-  if(LAND_MQ.matches || isSide()) dx = (sh.offsetWidth + 16) / 2;
+  if(isLand()){ if(sh.classList.contains("open")) dx = (sh.offsetWidth + 16) / 2; else dy = -28; }
+  else if(isSide()) dx = (sh.offsetWidth + 16) / 2;
   else if(!sh.classList.contains("open")) dy = -(sheetPeek()) / 2;
   const c = map.project(L.latLng(ll), z).subtract([dx, dy]);
   map.setView(map.unproject(c, z), z, {animate:true});
@@ -3530,8 +3540,11 @@ function showAt(ll, zoom){
 
 // ================= draaien =================
 LAND_MQ.addEventListener("change", () => {
-  setTimeout(() => { map.invalidateSize(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); setPeek(); }, 250);
+  landSync(); setSheet(false);
+  setTimeout(() => { map.invalidateSize(); tabPaint(); if(S.follow && S.pos) map.panTo([S.pos.lat, S.pos.lon]); else if(S.path?.length) fitRoute(); else if(S.area) fitArea(true); setPeek(); }, 250);
 });
+// liggend: tik op de regel onderaan (niet op een knop erin) schuift de lade uit
+$("peek").addEventListener("click", e => { if(!isLand() || e.target.closest("button, a, input, select")) return; if(!sheet.classList.contains("open")){ setSheet(true); buzz("select"); } });
 
 // ================= avondskiën =================
 function setNight(on){
@@ -4138,7 +4151,9 @@ function tabPaint(){
   document.querySelectorAll("#tabbar button").forEach(b => b.toggleAttribute("aria-current", !menuOpen && b.dataset.tab === TAB));
   // de donkere pil schuift mee naar de actieve tab
   requestAnimationFrame(() => { const b = document.querySelector(`#tabbar button[data-tab="${TAB}"]`), ind = $("tabInd"); if(!b || !ind) return;
-    ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 6}px)`; });
+    // liggend staan de tabs onder elkaar: de pil schuift dan verticaal
+    if(isLand()){ ind.style.width = b.offsetWidth + "px"; ind.style.height = b.offsetHeight + "px"; ind.style.transform = `translateY(${b.offsetTop - 5}px)`; }
+    else { ind.style.height = ""; ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 6}px)`; } });
 }
 addEventListener("resize", tabPaint); setTimeout(tabPaint, 300);
 const TAB_ORDER = ["map", "today", "plan", "group", "me"];

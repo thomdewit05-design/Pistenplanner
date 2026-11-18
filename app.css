@@ -494,84 +494,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 }
 
 /* ---------- telefoon liggend: paneel links, kaart rechts, knoppen in een rij ---------- */
-@media (orientation:landscape) and (max-height:500px){
-  :root{--side:min(46vw,360px);--gap:8px}
-  .fab{width:44px;height:44px;border-radius:14px}
-  .fab .ic{width:19px;height:19px}
 
-  .topbar{top:calc(var(--gap) + var(--safe-t));left:calc(var(--gap) + var(--safe-l));right:auto;width:var(--side)}
-  .area-btn{padding:5px 10px 5px 5px;gap:8px;border-radius:14px}
-  .area-logo{width:30px;height:30px;border-radius:8px}
-  .area-txt small{display:none}
-  .area-txt b{font-size:16px}
-  .area-stats{font-size:12px;margin-top:1px}
-  .topbar #layersBtn,.topbar #groupBtn,.topbar #statusBtn{position:fixed;top:calc(var(--gap) + var(--safe-t))}
-  .topbar #layersBtn{right:calc(var(--gap) + var(--safe-r))}
-  .topbar #groupBtn{right:calc(var(--gap) + 52px + var(--safe-r))}
-  .topbar #statusBtn{right:calc(var(--gap) + 104px + var(--safe-r))}
-  .layer-menu{top:calc(60px + var(--safe-t));right:calc(var(--gap) + var(--safe-r));max-height:calc(100% - 70px);overflow:auto}
-
-  .sheet{top:calc(58px + var(--safe-t));left:calc(var(--gap) + var(--safe-l));right:auto;bottom:calc(var(--gap) + var(--safe-b));width:var(--side);max-height:none;border-radius:14px;transform:none!important;box-shadow:var(--sh-2);transition:transform .25s}
-  .handle{display:none}
-  .sheet-body{padding:12px 14px 14px;gap:10px}
-  .brandline{display:none}
-  .eta b{font-size:26px}
-  .eta span{font-size:14px}
-  .stat{font-size:12px;padding:4px 9px}
-  .btn{padding:9px 12px;font-size:14px}
-  .od input{padding:8px 2px;font-size:16px}
-  .od-row{grid-template-columns:14px minmax(0,1fr) 34px}
-  .icon-btn{width:34px;height:34px}
-  .hint{font-size:12px}
-  .wx summary{padding:9px 12px}
-  .wx-now b{font-size:20px}
-  .wx-ic{width:28px;height:28px}
-  .wx-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .wx-cell{padding:6px 8px}
-  .wx-cell b{font-size:16px}
-  ol.steps li{padding-bottom:12px}
-  .st-title{font-size:14px}
-  .st-sub{font-size:12px}
-
-  /* kaartknoppen in een rij rechtsonder */
-  .fabs{flex-direction:row;right:calc(var(--gap) + var(--safe-r));bottom:calc(var(--gap) + var(--safe-b));gap:8px}
-  .leaflet-control-zoom{display:none}
-  .leaflet-bottom.leaflet-right .leaflet-control-attribution{margin-bottom:58px}
-
-  /* meldingen bovenin het kaartdeel */
-  .nav-banner,.draw-bar{left:calc(var(--side) + 2*var(--gap) + var(--safe-l));right:calc(164px + var(--safe-r));top:calc(var(--gap) + var(--safe-t));max-width:none}
-  .nav-main{padding:9px 12px;gap:10px}
-  .nav-arrow{width:36px;height:36px}
-  .nav-dist{font-size:26px}
-  .nav-txt b{font-size:14px}
-  .nav-sub{padding:6px 12px;font-size:12px}
-  .nav-warn{padding:6px 12px;font-size:12px}
-  .draw-bar{padding:6px 6px 6px 12px}
-  .db-txt b{font-size:16px}
-  .db-txt small{font-size:12px}
-  .toast{top:calc(60px + var(--safe-t));left:calc(var(--side) + 2*var(--gap) + var(--safe-l) + (100vw - var(--side) - 3*var(--gap) - var(--safe-l) - var(--safe-r))/2)}
-
-  /* tijdens tekenen: paneel weg, hele breedte voor de kaart */
-  .drawing .sheet{transform:translateX(calc(-100% - 20px))!important}
-  .drawing .draw-bar{left:calc(var(--gap) + var(--safe-l))}
-  .drawing .topbar .area-btn{visibility:hidden}
-
-  /* schermen als zijpaneel links, de kaart blijft zichtbaar */
-  .picker,.sos{inset:var(--gap) auto var(--gap) calc(var(--gap) + var(--safe-l));width:min(440px,calc(100vw - 2*var(--gap) - var(--safe-l) - var(--safe-r)));border-radius:14px;box-shadow:var(--sh-2);padding:12px 16px;gap:9px}
-  .picker h2{font-size:20px}
-  .picker-head .label{margin-bottom:2px}
-  .sos h2{font-size:26px}
-  .call{padding:11px 14px}
-  .call b{font-size:20px}
-  .call .ic{width:24px;height:24px}
-  .sos-coord{font-size:20px}
-  .qr{width:104px;height:104px}
-  .share-panel,.g-code-row{padding:10px}
-  .g-code{font-size:26px}
-  .st-actions .btn{padding:8px 10px;font-size:14px}
-  .search input{padding:9px 0;font-size:16px}
-  .near-btn{padding:8px}
-}
 
 /* groepsscherm: onderdelen netjes onder elkaar, knoppen over de volle breedte */
 .group{overflow:auto}
@@ -645,7 +568,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .d-hist .mr-open b{display:block;font-size:16px}
 .d-hist .mr-open small{display:block;font-size:12px;color:var(--muted)}
 .d-hist li.cur .mr-open b{color:#7C3AED}
-@media (orientation:landscape) and (max-height:500px){.d-stat b{font-size:20px}.d-stat.big b{font-size:26px}}
+
 @media (prefers-reduced-motion:reduce){.rec-pill .ic{animation:none}}
 /* opname loopt: rood stipje op de knop van het skigebied */
 .area-btn{position:relative}
@@ -722,7 +645,7 @@ ol.steps li.current{background:color-mix(in srgb,var(--route) 18%,transparent);b
 .area-btn{padding-left:14px}
 .recording .area-btn::after{display:none}
 .recording .menu-btn::after{content:"";position:absolute;top:-3px;left:-3px;width:12px;height:12px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);animation:blink 1.4s ease-in-out infinite}
-@media (orientation:landscape) and (max-height:500px){.menu-btn{width:44px;height:44px;border-radius:14px}.menu-btn img{width:30px;height:30px}}
+
 
 /* ---------- menu ---------- */
 .menu{gap:0;overflow:auto;padding-top:calc(10px + var(--safe-t))}
@@ -796,7 +719,7 @@ body.admob .sheet.open .sheet-body{padding-bottom:calc(76px + var(--safe-b))}
 .spd-side .ic{width:14px;height:14px}
 .spd-side b{color:var(--ink);font-variant-numeric:tabular-nums}
 @media (min-width:900px){.speedo{left:430px;bottom:calc(14px + var(--safe-b))}}
-@media (orientation:landscape) and (max-height:500px){.speedo{left:calc(var(--side) + 2*var(--gap) + var(--safe-l));bottom:calc(var(--gap) + var(--safe-b))}.spd-now b{font-size:34px}}
+
 .drawing .speedo{display:none}
 
 /* ---------- dagboek: acties, seizoen en records ---------- */
@@ -954,11 +877,7 @@ body.picking-home .leaflet-container{cursor:crosshair}
 .nd-hut .hut{flex:none;cursor:default;width:30px;height:30px}
 .nd-hut .nd-t small{display:block;font-size:12px;color:#8FA3B8;text-transform:uppercase;letter-spacing:.04em}
 .nd-hut .nd-t b{font-weight:600;color:#fff}
-@media (orientation:landscape) and (max-height:500px){
-  .nav3d .nav-banner{right:auto;width:min(46%,420px);margin:0}
-  .nav-dash{left:auto;width:min(46%,420px);margin:0;top:calc(8px + var(--safe-t));bottom:auto}
-  .nav3d .fabs,.nav3d .speedo{bottom:calc(10px + var(--safe-b))}
-}
+
 @media (prefers-reduced-motion:reduce){.nav3d #map{transition:none}}
 
 /* ================= 3D-kaart (bergen) ================= */
@@ -974,7 +893,7 @@ body.picking-home .leaflet-container{cursor:crosshair}
   padding:9px 16px 9px 13px;border-radius:999px;color:var(--ink);font:700 14px/1 var(--f-ui);cursor:pointer}
 .ov-pill .ic{width:18px;height:18px}
 @media (min-width:900px){.ov-pill{left:calc(50% + 210px)}}
-@media (orientation:landscape) and (max-height:500px){.ov-pill{top:calc(var(--gap) + var(--safe-t));left:calc(50% + var(--side) / 2)}}
+
 .nav3d .ov-pill,.drawing .ov-pill{display:none}
 .map3d .me-dot.m3-hide{display:none}
 /* 3D: iets groter en met een duidelijke rand, zodat je stip opvalt op sneeuw en reliëf */
@@ -2409,3 +2328,165 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .pack input[type=checkbox]:checked{background:var(--cta);border-color:var(--cta)}
 .pack input[type=checkbox]:checked::after{content:"";width:6px;height:11px;border:solid var(--cta-ink,#fff);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
 .pack label{display:flex;align-items:center;gap:12px;min-height:44px}
+/* ===== liggend (telefoon op zijn kant) =====
+   Hoogte is schaars, breedte is ruim, en je duimen zitten bij de korte zijkanten. Dus:
+   de kaart over het hele scherm, de tabs als kolom links, de kaartknoppen als kolom rechts,
+   linksboven één pil met het gebied, onderaan één regel die uitschuift tot een lade. */
+@media (orientation:landscape) and (max-height:500px){
+  body{--rail:calc(70px + var(--safe-l));--rcol:calc(58px + var(--safe-r));--tab-h:0px;--lade:340px}
+  body.following,body.drawing,body.rp-on{--rail:calc(8px + var(--safe-l));--tab-h:0px}
+
+  /* tabs: kolom links */
+  .tabbar{left:calc(6px + var(--safe-l));right:auto;top:50%;bottom:auto!important;transform:translateY(-50%);width:60px;flex-direction:column;padding:5px;gap:0;border-radius:22px}
+  .tabbar button,.tabbar button[aria-current]{flex:none;width:50px;height:46px;padding:0;font-size:10px;gap:1px}
+  .tabbar button .ic{width:20px;height:20px}
+  .tab-ind{left:5px;top:5px;width:50px;height:46px;border-radius:17px}
+  body.following .tabbar,body.drawing .tabbar,body.rp-on .tabbar,body:has(#sos:not([hidden])) .tabbar,body:has(.onb) .tabbar{transform:translate(-170%,-50%);opacity:0;pointer-events:none}
+  body.admob .tabbar{bottom:auto}
+  body::after{display:none}
+
+  /* linksboven: gebied en SOS; rechts de kaartknoppen in één kolom */
+  .topbar{left:calc(var(--rail) + 4px);right:auto;top:calc(8px + var(--safe-t));width:auto;max-width:330px;gap:6px;align-items:center}
+  body:has(.sheet.open) .topbar{left:calc(var(--rail) + var(--lade) + 14px)}
+  .area-btn{max-width:260px;min-width:0;padding:5px 10px 5px 12px;border-radius:16px}
+  .area-txt small{display:none}
+  .area-txt b{font-size:15px}
+  .area-stats{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .topbar #layersBtn,.topbar #statusBtn{position:fixed;right:calc(8px + var(--safe-r))}
+  .topbar #layersBtn{top:calc(8px + var(--safe-t))}
+  .topbar #statusBtn{top:calc(56px + var(--safe-t))}
+  .fab,.ios .fab,.topbar .sos-fab,.ios .topbar .sos-fab{width:42px;height:42px;border-radius:14px}
+  .fabs,.ios .fabs{left:auto;right:calc(8px + var(--safe-r));top:calc(104px + var(--safe-t));bottom:auto;flex-direction:column;gap:6px;align-items:flex-end}
+  .leaflet-control-zoom{display:none}
+  .layer-chips{left:calc(var(--rail) + 4px);right:auto;top:calc(58px + var(--safe-t));max-width:calc(100vw - var(--rail) - var(--rcol) - 20px)}
+  body:has(.sheet.open) .layer-chips{left:calc(var(--rail) + var(--lade) + 14px);max-width:calc(100vw - var(--rail) - var(--lade) - var(--rcol) - 30px)}
+
+  /* onderaan: één regel (dicht) */
+  .sheet,.ios .sheet{left:calc(var(--rail) + 4px);right:auto;top:auto;bottom:calc(6px + var(--safe-b));width:auto;min-width:300px;max-width:calc(100vw - var(--rail) - var(--rcol) - 16px);
+    margin:0;max-height:none;border-radius:20px;transform:none!important;box-shadow:var(--sh-2)}
+  .sheet .handle{display:none}
+  .sheet .sheet-body::after{display:none}
+  .sheet:not(.open) .sheet-body{padding:7px 8px 7px 14px;overflow:hidden;gap:0;display:block}
+  .sheet:not(.open) .sheet-body>*:not(.peek){display:none!important}
+  .sheet:not(.open) .peek{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:12px;cursor:pointer;min-height:44px}
+  .sheet:not(.open) .peek>.stats{display:none}
+  .sheet:not(.open) .eta{display:flex;align-items:baseline;gap:8px;white-space:nowrap;margin:0}
+  .sheet:not(.open) .eta b{font-size:22px;line-height:1}
+  .sheet:not(.open) .eta span{font-size:13px}
+  .sheet:not(.open) .cta{flex:none;margin:0 0 0 auto;gap:6px;flex-wrap:nowrap}
+  .sheet:not(.open) .cta .btn{flex:none;width:auto;min-height:44px;padding:8px 16px;white-space:nowrap}
+  .sheet:not(.open) .cta .btn.ghost,.sheet:not(.open) .cta .home-set{display:none}
+  .sheet:not(.open) .peek-empty{flex-direction:row;align-items:center;gap:12px;width:100%}
+  .sheet:not(.open) .pe-main{flex-direction:row;align-items:center;gap:12px;width:100%}
+  .sheet:not(.open) .pe-main p b{font-size:16px;white-space:nowrap}
+  .sheet:not(.open) .pe-more{display:none}
+
+  /* de lade (open): links naast de tabs, over de volle hoogte */
+  .sheet.open,.ios .sheet.open{top:calc(6px + var(--safe-t));bottom:calc(6px + var(--safe-b));width:var(--lade);min-width:0;max-width:none}
+  .sheet.open .handle{display:block;position:absolute;right:6px;top:6px;width:36px;height:36px;z-index:3;border-radius:50%;background:var(--card);border:1px solid var(--card-line)}
+  .sheet.open .handle span{display:none}
+  .sheet.open .handle::after{content:"";position:absolute;inset:0;margin:auto;width:12px;height:12px;
+    background:linear-gradient(45deg,transparent 44%,var(--ink) 44% 56%,transparent 56%),linear-gradient(-45deg,transparent 44%,var(--ink) 44% 56%,transparent 56%)}
+  .sheet.open .sheet-body{overflow:auto;padding:12px 12px 14px;gap:10px}
+  .sheet.open .eta{padding-right:40px}
+  .sheet.open .eta b{font-size:26px}
+  .brandline{display:none}
+
+  /* navigeren: de aanwijzing linksboven, de regel onderaan */
+  .nav-banner{left:calc(60px + var(--safe-l));right:auto;top:calc(8px + var(--safe-t));width:min(380px,calc(100vw - 150px - var(--safe-l) - var(--safe-r)));max-width:none}
+  body.following .topbar .area-btn{display:none}
+  body.following .topbar{left:calc(8px + var(--safe-l))}
+  .draw-bar{left:calc(8px + var(--safe-l));right:calc(var(--rcol) + 8px);top:calc(8px + var(--safe-t));max-width:none}
+  .speedo{left:auto;right:calc(var(--rcol) + 8px);bottom:calc(8px + var(--safe-b))}
+  .sun-bar{left:auto;right:calc(var(--rcol) + 6px);bottom:calc(6px + var(--safe-b));width:min(330px,42vw)}
+
+  /* meldingen: onderaan in het midden van de kaart, boven de regel */
+  .toast,.ios .toast,.toast.low,.toast.over-sheet,body:has(.sheet.open) .toast:not(.low),body:has(.picker:not([hidden])) .toast,body:has(.sheet.open) .toast,body.following .toast,body.drawing .toast,body.rp-on .toast{
+    top:auto!important;bottom:calc(66px + var(--safe-b))!important;left:calc(var(--rail) + 8px);right:calc(var(--rcol) + 8px)}
+  body:has(.sheet.open) .toast{left:calc(var(--rail) + var(--lade) + 16px)}
+
+  /* schermen (tabs en vensters): naast de tabkolom, over de volle hoogte, kop op één regel */
+  .picker,.ios .picker,.sos,.ios .sos{inset:0 0 0 var(--rail);width:auto;border-radius:0;padding:calc(8px + var(--safe-t)) calc(14px + var(--safe-r)) 0 12px;gap:10px}
+  body:has(#sos:not([hidden])) .sos{left:0;padding-left:calc(14px + var(--safe-l))}
+  .ios .picker::before{display:none}
+  .ios .picker>.picker-head,.ios .dash-head,.ios .menu-head,.sos-head{position:static;margin:0;padding:0;background:none!important;box-shadow:none!important;align-items:center}
+  .dash-head .label,.picker-head .label,.sos-head .label,.menu-ver{display:none}
+  .picker h2,.ios .picker h2,.sos h2,.ios .sos h2,.dash-head h2,.ios .dash-head h2,.ios .menu-head h2{font-size:20px!important;line-height:1.15}
+  .dash::after,.group::after,.diary::after,.menu::after{height:calc(var(--safe-b) + 12px);background:none}
+
+  /* tabs gebruiken de breedte: kaarten in twee kolommen */
+  .dash{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-content:start;gap:10px}
+  #detail.picker{display:flex;flex-direction:column}
+  .dash>.dash-head,.dash>.dash-empty,.dash>section:has(.hscroll),.dash>.more-area,.dash>.trip-add,.dash>.trip-card,.dash>.plan-grid,.dash>.closing-card,.dash::after{grid-column:1/-1}
+  .hero{height:150px}
+  .more-area{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;gap:10px;align-content:start}
+  .more-area>summary,.more-area>section:has(.hscroll){grid-column:1/-1}
+  .more-area>section,.more-area>div,.more-area[open]>summary{margin-bottom:0}
+  .plan-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .plan-grid .plan-tile:last-child:nth-child(odd){grid-column:auto}
+  .acts{align-content:center}
+
+  /* gebiedenkiezer: zoeken en filters links, de lijst rechts in twee kolommen */
+  #picker>*{max-width:250px}
+  #picker>.areas,.ios #picker>.areas{position:absolute;max-width:none;left:calc(274px);right:calc(12px + var(--safe-r));top:calc(8px + var(--safe-t));bottom:0;margin:0;padding:0 0 12px;overflow:auto;
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));grid-auto-rows:max-content;gap:8px;align-content:start;flex:none}
+  #picker>.areas>li.empty,#picker>.areas>li.area-sep{grid-column:1/-1}
+
+  /* detail van een piste of lift: lade rechts, de kaart blijft links zichtbaar */
+  #detail.picker,.ios #detail.picker{left:auto;right:0;width:min(400px,52vw);box-shadow:-8px 0 30px rgba(8,24,44,.18);padding-left:14px}
+
+  /* instellingen: de secties in twee kolommen; een open sectie over de volle breedte */
+  .menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-content:start;column-gap:8px}
+  .menu>.menu-head,.menu>.m-search,.menu>.m-sec.open,.menu.searching>.m-sec,.menu>:not(.m-sec),.menu::after{grid-column:1/-1}
+  .menu .m-sec,.ios .menu .m-sec{margin-top:6px}
+
+  /* lagenmenu: lade rechts over de volle hoogte */
+  .layer-menu{top:calc(6px + var(--safe-t));right:calc(var(--rcol) + 4px);bottom:calc(6px + var(--safe-b));max-height:none;width:min(360px,calc(100vw - var(--rail) - var(--rcol) - 20px));overflow:auto}
+
+  /* SOS: links bellen, rechts je locatie */
+  .sos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-content:start;column-gap:12px;row-gap:8px;overflow:auto}
+  .sos>.sos-head,.sos>.sos-tips{grid-column:1/-1}
+  .sos>.call{grid-column:1;padding:10px 14px}
+  .sos>.sos-loc{grid-column:2;grid-row:2/span 2}
+  .call b{font-size:20px}
+
+  /* vensters over het hele scherm: compact, de knop altijd in beeld */
+  .onb{padding:calc(8px + var(--safe-t)) calc(20px + var(--safe-r)) calc(8px + var(--safe-b)) calc(20px + var(--safe-l));overflow:auto}
+  .onb-card{max-width:560px;gap:8px}
+  .onb-art{width:92px;margin-bottom:0;border-radius:22px}
+  .onb h2{font-size:20px;margin:0}
+  .onb-card>p{margin:0;font-size:14px}
+  .onb-q{flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center}
+  .onb-q .label{margin:0;flex:none;width:100%}
+  .onb-q .seg{flex:1 1 220px;width:auto}
+  .onb-q .btn{flex:1 1 200px;width:auto;min-height:46px}
+  .dl-gate{padding:calc(8px + var(--safe-t)) calc(16px + var(--safe-r)) calc(8px + var(--safe-b)) calc(16px + var(--safe-l));overflow:auto}
+  .dl-card{max-width:620px;max-height:calc(100dvh - 16px);overflow:auto}
+  .pro-card{max-width:680px}
+  .pro-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+
+  /* fijnafstelling */
+  .onb-q:has(.seg){display:grid;grid-template-rows:auto auto;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px 12px}
+  .onb-q:has(.seg) .label{width:auto}
+  .onb-q .seg button{min-height:44px}
+  .dl-card{padding:14px 18px;text-align:left;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:8px;align-items:center}
+  .dl-card>*{grid-column:1/-1;margin:0}
+  .dl-card>.dl-art{display:none}
+  .dl-card>.dl-list{grid-column:1;flex-direction:column}
+  .dl-card>.dl-list~.btn{grid-column:2}
+  .dl-card h2{font-size:20px}
+  body:has(.sheet.open) .toast{left:calc(var(--rail) + var(--lade) + 16px)!important}
+  body:has(.sheet.open) .area-btn{max-width:calc(100vw - var(--rail) - var(--lade) - var(--rcol) - 80px)}
+  body:has(.sheet.open) .area-stats{display:none}
+  .hero-name{font-size:18px}
+  .hero-temp{font-size:44px}
+  .area-btn{max-width:min(240px,30vw)}
+  .sheet:not(.open) .pe-main p b{font-size:15px}
+  .sheet:not(.open) .cta .btn{padding:8px 14px}
+}
+/* liggend op een smal scherm: nog zuiniger */
+@media (orientation:landscape) and (max-height:500px) and (max-width:720px){
+  .area-stats{display:none}
+  .sheet,.ios .sheet{min-width:0}
+  .sheet:not(.open) .day-btn{font-size:14px}
+}
