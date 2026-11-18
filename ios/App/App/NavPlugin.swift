@@ -24,7 +24,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         CAPPluginMethod(name: "tracking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "day", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "health", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "health", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "battery", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -111,6 +112,16 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     // SceneDelegate zodra de app actief is; deze methode wacht tot er een antwoord is en geeft dat door.
     @objc func tracking(_ call: CAPPluginCall) {
         Tracking.whenDecided { call.resolve(["status": $0]) }
+    }
+
+    // ---------- batterijstand (de webweergave op iOS geeft die niet door) ----------
+    @objc func battery(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            UIDevice.current.isBatteryMonitoringEnabled = true
+            let st = UIDevice.current.batteryState
+            call.resolve(["level": Double(UIDevice.current.batteryLevel), "charging": st == .charging || st == .full,
+                          "lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
+        }
     }
 
     // ---------- beoordelen in de App Store ----------

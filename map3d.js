@@ -119,7 +119,7 @@ const M3 = (() => {
         const off = [dx / L * bar / 111320, -dy / L * bar / 111320 / ky];      // loodrecht op de kabel, in graden: [lat, lon]
         pylons.push([P([q.p[0] + off[0], q.p[1] + off[1]], q.g + H), P([q.p[0] - off[0], q.p[1] - off[1]], q.g + H)]);
       });
-      // lengte langs de kabel (in kaarteenheden) voor de bewegende cabines
+      // lengte langs de kabel (in kaarteenheden)
       const cum = [0]; for(let k = 1; k < line.length; k++) cum.push(cum[k-1] + Math.hypot(line[k][0] - line[k-1][0], line[k][1] - line[k-1][1], line[k][2] - line[k-1][2]));
       out.push({i:e.i, closed:S.closed.has(e.i), line, pylons, cum, total, kind:e.kind});
     }
@@ -147,34 +147,6 @@ const M3 = (() => {
         quad(c.line[k-1], c.line[k], r ? (pass ? 7.5 : 12) : (pass ? 1.8 : 3.6), r ? (pass ? gold : navy) : pass ? (c.closed ? grey : dark) : soft);
     } }
     const out = new Float32Array(v); out.half = half; return out;
-  }
-  // bewegende cabines/stoeltjes: blokjes die langs de kabel schuiven (heen en terug), met de echte snelheid
-  const CAB = {chair_lift:{gap:28, v:2.4, len:2.4, w:5}, gondola:{gap:70, v:5, len:3.6, w:8}, mixed_lift:{gap:60, v:5, len:3.6, w:8}, cable_car:{gap:0, v:9, len:7, w:12}};
-  function cabinVerts(geo, t){
-    const v = [];
-    const quad = (a, b, w, col) => {
-      for(const [p, o, flip, side] of [[a, b, 1, -1], [a, b, 1, 1], [b, a, -1, -1], [b, a, -1, -1], [a, b, 1, 1], [b, a, -1, 1]])
-        v.push(p[0], p[1], p[2], o[0], o[1], o[2], flip, side, w, ...col);
-    };
-    const at = (c, f) => { const L = c.cum[c.cum.length - 1], d = Math.max(0, Math.min(L, f * L)); let k = 1; while(k < c.cum.length - 1 && c.cum[k] < d) k++;
-      const s = c.cum[k] > c.cum[k-1] ? (d - c.cum[k-1]) / (c.cum[k] - c.cum[k-1]) : 0, a = c.line[k-1], b = c.line[k];
-      return [a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s, a[2] + (b[2] - a[2]) * s - (c.cum[c.cum.length - 1] / c.total) * 1.2]; };   // iets onder de kabel
-    const dark = [.1, .15, .2, 1], body = [.93, .3, .25, 1], white = [1, 1, 1, .95];
-    for(const c of geo){
-      if(c.closed || !c.cum || c.line.length < 2) continue;
-      const k = CAB[c.kind] || CAB.chair_lift, n = k.gap ? Math.max(1, Math.floor(c.total / k.gap)) : 1;
-      for(let dir = 0; dir < 2; dir++){
-        if(!k.gap && dir) break;
-        for(let j = 0; j < n; j++){
-          let f;
-          if(!k.gap){ const per = c.total / k.v, u = (t / 1000 % (2 * per)) / per; f = u <= 1 ? u : 2 - u; }   // kabelbaan: één cabine heen en weer
-          else { f = ((t / 1000 * k.v / c.total) + j / n + (dir ? .5 / n : 0)) % 1; if(dir) f = 1 - f; }
-          const df = k.len / c.total, a = at(c, Math.max(0, f - df / 2)), b = at(c, Math.min(1, f + df / 2));
-          quad(a, b, k.w + 3, white); quad(a, b, k.w, c.kind === "chair_lift" ? dark : body);
-        }
-      }
-    }
-    return new Float32Array(v);
   }
   // matrix van MapLibre × verschuiving naar het midden van het gebied, in dubbele precisie (anders trillen de kabels)
   function withOrigin(m){
@@ -236,22 +208,6 @@ const M3 = (() => {
       g.uniform1f(this.u.u_bias, .0004); g.drawArrays(g.TRIANGLES, 0, this.half);
       g.uniform1f(this.u.u_bias, .0005); g.drawArrays(g.TRIANGLES, this.half, this.n - this.half);
       this.vao.bind(null);
-      // cabines: elke keer opnieuw (ze bewegen), in een eigen buffer; niet tijdens het navigeren of bij "minder beweging"
-      if(mode === "view" && !REDUCED && gl.getZoom() > 12.5){
-        if(!this.cva){ this.cbuf = g.createBuffer(); this.cva = this.vao.make(); this.vao.bind(this.cva); g.bindBuffer(g.ARRAY_BUFFER, this.cbuf);
-          const st = FLOATS * 4, L = this.loc;
-          [["a_pos", 3, 0], ["a_other", 3, 3], ["a_flip", 1, 6], ["a_side", 1, 7], ["a_w", 1, 8], ["a_col", 4, 9]].forEach(([k, size, off]) => {
-            if(L[k] < 0) return; g.enableVertexAttribArray(L[k]); g.vertexAttribPointer(L[k], size, g.FLOAT, false, st, off * 4); });
-          this.vao.bind(null); }
-        const cv = cabinVerts(cableGeo, performance.now());
-        if(cv.length){
-          this.vao.bind(this.cva); g.bindBuffer(g.ARRAY_BUFFER, this.cbuf); g.bufferData(g.ARRAY_BUFFER, cv, g.DYNAMIC_DRAW);
-          g.uniform1f(this.u.u_bias, .0006); g.drawArrays(g.TRIANGLES, 0, cv.length / FLOATS);
-          this.vao.bind(null);
-          // ±25 beelden per seconde is genoeg voor cabines en spaart de batterij
-          clearTimeout(this.tick); this.tick = setTimeout(() => gl?.triggerRepaint(), 40);
-        }
-      }
     }
   };
   // tikken op een kabel: de kabel staat in de lucht, dus zelf projecteren (map.project kent geen hoogte)
@@ -290,7 +246,7 @@ const M3 = (() => {
         // aparte bron voor de schaduw (zelfde bron als het terrein geeft fouten in het tekenen); wordt bij satelliet niet geladen
         shade:{type:"raster-dem", tiles:[DEM], tileSize:256, maxzoom:15, encoding:"terrarium"},
         slope:{type:"raster", tiles:[SLOPE], tileSize:256, minzoom:11, maxzoom:15},
-        pistes:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
+        pistes:{type:"geojson", data:EMPTY}, sun:{type:"geojson", data:EMPTY}, route:{type:"geojson", data:EMPTY}, sel:{type:"geojson", data:EMPTY}, nums:{type:"geojson", data:EMPTY}, huts:{type:"geojson", data:EMPTY}, peaks:{type:"geojson", data:EMPTY}
       },
       layers:[
         {id:"bg", type:"background", paint:{"background-color":"#E6EDF3"}},
@@ -303,6 +259,9 @@ const M3 = (() => {
         {id:"shade", type:"hillshade", source:"shade", layout:{visibility:vis("shade")}, paint:{"hillshade-exaggeration":.4, "hillshade-shadow-color":"#33435A", "hillshade-highlight-color":"#FFFFFF"}},
         // aangetikte piste of lift: blauwe gloed eronder
         {id:"sel-glow", type:"line", source:"sel", filter:["==", ["geometry-type"], "LineString"], layout:line, paint:{"line-color":"#1E88FF", "line-width":w(9, 16), "line-opacity":.45, "line-blur":2}},
+        // zon en schaduw per piste (zelfde kleuren als de platte kaart), onder de pistes als gloed
+        {id:"sun-shade", type:"line", source:"sun", filter:["==", ["get", "lit"], 0], layout:line, paint:{"line-color":"#3B3F6B", "line-width":w(7, 16), "line-opacity":.55, "line-blur":1}},
+        {id:"sun-lit", type:"line", source:"sun", filter:["==", ["get", "lit"], 1], layout:line, paint:{"line-color":"#FFB800", "line-width":w(8, 18), "line-opacity":.72, "line-blur":1}},
         {id:"run-shadow", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#0B1A2A", "line-width":w(7, 15), "line-opacity":.16, "line-blur":3}},
         {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(4.4, 9.5), "line-opacity":.82}},
         {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8)}},
@@ -316,13 +275,13 @@ const M3 = (() => {
         {id:"station", type:"circle", source:"pistes", filter:["==", ["get", "k"], "st"], paint:{"circle-radius":w(1.5, 3.5), "circle-color":"#14202B", "circle-stroke-color":"#fff", "circle-stroke-width":1.5, "circle-pitch-alignment":"map"}},
         // bergtoppen met naam en hoogte (de hoogste eerst; wat overlapt valt weg)
         {id:"peaks", type:"symbol", source:"peaks", minzoom:10.5, layout:{"icon-image":["get", "img"], "icon-anchor":"top", "icon-offset":[0, -7], "symbol-sort-key":["get", "o"], "icon-padding":6}},
-        {id:"route-shadow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#0B2236", "line-width":w(9, 18), "line-opacity":.18, "line-blur":3}},
+        {id:"route-shadow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#2A0B45", "line-width":w(9, 18), "line-opacity":.18, "line-blur":3}},
         {id:"route-case", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
-        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(3.6, 7.5)}},
-        {id:"route-glow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#7CC0F5", "line-width":w(1.1, 2.4), "line-opacity":.75}},
+        {id:"route", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#8E2BE6", "line-width":w(3.6, 7.5)}},
+        {id:"route-glow", type:"line", source:"route", filter:["==", ["get", "k"], "p"], layout:line, paint:{"line-color":"#D9B3FF", "line-width":w(1.1, 2.4), "line-opacity":.75}},
         {id:"route-passed-case", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#fff", "line-width":w(6, 12)}},
         {id:"route-passed", type:"line", source:"route", filter:["==", ["get", "k"], "x"], layout:line, paint:{"line-color":"#9AA9B7", "line-width":w(3.6, 7.5)}},
-        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#1F7FD6", "line-width":w(1.5, 3), "line-opacity":.6, "line-dasharray":[3, 2.5]}},
+        {id:"target", type:"line", source:"route", filter:["==", ["get", "k"], "t"], layout:line, paint:{"line-color":"#8E2BE6", "line-width":w(1.5, 3), "line-opacity":.6, "line-dasharray":[3, 2.5]}},
         // pijltjes in de rijrichting op de route
         {id:"route-arrows", type:"symbol", source:"route", filter:["==", ["get", "k"], "p"], minzoom:12, layout:{"symbol-placement":"line", "symbol-spacing":["interpolate", ["linear"], ["zoom"], 12, 60, 16, 110], "icon-image":"route-arrow", "icon-size":["interpolate", ["linear"], ["zoom"], 12, .6, 16, 1], "icon-rotation-alignment":"map", "icon-pitch-alignment":"map", "icon-allow-overlap":true, "icon-ignore-placement":true}},
         {id:"sel-pt", type:"circle", source:"sel", filter:["==", ["geometry-type"], "Point"], paint:{"circle-radius":7, "circle-color":"#1E88FF", "circle-stroke-color":"#fff", "circle-stroke-width":3, "circle-pitch-alignment":"viewport"}},
@@ -338,7 +297,7 @@ const M3 = (() => {
 
   // lucht en nevel naar het moment van de dag en het weer (slecht zicht = meer nevel)
   function skyNow(){
-    const h = new Date().getHours() + new Date().getMinutes() / 60, vis = S.wx?.c?.visibility, code = S.wx?.c?.weather_code ?? 0;
+    const h = sunOn3() ? sunTime().m / 60 : new Date().getHours() + new Date().getMinutes() / 60, vis = S.wx?.c?.visibility, code = S.wx?.c?.weather_code ?? 0;
     const T = h >= 5 && h < 8 ? ["#7FA2D6", "#F5C9A8", "#F2DCCB"] : h >= 8 && h < 16 ? ["#4F86C6", "#D7E6F3", "#E8EFF5"]
       : h >= 16 && h < 18.5 ? ["#6A8CC4", "#F6D29A", "#F0E2CC"] : h >= 18.5 && h < 21.5 ? ["#2E3F72", "#9C79B5", "#5D5878"] : ["#0B1630", "#23365E", "#2A3550"];
     const grey = code >= 45 && code <= 48 || (vis != null && vis < 2000) || code >= 71;
@@ -346,12 +305,42 @@ const M3 = (() => {
       "sky-horizon-blend":.5, "horizon-fog-blend":grey ? .8 : .35, "fog-ground-blend":grey ? .45 : .9,
       "atmosphere-blend":["interpolate", ["linear"], ["zoom"], 0, 1, 10, 1, 12, 0]};
   }
+  // ---------- zon en schaduw in 3D ----------
+  const sunOn3 = () => !!(S.area && S.sunOn && !S.night);
+  function sunData(){
+    if(!sunOn3()) return EMPTY;
+    const sun = sunShade(); if(sun.alt <= 2) return EMPTY;
+    const f = [];
+    for(const e of S.area.edges) if(e.t === "r" && !S.closed.has(e.i)) f.push({type:"Feature", properties:{lit:sun.v[e.i] >= SUN_MIN ? 1 : 0}, geometry:{type:"LineString", coordinates:e.pts.map(p => [p[1], p[0]])}});
+    return {type:"FeatureCollection", features:f};
+  }
+  // de bergen belicht vanuit de echte zon: de reliëfschaduw draait mee met de zonnestand (een lage zon geeft harde schaduwkanten)
+  function sunShadeLayer(){
+    if(!gl.getLayer("shade")) return;
+    const sun = sunOn3() ? sunShade() : null;
+    if(sun && sun.alt > 2){
+      const k = Math.max(0, Math.min(1, (40 - sun.alt) / 35));   // 0 = zon hoog, 1 = zon laag
+      gl.setLayoutProperty("shade", "visibility", "visible");
+      gl.setPaintProperty("shade", "hillshade-illumination-anchor", "map");
+      gl.setPaintProperty("shade", "hillshade-illumination-direction", Math.round(sun.az));
+      gl.setPaintProperty("shade", "hillshade-exaggeration", .45 + .4 * k);
+      gl.setPaintProperty("shade", "hillshade-shadow-color", "#1E2448");
+      gl.setPaintProperty("shade", "hillshade-highlight-color", "#FFF4D6");
+    } else {
+      gl.setLayoutProperty("shade", "visibility", sun ? "visible" : vis("shade"));
+      gl.setPaintProperty("shade", "hillshade-illumination-anchor", "viewport");
+      gl.setPaintProperty("shade", "hillshade-illumination-direction", 335);
+      gl.setPaintProperty("shade", "hillshade-exaggeration", sun ? .7 : .4);
+      gl.setPaintProperty("shade", "hillshade-shadow-color", sun ? "#1E2448" : "#33435A");
+      gl.setPaintProperty("shade", "hillshade-highlight-color", "#FFFFFF");
+    }
+  }
   // vallende sneeuw over de 3D-kaart als het nu sneeuwt
   let snowRaf = 0;
   function snowFx(){
     cancelAnimationFrame(snowRaf); document.querySelector(".m3-snow")?.remove();
     const code = S.wx?.c?.weather_code ?? 0;
-    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if(!gl || !(code >= 71 && code <= 77 || code === 85 || code === 86) || matchMedia("(prefers-reduced-motion: reduce)").matches || saving()) return;
     const c = document.createElement("canvas"); c.className = "m3-snow"; gl.getContainer().appendChild(c);
     const x = c.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1);
     const fit = () => { c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr; };
@@ -484,11 +473,13 @@ const M3 = (() => {
       gl.addSource("base", baseSource()); gl.addLayer({id:"base", type:"raster", source:"base", paint}, "roads");
       gl.addSource("basehd", baseSource(TS)); gl.addLayer({id:"basehd", type:"raster", source:"basehd", layout:{visibility:hd() && hdOn ? "visible" : "none"}, paint:{"raster-fade-duration":250}}, "roads");
       for(const id of ["shade", "roads", "labels"]) gl.setLayoutProperty(id, "visibility", vis(id));
+      if(sunOn3()) dirty.add("sun");
     }
     if(dirty.has("pistes")){ gl.getSource("pistes").setData(pistesData()); gl.getSource("nums").setData(numsData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("route")){ gl.getSource("route").setData(routeData()); cableGeo = null; gl.triggerRepaint(); }
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     if(dirty.has("slope") && gl.getLayer("slope")) gl.setLayoutProperty("slope", "visibility", S.slopeOn ? "visible" : "none");
+    if(dirty.has("sun")){ gl.getSource("sun")?.setData(sunData()); sunShadeLayer(); gl.setSky(skyNow()); }
     if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); }
     if(dirty.has("peaks")) gl.getSource("peaks").setData(peaksData());
     dirty.clear();
@@ -508,12 +499,12 @@ const M3 = (() => {
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
       pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
-      canvasContextAttributes:{antialias:true}});   // gladde randen van pistes, kabels en bergkammen
+      canvasContextAttributes:{antialias:(devicePixelRatio || 1) < 2}});   // gladde randen; op een retinascherm is dat niet nodig en scheelt het veel rekenwerk
     styled = false;
     // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes
     gl.once("style.load", () => {
       gl.addLayer(cables, "nums");   // eigen WebGL-laag: kan niet in de stijl zelf, wel erna toegevoegd
-      styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks", "sky"]); flush(); ovCheck();
+      styled = true; arrowImage(); dirty = new Set(["pistes", "route", "huts", "peaks", "sky", "sun"]); flush(); ovCheck();
       el.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");   // bronvermelding ingeklapt (i-knopje)
     });
     gl.on("moveend", ovCheck);
@@ -553,6 +544,8 @@ const M3 = (() => {
     if(on){
       me?.getElement().classList.remove("m3-hide");
       if(was === "nav"){ const v = fromLeaflet(); gl.easeTo({...v, pitch:58, padding:{top:0, bottom:0, left:0, right:0}, duration:800}); }
+      // de platte kaart toont het hele gebied: in 3D ook het hele gebied, schuin van boven (niet piepklein in de verte)
+      else if(!was && S.area && map.getBounds().contains(S.area.bounds)){ const c = ovCam(); if(c) gl.jumpTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:50, padding:ovPad()}); }
     } else me?.getElement().classList.add("m3-hide");
     ovCheck();
     gl.resize();
@@ -595,10 +588,15 @@ const M3 = (() => {
 
   // ---------- overzicht ----------
   // hoe de camera staat als je het hele skigebied ziet (noorden boven)
+  const ovPad = () => { const side = isSide(); return {top:side ? 90 : padTop(), left:side ? 440 : 24, right:80, bottom:side ? 24 : padBottom()}; };
+  // met padding legt MapLibre het midden zelf in het vrije deel; dus het echte midden van het gebied meegeven
+  const ovCenter = () => { const c = S.area.bounds.getCenter(); return [c.lng, c.lat]; };
   function ovCam(){
     const b = S.area?.bounds; if(!b || !gl) return null;
-    const side = isSide(), pad = {top:90, left:side ? 440 : 24, right:80, bottom:(side ? 0 : sheetPeek()) + 24};
-    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:pad, bearing:0}); }catch(e){ return null; }
+    // MapLibre telt de marge die de camera al heeft er zelf bij op; alleen het verschil meegeven (anders "past" het gebied nooit)
+    const want = ovPad(), cur = gl.getPadding?.() || {}, pad = {};
+    for(const k of ["top", "bottom", "left", "right"]) pad[k] = Math.max(0, want[k] - (cur[k] || 0));
+    try{ return gl.cameraForBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:pad, bearing:0}) || null; }catch(e){ return null; }
   }
   // knop Overzicht alleen als je flink ingezoomd bent (of het gebied uit beeld is)
   function ovCheck(){
@@ -608,7 +606,7 @@ const M3 = (() => {
   }
   function overview(){
     const c = ovCam(); if(!c) return;
-    gl.easeTo({center:c.center, zoom:c.zoom - .3, bearing:0, pitch:50, duration:1400});
+    gl.easeTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:50, padding:ovPad(), duration:1400});
   }
 
   // ---------- volgen ----------

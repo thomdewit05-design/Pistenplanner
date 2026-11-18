@@ -1,9 +1,9 @@
-# Kwaliteitscontrole bij elke pull request: geen fouten in de pagina, tekst past in alle knoppen (5 talen),
+# Kwaliteitscontrole bij elke pull request: de routeberekening (tools/routes.mjs), geen fouten in de pagina, tekst past in alle knoppen (5 talen),
 # en iconknoppen hebben een label voor VoiceOver/TalkBack. Zie tools/audit.mjs.
 name: Controle
 on:
   pull_request:
-    paths: [index.html, app.js, app.css, i18n.js, config.js, map3d.js, terrain.js, tools/audit.mjs, .github/workflows/check.yml]
+    paths: [index.html, app.js, app.css, i18n.js, config.js, map3d.js, terrain.js, tools/audit.mjs, tools/routes.mjs, tools/screens.mjs, 'data/**', .github/workflows/check.yml]
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -19,3 +19,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Knoppen, labels en fouten controleren
         run: node tools/audit.mjs nl,de,fr,ru,ja
+      - name: Routeberekening testen (niveau, gesloten liften, gezinsmodus)
+        run: node tools/routes.mjs
+      - name: Schermen op iPhone-maten (lagenmenu, gebied in beeld, tabbalk, zonbalk)
+        run: node tools/screens.mjs

@@ -5,6 +5,18 @@ const $ = id => document.getElementById(id);
 // de weg-animatie afspeelt en dan pas echt verbergt. Code die el.hidden leest ziet meteen de nieuwe stand.
 const HIDDEN = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "hidden");
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// batterij sparen: zelf aangezet, of vanzelf onder 20% (als het toestel de batterijstand doorgeeft)
+const POWER = {low:false};
+const saving = () => !!(S?.saver || POWER.low);
+function applySaver(){ const on = saving(); document.documentElement.classList.toggle("saver", on); window.M3?.sync?.("sky"); }
+navigator.getBattery?.().then(b => { const upd = () => { const was = POWER.low; POWER.low = !b.charging && b.level <= .2;
+  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } };
+  b.addEventListener("levelchange", upd); b.addEventListener("chargingchange", upd); upd(); }).catch(() => {});
+// iOS-app: batterij (en de energiebesparingsmodus van iOS) elke 5 minuten bij de app opvragen
+if(window.PP_STORE === "ios" && !navigator.getBattery){ const ask = async () => { try{ const r = await window.Capacitor?.nativePromise?.("Nav", "battery", {});
+  if(!r) return; const was = POWER.low; POWER.low = r.lowPower || (!r.charging && r.level >= 0 && r.level <= .2);
+  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } }catch(e){} };
+  setTimeout(ask, 3000); setInterval(ask, 5 * 60000); }
 function animHidden(el, ms = 220){
   if(!el) return;
   let want = el.hasAttribute("hidden"), timer = 0;
@@ -58,9 +70,9 @@ const S = {index:[], cc:"", q:"", area:null, from:null, to:null, via:null, targe
 const FIRST_RUN = (() => { try{ return !localStorage.getItem("pistenplanner-app") && !localStorage.getItem("pp-onboarded"); }catch(e){ return false; } })();
 try{ const s = JSON.parse(localStorage.getItem("pistenplanner-app")||"null");
   if(s) Object.assign(S, {level:s.level??2, free:!!s.free, down:s.down??true, mode:s.mode||"fast", base:s.base||"winter",
-                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
+                          pistes:s.pistes??true, labels:s.labels??true, nums:s.nums??true, hutsOn:s.hutsOn??true, svcOn:s.svcOn??true, voice:s.voice??true, voiceLang:s.voiceLang||"", voiceName:s.voiceName||"", pace:+s.pace || 1, navAwake:s.navAwake ?? true, speedo:s.speedo ?? true, noDrag:!!s.noDrag, noMogul:!!s.noMogul, board:!!s.board, peaksOn:s.peaksOn ?? true, watchTap:s.watchTap ?? true, sunny:!!s.sunny, sunOn:!!s.sunOn, slopeOn:!!s.slopeOn, heatOn:!!s.heatOn, freeride:!!s.freeride, family:!!s.family, saver:!!s.saver, famPrev:s.famPrev ?? null, liftOpen:s.liftOpen||"08:30", liftClose:s.liftClose||"16:30", dayFrom:s.dayFrom||"", dayTo:s.dayTo||"", t3d:!!s.t3d, last:s.last}); }catch(e){}
 const save = () => { try{ localStorage.setItem("pistenplanner-app", JSON.stringify({level:S.level, free:S.free, down:S.down,
-  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
+  mode:S.mode, base:S.base, pistes:S.pistes, labels:S.labels, nums:S.nums, hutsOn:S.hutsOn, svcOn:S.svcOn, voice:S.voice, voiceLang:S.voiceLang, voiceName:S.voiceName, pace:S.pace, navAwake:S.navAwake, speedo:S.speedo, noDrag:S.noDrag, noMogul:S.noMogul, board:S.board, peaksOn:S.peaksOn, watchTap:S.watchTap, sunny:S.sunny, sunOn:S.sunOn, slopeOn:S.slopeOn, heatOn:S.heatOn, freeride:S.freeride, family:S.family, famPrev:S.famPrev, saver:S.saver, liftOpen:S.liftOpen, liftClose:S.liftClose, dayFrom:S.dayFrom, dayTo:S.dayTo, t3d:S.t3d, last:S.area?.id})); }catch(e){} };
 let tt; const toast = (m, ms=2200) => { const t=$("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("on"), ms); };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
@@ -116,6 +128,13 @@ function onboarding(custom){
 }
 
 // ================= kaart =================
+// een getekende tegel zonder kopiëren in zijn canvas zetten (bitmaprenderer); oudere toestellen: gewoon tekenen
+function putBitmap(t, b){
+  if(typeof ImageBitmap !== "undefined" && b instanceof ImageBitmap){ try{ const c = t.getContext("bitmaprenderer"); if(c){ c.transferFromImageBitmap(b); return; } }catch(e){} }
+  t.getContext("2d").drawImage(b, 0, 0); b.close?.();
+}
+// tegels pas laden als het zoomen klaar is (niet voor elk tussenniveau tijdens het knijpen)
+L.GridLayer.mergeOptions({updateWhenZooming:false});
 const map = L.map("map", {zoomControl:false, preferCanvas:true, worldCopyJump:false, minZoom:6}).setView([46.4, 10.5], 7);
 L.control.zoom({position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);
@@ -138,7 +157,7 @@ const baseLayers = {
     createTile(c, done){
       const t = document.createElement("canvas"), r = devicePixelRatio > 1.5 ? 2 : 1;   // scherp op een retinascherm
       t.width = t.height = 256 * r;
-      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+      PPterrain.get("winter", c.z, c.x, c.y, r).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
       return t;
     }
   }))({maxZoom:19, maxNativeZoom:16, keepBuffer:3, attribution:'Winterkaart van Skipilot · hoogte: <a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen Terrain Tiles</a> · wegen en namen: Esri'})
@@ -148,7 +167,7 @@ map.createPane("slope").style.cssText = "z-index:350;pointer-events:none";
 const slopeLayer = new (L.GridLayer.extend({
   createTile(c, done){
     const t = document.createElement("canvas"); t.width = t.height = 256;
-    PPterrain.get("slope", c.z, c.x, c.y, 1).then(b => { t.getContext("2d").drawImage(b, 0, 0); b.close?.(); done(null, t); }, e => done(e, t));
+    PPterrain.get("slope", c.z, c.x, c.y, 1).then(b => { putBitmap(t, b); done(null, t); }, e => done(e, t));
     return t;
   }
 }))({pane:"slope", minZoom:11, maxZoom:19, maxNativeZoom:15, opacity:.85, keepBuffer:2});
@@ -158,7 +177,8 @@ const labelLayer = tiles("labels", "https://server.arcgisonline.com/ArcGIS/rest/
         {maxZoom:19, maxNativeZoom:18, crossOrigin:true, pane:"labels", opacity:.95});
 const canvas = L.canvas({padding:.4, tolerance:6});
 const svgR = L.svg({padding:.4});
-const pisteLayer = L.layerGroup().addTo(map);
+const pisteLayer = L.layerGroup().addTo(map), pisteDetail = L.layerGroup();
+function syncDetail(){ const on = !!S.pistes && map.getZoom() >= 12 && map.hasLayer(pisteLayer); if(on !== map.hasLayer(pisteDetail)) on ? pisteDetail.addTo(map) : pisteDetail.remove(); }
 map.createPane("dim").style.cssText = "z-index:405;pointer-events:none";
 const dimR = L.canvas({padding:.4, pane:"dim"});
 const dimLayer = L.layerGroup().addTo(map);     // pistes die je vanaf A niet kunt bereiken
@@ -172,7 +192,7 @@ function applyBase(){
   ((S.base==="sat" || S.base==="winter") && S.labels) ? labelLayer.addTo(map) : labelLayer.remove();
   S.base==="winter" ? roadsLayer.addTo(map) : roadsLayer.remove();
   if(M3.mode) for(const l of [...Object.values(baseLayers), labelLayer, roadsLayer]) l.remove();   // onder de 3D-kaart niets laden
-  S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove();
+  S.pistes ? pisteLayer.addTo(map) : pisteLayer.remove(); syncDetail();
   S.slopeOn && !M3.mode ? slopeLayer.addTo(map) : slopeLayer.remove();
   document.querySelectorAll("input[name=base]").forEach(r => r.checked = r.value===S.base);
   $("showPistes").checked = S.pistes; $("showLabels").checked = S.labels; $("showNums").checked = S.nums; $("showPeaks").checked = S.peaksOn;
@@ -265,9 +285,10 @@ function closePicker(){ $("picker").hidden = true; }
 
 async function openArea(id, opts={}){
   const row = S.index.find(r => r[0]===id); if(!row) return;
+  const tok = S.openTok = (S.openTok || 0) + 1; $("dlGate")?._close?.(false);   // een ander gebied gekozen: het oude downloadscherm weg
   $("areaName").textContent = row[1]; $("areaStats").textContent = "Kaart laden…";
   let raw;
-  try{ raw = (await loadShard(row[8]))[id]; }
+  try{ raw = (await loadShard(row[8]))[id]; if(tok !== S.openTok) return; }
   catch(e){ hideSplash(); $("areaStats").textContent = "Laden mislukt. Controleer je verbinding."; toast("Kaartdata kon niet laden."); return; }
   const nodes = raw.n.map(n => ({lat:n[1]/1e5, lon:n[0]/1e5, ele:n[2]}));
   const geo = g => { const pts = []; let lo=0, la=0; for(let i=0;i<g.length;i+=2){ lo+=g[i]; la+=g[i+1]; pts.push([la/1e5, lo/1e5]); } return pts; };
@@ -308,7 +329,6 @@ async function openArea(id, opts={}){
   const bounds = L.latLngBounds([q(lats,.02), q(lons,.02)], [q(lats,.98), q(lons,.98)]);
   if(!isDownloaded(id)){   // eerst downloaden, dan pas de kaart
     if(S.area) $("areaName").textContent = S.area.row[1], $("areaStats").textContent = S.area.statsTxt || "";
-    const tok = S.openTok = (S.openTok || 0) + 1;
     if(!await downloadGate(row, bounds) || tok !== S.openTok) return;
   }
   S.area = {id, row, nodes, edges, place, names, outRuns, inRuns, bounds};
@@ -407,6 +427,12 @@ function chainFrom(ei){
   return {kind:"r", edges, start, end, e:e0, label:pisteLabel(e0), len:edges.reduce((s,i) => s + A.edges[i].len, 0)};
 }
 
+// schaduw onder de pistes en de honderden stationsstippen pas vanaf zoom 12: uitgezoomd zie je ze toch niet, en het tekenen kost tijd
+map.on("zoomend", () => syncDetail());
+// tijdens schuiven en zoomen geen wazig glas boven de kaart (dat moet elk beeld opnieuw); daarna weer wel
+let movingT = 0;
+map.on("movestart zoomstart", () => { clearTimeout(movingT); document.body.classList.add("map-moving"); });
+map.on("moveend zoomend", () => { clearTimeout(movingT); movingT = setTimeout(() => document.body.classList.remove("map-moving"), 180); });
 function drawPistes(){
   pisteLayer.clearLayers();
   const A = S.area, groups = {};
@@ -421,7 +447,8 @@ function drawPistes(){
   if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
   if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
   // zachte schaduw onder de pistes geeft diepte; daarop een witte rand en de pistekleur
-  if(runs.length) L.polyline(runs, opt({color:"#0B1A2A", weight:10, opacity:.16})).addTo(pisteLayer);
+  pisteDetail.clearLayers();
+  if(runs.length) L.polyline(runs, opt({color:"#0B1A2A", weight:10, opacity:.16})).addTo(pisteDetail);
   if(runs.length) L.polyline(runs, opt({color:"#ffffff", weight:7.5, opacity:.72})).addTo(pisteLayer);
   for(const k of ["r_u","r_f","r_g","r_b","r_B","r_r","r_s","r_x"]){
     if(!groups[k]) continue; const d = k.slice(2);
@@ -437,7 +464,8 @@ function drawPistes(){
   if(risky.length) L.polyline(risky, opt({color:"#E28A12", weight:3, dashArray:"8 6"})).addTo(pisteLayer);
   persistStatus();
   const st = new Set(); A.edges.forEach(e => { if(e.t==="l"){ st.add(e.a); st.add(e.b); } });
-  st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteLayer));
+  st.forEach(n => L.circleMarker([A.nodes[n].lat, A.nodes[n].lon], {renderer:canvas, interactive:false, radius:3, color:"#fff", weight:1.5, fillColor:"#14202B", fillOpacity:1}).addTo(pisteDetail));
+  syncDetail();
   drawSun(); drawHeat(); syncLayerChips();
   M3.sync("pistes");
 }
@@ -447,8 +475,26 @@ const LAND_MQ = matchMedia("(orientation:landscape) and (max-height:500px)");
 const isSide = () => SIDE_MQ.matches;
 const sheetPad = () => LAND_MQ.matches ? {paddingTopLeft:[$("sheet").offsetWidth + 24, 64], paddingBottomRight:[16, 64]}
   : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
-                                                 : {paddingTopLeft:[20, 80], paddingBottomRight:[70, sheetPeek() + 20]};
-function fitArea(instant){ if(!S.area) return; if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
+                                                 : {paddingTopLeft:[20, padTop()], paddingBottomRight:[70, padBottom()]};
+// wat het paneel en de tabbalk onderaan echt bedekken (het paneel loopt door achter de tabbalk), en de chips bovenaan
+function padBottom(){
+  const sh = $("sheet"), tab = parseFloat(getComputedStyle(document.body).getPropertyValue("--tab-h")) || 0;
+  let cover = sheetPeek() + tab;
+  if(sh && !sh.classList.contains("open") && !sh.hidden){ const top = sh.getBoundingClientRect().top; if(top > 0 && top < innerHeight) cover = Math.max(cover, innerHeight - top); }
+  const sb = $("sunBar"), sr = sb && !sb.hidden ? sb.getBoundingClientRect() : null; if(sr && sr.height && sr.top > 0) cover = Math.max(cover, innerHeight - sr.top);
+  return Math.min(innerHeight * .6, cover) + 16;
+}
+function padTop(){ const c = $("layerChips"), r = c && !c.hidden ? c.getBoundingClientRect() : null; return Math.max(80, r && r.height ? r.bottom + 10 : 0); }
+function fitArea(instant){ if(!S.area) return; refitSoon(); if(instant || calm()) map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16, animate:false}); else map.flyToBounds(S.area.bounds, {...sheetPad(), maxZoom:16, duration:1.1, easeLinearity:.2}); }
+// het paneel krijgt zijn echte hoogte pas na het tekenen: daarna één keer opnieuw passend maken, tenzij je de kaart zelf al bewoog
+let refitT = 0, userMoved = false;
+["pointerdown", "wheel"].forEach(ev => map.getContainer().addEventListener(ev, () => { if(refitT) userMoved = true; }, {passive:true}));
+function refitSoon(){
+  clearTimeout(refitT); userMoved = false;
+  refitT = setTimeout(() => { refitT = 0; if(!S.area || userMoved || S.follow || POV.mode === "gl") return;
+    const want = S.path?.length ? L.latLngBounds(S.path.flatMap(s => s.e.pts)) : S.area.bounds;
+    map.fitBounds(want, {...sheetPad(), maxZoom:S.path?.length ? 16 : 16, animate:!calm()}); }, 700);
+}
 function fitRoute(){
   if(!S.path || !S.path.length) return fitArea();
   map.fitBounds(L.latLngBounds(S.path.flatMap(s => s.e.pts)), {...sheetPad(), maxZoom:17});
@@ -729,7 +775,8 @@ function buildSteps(path){
 }
 
 // ---- de route: kleur, intekenen, komeet en het al afgelegde deel ----
-const ROUTE_BLUE = "#1F7FD6";
+// paarse routelijn: geen enkele piste heeft die kleur (blauwe pistes, blauwe selectie, blauwe stip van jezelf)
+const ROUTE_BLUE = "#8E2BE6";
 const passedLayer = L.layerGroup().addTo(map);
 // een nieuwe route loopt in van start naar eind, daarna glijdt er één keer een lichtpuntje overheen
 function routeIntro(layers, lines){
@@ -798,7 +845,7 @@ function update(){
     // de route: strak merkblauw met een witte rand en een lichtere streep in het midden (zoals Apple Kaarten)
     const lines = path.map(st => st.rev ? [...st.e.pts].reverse() : st.e.pts);
     const ro = (color, weight, opacity) => ({renderer:svgR, interactive:false, color, weight, opacity, lineCap:"round", lineJoin:"round"});
-    const rl = [L.polyline(lines, ro("#0B2236", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#7CC0F5", 2.4, .75))];
+    const rl = [L.polyline(lines, ro("#2A0B45", 16, .16)), L.polyline(lines, ro("#ffffff", 11, 1)), L.polyline(lines, ro(ROUTE_BLUE, 7, 1)), L.polyline(lines, ro("#D9B3FF", 2.4, .75))];
     rl.forEach(l => l.addTo(routeLayer));
     if(S.target) L.polyline(S.target.edges.map(i => A.edges[i].pts), {renderer:svgR, interactive:false, color:ROUTE_BLUE, weight:3, opacity:.55, dashArray:"8 8"}).addTo(routeLayer);
     if(freshRoute){ routeIntro(rl, lines); document.body.classList.add("route-fresh"); clearTimeout(S.freshT); S.freshT = setTimeout(() => document.body.classList.remove("route-fresh"), 1400); }
@@ -1878,7 +1925,7 @@ function renderBestSnow(c, cd, fresh){
   const box = $("bestSnow"); if(!box) return;
   const list = bestSnow(c, cd, fresh);
   if(!list.length){ box.innerHTML = ""; return; }
-  box.innerHTML = `<p class="label">${I("snow")}Beste sneeuw nu</p>` + list.map((g, i) =>
+  box.innerHTML = `<p class="label">${I("snow")}Beste sneeuw nu <span class="est">≈</span></p>` + list.map((g, i) =>
     `<button type="button" class="bs-row" data-i="${i}"><span class="node${isDark(g.e.diff) ? " dark" : ""}" style="--c:${DIFF[g.e.diff].col}">${esc(g.e.ref) || I("ski")}</span>
       <span class="bs-txt"><b>${esc(uc(pisteLabel(g.e)))}</b><small>${g.reason}</small></span>${I("chev")}</button>`).join("")
     + `<p class="bs-note">Schatting uit zon, hoogte, temperatuur en verse sneeuw. Tik om erheen te gaan.</p>`;
@@ -2308,7 +2355,7 @@ function groupOnPos(){
   if(!G.code || !G.sharePos || !S.pos) return;
   const now = Date.now(), last = G.lastPos;
   const moved = last ? meters(last.lat, last.lon, S.pos.lat, S.pos.lon) : Infinity, dt = last ? (now - last.t)/1000 : Infinity;
-  const minSec = sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC;
+  const minSec = (sentToday() > POS_DAILY_SOFT ? 600 : POS_MIN_SEC) * (saving() ? 3 : 1);   // batterij sparen: groep minder vaak
   if(dt >= POS_MAX_SEC || (moved >= POS_MIN_MOVE && dt >= minSec)){
     G.lastPos = {lat:S.pos.lat, lon:S.pos.lon, t:now};
     const sm = D.rec ? D.day?.sum : null;
@@ -3204,7 +3251,7 @@ function hutPopup(h){
     </div>${isSvc(h) ? "" : `<p class="pop-hours" id="hutOh"></p>`}`;
   const pop = openPop([h.lat, h.lon], div, {maxWidth:280, className:"pop-wrap"});
   selectOnMap(null, [h.lat, h.lon], pop);
-  if(!isSvc(h)) hutHours(h).then(oh => { const p = div.querySelector("#hutOh"); if(p && oh) p.innerHTML = `${I("clock")}<span>${esc(oh)}</span>`; });
+  if(!isSvc(h)) hutHours(h).then(oh => { const p = div.querySelector("#hutOh"); if(p && oh) p.innerHTML = `${I("clock")}<span>${esc(oh)} <small class="est">${tr("volgens OpenStreetMap")}</small></span>`; });
   div.querySelectorAll("button").forEach(b => b.onclick = () => {
     if(b.dataset.a === "lunch"){ const k = HUT_KIND[h.kind] || HUT_KIND.r; S.lunch = {n:h.node, at:S.lunchPref?.at || "12:30", dur:S.lunchPref?.dur || 60, name:h.name || k[0], kind:h.kind}; pop.remove(); update(); toast(`${tr("Lunch bij")} ${S.lunch.name}`); return; }
     if(b.dataset.a === "to"){ S.to = h.node; S.target = null; S.via = null; S.wps = []; S.planBy = null; }
@@ -3453,7 +3500,7 @@ function sunTime(){
   const open = toMin(S.liftOpen), close = toMin(S.liftClose);
   if(S.sunAt != null) return {ms:now + (S.sunAt - m) * 6e4, m:S.sunAt};   // gekozen met de tijdschuif
   if(m >= open && m < close) return {ms:now, m};
-  return {ms:now + ((m < open ? open - m : open + 1440 - m) * 6e4), m:open};
+  return {ms:now + ((m < open ? open - m : open + 1440 - m) * 6e4), m:open, closed:true};
 }
 const SUN_MIN = .12;   // minder licht dan dit = schaduw (zon schuurt langs of staat achter de helling)
 // per piste: hoe recht schijnt de zon erop (helling en richting van de piste; bergen die schaduw werpen tellen niet mee)
@@ -3483,16 +3530,21 @@ map.createPane("sun").style.cssText = "z-index:390;pointer-events:none";
 const sunR = L.canvas({padding:.4, pane:"sun"}), sunLayer = L.layerGroup().addTo(map);
 function drawSun(){
   sunLayer.clearLayers();
-  const info = $("sunInfo"), A = S.area;
-  $("sunSlide").hidden = !A || !S.sunOn || S.night;
-  if(!A || !S.sunOn || S.night){ info.hidden = true; return; }
-  const sun = sunShade(); info.hidden = false;
-  if(sun.alt <= 2){ info.textContent = `Om ${hhmm(sun.time.m)} staat de zon te laag. Alles ligt in de schaduw.`; return; }
+  const info = $("sunInfo"), A = S.area, bar = $("sunBar");
+  const on = !!(A && S.sunOn && !S.night);
+  bar.hidden = !on; document.body.classList.toggle("sun-on", on);
+  M3.sync("sun");
+  if(!on) return;
+  const sun = sunShade(), t = hhmm(sun.time.m);
+  $("sunRange").value = Math.max(480, Math.min(1020, sun.time.m)); $("sunAtTxt").textContent = S.sunAt == null && !sun.time.closed ? tr("nu") : t;
+  if(sun.alt <= 2){ info.textContent = `${tr("Om")} ${t} ${tr("staat de zon te laag. Alles ligt in de schaduw.")}`; return; }
   const lit = [], shade = [];
   for(const e of A.edges) if(e.t === "r" && !S.closed.has(e.i)) (sun.v[e.i] >= SUN_MIN ? lit : shade).push(e.pts);
-  if(shade.length) L.polyline(shade, {renderer:sunR, interactive:false, color:"#5B8BC9", weight:12, opacity:.4, lineCap:"round"}).addTo(sunLayer);
-  if(lit.length) L.polyline(lit, {renderer:sunR, interactive:false, color:"#FFC531", weight:14, opacity:.6, lineCap:"round"}).addTo(sunLayer);
-  info.textContent = `Om ${hhmm(sun.time.m)}: ${Math.round(100*lit.length/Math.max(1, lit.length + shade.length))}% van de pistes in de zon (schatting).`;
+  // onder de pistes, als gloed: geel = zon, donker paarsgrijs = schaduw (valt op tegen de blauwe winterkaart en een satellietfoto)
+  if(shade.length) L.polyline(shade, {renderer:sunR, interactive:false, color:"#3B3F6B", weight:11, opacity:.55, lineCap:"round"}).addTo(sunLayer);
+  if(lit.length) L.polyline(lit, {renderer:sunR, interactive:false, color:"#FFB800", weight:14, opacity:.72, lineCap:"round"}).addTo(sunLayer);
+  const pct = Math.round(100 * lit.length / Math.max(1, lit.length + shade.length));
+  info.innerHTML = (sun.time.closed && S.sunAt == null ? `<b>${tr("Liften dicht")}</b> · ` : "") + `${tr("Om")} ${t}: <b>${pct}%</b> ${tr("van de pistes in de zon")} <span class="est">≈</span>`;
 }
 function sunNote(edges){
   if(S.night) return "";
@@ -4101,7 +4153,7 @@ function renderToday(){
     + `<button type="button" class="day-card dc" id="tdMe"><div><p class="label">${tr("Jouw dag")}</p>${ts && ts.n > 1
         ? `<div class="mini-stats"><span>${num(ts.km, 1)}<small>km</small></span><span>${num(Math.round(ts.hm))}<small>hm</small></span><span>${num(ts.runs)}<small>${tr("afdalingen")}</small></span></div>`
         : `<p class="muted">${D.rec ? tr("Het dagboek neemt op. Zodra je skiet, zie je hier je kilometers.") : tr("Houd je skidag bij: kilometers, hoogtemeters en topsnelheid.")}</p>`}</div>${I("chev")}</button>`
-    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu</p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
+    + (best.length ? `<section class="dc"><p class="label">${I("snow")}Beste sneeuw nu <span class="est">≈</span></p><div class="hscroll">${best.map((g, i) => pcard(g.e, tr("Beste sneeuw"), g.reason, i, "b")).join("")}</div></section>` : "")
     + (picks.length ? `<section class="dc"><p class="label">${I("star")}${tr("Aanraders")}</p><div class="hscroll">${picks.map((x, i) => pcard(x.g.e, tr(x.label), x.why, i, "p")).join("")}</div></section>` : "")
     + (w ? `<section class="dc"><p class="label">${I("calendar")}${tr("Komende dagen")}</p><div class="fdays">${days}</div></section>` : "")
     + freeSection() + wxCharts() + collectSection(A) + areaInfo()
@@ -4476,6 +4528,7 @@ function camsSection(A){
   const cards = (cams || []).map((c, i) => c.img
     ? `<button type="button" class="cam" data-cam="${i}"><img src="${esc(c.u)}${c.u.includes("?") ? "&" : "?"}t=${Math.floor(Date.now() / 6e5)}" alt="" loading="lazy" onerror="this.closest('.cam').remove()"><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></button>`
     : `<a class="cam cam-link" href="${esc(c.u)}" target="_blank" rel="noopener"><span class="cam-ic">${I("eye")}</span><span>${esc(c.n || tr("Webcam"))}${c.e ? ` · ${hmTxt(c.e)} m` : ""}</span></a>`).join("");
+  if(cams != null && !cards && !site) return "";   // geen webcams bekend: geen lege sectie met alleen een zoeklink
   return `<section class="dc cams-sec"><p class="label">${I("eye")}${tr("Webcams")}</p>${cams == null ? `<div class="cams"><i class="skel cam-skel"></i><i class="skel cam-skel"></i></div>` : cards ? `<div class="cams">${cards}</div>` : ""}
     <a class="btn ghost cam-more" href="${esc(more)}" target="_blank" rel="noopener">${I("eye")}${tr(cards ? "Meer webcams" : "Webcams bekijken")}</a></section>`;
 }
@@ -4530,7 +4583,8 @@ async function liftAlertPlan(){
 }
 if(NOTIF_APP){
   $("notifSec").hidden = false;
-  if(window.PP_STORE === "ios"){ $("healthRow").hidden = false; $("healthToggle").checked = localStorage.getItem("pp-health") === "1";
+  if(window.PP_STORE === "ios"){ $("healthRow").hidden = false; $("healthToggle").checked = localStorage.getItem("pp-health") === "1"; $("weightRow").hidden = false; $("weightIn").value = localStorage.getItem("pp-kg") || ""; $("weightIn").placeholder = "75";
+    $("weightIn").onchange = e => { const v = Math.round(+e.target.value); if(v >= 20 && v <= 200) localStorage.setItem("pp-kg", v); else { localStorage.removeItem("pp-kg"); e.target.value = ""; } };
     $("healthToggle").onchange = async e => { localStorage.setItem("pp-health", e.target.checked ? "1" : "0");
       if(e.target.checked) toast(tr("Na elke skidag vraagt Apple de eerste keer om toestemming."), 3500); }; }
   const c0 = notifCfg(); $("snowAlert").checked = c0.snow; $("liftAlert").checked = c0.lift;
@@ -4630,7 +4684,7 @@ async function _openDetail(ei){
     ${risky ? `<p class="notice bad">${I("wind")}<span>${tr("Kans op sluiting door harde wind.")}</span></p>` : ""}
     ${!lift ? `<section class="dc"><p class="label">${I("down")}${tr("Hoogteprofiel en steilheid")}</p><div id="detProf" class="det-prof-box"><i class="skel" style="height:150px;display:block;border-radius:14px"></i></div>
       <div class="slope-key"><span><i style="background:#22984A"></i>&lt;15°</span><span><i style="background:#1E66CC"></i>15–25°</span><span><i style="background:#D22E2E"></i>25–35°</span><span><i style="background:#121417"></i>35°+</span></div></section>
-      <section class="dc"><p class="label">${I("sun")}${tr("Zon en schaduw vandaag")}</p>${sunTimeline(ch.edges)}</section>
+      <section class="dc"><p class="label">${I("sun")}${tr("Zon en schaduw vandaag")} <span class="est">≈</span></p>${sunTimeline(ch.edges)}</section>
       <section class="dc"><p class="label">${I("snow")}${tr("Hoe is de sneeuw?")}</p><div id="detSnow"></div></section>` : ""}
     ${(() => { const t = tempAt(((eS ?? 0) + (eE ?? 0)) / 2); return t == null ? "" : `<section class="dc det-now"><p class="label">${I("thermo")}${tr("Nu op deze hoogte")}</p><div class="det-tiles">${tile("thermo", "Temperatuur", Math.round(t), "°")}${tile("snow", "Vers", Math.round(S.wx.fresh), " cm")}${tile("wind", "Wind top", Math.round(S.wx.c.wind_speed_10m), " km/u")}</div></section>`; })()}
     <div class="det-btns"><button type="button" class="btn primary" id="detGo">${lift ? liftIc(e.kind) : I("ski")}${lift ? tr("Neem deze lift") : tr("Ski deze piste")}</button>
@@ -4913,9 +4967,9 @@ async function drawPhotos(day){
 async function saveHealth(day){
   if(window.PP_STORE !== "ios" || localStorage.getItem("pp-health") !== "1") return;
   const sm = day.sum; if(!sm || sm.n < 2 || sm.km < .3) return;
-  const start = sm.from || day.start, end = sm.to || Date.now(), kcal = Math.round(5.5 * 75 * Math.max(0, (end - start) / 3.6e6) * .7);
+  const start = sm.from || day.start, end = sm.to || Date.now(), kcal = Math.round(5.5 * (+localStorage.getItem("pp-kg") || 75) * Math.max(0, (end - start) / 3.6e6) * .7);   // schatting: MET 5,5, 70% van de tijd actief
   const r = await navNative("health", {start, end, km:+sm.km.toFixed(2), kcal});
-  if(r?.saved) toast(`${tr("Opgeslagen in Apple Gezondheid")} · ${kmTxt(sm.km)} km · ${kcal} kcal`, 3500);
+  if(r?.saved) toast(`${tr("Opgeslagen in Apple Gezondheid")} · ${kmTxt(sm.km)} km · ≈ ${kcal} kcal`, 3500);
 }
 
 // ================= fase 4: skivakantie plannen =================
@@ -4967,7 +5021,7 @@ async function tripInfo(id){
   const dest = `${r[5]},${r[4]}`, nav = window.PP_STORE === "ios" || /iPhone|iPad/.test(navigator.userAgent) ? `https://maps.apple.com/?daddr=${dest}` : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
   box.innerHTML = `<section class="dc"><p class="label">${I("map")}${esc(r[1])}</p>
     <div class="det-tiles"><div class="det-tile">${I("ski")}<small>${tr("Pistes")}</small><b>${r[6]}<i> km</i></b></div><div class="det-tile">${I("down")}<small>${tr("Hoogte")}</small><b>${r[10] ?? "?"}<i> m</i></b></div><div class="det-tile">${I("snow")}<small>${tr("Sneeuwhoogte")}</small><b id="tpDepth">…</b></div></div>
-    <p class="sure s${sure[0]}">${I("snow")}${sure[1]}</p><div id="tpWx"></div>
+    <p class="sure s${sure[0]}">${I("snow")}${sure[1]} <small class="est">${tr("schatting op hoogte")}</small></p><div id="tpWx"></div>
     <div class="det-btns"><a class="btn ghost" href="${nav}" target="_blank" rel="noopener">${I("car")}${tr("Route ernaartoe")}</a><a class="btn ghost" href="https://www.google.com/search?q=${encodeURIComponent(r[1] + " skipas prijs")}" target="_blank" rel="noopener">${I("ticket")}${tr("Skipasprijzen")}</a></div></section>`;
   try{
     const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r[5]}&longitude=${r[4]}&elevation=${hi || 2400}&current=snow_depth&daily=weather_code,temperature_2m_max,snowfall_sum&forecast_days=7&timezone=auto`)).json();
@@ -5027,7 +5081,8 @@ function downloadGate(row, bounds){
     hideSplash(); $("dlGate")?.remove();
     const tiles = areaTiles(bounds), est = tiles.length * DL_KB * 1024, ctl = {aborted:false};
     const g = document.createElement("div"); g.id = "dlGate"; g.className = "dl-gate"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true"); g.setAttribute("aria-label", tr("Skigebied downloaden"));
-    const close = ok => { ctl.aborted = true; g.classList.add("out"); setTimeout(() => g.remove(), 280); resolve(ok); };
+    const close = ok => { ctl.aborted = true; g._close = null; g.id = ""; g.classList.add("out"); setTimeout(() => g.remove(), 280); resolve(ok); };
+    g._close = close;
     const others = () => { const l = downloadedList().filter(d => d.id !== row[0]).slice(0, 6);
       return l.length ? `<p class="dl-sub">${tr("Gedownloade gebieden")}</p><div class="dl-list">${l.map(d => `<button type="button" class="dl-row" data-go="${d.id}">${I("check")}<b>${esc(d.row[1])}</b>${I("chev")}</button>`).join("")}</div>` : ""; };
     const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${row[6]} km · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
@@ -5215,11 +5270,13 @@ const LAYER_CHIPS = [["slopeToggle", "warn", "Steilheid"], ["sunToggle", "sun", 
 function syncLayerChips(){
   const box = $("layerChips"); if(!box) return;
   box.hidden = !S.area;
-  box.innerHTML = LAYER_CHIPS.map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
+  // Avond alleen als het aan staat (de schakelaar zit in het lagenmenu); zo past de rij op een telefoon
+  box.innerHTML = LAYER_CHIPS.filter(([id]) => id !== "nightToggle2" || S.night).map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
     return `<button type="button" class="lchip" data-lc="${id}" aria-pressed="${on}">${I(ic)}${tr(t)}</button>`; }).join("");
   box.querySelectorAll("[data-lc]").forEach(b => b.onclick = () => { const id = b.dataset.lc; buzz("select");
     if(id === "colChip"){ showCollected(!S.colOn); syncLayerChips(); return; }
     const c = $(id); c.checked = !c.checked; c.dispatchEvent(new Event("change")); setTimeout(syncLayerChips, 50); });
+  requestAnimationFrame(() => box.classList.toggle("more", box.scrollWidth > box.clientWidth + 2));
 }
 ["slopeToggle", "sunToggle", "heatToggle", "nightToggle2", "nightToggle"].forEach(id => $(id)?.addEventListener("change", () => setTimeout(syncLayerChips, 50)));
 // ---- nieuw in Skipilot: één keer een korte rondleiding na de update ----
@@ -5395,12 +5452,15 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("menu").
 $("menuLayers").onclick = e => { e.stopPropagation(); closeMenu(); $("layerMenu").hidden = false; renderOffline(); };
 document.querySelectorAll("#pace button").forEach(b => b.onclick = () => { S.pace = +b.dataset.v; syncMenu(); update(); });
 $("navAwake").onchange = e => { S.navAwake = e.target.checked; save(); keepAwake(); };
+$("saverToggle").checked = !!S.saver; applySaver();
+$("saverToggle").onchange = e => { S.saver = e.target.checked; save(); applySaver(); toast(tr(S.saver ? "Batterij sparen staat aan." : "Batterij sparen staat uit."), 2500); };
 $("speedoToggle").onchange = e => { S.speedo = e.target.checked; save(); renderSpeedo(); };
 $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("watchTap").onchange = e => { S.watchTap = e.target.checked; save(); liveSig = null; navLive(); };
 $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
 $("sunny").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunny = e.target.checked; save(); update(); };
-$("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save(); drawSun(); };
+$("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save();
+  const whole = S.area && POV.mode !== "gl" && map.getBounds().contains(S.area.bounds); drawSun(); if(S.sunOn && whole) setTimeout(() => map.fitBounds(S.area.bounds, {...sheetPad(), maxZoom:16}), 60); };
 $("sunToggle").checked = S.sunOn;
 $("familyToggle").checked = S.family; $("freeToggle").checked = S.freeride;
 $("familyToggle").onchange = e => { S.family = e.target.checked;
@@ -5416,6 +5476,7 @@ $("slopeToggle").onchange = e => { S.slopeOn = e.target.checked; save(); applyBa
 $("slopeLegend").hidden = !S.slopeOn;
 $("heatToggle").onchange = e => { S.heatOn = e.target.checked; save(); drawHeat(); if(!S.heatOn) $("heatInfo").hidden = true; };
 $("sunRange").oninput = e => { const v = +e.target.value; S.sunAt = v; $("sunAtTxt").textContent = hhmm(v); drawSun(); buzz("select"); };
+$("sunOff").onclick = () => { const c = $("sunToggle"); c.checked = false; c.dispatchEvent(new Event("change")); };
 $("sunNow").onclick = () => { S.sunAt = null; $("sunRange").value = Math.max(480, Math.min(1020, sunTime().m)); $("sunAtTxt").textContent = tr("nu"); drawSun(); };
 $("nightToggle").onchange = e => setNight(e.target.checked);
 $("nightToggle2").onchange = e => setNight(e.target.checked);
@@ -5439,8 +5500,10 @@ setTimeout(prefetch3d, 3000);
   $("pickerCount").textContent = `${nAreas} skigebieden`;
   const st = $("splashTag"); if(st) st.textContent = `${nAreas} skigebieden`;
   const want = location.hash.slice(1).split("/")[0], byName = n => S.index.find(r => r[1].startsWith(n))?.[0];
-  const start = [want, S.last, byName("Silvretta Arena")].find(id => id && S.index.some(r => r[0]===id));
-  await openArea(start || S.index[0][0]);
+  const start = [want, S.last].find(id => id && S.index.some(r => r[0]===id));
+  // eerste keer: zelf een skigebied kiezen (en dat dan downloaden), niet meteen een gebied dat je niet koos
+  if(start) await openArea(start);
+  else { map.setView([46.6, 10.4], 6, {animate:false}); hideSplash(); setTimeout(openPicker, FIRST_RUN ? 600 : 0); }
   if(G.pending && G.pending !== G.code){
     const code = G.pending; G.pending = null;
     if(G.code) gLeave();
