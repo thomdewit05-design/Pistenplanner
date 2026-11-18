@@ -615,7 +615,9 @@ const M3 = (() => {
       me?.getElement().classList.remove("m3-hide");
       if(was === "nav"){ const v = fromLeaflet(); gl.easeTo({...v, pitch:58, padding:{top:0, bottom:0, left:0, right:0}, duration:800}); }
       // de platte kaart toont het hele gebied: in 3D ook het hele gebied, schuin van boven (niet piepklein in de verte)
-      else if(!was && S.area && map.getBounds().contains(S.area.bounds)){ const c = ovCam(); if(c) gl.jumpTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:50, padding:ovPad()}); }
+      else if(!was && S.area && map.getBounds().contains(S.area.bounds)){ const c = ovCam(); if(c){ const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+          // de camera kantelt van recht boven naar schuin: zo zie je dat het dezelfde kaart is die omhoog komt
+          gl.jumpTo({center:ovCenter(), zoom:c.zoom + .25, bearing:0, pitch:still ? 50 : 0, padding:ovPad()}); if(!still) gl.easeTo({pitch:50, duration:1100}); } }
     } else me?.getElement().classList.add("m3-hide");
     ovCheck();
     gl.resize();

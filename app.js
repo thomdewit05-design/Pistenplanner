@@ -107,20 +107,20 @@ const bearing = (p, q) => Math.atan2((q[1]-p[1])*Math.cos(p[0]*Math.PI/180), q[0
 const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 // ================= eigen beeldtaal =================
 // Eén stijl voor alle illustraties: vlakke berglagen in de kleuren van de app, met één geel accent. De kleuren komen uit CSS (--art-*), dus licht en donker kloppen vanzelf.
-const ART_BG = `<rect width="160" height="120" fill="var(--art-sky)"/><circle cx="126" cy="28" r="11" fill="var(--art-sun)"/>
-  <path d="M0 96 26 56l14 18 24-36 24 38 20-24 52 50v18H0Z" fill="var(--art-far)"/>
-  <path d="M0 120V88l28-28 22 24 32-46 34 50 14-14 30 28v18Z" fill="var(--art-mid)"/>
-  <path d="M82 38 71 54l7-3 4 7 6-8 7 5Z" fill="var(--art-snow)"/><path d="M28 60l-8 9 6-1 3 5 4-6 5 2Z" fill="var(--art-snow)"/>
+const ART_BG = `<rect width="160" height="120" fill="var(--art-sky)"/><circle class="a-sun" cx="126" cy="28" r="11" fill="var(--art-sun)"/>
+  <path class="a-l1" d="M0 96 26 56l14 18 24-36 24 38 20-24 52 50v18H0Z" fill="var(--art-far)"/>
+  <g class="a-l2"><path d="M0 120V88l28-28 22 24 32-46 34 50 14-14 30 28v18Z" fill="var(--art-mid)"/>
+  <path d="M82 38 71 54l7-3 4 7 6-8 7 5Z" fill="var(--art-snow)"/><path d="M28 60l-8 9 6-1 3 5 4-6 5 2Z" fill="var(--art-snow)"/></g>
   <path d="M0 120v-16c28-12 52-3 82-9s50-13 78-3v28Z" fill="var(--art-near)"/>`;
 const ART_FG = {
-  route:`<path d="M82 46c16 9 18 18 2 26s-22 16-4 26 30 6 42 14" fill="none" stroke="var(--art-accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="82" cy="46" r="5" fill="var(--art-snow)" stroke="var(--art-accent)" stroke-width="3"/><path d="M122 100v-13l10 4-10 4" fill="var(--art-accent)" stroke="var(--art-accent)" stroke-width="2" stroke-linejoin="round"/>`,
-  skiday:`<path d="M96 92c-14 6-30 2-44 10s-24 12-40 14M104 94c-14 7-30 3-44 11s-22 11-38 13" fill="none" stroke="var(--art-track)" stroke-width="2.5" stroke-linecap="round"/><circle cx="104" cy="86" r="4.5" fill="var(--art-accent)"/><path d="M104 91l-5 9m5-9 6 7m-13 3 16-4" fill="none" stroke="var(--art-ink)" stroke-width="2.6" stroke-linecap="round"/>`,
-  season:`<g transform="translate(22 66)"><rect width="44" height="40" rx="8" fill="var(--art-snow)"/><rect width="44" height="12" rx="6" fill="var(--art-accent)"/><path d="M10 22h6m6 0h6m6 0h2M10 30h6m6 0h6" stroke="var(--art-far)" stroke-width="4" stroke-linecap="round"/></g>`,
-  group:`<g stroke="var(--art-snow)" stroke-width="2.5"><path d="M48 70c-8 0-14 6-14 14 0 10 14 22 14 22s14-12 14-22c0-8-6-14-14-14Z" fill="var(--art-accent)"/><path d="M92 58c-8 0-14 6-14 14 0 10 14 22 14 22s14-12 14-22c0-8-6-14-14-14Z" fill="var(--art-pin2)"/><path d="M128 78c-7 0-12 5-12 12 0 9 12 18 12 18s12-9 12-18c0-7-5-12-12-12Z" fill="var(--art-pin3)"/></g><circle cx="48" cy="84" r="4.5" fill="var(--art-snow)"/><circle cx="92" cy="72" r="4.5" fill="var(--art-snow)"/><circle cx="128" cy="90" r="4" fill="var(--art-snow)"/>`,
-  favs:`<path d="M44 14l5.6 11.6 12.6 1.7-9.2 8.8 2.3 12.5L44 42.5l-11.3 6.1L35 36.1l-9.2-8.8 12.6-1.7Z" fill="var(--art-accent)" stroke="var(--art-snow)" stroke-width="2.5" stroke-linejoin="round"/>`,
-  offline:`<path d="M40 44a13 13 0 0 1 25-5 10 10 0 0 1 3 20H42a8 8 0 0 1-2-15Z" fill="var(--art-snow)"/><path d="M36 28l36 36" stroke="var(--art-accent)" stroke-width="5" stroke-linecap="round"/>`,
-  noarea:`<path d="M48 120V52" stroke="var(--art-ink)" stroke-width="5" stroke-linecap="round"/><path d="M48 56h34l8 8-8 8H48Z" fill="var(--art-accent)"/><path d="M48 78H20l-8 7 8 7h28Z" fill="var(--art-snow)"/>`,
-  voice:`<rect x="30" y="50" width="40" height="64" rx="9" fill="var(--art-snow)"/><path d="M50 92V68m0 0-8 8m8-8 8 8" stroke="var(--art-far)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M80 66c5 5 5 15 0 20M88 58c10 9 10 27 0 36" stroke="var(--art-accent)" stroke-width="4" fill="none" stroke-linecap="round"/>`};
+  route:`<path class="a-draw" pathLength="1" d="M82 46c16 9 18 18 2 26s-22 16-4 26 30 6 42 14" fill="none" stroke="var(--art-accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle class="a-pop" cx="82" cy="46" r="5" fill="var(--art-snow)" stroke="var(--art-accent)" stroke-width="3"/><path class="a-pop d2" d="M122 100v-13l10 4-10 4" fill="var(--art-accent)" stroke="var(--art-accent)" stroke-width="2" stroke-linejoin="round"/>`,
+  skiday:`<path class="a-draw rev" pathLength="1" d="M96 92c-14 6-30 2-44 10s-24 12-40 14M104 94c-14 7-30 3-44 11s-22 11-38 13" fill="none" stroke="var(--art-track)" stroke-width="2.5" stroke-linecap="round"/><g class="a-ski"><circle cx="104" cy="86" r="4.5" fill="var(--art-accent)"/><path d="M104 91l-5 9m5-9 6 7m-13 3 16-4" fill="none" stroke="var(--art-ink)" stroke-width="2.6" stroke-linecap="round"/></g>`,
+  season:`<g class="a-pop" transform="translate(22 66)"><rect width="44" height="40" rx="8" fill="var(--art-snow)"/><rect width="44" height="12" rx="6" fill="var(--art-accent)"/><path d="M10 22h6m6 0h6m6 0h2M10 30h6m6 0h6" stroke="var(--art-far)" stroke-width="4" stroke-linecap="round"/></g>`,
+  group:`<g stroke="var(--art-snow)" stroke-width="2.5"><path class="a-drop" d="M48 70c-8 0-14 6-14 14 0 10 14 22 14 22s14-12 14-22c0-8-6-14-14-14Z" fill="var(--art-accent)"/><path class="a-drop d1" d="M92 58c-8 0-14 6-14 14 0 10 14 22 14 22s14-12 14-22c0-8-6-14-14-14Z" fill="var(--art-pin2)"/><path class="a-drop d2" d="M128 78c-7 0-12 5-12 12 0 9 12 18 12 18s12-9 12-18c0-7-5-12-12-12Z" fill="var(--art-pin3)"/></g><circle cx="48" cy="84" r="4.5" fill="var(--art-snow)"/><circle cx="92" cy="72" r="4.5" fill="var(--art-snow)"/><circle cx="128" cy="90" r="4" fill="var(--art-snow)"/>`,
+  favs:`<path class="a-pop a-star" d="M44 14l5.6 11.6 12.6 1.7-9.2 8.8 2.3 12.5L44 42.5l-11.3 6.1L35 36.1l-9.2-8.8 12.6-1.7Z" fill="var(--art-accent)" stroke="var(--art-snow)" stroke-width="2.5" stroke-linejoin="round"/>`,
+  offline:`<path class="a-pop" d="M40 44a13 13 0 0 1 25-5 10 10 0 0 1 3 20H42a8 8 0 0 1-2-15Z" fill="var(--art-snow)"/><path class="a-draw" pathLength="1" d="M36 28l36 36" stroke="var(--art-accent)" stroke-width="5" stroke-linecap="round"/>`,
+  noarea:`<path d="M48 120V52" stroke="var(--art-ink)" stroke-width="5" stroke-linecap="round"/><path class="a-pop" d="M48 56h34l8 8-8 8H48Z" fill="var(--art-accent)"/><path class="a-pop d2" d="M48 78H20l-8 7 8 7h28Z" fill="var(--art-snow)"/>`,
+  voice:`<rect x="30" y="50" width="40" height="64" rx="9" fill="var(--art-snow)"/><path d="M50 92V68m0 0-8 8m8-8 8 8" stroke="var(--art-far)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path class="a-draw" pathLength="1" d="M80 66c5 5 5 15 0 20M88 58c10 9 10 27 0 36" stroke="var(--art-accent)" stroke-width="4" fill="none" stroke-linecap="round"/>`};
 const ART = k => `<svg class="art" viewBox="0 0 160 120" aria-hidden="true" preserveAspectRatio="xMidYMid slice">${ART_BG}${ART_FG[k] || ""}</svg>`;
 // embleem van een prestatie: een schild in brons, zilver of goud; nog niet behaald als omtrek
 const BADGE_TIER = {first:1, jump1:1, air1:2, days5:1, days20:3, km20:1, km50:3, runs20:2, hm5k:2, everest:3, hm100k:3, v60:1, v80:3, black:1, black10:2, areas3:1, areas10:3, early:1, long:2};
@@ -3166,7 +3166,7 @@ function renderBadges(){
   const a = badgeStats(), got = BADGES.filter(b => b.v(a) >= b.goal).length;
   box.innerHTML = `<div class="badges"><p class="label">Prestaties (${got}/${BADGES.length})</p><div class="badge-grid">${BADGES.map(b => {
     const v = b.v(a), ok = v >= b.goal, pct = Math.min(100, Math.round(100 * v / b.goal));
-    return `<div class="badge${ok ? " ok" : ""}" title="${esc(b.d)}">${emblem(b, ok)}<b>${b.t}</b><small>${b.d}</small>${ok ? "" : `<i class="b-bar"><i style="width:${pct}%"></i></i>`}</div>`;
+    return `<div class="badge${ok ? " ok" : ""}" style="--i:${Math.min(BADGES.indexOf(b), 14)}" title="${esc(b.d)}">${emblem(b, ok)}<b>${b.t}</b><small>${b.d}</small>${ok ? "" : `<i class="b-bar"><i style="width:${pct}%"></i></i>`}</div>`;
   }).join("")}</div></div>`;
 }
 function startRec(){
@@ -3353,7 +3353,7 @@ function drawHuts(hutsChanged){
   if(hutArea !== A?.huts){ hutLayer.clearLayers(); hutArea = A?.huts; }
   if(!A || !(S.hutsOn || S.svcOn) || map.getZoom() < 13){ hutLayer.remove(); return; }
   hutLayer.addTo(map);
-  const b = map.getBounds().pad(.15), z = map.getZoom();
+  const b = map.getBounds().pad(.15), z = map.getZoom(); let fresh = 0;
   for(const h of A.huts){
     const want = b.contains([h.lat, h.lon]) && (isSvc(h) ? S.svcOn : S.hutsOn) && !(h.kind === "o" && z < 14);   // bushaltes pas van dichtbij
     if(!want){ if(h.m && hutLayer.hasLayer(h.m)) hutLayer.removeLayer(h.m); continue; }
@@ -3363,7 +3363,7 @@ function drawHuts(hutsChanged){
         icon:L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,13], html:`<div class="hut hut-${h.kind}">${I(k[1])}</div>`})});
       h.m.on("click", ev => { L.DomEvent.stopPropagation(ev); hutPopup(h); });
     }
-    if(!hutLayer.hasLayer(h.m)) h.m.addTo(hutLayer);
+    if(!hutLayer.hasLayer(h.m)){ h.m.addTo(hutLayer); h.m.getElement()?.firstElementChild?.style.setProperty("--i", Math.min(fresh++, 14)); }
   }
 }
 function hutPopup(h){
@@ -4174,6 +4174,7 @@ function tabPaint(){
   // de donkere pil schuift mee naar de actieve tab
   requestAnimationFrame(() => { const b = document.querySelector(`#tabbar button[data-tab="${TAB}"]`), ind = $("tabInd"); if(!b || !ind) return;
     // liggend staan de tabs onder elkaar: de pil schuift dan verticaal
+    if(ind.dataset.tab && ind.dataset.tab !== TAB && !calm()){ ind.classList.remove("go"); void ind.offsetWidth; ind.classList.add("go"); } ind.dataset.tab = TAB;
     if(isLand()){ ind.style.width = b.offsetWidth + "px"; ind.style.height = b.offsetHeight + "px"; ind.style.transform = `translateY(${b.offsetTop - 5}px)`; }
     else { ind.style.height = ""; ind.style.width = b.offsetWidth + "px"; ind.style.transform = `translateX(${b.offsetLeft - 6}px)`; } });
 }
@@ -4431,7 +4432,7 @@ function badgeCheck(){
     const b = fresh[0]; buzz("success"); confetti(70);
     document.querySelector(".coin-pop")?.remove();
     const el = document.createElement("div"); el.className = "coin-pop";
-    el.innerHTML = `<span class="coin">${I(b.icon)}</span><div><small>Nieuwe prestatie</small><b>${b.t}</b><i>${b.d}</i></div>`;
+    el.innerHTML = `<span class="coin-emb">${emblem(b, true)}</span><div><small>Nieuwe prestatie</small><b>${b.t}</b><i>${b.d}</i></div>`;
     document.body.appendChild(el); setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 4200);
   }catch(e){}
 }
@@ -5486,7 +5487,7 @@ function heroWeather(box){
   cancelAnimationFrame(heroFx);
   const hero = box.querySelector(".hero"); if(!hero || !S.wx || calm()) return;
   const code = S.wx.c.weather_code, snow = [71, 73, 75, 77, 85, 86].includes(code), sun = code <= 1, wind = S.wx.c.wind_speed_10m >= 35;
-  hero.classList.toggle("sunny", sun); hero.classList.toggle("windy", wind);
+  hero.classList.toggle("sunny", sun); hero.classList.toggle("windy", wind); hero.classList.toggle("cloudy", [2, 3, 45, 48].includes(code));
   if(!snow) return;
   const c = document.createElement("canvas"); c.className = "hero-snow"; hero.appendChild(c);
   const dpr = Math.min(2, devicePixelRatio || 1), W = hero.clientWidth, H = hero.clientHeight; c.width = W * dpr; c.height = H * dpr; const x = c.getContext("2d"); x.scale(dpr, dpr);

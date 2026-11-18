@@ -2517,6 +2517,72 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .bdg-row .emb{width:30px;height:33px;margin:0}
 .bdg-row .emb .ic{width:14px;height:14px;margin-top:3px}
 .bdg-row span.emb,.bdg-row span.emb.ok{background:none;border-radius:0}
+/* ===== beweging: één taal =====
+   Drie snelheden en twee curves (--spring en --ease-out staan hierboven). Alles hieronder beweegt alleen met verplaatsen, schalen en
+   doorzichtigheid: dat rekent de grafische kaart uit en blijft soepel, ook in de lichte weergave. */
+:root{--m-fast:.16s;--m-base:.28s;--m-slow:.5s}
+/* illustraties komen tot leven als ze in beeld komen */
+.art *{transform-box:fill-box;transform-origin:center}
+.a-sun{animation:aSun 1.1s var(--ease-out) both}
+.a-l1{animation:aRise .7s var(--ease-out) both}
+.a-l2{animation:aRise .7s .08s var(--ease-out) both}
+.a-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:aDraw 1s .35s var(--ease-out) forwards}
+.a-draw.rev{animation-delay:.6s}
+.a-pop{animation:aPop var(--m-slow) .5s var(--spring) both}
+.a-pop.d2{animation-delay:1.1s}
+.a-drop{animation:aDrop var(--m-slow) .4s var(--spring) both}
+.a-drop.d1{animation-delay:.55s}.a-drop.d2{animation-delay:.7s}
+.a-ski{animation:aSki 1s .2s var(--ease-out) both}
+.a-star{transform-origin:center}
+@keyframes aSun{from{transform:translateY(22px);opacity:0}}
+@keyframes aRise{from{transform:translateY(12px);opacity:0}}
+@keyframes aDraw{to{stroke-dashoffset:0}}
+@keyframes aPop{from{transform:scale(.3);opacity:0}}
+@keyframes aDrop{from{transform:translateY(-26px);opacity:0}}
+@keyframes aSki{from{transform:translate(34px,-20px);opacity:0}}
+/* prestaties: de kaartjes komen gespreid binnen; een behaald embleem krijgt één keer een glans */
+.badge{animation:dcIn var(--m-slow) calc(var(--i,0) * 35ms) var(--ease-out) both}
+.emb.ok::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);background-size:300% 100%;background-position:120% 0;
+  -webkit-mask:radial-gradient(circle at 50% 46%,#000 0 46%,transparent 47%);mask:radial-gradient(circle at 50% 46%,#000 0 46%,transparent 47%);animation:embShine 1.1s calc(.4s + var(--i,0) * 35ms) ease-out both;pointer-events:none}
+@keyframes embShine{to{background-position:-60% 0}}
+.bdg-row .emb.ok::after{display:none}
+.coin-emb{flex:none;display:grid;place-items:center;animation:coinSpin 1s var(--spring) both}
+.coin-emb .emb{width:48px;height:52px;margin:0}
+.coin-emb .emb .ic{width:22px;height:22px}
+/* de pil in de tabbalk rekt even uit in de richting waarin hij schuift */
+.tab-ind.go{animation:pillX .45s var(--ease-out)}
+@keyframes pillX{35%{scale:1.16 .9}}
+@keyframes pillY{35%{scale:.9 1.16}}
+/* hutten en voorzieningen verschijnen gespreid in plaats van allemaal tegelijk */
+.hut{animation:hutIn var(--m-base) calc(var(--i,0) * 28ms) var(--spring) both}
+@keyframes hutIn{from{scale:.2;opacity:0}}
+/* instellingen: de secties komen na elkaar binnen */
+.menu:not([hidden]) .m-sec{animation:dcIn .4s var(--ease-out) both}
+.menu .m-sec:nth-of-type(2){animation-delay:.04s}.menu .m-sec:nth-of-type(3){animation-delay:.08s}.menu .m-sec:nth-of-type(4){animation-delay:.12s}
+.menu .m-sec:nth-of-type(5){animation-delay:.16s}.menu .m-sec:nth-of-type(6){animation-delay:.2s}.menu .m-sec:nth-of-type(n+7){animation-delay:.24s}
+/* weerblok: wolken schuiven langzaam voorbij bij bewolkt weer */
+.hero.cloudy::before{content:"";position:absolute;z-index:1;left:-40%;top:8%;width:180%;height:46%;pointer-events:none;opacity:.55;
+  background:radial-gradient(60px 22px at 12% 40%,#fff 0 60%,transparent 62%),radial-gradient(90px 30px at 38% 62%,#fff 0 60%,transparent 62%),radial-gradient(70px 24px at 66% 30%,#fff 0 60%,transparent 62%),radial-gradient(100px 30px at 90% 58%,#fff 0 60%,transparent 62%);
+  filter:blur(6px);animation:cloudDrift 46s linear infinite alternate}
+@keyframes cloudDrift{from{transform:translateX(-8%)}to{transform:translateX(14%)}}
+.hero .hero-txt{z-index:2}
+/* lichte weergave: goedkope doorlopende beweging mag blijven (alleen verplaatsen en doorzichtigheid) */
+.lite .me-dot::after,.lite .hero.cloudy::before,.lite .hero.sunny .hero-art .sun,.lite .onb-art{animation-iteration-count:infinite!important}
+.lite .hero.cloudy::before{filter:none;opacity:.4}
+@media (orientation:landscape) and (max-height:500px){
+  .tab-ind.go{animation-name:pillY}
+  /* de lade schuift uit en de regel komt terug; met 'translate' omdat 'transform' hier vastligt */
+  .sheet.open{animation:ladeIn var(--m-base) var(--ease-out)}
+  .sheet:not(.open){animation:regelIn var(--m-base) var(--ease-out)}
+  #detail.picker:not([hidden]){animation:ladeRechts var(--m-base) var(--ease-out) both}
+}
+@keyframes ladeIn{from{translate:-28px 0;opacity:.4}}
+@keyframes regelIn{from{translate:0 18px;opacity:.4}}
+@keyframes ladeRechts{from{translate:40px 0;opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .art *,.badge,.emb.ok::after,.coin-emb,.tab-ind.go,.hut,.menu .m-sec,.hero.cloudy::before,.sheet,.sheet.open,#detail.picker{animation:none!important}
+  .a-draw{stroke-dashoffset:0}
+}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}
