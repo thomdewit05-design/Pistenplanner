@@ -2329,3 +2329,13 @@ body.following .toast,body.drawing .toast,body.rp-on .toast{bottom:auto!importan
 .sb-x::after,.hero-retry::after{content:"";position:absolute;inset:-10px}
 .icon-btn{min-width:44px;min-height:44px}
 .tabbar button,.tabbar button[aria-current]{font-size:11px}
+/* ===== ontwerp 2: de kaart krijgt de ruimte ===== */
+/* paneel in rust: titel en hoofdknop; de rest bij omhoog vegen */
+.peek-empty{gap:0}
+.pe-main{display:flex;flex-direction:column;gap:8px}
+.pe-main p b{margin:0;font-size:20px}
+.pe-more{display:flex;flex-direction:column;gap:10px;padding-top:16px}
+/* SOS klein in de bovenbalk in plaats van groot midden op de kaart */
+.topbar .sos-fab,.ios .topbar .sos-fab{pointer-events:auto;width:44px;height:44px;margin:0;border-radius:14px;font-size:12px;letter-spacing:.03em;border:0;box-shadow:var(--sh-1)}
+/* laagknoppen tonen alleen wat aan staat */
+.lchip .x{display:inline-grid;place-items:center;margin-left:2px;opacity:.7}.lchip .x .ic{width:13px;height:13px}

@@ -970,8 +970,10 @@ function renderResult(){
   const res = $("result"), peek = $("peek"); pendingDetail = null;
   if(S.from==null || S.to==null){
     res.innerHTML = `<p class="empty">Kies een vertrekpunt en een bestemming, of tik op een piste.</p>`;
-    peek.innerHTML = `<div class="peek-empty"><p><b>${S.from==null ? "Waar wil je heen?" : "Kies je bestemming"}</b>${S.from==null ? "Tik een piste of een punt op de kaart aan, of neem de dagroute van vandaag." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
-      <div class="cta">${S.from==null ? `<button type="button" class="btn primary day-btn" id="dayBtn">${I("sun")}Dagroute van vandaag</button>` : ""}<button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button>${ticketBtnHtml()}${homeBtnHtml(true)}</div></div>`;
+    peek.innerHTML = `<div class="peek-empty"><div class="pe-main"><p><b>${S.from==null ? "Waar wil je heen?" : "Kies je bestemming"}</b></p>
+      ${S.from==null ? `<div class="cta"><button type="button" class="btn primary day-btn" id="dayBtn">${I("sun")}Dagroute van vandaag</button></div>` : ""}</div>
+      <div class="pe-more"><p>${S.from==null ? "Tik een piste of een punt op de kaart aan, of neem de dagroute van vandaag." : "Tik op de kaart op je bestemming, of tik een piste aan." + (S.dimmed ? " Grijs valt buiten je niveau." : "")}</p>
+      <div class="cta"><button type="button" class="btn ghost" id="drawBtn2">${I("pencil")}Route tekenen</button>${ticketBtnHtml()}${homeBtnHtml(true)}</div></div></div>`;
     $("dayBtn")?.addEventListener("click", e => busyThen(e.currentTarget, "Route zoeken…", () => dayRoute()));
     $("homeBtn")?.addEventListener("click", goHome); $("homeSet")?.addEventListener("click", homeMenu);
     $("drawBtn2").onclick = startDraw;
@@ -1644,9 +1646,11 @@ let peekRaf = 0;
 function setPeek(){ if(!peekRaf) peekRaf = requestAnimationFrame(() => { peekRaf = 0; setPeekNow(); }); }
 function setPeekNow(){
   const pk = $("peek"), first = pk.firstElementChild, mini = sheetMini && !isSide();
+  // lege toestand: in rust alleen de titel en de hoofdknop, zodat de kaart de ruimte krijgt
+  const main = pk.querySelector(".pe-main");
   const h = mini ? $("handle").offsetHeight + 4 + (first ? first.offsetHeight : 0) + 12
-             : pk.offsetHeight + 26 + 14;
-  document.documentElement.style.setProperty("--sheet-peek", (mini ? Math.max(44, Math.min(h, 110)) : Math.max(110, Math.min(h, 260))) + "px");
+             : (main ? main.offsetHeight + 4 : pk.offsetHeight) + 26 + 14;
+  document.documentElement.style.setProperty("--sheet-peek", (mini ? Math.max(44, Math.min(h, 110)) : Math.max(main ? 84 : 110, Math.min(h, 260))) + "px");
   sheet.classList.toggle("mini", mini);
 }
 function setMini(on){
@@ -2093,6 +2097,7 @@ function renderSos(){
 function openSos(){ buzz("medium"); $("sos").hidden = false; if(S.watch==null) startWatch(); renderSos(); clearInterval(sosTimer); sosTimer = setInterval(renderSos, 3000); }
 function closeSos(){ $("sos").hidden = true; clearInterval(sosTimer); }
 $("sosBtn").onclick = openSos;
+$("colToggle")?.addEventListener("change", e => { showCollected(e.target.checked); syncLayerChips(); });
 $("sosClose").onclick = closeSos;
 $("sosCopy").onclick = async () => {
   if(!S.pos) return;
@@ -5355,8 +5360,12 @@ function syncLayerChips(){
   const box = $("layerChips"); if(!box) return;
   box.hidden = !S.area;
   // Avond alleen als het aan staat (de schakelaar zit in het lagenmenu); zo past de rij op een telefoon
-  box.innerHTML = LAYER_CHIPS.filter(([id]) => id !== "nightToggle2" || S.night).map(([id, ic, t]) => { const on = id === "colChip" ? !!S.colOn : !!$(id)?.checked;
-    return `<button type="button" class="lchip" data-lc="${id}" aria-pressed="${on}">${I(ic)}${tr(t)}</button>`; }).join("");
+  // alleen de lagen die aan staan krijgen een knop (om ze snel uit te zetten); aanzetten doe je in het lagenmenu
+  const isOn = id => id === "colChip" ? !!S.colOn : id === "nightToggle2" ? !!S.night : !!$(id)?.checked;
+  box.innerHTML = LAYER_CHIPS.filter(([id]) => isOn(id)).map(([id, ic, t]) =>
+    `<button type="button" class="lchip" data-lc="${id}" aria-pressed="true">${I(ic)}${tr(t)}<span class="x">${I("close")}</span></button>`).join("");
+  box.hidden = !S.area || !box.children.length;
+  const ct = $("colToggle"); if(ct) ct.checked = !!S.colOn;
   box.querySelectorAll("[data-lc]").forEach(b => b.onclick = () => { const id = b.dataset.lc; buzz("select");
     if(id === "colChip"){ showCollected(!S.colOn); syncLayerChips(); return; }
     const c = $(id); c.checked = !c.checked; c.dispatchEvent(new Event("change")); setTimeout(syncLayerChips, 50); });
