@@ -5287,10 +5287,7 @@ function renderPlan(){
   box.innerHTML = dashHead(tr("Vooruitkijken"), "Plannen", "plClose")
     + (t && dayDiff(t.to) >= 0 ? tripCard().replace('class="trip-card dc"', 'class="trip-card dc big"') : `<button type="button" class="trip-add dc big" id="tripOpen">${I("calendar")}<span><b>${tr("Plan je skivakantie")}</b><small>${tr("Aftellen, weer, paklijst en route")}</small></span>${I("chev")}</button>`)
     + `<div class="plan-grid">
-        ${tile("plTrip", "calendar", "Reisplanner", "Data, weer en paklijst", "linear-gradient(135deg,#1F7FD6,#7C3AED)")}
         ${tile("plCompare", "swap", "Vergelijken", "Gebieden naast elkaar", "linear-gradient(135deg,#1F9D57,#0F8B8D)")}
-        ${tile("plDay", "sun", "Dagroute", A ? "Mooiste route van vandaag" : "Kies eerst een gebied", "linear-gradient(135deg,#E0A100,#F06A1D)")}
-        ${tile("plLunch", "food", "Lunch plannen", "Hut op het juiste moment", "linear-gradient(135deg,#D9264B,#E5484D)")}
         ${tile("plArea", "search", "Skigebied kiezen", A ? A.row[1] : "1883 gebieden", "linear-gradient(135deg,#5E6E80,#2B3A4B)")}
         ${tile("plOffline", "down", "Offline", "Gebied op je telefoon", "linear-gradient(135deg,#0F4C86,#2B7FC4)")}
       </div>`
@@ -5301,10 +5298,8 @@ function renderPlan(){
     + (favRows.length ? `<section class="dc"><p class="label">${I("star")}${tr("Je favorieten")}</p><div class="fav-list">${favRows.map(r => `<button type="button" class="fav-row" data-area="${r[0]}"><span class="cc">${esc(r[2])}</span><b>${esc(r[1])}</b><small>${r[6]} km · ${r[10] ?? "?"} m</small>${I("chev")}</button>`).join("")}</div></section>`
       : `<section class="dc"><p class="m-hint">${tr("Zet skigebieden bij je favorieten (ster) om ze hier snel te openen en te vergelijken.")}</p></section>`);
   $("plClose").onclick = () => box.hidden = true;
-  $("tripOpen")?.addEventListener("click", openTrip); $("plTrip").onclick = openTrip;
+  $("tripOpen")?.addEventListener("click", openTrip);
   $("plCompare").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } openCompare(); };
-  $("plDay").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); dayRoute(); };
-  $("plLunch").onclick = () => { if(!S.area){ toast(tr("Kies eerst een skigebied.")); return; } setTab("map"); if(!S.path?.length) dayRoute(); setTimeout(lunchForm, 400); };
   $("plArea").onclick = () => { box.hidden = true; openPicker(); };
   $("plOffline").onclick = () => { const sec = $("plDl"); sec.hidden = !sec.hidden; if(!sec.hidden) sec.scrollIntoView({block:"nearest", behavior:"smooth"}); };
   box.querySelectorAll("[data-area]").forEach(b => b.onclick = () => { box.hidden = true; openArea(b.dataset.area); setTab("map"); });
@@ -5344,11 +5339,19 @@ function actionHits(q){
 function openMenuAt(id){
   setTab("map"); openMenu();
   setTimeout(() => { const el = $(id) || document.querySelector(`#${id}`); const sec = el?.closest(".m-sec") || el; if(!sec) return;
+    if(sec.classList.contains("m-sec")) menuOpenSec(sec, true);
     sec.scrollIntoView({block:"start", behavior:calm() ? "auto" : "smooth"}); sec.classList.remove("flash"); void sec.offsetWidth; sec.classList.add("flash"); }, 250);
 }
 // zoeken in de instellingen
+// Instellingen als overzicht: elke sectie is een rij die openklapt; er staat er hooguit één open, zodat het geen lijst van vier schermen is.
+function menuOpenSec(sec, on){
+  document.querySelectorAll("#menu .m-sec").forEach(s => { const o = s === sec && on; s.classList.toggle("open", o); s.querySelector("h3")?.setAttribute("aria-expanded", String(o)); });
+}
+document.querySelectorAll("#menu .m-sec > h3").forEach(h => { h.tabIndex = 0; h.setAttribute("role", "button"); h.setAttribute("aria-expanded", "false");
+  const go = () => { const sec = h.parentElement, on = !sec.classList.contains("open"); buzz("select"); menuOpenSec(sec, on); if(on) setTimeout(() => sec.scrollIntoView({block:"nearest", behavior:calm() ? "auto" : "smooth"}), 60); };
+  h.addEventListener("click", go); h.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); go(); } }); });
 function menuFilter(q){
-  q = norm(q.trim());
+  q = norm(q.trim()); $("menu").classList.toggle("searching", !!q);
   document.querySelectorAll("#menu .m-sec").forEach(sec => {
     if(!q){ sec.style.display = ""; sec.querySelectorAll(".switch,.seg,label,.btn").forEach(x => x.classList.remove("m-hit")); return; }
     const hit = norm(sec.textContent).includes(q); sec.style.display = hit ? "" : "none";

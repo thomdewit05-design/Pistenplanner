@@ -2339,3 +2339,22 @@ body.following .toast,body.drawing .toast,body.rp-on .toast{bottom:auto!importan
 .topbar .sos-fab,.ios .topbar .sos-fab{pointer-events:auto;width:44px;height:44px;margin:0;border-radius:14px;font-size:12px;letter-spacing:.03em;border:0;box-shadow:var(--sh-1)}
 /* laagknoppen tonen alleen wat aan staat */
 .lchip .x{display:inline-grid;place-items:center;margin-left:2px;opacity:.7}.lchip .x .ic{width:13px;height:13px}
+/* ===== ontwerp 3: instellingen als overzicht, één plek per ding ===== */
+/* elke sectie is een rij; alleen de aangetikte klapt open (bij zoeken staat alles open wat past) */
+.menu .m-sec,.ios .menu .m-sec{padding:0;gap:0;border:0;background:var(--card);border:1px solid var(--card-line);border-radius:18px;margin-top:8px;overflow:hidden}
+.menu .m-sec>h3,.ios .menu .m-sec>h3{margin:0;padding:14px 14px;min-height:52px;font:650 16px/1.2 var(--f-ui);letter-spacing:0;text-transform:none;cursor:pointer;display:flex;align-items:center;gap:11px}
+.menu .m-sec>h3::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .2s;flex:none}
+.menu .m-sec.open>h3::after{transform:rotate(45deg)}
+.menu .m-sec:not(.open)>*:not(h3){display:none}
+.menu.searching .m-sec>*:not(h3){display:revert}
+.menu.searching .m-sec>h3::after{display:none}
+.menu .m-sec.open,.menu.searching .m-sec{padding:0 14px 14px;gap:6px}
+.menu .m-sec.open>h3,.menu.searching .m-sec>h3{margin:0 -14px 2px}
+.menu .m-sec[hidden]{display:none}
+/* het dagboek staat in Ik; onder het routepaneel alleen nog tijdens een opname */
+.sheet #diaryCard:not(:has(#diaryRecPill:not([hidden]))){display:none}
+/* knoppen in een sectie mogen op twee regels (lange vertalingen pasten niet meer in de smallere kaart) */
+.menu .m-sec .btn{white-space:normal;height:auto;min-height:44px;line-height:1.2;padding-top:8px;padding-bottom:8px;text-align:center}
+/* Plannen: drie tegels, de laatste over de volle breedte */
+.plan-grid .plan-tile:last-child:nth-child(odd){grid-column:1/-1}
+.menu .m-sec,.ios .menu .m-sec{margin-top:6px}
