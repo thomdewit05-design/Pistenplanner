@@ -2486,6 +2486,23 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   .sheet:not(.open) .pe-main p b{font-size:15px}
   .sheet:not(.open) .cta .btn{padding:8px 14px}
 }
+/* liggend, fijnafstelling 2 */
+@media (orientation:landscape) and (max-height:500px){
+  /* de zonbalk staat boven de regel onderaan, niet erachter; een melding schuift er dan boven */
+  .sun-bar{bottom:calc(72px + var(--safe-b))}
+  body:has(#sunBar:not([hidden])) .toast{bottom:calc(150px + var(--safe-b))!important}
+  /* een venster dat vanuit een tab opent (reisplanner, vergelijken) hoort niet als smalle lade over die tab:
+     het krijgt de volle breedte naast de tabkolom. Alleen boven de kaart blijft het een lade rechts. */
+  body:has(.picker:not([hidden]):not(#detail)) #detail.picker{left:var(--rail);right:0;width:auto;box-shadow:none;padding-left:12px}
+  /* reisplanner: links gebied, data en paklijst; rechts de gegevens van het gebied */
+  body:has(.picker:not([hidden]):not(#detail)) #detail.picker:has(.trip-form){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-content:start;column-gap:16px;row-gap:10px}
+  #detail.picker:has(.trip-form) .trip-dates input{padding-left:8px;padding-right:6px}
+  #detail.picker:has(.trip-form){overflow-x:hidden}
+  #detail.picker:has(.trip-form)>.picker-head{grid-column:1/-1}
+  #detail.picker:has(.trip-form)>.trip-form{grid-column:1;margin:0}
+  #detail.picker:has(.trip-form)>#tpInfo{grid-column:2;grid-row:2/span 3;min-width:0}
+  #detail.picker:has(.trip-form)>section.dc,#detail.picker:has(.trip-form)>#tpDel{grid-column:1}
+}
 /* liggend op een smal scherm: nog zuiniger */
 @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
   .area-stats{display:none}
