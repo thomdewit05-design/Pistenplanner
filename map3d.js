@@ -258,6 +258,7 @@ const M3 = (() => {
   }
   function style(){
     const line = {"line-cap":"round", "line-join":"round"};
+    const runLine = {...line, "line-sort-key":["get", "o"]};   // moeilijker ligt bovenop waar pistes elkaar kruisen
     const w = (a, b) => ["interpolate", ["linear"], ["zoom"], 11, a, 16, b];
     return {
       version:8,
@@ -286,10 +287,12 @@ const M3 = (() => {
         // zon en schaduw per piste (zelfde kleuren als de platte kaart), onder de pistes als gloed
         {id:"sun-shade", type:"line", source:"sun", filter:["==", ["get", "lit"], 0], layout:line, paint:{"line-color":"#3B3F6B", "line-width":w(7, 16), "line-opacity":.55, "line-blur":1}},
         {id:"sun-lit", type:"line", source:"sun", filter:["==", ["get", "lit"], 1], layout:line, paint:{"line-color":"#FFB800", "line-width":w(8, 18), "line-opacity":.72, "line-blur":1}},
-        {id:"run-shadow", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#0B1A2A", "line-width":w(7, 15), "line-opacity":.16, "line-blur":3}},
-        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#fff", "line-width":w(4.4, 9.5), "line-opacity":.82}},
-        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["!=", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8)}},
-        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "r"], ["==", ["get", "f"], 1]], layout:line, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8), "line-dasharray":[2, 1.4]}},
+        {id:"run-shadow", type:"line", source:"pistes", filter:["==", ["get", "k"], "rm"], layout:line, paint:{"line-color":"#0B1A2A", "line-width":w(6, 13), "line-opacity":.14, "line-blur":2}},
+        {id:"run-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "rm"], layout:runLine, paint:{"line-color":"#fff", "line-width":w(4.2, 9)}},
+        {id:"run", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "rm"], ["!=", ["get", "f"], 1]], layout:runLine, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8)}},
+        {id:"run-route", type:"line", source:"pistes", filter:["all", ["==", ["get", "k"], "rm"], ["==", ["get", "f"], 1]], layout:runLine, paint:{"line-color":["get", "col"], "line-width":w(2.8, 5.8), "line-dasharray":[2, 1.4]}},
+        // de losse stukken, onzichtbaar en wat breder: hierop tik je (elk stuk kent zijn eigen nummer)
+        {id:"run-hit", type:"line", source:"pistes", filter:["==", ["get", "k"], "r"], layout:line, paint:{"line-color":"#000", "line-width":w(9, 16), "line-opacity":.01}},
         // sleepliften, lopende banden en kabeltreinen liggen op de grond; kabelbanen hangen in de lucht (laag "cables"),
         // op de grond staat dan alleen een vage schaduw van hun spoor
         {id:"lift-case", type:"line", source:"pistes", filter:["==", ["get", "k"], "drag"], layout:line, paint:{"line-color":"#fff", "line-width":w(2.5, 5), "line-opacity":.85}},
@@ -388,7 +391,39 @@ const M3 = (() => {
       f.push({type:"Feature", properties:{i:e.i, k, col:e.t === "r" ? DIFF[e.diff].col : "#14202B", f:e.diff === "f" ? 1 : 0}, geometry:{type:"LineString", coordinates:e.pts.map(ll)}});
     }
     st.forEach(n => f.push({type:"Feature", properties:{k:"st", n}, geometry:{type:"Point", coordinates:[A.nodes[n].lon, A.nodes[n].lat]}}));
+    for(const m of mergedRuns(A)) f.push(m);
     return {type:"FeatureCollection", features:f};
+  }
+  // Hele pistes als één doorlopende lijn (k:"rm"), om te tekenen. De kaartdata knipt een piste bij elke kruising in stukken; los getekend
+  // geeft dat bij elke naad een bolletje (ronde uiteinden en randen over elkaar) en een haperend streepjespatroon bij skiroutes.
+  // De losse stukken (k:"r") blijven bestaan voor het aantikken. Moeilijker ligt bovenop (o), en de bochten zijn één keer afgerond.
+  const RUN_ORDER = {u:0, g:1, b:2, r:3, B:3, s:4, x:5, f:6};
+  function smoothLine(c){
+    if(c.length < 3) return c;
+    const out = [c[0]];
+    for(let i = 0; i < c.length - 1; i++){
+      const a = c[i], b = c[i + 1];
+      if(i > 0) out.push([a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25]);
+      if(i < c.length - 2) out.push([a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75]);
+    }
+    out.push(c[c.length - 1]);
+    return out;
+  }
+  function mergedRuns(A){
+    const out = [], used = new Set();
+    const ok = e => e.t === "r" && !S.closed.has(e.i) && !used.has(e.i);
+    const same = (a, b) => a.diff === b.diff && a.name === b.name && a.ref === b.ref;
+    for(const e0 of A.edges){
+      if(!ok(e0)) continue;
+      const chain = [e0]; used.add(e0.i);
+      // vooruit en achteruit doorrijgen zolang er precies één vervolg van dezelfde piste is (bij een splitsing stopt de lijn)
+      for(let end = e0.b;;){ const c = (A.outRuns?.[end] || []).map(i => A.edges[i]).filter(x => ok(x) && same(x, e0)); if(c.length !== 1) break; chain.push(c[0]); used.add(c[0].i); end = c[0].b; }
+      for(let start = e0.a;;){ const c = (A.inRuns?.[start] || []).map(i => A.edges[i]).filter(x => ok(x) && same(x, e0)); if(c.length !== 1) break; chain.unshift(c[0]); used.add(c[0].i); start = c[0].a; }
+      const coords = [];
+      for(const e of chain) for(let k = coords.length ? 1 : 0; k < e.pts.length; k++) coords.push(ll(e.pts[k]));
+      out.push({type:"Feature", properties:{k:"rm", col:DIFF[e0.diff].col, f:e0.diff === "f" ? 1 : 0, o:RUN_ORDER[e0.diff] ?? 2, n:chain.length}, geometry:{type:"LineString", coordinates:smoothLine(coords)}});
+    }
+    return out;
   }
   function routeData(){
     const A = S.area, f = [];
@@ -778,7 +813,7 @@ const M3 = (() => {
     // kabel geraakt: meteen de liftpopup, halverwege de lift (niet bij een station)
     if(cab){ const e = S.area?.edges[cab.i]; if(e){ const a = e.pts[0], b = e.pts[e.pts.length - 1], mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       return edgePopup(cab.i, mid, nearestNode(mid[0], mid[1]).n); } }
-    const hit = gl.queryRenderedFeatures(box, {layers:["run", "run-route", "lift", "drag", "closed"].filter(id => gl.getLayer(id))})[0];
+    const hit = gl.queryRenderedFeatures(box, {layers:["run-hit", "lift", "drag", "closed"].filter(id => gl.getLayer(id))})[0];
     const mpp = 40075016.686 * Math.cos(ev.lngLat.lat * Math.PI / 180) / (512 * 2 ** gl.getZoom());   // meters per pixel in het midden
     window.pick3d?.(ev.lngLat.lat, ev.lngLat.lng, hit ? hit.properties.i : null, mpp);
   }
