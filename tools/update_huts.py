@@ -52,6 +52,44 @@ def website(t):
 DEADLINE = float("inf")
 
 
+def check_site(url):
+    """Controleert een website uit OpenStreetMap, want die adressen zijn vaak verouderd.
+    Geeft het adres terug dat werkt: het adres zelf, de voorpagina als alleen de onderpagina weg is (404/410),
+    of "" als de site niet meer bestaat (naam niet gevonden). Bij twijfel (time-out, geblokkeerd) blijft het adres staan."""
+    import socket, urllib.error
+    def status(u):
+        req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (compatible; Skipilot link check)", "Accept": "text/html,*/*"})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as r: return r.status
+        except urllib.error.HTTPError as e: return e.code
+        except urllib.error.URLError as e: return "dns" if isinstance(e.reason, socket.gaierror) else None
+        except Exception: return None
+    st = status(url)
+    if st == "dns": return ""
+    if st in (404, 410):
+        p = urllib.parse.urlsplit(url); root = f"{p.scheme}://{p.netloc}/"
+        if root != url and p.path not in ("", "/"):
+            rs = status(root)
+            if rs == "dns": return ""
+            if isinstance(rs, int) and rs < 400: return root
+        return ""
+    return url
+
+
+def check_sites(urls, budget_s=600):
+    """Alle websites tegelijk nalopen (16 tegelijk), hooguit budget_s seconden; wat niet aan de beurt komt blijft ongewijzigd."""
+    from concurrent.futures import ThreadPoolExecutor, wait
+    urls = sorted(set(u for u in urls if u)); res = {}
+    if not urls: return res
+    ex = ThreadPoolExecutor(16); futs = {ex.submit(check_site, u): u for u in urls}
+    done, _ = wait(futs, timeout=budget_s)
+    for f in done:
+        try: res[futs[f]] = f.result()
+        except Exception: pass
+    ex.shutdown(wait=False, cancel_futures=True)
+    return res
+
+
 def query(s, w, n, e):
     q = Q.format(s=s, w=w, n=n, e=e)
     for attempt in range(2 * len(ENDPOINTS)):
@@ -135,6 +173,14 @@ def main():
     # per kaartbestand schrijven; een gebied is alleen bijgewerkt als al zijn stukken kaart gelukt zijn,
     # anders houdt het wat er al stond
     done = {aid for aid in boxes if not todo[aid] and aid not in failed}
+    # websites nalopen: dode adressen eruit, verdwenen onderpagina's naar de voorpagina
+    fixed = check_sites([it[4] for aid in done for it in found.get(aid, {}).values()])
+    gone = moved = 0
+    for aid in done:
+        for it in found.get(aid, {}).values():
+            new = fixed.get(it[4], it[4])
+            if new != it[4]: gone += new == ""; moved += new != ""; it[4] = new
+    print(f"websites: {len(fixed)} nagelopen, {gone} weggehaald (bestaat niet meer), {moved} naar de voorpagina", flush=True)
     for shard in shards:
         out = {}
         for aid, sh in shard_of.items():
@@ -142,7 +188,10 @@ def main():
             if aid in done: out[aid] = sorted(found.get(aid, {}).values())   # ook leeg: dan weet de app dat er niets is
             elif aid in old[shard]: out[aid] = old[shard][aid]
         if not out and not old[shard]: continue
-        json.dump(out, open(os.path.join(DATA, f"h{shard:03d}.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+        # eerst naar een tijdelijk bestand en dan in één keer vervangen: een half geschreven bestand kan zo niet blijven staan
+        path = os.path.join(DATA, f"h{shard:03d}.json"); tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh: json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+        json.load(open(tmp, encoding="utf-8")); os.replace(tmp, path)
     mins = (time.time() - start) / 60
     print(f"klaar na {mins:.0f} min: {len(done)}/{len(boxes)} gebieden bijgewerkt, {sum(len(found[a]) for a in done)} plekken", flush=True)
     # alleen een fout als er helemaal niets lukte (dan is er waarschijnlijk iets mis met het script of met Overpass)

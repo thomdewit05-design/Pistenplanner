@@ -41,11 +41,16 @@ jobs:
           python-version: "3.12"
       - name: Hutten ophalen
         run: python tools/update_huts.py --shard ${{ matrix.shard }} --budget 75
+      # Alleen het eigen bestand uploaden. Eerst gingen alle h*.json van elke taak mee; bij het samenvoegen schreven dan
+      # meerdere taken tegelijk hetzelfde bestand en raakte het beschadigd (ongeldige JSON).
+      - id: f
+        if: always()
+        run: echo "file=$(printf 'data/h%03d.json' ${{ matrix.shard }})" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: huts-${{ matrix.shard }}
-          path: data/h*.json
+          path: ${{ steps.f.outputs.file }}
           if-no-files-found: ignore
           retention-days: 3
 
@@ -64,6 +69,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # een bestand dat geen geldige JSON is, gaat niet mee: dan blijft de vorige versie staan
+          for f in data/h*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f" || { echo "ongeldig, overgeslagen: $f"; git checkout -- "$f" 2>/dev/null || rm -f "$f"; }
+          done
           git add data/h*.json
           if git diff --cached --quiet; then echo "niets veranderd"; exit 0; fi
           git commit -m "Hutten en restaurants bijgewerkt"
