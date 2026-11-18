@@ -2455,7 +2455,7 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   /* vensters over het hele scherm: compact, de knop altijd in beeld */
   .onb{padding:calc(8px + var(--safe-t)) calc(20px + var(--safe-r)) calc(8px + var(--safe-b)) calc(20px + var(--safe-l));overflow:auto}
   .onb-card{max-width:560px;gap:8px}
-  .onb-art{width:92px;margin-bottom:0;border-radius:22px}
+  .onb-art{width:120px;margin-bottom:0;border-radius:18px}
   .onb h2{font-size:20px;margin:0}
   .onb-card>p{margin:0;font-size:14px}
   .onb-q{flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center}
@@ -2486,8 +2486,41 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   .sheet:not(.open) .pe-main p b{font-size:15px}
   .sheet:not(.open) .cta .btn{padding:8px 14px}
 }
+/* ===== eigen beeldtaal: illustraties en emblemen ===== */
+:root{--art-sky:#DCEBFA;--art-sun:#FFE08A;--art-far:#9DBEDB;--art-mid:#5F8FB8;--art-near:#F4F9FE;--art-snow:#FFFFFF;--art-accent:#FFC400;--art-ink:#0F1B2A;--art-track:#A9C6DE;--art-pin2:#1D6FB0;--art-pin3:#E0483C}
+:root[data-theme=dark]{--art-sky:#15283C;--art-sun:#F2C94C;--art-far:#2C4A66;--art-mid:#3F6A8E;--art-near:#DCE8F3;--art-snow:#F4F8FC;--art-ink:#0F1B2A;--art-track:#8FB0CC}
+.art{display:block;width:100%;height:100%}
+.empty-ill{grid-column:1/-1;justify-self:center;width:min(100%,220px);aspect-ratio:4/3;border-radius:22px;overflow:hidden;margin:4px auto 2px;box-shadow:0 10px 26px rgba(8,24,44,.12);flex:none}
+.empty-ill.wide{width:100%;aspect-ratio:auto;height:92px;margin:0 0 10px;box-shadow:none}
+.empty-li{display:flex!important;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:10px 6px}
+.empty-li .empty-ill{width:min(100%,180px)}
+.fav-empty{display:flex;align-items:center;gap:12px}
+.fav-empty .empty-ill{width:96px;margin:0;box-shadow:none;border-radius:14px}
+.fav-empty .m-hint{margin:0}
+.dl-card .empty-ill{width:140px}
+.onb-art{overflow:hidden;aspect-ratio:4/3;width:min(72vw,280px)}
+.onb-art svg.art{width:100%;height:100%}
+/* embleem: schild met het pictogram erin */
+.emb{position:relative;display:inline-grid;place-items:center;width:40px;height:44px;flex:none;margin-bottom:4px;--e1:#C98A56;--e2:#9A5F33}
+.emb.t2{--e1:#C9D3DD;--e2:#8996A3}
+.emb.t3{--e1:#FFD24A;--e2:#E08A1E}
+.emb svg:first-child{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.emb-s{fill:none;stroke:var(--faint);stroke-width:2;stroke-dasharray:3 3;stroke-linejoin:round}
+.emb-h{fill:none}
+.emb .ic{position:relative;width:18px;height:18px;color:var(--faint);margin-top:4px}
+.emb.ok .emb-s{fill:var(--e1);stroke:var(--e2);stroke-dasharray:none}
+.emb.ok .emb-h{fill:rgba(255,255,255,.38)}
+.emb.ok .ic{color:#fff;filter:drop-shadow(0 1px 0 rgba(0,0,0,.25))}
+.emb.t2.ok .ic{color:#2B3947;filter:none}
+.emb.ok{filter:drop-shadow(0 3px 5px rgba(8,24,44,.18))}
+.bdg-row{gap:4px}
+.bdg-row .emb{width:30px;height:33px;margin:0}
+.bdg-row .emb .ic{width:14px;height:14px;margin-top:3px}
+.bdg-row span.emb,.bdg-row span.emb.ok{background:none;border-radius:0}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
+  .onb-art{width:132px;border-radius:18px}
+  .empty-ill{width:150px}
   /* de zonbalk staat boven de regel onderaan, niet erachter; een melding schuift er dan boven */
   .sun-bar{bottom:calc(72px + var(--safe-b))}
   body:has(#sunBar:not([hidden])) .toast{bottom:calc(150px + var(--safe-b))!important}
