@@ -252,6 +252,21 @@ function applyBase(){
 const shards = {};
 // versie van de kaartdata: verhogen na het opnieuw bouwen van data/, zodat telefoons de nieuwe bestanden ophalen
 const DATA_V = "d4";
+// ================= kilometers: opgave van het gebied naast onze meting =================
+// De kilometers in data/index.json zijn gemeten langs de pistes op de kaart. Skigebieden geven zelf vaak een hoger getal op
+// (ze tellen de breedte van pistes mee, of skiroutes). Waar we de opgave van het gebied konden bevestigen, tonen we beide, elk met zijn naam.
+// Sleutel: de eerste 8 tekens van het id. Waarde: [km volgens het gebied, bron, seizoen]. Alleen bevestigde getallen; de rest staat als "gemeten".
+const OFFICIAL_KM = {b4c1b4b8:[1200, "dolomitisuperski.com", "2025/26"], "68b126bc":[600, "les3vallees.com", "2025/26"], "70b5c16a":[600, "portesdusoleil.com", "2025/26"],
+  "91c44085":[425, "lesarcs.com", "2025/26"], dec537b6:[200, "lesarcs.com", "2025/26"], ab64447a:[445, "Evasion Mont-Blanc", "2025/26"], "53410fc6":[300, "skiarlberg.at", "2025/26"],
+  "180faeea":[270, "austria.info", "2025/26"], "37ee9c6b":[275, "skiwelt.at", "2025/26"], fc76f378:[360, "myswitzerland.com", "2025/26"], a6e33a70:[300, "Tignes – Val d'Isère", "2025/26"],
+  "1eeb56a8":[188, "austria.info", "2025/26"], fa9477e2:[410, "valais.ch", "2025/26"], efaa82d7:[265, "Grand Massif", "2025/26"], e587928e:[214, "tirol.at", "2025/26"],
+  "7c2f2690":[239, "Ischgl / Samnaun", "2025/26"], "4ae9b0cb":[225, "Arosa Lenzerheide", "2025/26"], "94cb050e":[250, "Serre Chevalier", "2025/26"], "775634f8":[310, "Les Sybelles", "2025/26"],
+  bbbfaa27:[150, "Zillertal Arena", "2025/26"], "0e7ba1fd":[142, "Mayrhofen", "2025/26"]};
+const officialKm = r => OFFICIAL_KM[String(r[0]).slice(0, 8)] || null;
+// kort (lijst, bovenbalk): het getal van het gebied als we dat hebben, anders het gemeten getal met de naam erbij
+const kmShort = r => { const o = officialKm(r); return o ? `${o[0]} km` : `${r[6]} km ${tr("gemeten")}`; };
+// volledig (detail, download, vergelijken): beide getallen, elk benoemd
+const kmFull = r => { const o = officialKm(r); return o ? `${o[0]} km ${tr("volgens het gebied")} · ${r[6]} km ${tr("gemeten")}` : `${r[6]} km ${tr("gemeten")}`; };
 const loadShard = n => shards[n] ??= fetch(`data/s${String(n).padStart(3,"0")}.json?${DATA_V}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
 
 function renderCountries(){
@@ -281,7 +296,7 @@ function areaRow(r, dist){
   return `<li><button type="button" class="area-main" data-id="${r[0]}" aria-current="${S.area?.id===r[0]}">
       <span class="cc">${flagOf(r[2])}</span>
       <span><span class="nm">${esc(r[1])}</span><span class="rg">${dist != null ? `${(dist/1000).toFixed(0)} km van je · ` : ""}${r[3] ? esc(r[3]) + " · " : ""}${r[7]} liften${r[10] ? ` · ${r[9]}–${r[10]} m` : ""}</span></span>
-      <span class="km">${r[6]}<small>km piste</small></span></button>
+      <span class="km">${officialKm(r) ? officialKm(r)[0] : r[6]}<small>${officialKm(r) ? tr("km opgave") : tr("km gemeten")}</small></span></button>
     <button type="button" class="fav${isFav(r[0]) ? " on" : ""}" data-fav="${r[0]}" aria-pressed="${isFav(r[0])}" aria-label="${isFav(r[0]) ? "Uit favorieten halen" : "Als favoriet bewaren"}: ${esc(r[1])}"><svg class="ic"><use href="#i-star"/></svg></button></li>`;
 }
 function renderAreas(){
@@ -396,7 +411,7 @@ async function openArea(id, opts={}){
   loadStatus(); applyPendingShare();
   S.target = null; S.via = null;
   $("places").innerHTML = [...skiNames.keys(), ...names.keys()].sort((a,b)=>a.localeCompare(b,"nl")).map(s => `<option value="${esc(tr(s))}"></option>`).join("");
-  S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${row[6]} km piste · ${row[7]} liften`;
+  S.area.statsTxt = `${COUNTRY[row[2]]||row[2]} · ${kmShort(row)} · ${row[7]} liften`;
   $("brandRegion").textContent = regionName(row[12]);
   $("areaStats").textContent = S.area.statsTxt;
   $("ticketCard").href = ticketUrl(); $("ticketCard").hidden = false;
@@ -1431,7 +1446,7 @@ function updateNav(){
   const liftAhead = S.steps.slice(ns.i).some(x => x.t==="l");
   const nw = $("navWarn");
   if(liftAhead && toGo > 0 && toGo <= 30){
-    nw.hidden = false; nw.innerHTML = `${I("clock")}<span>Liften sluiten om ${S.liftClose}, over ${toGo} min</span>`;
+    nw.hidden = false; nw.innerHTML = `${I("clock")}<span>Liften sluiten om ${S.liftClose}, over ${toGo} min</span><small class="nw-src">${tr("volgens jouw instelling")}</small>`;
     const key = new Date().toDateString();
     if(S.closeWarned !== key){ S.closeWarned = key; toast(`De liften sluiten over ${toGo} minuten.`, 4000); speak(`Let op: de liften sluiten over ${toGo} minuten.`); }
   } else nw.hidden = true;
@@ -3717,8 +3732,13 @@ function planLunch(at, dur, quiet, noDraw){
   // per knooppunt één plek; alleen plekken die je kunt bereiken, de 40 die het dichtst bij je route liggen
   const byNode = new Map(); for(const h of huts){ const o = byNode.get(h.node); if(!o || (!o.name && h.name)) byNode.set(h.node, h); }
   const reach = reachFrom(S.from), route = S.path.map(x => A.nodes[x.to]);
+  // Eerst goedkoop schatten welke plekken kansrijk zijn: hoe ver van de route, en hoe laat je daar ongeveer langskomt.
+  // Alleen voor de beste 14 wordt de route echt doorgerekend (voorheen voor 40: dat kostte op een telefoon een halve seconde).
+  const cum = []; S.path.reduce((t, x, i) => (cum[i] = t + x.min), 0);
   const cands = [...byNode.values()].filter(h => reach[h.node] < Infinity)
-    .map(h => ({h, d:Math.min(...route.map(p => meters(p.lat, p.lon, h.lat, h.lon)))})).sort((a, b) => a.d - b.d).slice(0, 40);
+    .map(h => { let d = Infinity, j = 0; route.forEach((p, i) => { const m = meters(p.lat, p.lon, h.lat, h.lon); if(m < d){ d = m; j = i; } });
+      return {h, d, pre:Math.abs(t0 + cum[j] - want) + d / 40 + (h.kind === "b" || h.kind === "f" ? 15 : 0) + (h.name ? 0 : 20)}; })
+    .filter(c => c.d < 2500).sort((a, b) => a.pre - b.pre).slice(0, 14);
   const keep = S.lunch; let best = null;
   for(const {h} of cands){
     S.lunch = {n:h.node, at, dur};
@@ -4295,10 +4315,10 @@ function renderToday(){
         <p class="hero-sub">${w ? `${esc(w.txt)} · ${deg(w.cd.temperature_2m)} ${tr("in het dal")}` : S.wxFail === A.id ? `<button type="button" class="hero-retry" id="tdRetry">${I("reset")}${tr("Opnieuw")}</button>` : ""}</p>
         <p class="hero-alt">${I("flag")}${r[9] ?? "?"}–${r[10] ?? "?"} m · ${COUNTRY[r[2]] || r[2]}</p></div></section>`
     + `<div class="tiles dc">
-        ${w || S.wxFail !== A.id ? tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", "laatste 24 uur") : ""}
-        ${w || S.wxFail !== A.id ? tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", "op de top") : ""}
+        ${w || S.wxFail !== A.id ? tile("snow", "Vers", w ? num(Math.round(w.fresh)) : null, "cm", `${tr("laatste 24 uur")} <span class="est">≈</span>`) : ""}
+        ${w || S.wxFail !== A.id ? tile("depth", "Sneeuw", w ? num(w.depth) : null, "cm", `${tr("op de top")} <span class="est">≈</span>`) : ""}
         ${!(w || S.wxFail !== A.id) ? "" : tile("wind", "Wind", w ? num(Math.round(w.c.wind_speed_10m)) : null, "km/u", w && w.c.wind_gusts_10m >= 60 ? `<span class="warnc">${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}</span>` : (w ? `${tr("stoten tot")} ${Math.round(w.c.wind_gusts_10m)}` : tr("op de top")))}
-        ${tile("lift", "Liften open", num(openKeys.size), `/ ${liftKeys.size}`, windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")}</span>` : "")}
+        ${tile("lift", "Liften", num(liftKeys.size), "", windRisk ? `<span class="warnc">${windRisk} ${tr("mogelijk dicht door wind")} <span class="est">≈</span></span>` : liftKeys.size > openKeys.size ? `${liftKeys.size - openKeys.size} ${tr("door jou gesloten")}` : tr("in dit gebied"))}
       </div>`
     + (toGo > 0 && toGo <= 90 ? `<div class="closing-card dc">${I("clock")}<span><b>${tr("Liften sluiten over")} ${toGo} min</b><small>${tr("Laatste lift om")} ${S.liftClose}</small></span></div>` : "")
     + (tripGet() && dayDiff(tripGet().to) >= 0 ? tripCard() : "")
@@ -4916,8 +4936,9 @@ function areaInfo(){
   if(km.f / tot > .08) dna.push(["ski", "Veel skiroutes"]);
   const lo = r[9] ?? 0, hi = r[10] ?? 0;
   return `<section class="dc area-info"><p class="label">${I("flag")}${tr("Over dit gebied")}</p>
-    <div class="ai-top"><svg viewBox="0 0 120 120" class="ai-donut"><circle cx="60" cy="60" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="16"/>${arcs}<text x="60" y="58" text-anchor="middle" class="ai-n">${Math.round(tot)}</text><text x="60" y="74" text-anchor="middle" class="ai-u">km piste</text></svg>
+    <div class="ai-top"><svg viewBox="0 0 120 120" class="ai-donut"><circle cx="60" cy="60" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".08" stroke-width="16"/>${arcs}<text x="60" y="58" text-anchor="middle" class="ai-n">${Math.round(tot)}</text><text x="60" y="74" text-anchor="middle" class="ai-u" style="font-size:10px">km ${tr("gemeten")}</text></svg>
       <ul class="ai-leg">${seg.map(([k, col, nm]) => `<li><i style="background:${col}"></i>${tr(nm)}<b>${Math.round(km[k])} km</b></li>`).join("")}</ul></div>
+    <p class="ai-km">${I("help")}<span>${officialKm(r) ? `<b>${officialKm(r)[0]} km ${tr("volgens het gebied")}</b> (${esc(officialKm(r)[1])}, ${officialKm(r)[2]}) · <b>${Math.round(tot)} km ${tr("gemeten")}</b>. ` : `<b>${Math.round(tot)} km ${tr("gemeten")}</b>. `}${tr("Gemeten is de lengte langs de pistes op de kaart. Skigebieden tellen vaak ook de breedte van pistes en skiroutes mee, en komen daardoor hoger uit.")}</span></p>
     <div class="ai-alt"><span>${lo} m</span><div class="ai-altbar"><i style="--a:${lo / 4000 * 100}%;--b:${hi / 4000 * 100}%"></i></div><span>${hi} m</span></div>
     <div class="ai-lifts">${Object.entries(lifts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span>${I(k)}<b>${n}</b></span>`).join("")}<span>${I("hut")}<b>${A.huts?.length || 0}</b></span></div>
     ${dna.length ? `<div class="ai-dna">${dna.map(([ic, t]) => `<span>${I(ic)}${tr(t)}</span>`).join("")}</div>` : ""}
@@ -4931,7 +4952,7 @@ async function _openCompare(){
   const col = (r, i) => `<th${i ? "" : ' class="me"'}>${esc(r[1])}</th>`;
   el.innerHTML = `<div class="picker-head"><div><p class="label">${tr("Skigebieden")}</p><h2>${tr("Vergelijken")}</h2></div><button type="button" class="icon-btn" id="detClose" aria-label="${tr("Sluiten")}">${I("close")}</button></div>
     <div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>${rows.map(col).join("")}</tr></thead><tbody>
-      <tr><td>${I("ski")}${tr("Pistes")}</td>${rows.map(r => `<td>${r[6]} km</td>`).join("")}</tr>
+      <tr><td>${I("ski")}${tr("Pistes")}</td>${rows.map(r => `<td>${officialKm(r) ? `${officialKm(r)[0]} km<small class="km-sub">${r[6]} ${tr("gemeten")}</small>` : `${r[6]} km<small class="km-sub">${tr("gemeten")}</small>`}</td>`).join("")}</tr>
       <tr><td>${I("lift")}${tr("Liften")}</td>${rows.map(r => `<td>${r[7]}</td>`).join("")}</tr>
       <tr><td>${I("down")}${tr("Hoogte")}</td>${rows.map(r => `<td>${r[9] ?? "?"}–${r[10] ?? "?"} m</td>`).join("")}</tr>
       <tr><td>${I("snow")}${tr("Sneeuwhoogte")}</td>${rows.map((r, i) => `<td id="cmpD${i}"><i class="skel" style="width:40px;height:14px;display:inline-block"></i></td>`).join("")}</tr>
@@ -5186,7 +5207,7 @@ async function tripInfo(id){
   const hi = r[10] ?? 0, sure = hi >= 2800 ? [3, tr("Zeer sneeuwzeker")] : hi >= 2200 ? [2, tr("Sneeuwzeker")] : hi >= 1700 ? [1, tr("Redelijk sneeuwzeker")] : [0, tr("Laag gelegen: let op de sneeuw")];
   const dest = `${r[5]},${r[4]}`, nav = window.PP_STORE === "ios" || /iPhone|iPad/.test(navigator.userAgent) ? `https://maps.apple.com/?daddr=${dest}` : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
   box.innerHTML = `<section class="dc"><p class="label">${I("map")}${esc(r[1])}</p>
-    <div class="det-tiles"><div class="det-tile">${I("ski")}<small>${tr("Pistes")}</small><b>${r[6]}<i> km</i></b></div><div class="det-tile">${I("down")}<small>${tr("Hoogte")}</small><b>${r[10] ?? "?"}<i> m</i></b></div><div class="det-tile">${I("snow")}<small>${tr("Sneeuwhoogte")}</small><b id="tpDepth">…</b></div></div>
+    <div class="det-tiles"><div class="det-tile">${I("ski")}<small>${tr("Pistes")} · ${officialKm(r) ? tr("opgave") : tr("gemeten")}</small><b>${officialKm(r) ? officialKm(r)[0] : r[6]}<i> km</i></b></div><div class="det-tile">${I("down")}<small>${tr("Hoogte")}</small><b>${r[10] ?? "?"}<i> m</i></b></div><div class="det-tile">${I("snow")}<small>${tr("Sneeuwhoogte")}</small><b id="tpDepth">…</b></div></div>
     <p class="sure s${sure[0]}">${I("snow")}${sure[1]} <small class="est">${tr("schatting op hoogte")}</small></p><div id="tpWx"></div>
     <div class="det-btns"><a class="btn ghost" href="${nav}" target="_blank" rel="noopener">${I("car")}${tr("Route ernaartoe")}</a><a class="btn ghost" href="https://www.google.com/search?q=${encodeURIComponent(r[1] + " skipas prijs")}" target="_blank" rel="noopener">${I("ticket")}${tr("Skipasprijzen")}</a></div></section>`;
   try{
@@ -5251,7 +5272,7 @@ function downloadGate(row, bounds){
     g._close = close;
     const others = () => { const l = downloadedList().filter(d => d.id !== row[0]).slice(0, 6);
       return l.length ? `<p class="dl-sub">${tr("Gedownloade gebieden")}</p><div class="dl-list">${l.map(d => `<button type="button" class="dl-row" data-go="${d.id}">${I("check")}<b>${esc(d.row[1])}</b>${I("chev")}</button>`).join("")}</div>` : ""; };
-    const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${row[6]} km · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
+    const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${kmFull(row)} · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
     const offline = () => {
       g.innerHTML = `<div class="dl-card">${head.replace(/<div class="dl-art">.*?<\/div>/, `<div class="empty-ill">${ART("offline")}</div>`)}<p class="dl-lead off">${I("cloud")}<span>${tr("Je bent offline en dit gebied staat nog niet op je telefoon. Maak verbinding om het te downloaden.")}</span></p>
         <button type="button" class="btn primary dl-go" id="dlRetry">${I("reset")}${tr("Opnieuw proberen")}</button>${others()}

@@ -25,6 +25,10 @@ for(const lang of LANGS){
   const p = await ctx.newPage();
   p.on("pageerror", e => problems.push(`[${lang}] fout in de pagina: ${e.message}`));
   await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForTimeout(2000);
+  // de tabel met opgaven van gebieden: elk gebied bestaat, heeft een getal, een bron en een seizoen, en de opgave is niet lager dan de meting
+  if(lang === "nl"){ const bad = await p.evaluate(() => Object.entries(OFFICIAL_KM).filter(([k, v]) => { const r = S.index.filter(r => r[0].startsWith(k));
+      return r.length !== 1 || !(v[0] > 0) || !v[1] || !/^\d{4}\/\d{2}$/.test(v[2]) || v[0] < r[0][6] * .95; }).map(([k]) => k));
+    bad.forEach(k => problems.push(`opgave van het gebied klopt niet voor ${k}`)); }
   await p.evaluate(async () => { const r = S.index.find(r => /Arlberg/.test(r[1])) || S.index[0]; localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); }).catch(e => problems.push(`[${lang}] gebied openen: ${e.message}`));
   await p.waitForTimeout(2000);
   const screens = [["kaart", () => {}], ["vandaag", () => setTab("today")], ["groep", () => setTab("group")], ["ik", () => setTab("me")],
