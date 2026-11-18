@@ -1,0 +1,6 @@
+/* Toestemmingsteksten van Skipilot */
+"NSLocationWhenInUseUsageDescription" = "Skipilot 使用您的位置来显示您在雪道上的位置、沿路线为您导航并记录滑雪日记。除非您与小组共享，否则位置只保存在手机上。";
+"NSUserTrackingUsageDescription" = "Skipilot 依靠广告免费提供。经您允许，广告会更符合您的兴趣。您可以随时在“设置”中更改。";
+"NSHealthUpdateUsageDescription" = "Skipilot 会将您的滑雪日作为高山滑雪体能训练保存到 Apple 健康，包含距离和估算的卡路里。";
+"NSCameraUsageDescription" = "当您为滑雪日添加照片时，Skipilot 会使用相机。";
+"NSPhotoLibraryAddUsageDescription" = "当您选择保存时，Skipilot 会将滑雪日的图片或视频保存到照片图库。";

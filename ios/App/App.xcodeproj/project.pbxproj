@@ -34,6 +34,7 @@
 		CA4E6D648B26430C93DBFFEF /* NavPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B4A0CA5E8D2EA7F0314174 /* NavPlugin.swift */; };
 		E59E9132C8E2C4FD84D09B74 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E09FE0ECC0605CC98381A342 /* SwiftUI.framework */; };
 		F51FF7441AFC7065932924C8 /* NavAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB31EF8C9A37A6B230D32322 /* NavAttributes.swift */; };
+		A7C1E0020000000000000002 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A7C1E0020000000000000001 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -110,6 +111,16 @@
 		F02783FDDBC54DB6C925265A /* SkipilotWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SkipilotWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0C64F8798F1FA43F9C4CF5B /* Shortcuts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		F0D5AD2A308DE2615B3BF605 /* WidgetPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetPlugin.swift; sourceTree = "<group>"; };
+		A7C1E0020000000000000010 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "nl"; path = "nl.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000011 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "en.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000012 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "de"; path = "de.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000013 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "fr"; path = "fr.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000014 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "it"; path = "it.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000015 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "es"; path = "es.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000016 /* pt-PT */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-PT"; path = "pt-PT.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000017 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ru"; path = "ru.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000018 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		A7C1E0020000000000000019 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ja"; path = "ja.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -201,6 +212,7 @@
 				E8B4A0CA5E8D2EA7F0314174 /* NavPlugin.swift */,
 				F0C64F8798F1FA43F9C4CF5B /* Shortcuts.swift */,
 				A7C1E0010000000000000001 /* PrivacyInfo.xcprivacy */,
+				A7C1E0020000000000000001 /* InfoPlist.strings */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -311,6 +323,15 @@
 			knownRegions = (
 				en,
 				Base,
+				nl,
+				de,
+				fr,
+				it,
+				es,
+				"pt-PT",
+				ru,
+				"zh-Hans",
+				ja,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
@@ -347,6 +368,7 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 				A7C1E0010000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
+				A7C1E0020000000000000002 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -426,6 +448,23 @@
 				504EC3111FED79650016851F /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		A7C1E0020000000000000001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A7C1E0020000000000000010 /* nl */,
+				A7C1E0020000000000000011 /* en */,
+				A7C1E0020000000000000012 /* de */,
+				A7C1E0020000000000000013 /* fr */,
+				A7C1E0020000000000000014 /* it */,
+				A7C1E0020000000000000015 /* es */,
+				A7C1E0020000000000000016 /* pt-PT */,
+				A7C1E0020000000000000017 /* ru */,
+				A7C1E0020000000000000018 /* zh-Hans */,
+				A7C1E0020000000000000019 /* ja */,
+			);
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
