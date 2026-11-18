@@ -106,6 +106,12 @@ for(const phone of PHONES){
       await shot("tab-" + t);
     }
     await p.evaluate(() => setTab("map")); await p.waitForTimeout(300);
+    // SOS: de belknop is volledig zichtbaar (niet in elkaar gedrukt), ook op een klein scherm
+    await p.evaluate(() => document.getElementById("sosBtn").click()); await p.waitForTimeout(600);
+    const sos = await p.evaluate(() => { const c = document.getElementById("sosMain"), b = c.querySelector("b").getBoundingClientRect(), r = c.getBoundingClientRect();
+      return {h:Math.round(r.height), need:c.scrollHeight, cut:b.top < r.top - 1 || b.bottom > r.bottom + 1}; });
+    if(sos.cut || sos.h < sos.need - 2) problems.push(`[${tag}] SOS: "Bel 112" is afgesneden (knop ${sos.h}px, nodig ${sos.need}px)`);
+    await shot("sos");
     await ctx.close();
   }
 }
