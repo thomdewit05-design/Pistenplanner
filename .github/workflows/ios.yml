@@ -17,7 +17,9 @@ on:
   pull_request:
     paths: [index.html, app.js, app.css, i18n.js, config.js, ads.js, map3d.js, terrain.js, "vendor/**", "data/index.json", "ios/**", package.json, package-lock.json, capacitor.config.json, tools/build_www.mjs, .github/workflows/ios.yml]
 concurrency:
-  group: ios-${{ github.ref }}
+  # een eigen groep per soort start: de proefbouw na een merge en de TestFlight-upload zaten elkaar anders in de weg,
+  # waardoor de upload een kwartier bleef wachten en dan afbrak
+  group: ios-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   ios:
