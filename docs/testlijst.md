@@ -73,8 +73,8 @@ Loop dit door op een echte iPhone, en waar het kan op een Android-telefoon.
   - Doen: Menu, Batterij sparen aan, dan 3D openen.
   - Verwacht: geen bewegende cabines en geen sneeuw.
 - [ ] **Automatisch**
-  - Doen: de iOS-energiebesparingsmodus aanzetten, of de accu onder 20% laten zakken.
-  - Verwacht: binnen 5 minuten de melding "batterij sparen staat aan".
+  - Doen: de accu onder 20% laten zakken (niet aan de lader).
+  - Verwacht: binnen 5 minuten één keer de melding "Batterij …%: batterij sparen staat aan". De energiebesparingsmodus van iOS alleen zet het niet aan.
 
 ## 6. Widgets, Siri en Watch
 - [ ] **Widgets**

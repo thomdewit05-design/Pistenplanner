@@ -9,14 +9,26 @@ const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const POWER = {low:false};
 const saving = () => !!(S?.saver || POWER.low);
 function applySaver(){ const on = saving(); document.documentElement.classList.toggle("saver", on); window.M3?.sync?.("sky"); }
-navigator.getBattery?.().then(b => { const upd = () => { const was = POWER.low; POWER.low = !b.charging && b.level <= .2;
-  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } };
+// Batterij sparen gaat vanzelf aan bij een accu van 20% of lager (niet aan de lader). Alleen de echte accustand telt:
+// de energiebesparingsmodus van iOS zetten veel mensen altijd aan, en dan ging sparen bij elke start aan met een onjuiste melding.
+// level: 0..1, of onbekend (kleiner dan of gelijk aan 0, of geen getal): dan verandert er niets.
+function setPower(level, charging){
+  if(!(level > 0)) return;
+  const was = POWER.low; POWER.low = !charging && level <= .2;
+  if(was === POWER.low) return;
+  applySaver();
+  if(!POWER.low || S.saver) return;
+  // de melding hooguit één keer per dag
+  const day = new Date().toDateString(); let seen = ""; try{ seen = localStorage.getItem("pp-saver-told") || ""; }catch(e){}
+  if(seen === day) return; try{ localStorage.setItem("pp-saver-told", day); }catch(e){}
+  toast(`${tr("Batterij")} ${Math.round(level * 100)}%: ${tr("batterij sparen staat aan.")}`, 3500);
+}
+navigator.getBattery?.().then(b => { const upd = () => setPower(b.level, b.charging);
   b.addEventListener("levelchange", upd); b.addEventListener("chargingchange", upd); upd(); }).catch(() => {});
-// iOS-app: batterij (en de energiebesparingsmodus van iOS) elke 5 minuten bij de app opvragen
+// iOS-app: de webweergave geeft de accustand niet door, dus die elke 5 minuten bij de app opvragen
 if(window.PP_STORE === "ios" && !navigator.getBattery){ const ask = async () => { try{ const r = await window.Capacitor?.nativePromise?.("Nav", "battery", {});
-  if(!r) return; const was = POWER.low; POWER.low = r.lowPower || (!r.charging && r.level >= 0 && r.level <= .2);
-  if(was !== POWER.low){ applySaver(); if(POWER.low && !S.saver) toast(tr("Batterij onder 20%: batterij sparen staat aan."), 3500); } }catch(e){} };
-  setTimeout(ask, 3000); setInterval(ask, 5 * 60000); }
+  if(r) setPower(r.level, r.charging); }catch(e){} };
+  window.ppAskBattery = ask; setTimeout(ask, 3000); setInterval(ask, 5 * 60000); }
 function animHidden(el, ms = 220){
   if(!el) return;
   let want = el.hasAttribute("hidden"), timer = 0;
