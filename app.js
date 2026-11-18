@@ -1100,6 +1100,14 @@ function renderClosed(){
 }
 
 // ================= kaart aantikken =================
+// raakmarge rond een piste of lift, in schermpixels (een vinger is breder dan een muisaanwijzer)
+const TAP_PX = 24;
+// liftstations: begin- en eindpunt van een lift (één keer per gebied bepaald)
+function isStation(n){
+  const A = S.area; if(!A) return false;
+  if(!A.stations){ A.stations = new Set(); for(const e of A.edges) if(e.t === "l"){ A.stations.add(e.a); A.stations.add(e.b); } }
+  return A.stations.has(n);
+}
 map.on("click", ev => {
   if(!S.area || POV.on) return;
   if(S.pickHome){ setHome(ev.latlng.lat, ev.latlng.lng, S.pickHome); return; }
@@ -1131,7 +1139,11 @@ map.on("click", ev => {
     if(be >= 0 && bed < 16) return addWp({k:"n", n:bn});
     toast("Tik op een piste, een lift of een liftstation."); return;
   }
-  if(be >= 0 && bed < 16 && bd > 14) return edgePopup(be, ev.latlng, bn);
+  // De piste of lift gaat voor: het informatievenster opent, tenzij je op een liftstation tikt (de getekende stip).
+  // Eerst won elk punt binnen 14 px, ook de onzichtbare knippunten waar de kaartdata een piste in stukken deelt; die liggen
+  // overal langs een piste, dus uitgezoomd kwam het venster bijna nooit en veranderde stilletjes je vertrekpunt of bestemming.
+  const onStation = bd <= 10 && bd <= bed + 4 && isStation(bn);   // het station moet minstens zo dichtbij zijn als de lijn
+  if(be >= 0 && bed < TAP_PX && !onStation) return edgePopup(be, ev.latlng, bn);
   if(bd > 36){ toast("Tik op een piste, een lift of een liftstation."); return; }
   if(S.pick==="from"){ S.from = bn; S.fromMe = false; S.pick = "to"; } else { S.to = bn; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; }
   update();
@@ -1567,7 +1579,7 @@ function pick3d(lat, lon, edge, px){
   if(S.pickHome){ setHome(lat, lon, S.pickHome); return; }
   if(S.meetPick){ sendMeet(lat, lon); return; }
   const nn = nearestNode(lat, lon);   // px = meters per pixel op de 3D-kaart
-  if(edge != null && nn.d > 14 * px) return edgePopup(edge, [lat, lon], nn.n);
+  if(edge != null && !(nn.d <= 14 * px && isStation(nn.n))) return edgePopup(edge, [lat, lon], nn.n);   // de piste gaat voor, behalve op een liftstation
   if(nn.d > 36 * px){ toast("Tik op een piste, een lift of een liftstation."); return; }
   if(S.pick==="from"){ S.from = nn.n; S.fromMe = false; S.pick = "to"; } else { S.to = nn.n; S.target = null; S.via = null; S.pick = "from"; S.planBy = null; S.wps = []; }
   update();

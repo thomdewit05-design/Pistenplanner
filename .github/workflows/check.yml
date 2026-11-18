@@ -23,6 +23,8 @@ jobs:
         run: node tools/audit.mjs nl,de,fr,ru,ja
       - name: Routeberekening testen (niveau, gesloten liften, gezinsmodus)
         run: node tools/routes.mjs
+      - name: Aantikken van pistes (informatievenster opent, alleen liftstations worden direct gekozen)
+        run: node tools/taps.mjs
       - name: Schermen op iPhone-maten (lagenmenu, gebied in beeld, tabbalk, zonbalk)
         run: node tools/screens.mjs
       - name: Snelheid van de zwaarste handelingen (dagroute, gebied openen, tabs)

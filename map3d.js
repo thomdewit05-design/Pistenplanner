@@ -806,7 +806,7 @@ const M3 = (() => {
   // ---------- tikken ----------
   function onClick(ev){
     if(mode !== "view") return;
-    const p = ev.point, box = [[p.x - 14, p.y - 14], [p.x + 14, p.y + 14]];
+    const p = ev.point, box = [[p.x - 20, p.y - 20], [p.x + 20, p.y + 20]];   // ruim genoeg voor een vinger
     const hut = gl.queryRenderedFeatures([[p.x - 6, p.y - 6], [p.x + 6, p.y + 6]], {layers:["huts", "bus"]})[0];
     if(hut && S.area?.huts[hut.properties.j]) return hutPopup(S.area.huts[hut.properties.j]);
     const cab = pickCable(p.x, p.y);
