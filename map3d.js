@@ -214,11 +214,30 @@ const M3 = (() => {
     }
   };
   // tikken op een kabel: de kabel staat in de lucht, dus zelf projecteren (map.project kent geen hoogte)
+  // een punt van de kabel ([x, y, z] zoals in buildCables) naar schermpixels
+  function cableScr([x, y, z]){
+    const m = cableMatrix, W = gl.getCanvas().clientWidth, H = gl.getCanvas().clientHeight;
+    const cx = m[0]*x + m[4]*y + m[8]*z + m[12], cy = m[1]*x + m[5]*y + m[9]*z + m[13], w = m[3]*x + m[7]*y + m[11]*z + m[15];
+    return w <= 0 ? null : [(cx / w * .5 + .5) * W, (1 - (cy / w * .5 + .5)) * H];
+  }
+  // hoeveel pixels het bolletje van de vlucht omhoog moet om op de kabel van lift ei te zitten (in plaats van op de grond eronder)
+  function cableLift(ei, p){
+    const c = cableGeo && cableMatrix ? cableGeo.find(c => c.i === ei) : null; if(!c || c.line.length < 2) return null;
+    const x = mx(p[0]) - cableOrigin[0], y = my(p[1]) - cableOrigin[1];
+    let best = null, bd = Infinity;
+    for(let k = 1; k < c.line.length; k++){
+      const a = c.line[k-1], b = c.line[k], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx*dx + dy*dy, t = L2 ? Math.max(0, Math.min(1, ((x - a[0])*dx + (y - a[1])*dy) / L2)) : 0;
+      const qx = a[0] + t*dx, qy = a[1] + t*dy, d = (x - qx) ** 2 + (y - qy) ** 2;
+      if(d < bd){ bd = d; best = [qx, qy, a[2] + (b[2] - a[2]) * t]; }
+    }
+    const q = best && cableScr(best), g = gl.project(p);
+    if(!q || !g) return null;
+    const off = [q[0] - g.x, q[1] - g.y];
+    return Math.hypot(off[0], off[1]) < 260 ? off : null;   // iets heel anders dan een kabelhoogte: niet verplaatsen
+  }
   function pickCable(px, py){
     if(!cableGeo || !cableMatrix) return null;
-    const m = cableMatrix, W = gl.getCanvas().clientWidth, H = gl.getCanvas().clientHeight;
-    const scr = ([x, y, z]) => { const cx = m[0]*x + m[4]*y + m[8]*z + m[12], cy = m[1]*x + m[5]*y + m[9]*z + m[13], w = m[3]*x + m[7]*y + m[11]*z + m[15];
-      return w <= 0 ? null : [(cx / w * .5 + .5) * W, (1 - (cy / w * .5 + .5)) * H]; };
+    const scr = cableScr;
     let best = null;
     for(const c of cableGeo){
       let prev = null;
@@ -689,13 +708,17 @@ const M3 = (() => {
       gl.addLayer({id:"replay", type:"line", source:"replay", layout:line, paint:{"line-color":opt.color || "#7C3AED", "line-width":4.5}});
       const el = document.createElement("div"); el.className = "rp-dot";
       const mk = new maplibregl.Marker({element:el, opacity:"1", opacityWhenCovered:"1"}).setLngLat(coords[0]).addTo(gl);
-      rp = {mk, raf:0, t0:performance.now(), bearing:brg(coords[0], at(Math.min(total, 150)).p), pitch:64, done};
+      rp = {mk, raf:0, t0:performance.now(), bearing:brg(coords[0], at(Math.min(total, 150)).p), pitch:64, off:[0, 0], done};
       const step = now => {
         if(!rp) return;
         const k = Math.min(1, (now - rp.t0) / T), d = total * (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);   // rustig optrekken en afremmen
         const {p, i} = at(d), ahead = at(Math.min(total, d + 320)).p;   // ver vooruit kijken: het beeld draait rustig mee in plaats van elke bocht te volgen
         gl.getSource("replay")?.setData({type:"Feature", geometry:{type:"LineString", coordinates:[...coords.slice(0, i + 1), p]}});
         rp.mk.setLngLat(p);
+        // op een lift hoort het bolletje op de kabel, niet op de grond eronder
+        const span = opt.lifts?.find(l => i >= l.a && i < l.b), up = (span && cableLift(span.i, p)) || [0, 0];
+        rp.off[0] += (up[0] - rp.off[0]) * .25; rp.off[1] += (up[1] - rp.off[1]) * .25;
+        rp.mk.setOffset([Math.round(rp.off[0]), Math.round(rp.off[1])]);
         if(dist(p, ahead) > 8){ const db = ((brg(p, ahead) - rp.bearing) % 360 + 540) % 360 - 180; rp.bearing += db * .025; }
         // De hoogte van het punt onder de camera zelf meegeven (net als bij navigeren): zolang de hoogtetegels er nog niet zijn rekent
         // MapLibre met 0 m en hangt de camera in de berg; dan zie je alleen een wit vlak.
