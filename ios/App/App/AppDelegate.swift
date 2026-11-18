@@ -78,11 +78,27 @@ enum SnowCheck {
                   let lon = (a[2] as? NSNumber)?.doubleValue, let ele = (a[3] as? NSNumber)?.doubleValue else { continue }
             let key = "snow-told-" + name
             if Date().timeIntervalSince1970 - shared.double(forKey: key) < 48 * 3600 { continue }
-            let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(lat)&longitude=\(lon)&elevation=\(Int(ele))&daily=snowfall_sum&forecast_days=2&timezone=auto")!
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
+            // voorspelling van MET Norway (api.met.no, CC BY 4.0): neerslag en temperatuur per blok, voor de komende 48 uur
+            guard let url = URL(string: String(format: "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%.4f&lon=%.4f&altitude=%d", lat, lon, Int(ele))) else { continue }
+            var req = URLRequest(url: url); req.timeoutInterval = 15
+            req.setValue("Skipilot/1.0 (nl.skipilot.app)", forHTTPHeaderField: "User-Agent")   // de dienst vraagt om een herkenbare afzender
+            guard let (data, _) = try? await URLSession.shared.data(for: req),
                   let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let daily = j["daily"] as? [String: Any], let snow = daily["snowfall_sum"] as? [Any] else { continue }
-            let cm = snow.compactMap { ($0 as? NSNumber)?.doubleValue }.reduce(0, +)
+                  let props = j["properties"] as? [String: Any], let ts = props["timeseries"] as? [[String: Any]] else { continue }
+            // sneeuw uit neerslag: bij vorst ongeveer 1 cm per mm, rond het vriespunt de helft, daarboven regen
+            var cm = 0.0, hours = 0
+            for e in ts {
+                if hours >= 48 { break }
+                guard let d = e["data"] as? [String: Any], let inst = d["instant"] as? [String: Any], let det = inst["details"] as? [String: Any] else { continue }
+                let t = (det["air_temperature"] as? NSNumber)?.doubleValue ?? 5
+                var n = 1
+                var block = d["next_1_hours"] as? [String: Any]
+                if block == nil { block = d["next_6_hours"] as? [String: Any]; n = 6 }
+                guard let b = block else { continue }
+                let mm = ((b["details"] as? [String: Any])?["precipitation_amount"] as? NSNumber)?.doubleValue ?? 0
+                cm += mm * (t <= 0 ? 1 : (t < 1.5 ? 0.5 : 0))
+                hours += n
+            }
             if cm < 20 { continue }
             shared.set(Date().timeIntervalSince1970, forKey: key)
             let c = UNMutableNotificationContent()

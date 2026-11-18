@@ -28,7 +28,7 @@ Twee widgets (iOS 17 en nieuwer), in het Nederlands, Engels of Duits, net als de
   en hoe lang de liften nog open zijn (of wanneer ze opengaan) in het laatst geopende skigebied. Waarschuwt bij storm, slecht zicht,
   een poederdag of strenge kou. Middel en groot tonen ook drie dagen vooruit, het dal en zonsondergang; groot ook windstoten,
   zicht en de vriesgrens.
-  Het weer haalt de widget zelf elk half uur op bij Open-Meteo, ook als de app dicht is.
+  Het weer haalt de widget zelf elk half uur op bij MET Norway (api.met.no), ook als de app dicht is.
 - **Skidag** (klein, middel, toegangsscherm): kilometers, hoogtemeters, afdalingen, liften, topsnelheid en tijd op de piste van
   vandaag, of van je laatste skidag.
 

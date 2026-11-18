@@ -3,7 +3,7 @@ import SwiftUI
 
 // Widgets voor het beginscherm en het toegangsscherm:
 // - Skigebied: weer, verse sneeuw, liftentijden en waarschuwingen in het laatst geopende skigebied
-//   (het weer haalt de widget zelf op bij Open-Meteo)
+//   (het weer haalt de widget zelf op bij MET Norway, api.met.no)
 // - Skidag: kilometers, hoogtemeters, afdalingen en tijd op de piste (komt uit het skidagboek in de app)
 // De app zet het skigebied en de skidag in de gedeelde App Group (WidgetPlugin.swift).
 
@@ -87,7 +87,8 @@ struct Weather: Codable {
     let visibility: Double?  // meter
     let freezing: Double?    // vriesgrens in meter
     let snowDepth: Double?   // cm
-    let fresh24: Double      // cm in de laatste 24 uur
+    let fresh24: Double      // cm sneeuw verwacht in de komende 24 uur (de bron levert geen sneeuw van de afgelopen uren)
+    var cloud: Double? = nil // bewolking in procenten
     let sunset: String?      // "16:45"
     let days: [Day]
     let fetched: Date
@@ -101,80 +102,140 @@ struct Weather: Codable {
     }
 }
 
-// alles optioneel: als Open-Meteo een veld weglaat of leeg laat, tonen we de rest gewoon
-private struct OMResponse: Decodable {
-    struct Current: Decodable {
-        let time: String
-        let temperature_2m: Double?
-        let weather_code: Int?
-        let wind_speed_10m: Double?
-        let wind_gusts_10m: Double?
-        let visibility: Double?
-        let freezing_level_height: Double?
-        let snow_depth: Double?
+// Het antwoord van MET Norway (api.met.no, CC BY 4.0). Alles optioneel: ontbreekt een veld, dan tonen we de rest gewoon.
+private struct METResponse: Decodable {
+    struct Details: Decodable {
+        let air_temperature: Double?
+        let wind_speed: Double?
+        let cloud_area_fraction: Double?
     }
-    struct Hourly: Decodable {
-        let time: [String]?
-        let snowfall: [Double?]?
-    }
-    struct Daily: Decodable {
-        let time: [String]?
-        let weather_code: [Int?]?
-        let temperature_2m_max: [Double?]?
-        let temperature_2m_min: [Double?]?
-        let snowfall_sum: [Double?]?
-        let sunset: [String?]?
-    }
-    let current: Current
-    let hourly: Hourly?
-    let daily: Daily?
+    struct Instant: Decodable { let details: Details }
+    struct Summary: Decodable { let symbol_code: String? }
+    struct Amount: Decodable { let precipitation_amount: Double? }
+    struct Block: Decodable { let summary: Summary?; let details: Amount? }
+    struct DataBlock: Decodable { let instant: Instant; let next_1_hours: Block?; let next_6_hours: Block? }
+    struct Entry: Decodable { let time: String; let data: DataBlock }
+    struct Props: Decodable { let timeseries: [Entry] }
+    let properties: Props
 }
 
 enum WeatherService {
-    static func fetch(_ a: SharedArea) async -> Weather? {
-        var c = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
-        c.queryItems = [
-            .init(name: "latitude", value: "\(a.lat),\(a.lat)"), .init(name: "longitude", value: "\(a.lon),\(a.lon)"),
-            .init(name: "elevation", value: "\(Int(a.hi)),\(Int(a.lo))"), .init(name: "timezone", value: "auto"),
-            .init(name: "forecast_days", value: "4"), .init(name: "past_days", value: "1"),
-            .init(name: "current", value: "temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,visibility,freezing_level_height,snow_depth"),
-            .init(name: "hourly", value: "snowfall"),
-            .init(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,sunset")
-        ]
+    // één uur uit de voorspelling
+    private struct Hour { let date: Date; let temp: Double; let wind: Double; let snow: Double; let code: Int }
+
+    // het weersymbool van MET Norway naar de codes die de widget al kent
+    static func metCode(_ sym: String?) -> Int {
+        guard var b = sym else { return 3 }
+        for suffix in ["_day", "_night", "_polartwilight"] where b.hasSuffix(suffix) { b = String(b.dropLast(suffix.count)) }
+        if b.contains("thunder") { return 95 }
+        switch b {
+        case "clearsky": return 0
+        case "fair": return 1
+        case "partlycloudy": return 2
+        case "cloudy": return 3
+        case "fog": return 45
+        case "lightrain": return 61
+        case "rain": return 63
+        case "heavyrain": return 65
+        case "lightrainshowers": return 80
+        case "rainshowers": return 81
+        case "heavyrainshowers": return 82
+        case "lightsleet", "sleet", "heavysleet", "lightsleetshowers", "sleetshowers", "heavysleetshowers": return 67
+        case "lightsnow": return 71
+        case "snow": return 73
+        case "heavysnow": return 75
+        case "lightsnowshowers", "snowshowers": return 85
+        case "heavysnowshowers": return 86
+        default: return 3
+        }
+    }
+
+    // centimeters verse sneeuw uit millimeters neerslag: bij vorst ongeveer 1 cm per mm, rond het vriespunt de helft, daarboven regen
+    private static func snow(_ mm: Double, _ t: Double) -> Double { mm * (t <= 0 ? 1 : (t < 1.5 ? 0.5 : 0)) }
+
+    private static func load(lat: Double, lon: Double, alt: Double) async -> METResponse? {
+        let u = String(format: "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=%.4f&lon=%.4f&altitude=%d", lat, lon, Int(alt))
+        guard let url = URL(string: u) else { return nil }
         // korte time-out: een widget krijgt maar even de tijd; lukt het niet, dan het laatste bericht
-        var req = URLRequest(url: c.url!); req.timeoutInterval = 12
-        guard let result = try? await URLSession.shared.data(for: req) else { return cached(a) }
-        let (data, res) = result
-        guard (res as? HTTPURLResponse)?.statusCode == 200,
-              let both = try? JSONDecoder().decode([OMResponse].self, from: data), both.count == 2,
-              let topTemp = both[0].current.temperature_2m else { return cached(a) }
-        let top = both[0], valley = both[1]
-        // verse sneeuw: de laatste 24 uur tot nu
-        var fresh = 0.0
-        if let ht = top.hourly?.time, let sf = top.hourly?.snowfall, let now = ht.lastIndex(where: { $0 <= top.current.time }), now < sf.count {
-            fresh = sf[max(0, now - 23)...now].reduce(0) { $0 + ($1 ?? 0) }
+        var req = URLRequest(url: url); req.timeoutInterval = 12
+        req.setValue("Skipilot/1.0 (nl.skipilot.app)", forHTTPHeaderField: "User-Agent")   // de dienst vraagt om een herkenbare afzender
+        guard let (data, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(METResponse.self, from: data)
+    }
+
+    // de reeks per uur: het eerste deel levert de dienst per uur, daarna per 6 uur (die blokken worden over de uren verdeeld)
+    private static func hours(_ r: METResponse) -> [Hour] {
+        let iso = ISO8601DateFormatter(); var out: [Hour] = []
+        let ts = r.properties.timeseries
+        for (i, e) in ts.enumerated() {
+            guard let t0 = iso.date(from: e.time), let temp0 = e.data.instant.details.air_temperature else { continue }
+            let n = e.data.next_1_hours != nil ? 1 : (e.data.next_6_hours != nil ? 6 : 0)
+            guard n > 0, let b = e.data.next_1_hours ?? e.data.next_6_hours else { continue }
+            let next = i + 1 < ts.count ? ts[i + 1].data.instant.details : nil
+            let temp1 = next?.air_temperature ?? temp0
+            let w0 = (e.data.instant.details.wind_speed ?? 0) * 3.6, w1 = (next?.wind_speed ?? e.data.instant.details.wind_speed ?? 0) * 3.6
+            let mm = (b.details?.precipitation_amount ?? 0) / Double(n), code = metCode(b.summary?.symbol_code)
+            for k in 0..<n {
+                let f = Double(k) / Double(n), t = temp0 + (temp1 - temp0) * f
+                out.append(Hour(date: t0.addingTimeInterval(Double(k) * 3600), temp: t, wind: w0 + (w1 - w0) * f, snow: snow(mm, t), code: code))
+            }
         }
-        let d = top.daily
-        let dt = d?.time ?? []
-        func at<T>(_ arr: [T?]?, _ i: Int) -> T? { guard let arr = arr, i < arr.count else { return nil }; return arr[i] }
-        let days = dt.indices.dropFirst().map { i in   // dag 0 is gisteren
-            Weather.Day(date: dt[i], code: at(d?.weather_code, i) ?? 0, max: at(d?.temperature_2m_max, i) ?? 0,
-                        min: at(d?.temperature_2m_min, i) ?? 0, snow: at(d?.snowfall_sum, i) ?? 0)
+        return out
+    }
+
+    // zonsondergang op deze plek vandaag (plaatselijke tijd van het toestel), berekend: de weerdienst levert die niet mee
+    static func sunset(lat: Double, lon: Double, on day: Date = Date()) -> String? {
+        let cal = Calendar(identifier: .gregorian)
+        guard let n = cal.ordinality(of: .day, in: .year, for: day) else { return nil }
+        let rad = Double.pi / 180
+        let g = 2 * Double.pi / 365 * (Double(n) - 1)
+        let decl = 0.006918 - 0.399912 * cos(g) + 0.070257 * sin(g) - 0.006758 * cos(2 * g) + 0.000907 * sin(2 * g)
+        let eq = 229.18 * (0.000075 + 0.001868 * cos(g) - 0.032077 * sin(g) - 0.014615 * cos(2 * g) - 0.040849 * sin(2 * g))   // tijdsvereffening, minuten
+        let x = cos(90.833 * rad) / (cos(lat * rad) * cos(decl)) - tan(lat * rad) * tan(decl)
+        guard x >= -1, x <= 1 else { return nil }   // poolnacht of middernachtzon
+        let ha = acos(x) / rad
+        let utcMin = 720 - 4 * (lon - ha) - eq      // minuten na middernacht, UTC
+        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+        let d = utc.startOfDay(for: day).addingTimeInterval(utcMin * 60)
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        return f.string(from: d)
+    }
+
+    static func fetch(_ a: SharedArea) async -> Weather? {
+        guard let top = await load(lat: a.lat, lon: a.lon, alt: a.hi) else { return cached(a) }
+        let valley = await load(lat: a.lat, lon: a.lon, alt: a.lo)
+        let hs = hours(top)
+        guard let first = hs.first else { return cached(a) }
+        // sneeuw die de komende 24 uur verwacht wordt
+        let fresh = hs.prefix(24).reduce(0) { $0 + $1.snow }
+        // per dag (plaatselijke tijd): het weerbeeld dat tussen 8 en 17 uur het vaakst voorkomt
+        let dayFmt = DateFormatter(); dayFmt.dateFormat = "yyyy-MM-dd"
+        let cal = Calendar.current
+        var order: [String] = [], byDay: [String: [Hour]] = [:]
+        for h in hs { let k = dayFmt.string(from: h.date); if byDay[k] == nil { order.append(k) }; byDay[k, default: []].append(h) }
+        let days: [Weather.Day] = order.prefix(5).compactMap { k in
+            guard let all = byDay[k], !all.isEmpty else { return nil }
+            let mid = all.filter { let hr = cal.component(.hour, from: $0.date); return hr >= 8 && hr <= 17 }
+            let use = mid.isEmpty ? all : mid
+            var count: [Int: Int] = [:]; for h in use { count[h.code, default: 0] += 1 }
+            let code = count.max { $0.value == $1.value ? $0.key < $1.key : $0.value < $1.value }?.key ?? 3
+            return Weather.Day(date: k, code: code, max: all.map(\.temp).max() ?? 0, min: all.map(\.temp).min() ?? 0, snow: all.reduce(0) { $0 + $1.snow })
         }
-        var sunset: String? = nil
-        if let today: String = at(d?.sunset, 1) { sunset = String(today.suffix(5)) }
-        let cur = top.current
-        let w = Weather(topTemp: topTemp, valleyTemp: valley.current.temperature_2m ?? topTemp, code: cur.weather_code ?? 3,
-                        wind: cur.wind_speed_10m ?? 0, gusts: cur.wind_gusts_10m, visibility: cur.visibility,
-                        freezing: cur.freezing_level_height, snowDepth: cur.snow_depth.map { $0 * 100 },
-                        fresh24: fresh, sunset: sunset, days: Array(days), fetched: Date())
-        if let enc = try? JSONEncoder().encode(w) { Shared.defaults?.set(enc, forKey: "wx2:\(a.id)") }
+        let details = top.properties.timeseries.first?.data.instant.details
+        let valleyTemp = valley?.properties.timeseries.first?.data.instant.details.air_temperature ?? first.temp
+        // De bron levert geen windstoten, zicht in meters of sneeuwhoogte: die blijven leeg in plaats van geschat.
+        // De vriesgrens is afgeleid uit de temperatuur op de top (0,65 °C per 100 m).
+        var w = Weather(topTemp: first.temp, valleyTemp: valleyTemp, code: first.code, wind: first.wind, gusts: nil, visibility: nil,
+                        freezing: max(0, a.hi + first.temp / 0.0065), snowDepth: nil,
+                        fresh24: fresh, sunset: sunset(lat: a.lat, lon: a.lon), days: days, fetched: Date())
+        w.cloud = details?.cloud_area_fraction
+        if let enc = try? JSONEncoder().encode(w) { Shared.defaults?.set(enc, forKey: "wx3:\(a.id)") }
         return w
     }
 
     // zonder bereik: het laatste weerbericht van dit gebied, als het niet ouder is dan 12 uur
     static func cached(_ a: SharedArea) -> Weather? {
-        guard let data = Shared.defaults?.data(forKey: "wx2:\(a.id)"),
+        guard let data = Shared.defaults?.data(forKey: "wx3:\(a.id)"),
               let w = try? JSONDecoder().decode(Weather.self, from: data),
               Date().timeIntervalSince(w.fetched) < 12 * 3600 else { return nil }
         return w
@@ -255,7 +316,7 @@ enum Info {
             return Line(icon: "cloud.fog.fill", text: tr.t("Slecht zicht (\(tr.distance(v)))", "Poor visibility (\(tr.distance(v)))", "Schlechte Sicht (\(tr.distance(v)))"), warn: true)
         }
         if w.fresh24 >= 15 {
-            return Line(icon: "snowflake", text: tr.t("Poederdag: \(tr.num(w.fresh24)) cm vers", "Powder day: \(tr.num(w.fresh24)) cm fresh", "Powdertag: \(tr.num(w.fresh24)) cm Neuschnee"), warn: true)
+            return Line(icon: "snowflake", text: tr.t("\(tr.num(w.fresh24)) cm sneeuw verwacht", "\(tr.num(w.fresh24)) cm of snow expected", "\(tr.num(w.fresh24)) cm Schnee erwartet"), warn: true)
         }
         if w.topTemp <= -15 {
             return Line(icon: "thermometer.snowflake", text: tr.t("Erg koud: \(tr.num(w.topTemp))° boven", "Very cold: \(tr.num(w.topTemp))° at the top", "Sehr kalt: \(tr.num(w.topTemp))° oben"), warn: true)
@@ -264,7 +325,7 @@ enum Info {
     }
 
     static func fresh(_ w: Weather, _ tr: Tr) -> Line {
-        Line(icon: "snowflake", text: tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm Neuschnee"), warn: w.fresh24 >= 1)
+        Line(icon: "snowflake", text: tr.t("\(tr.num(w.fresh24)) cm verwacht", "\(tr.num(w.fresh24)) cm expected", "\(tr.num(w.fresh24)) cm erwartet"), warn: w.fresh24 >= 1)
     }
 }
 
@@ -447,13 +508,13 @@ struct AreaView: View {
 
     // "18 cm vers · 85 cm": verse sneeuw en sneeuwhoogte op één regel
     func snowLine(_ w: Weather, _ tr: Tr) -> Line {
-        var t = tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu")
+        var t = tr.t("\(tr.num(w.fresh24)) cm verwacht", "\(tr.num(w.fresh24)) cm expected", "\(tr.num(w.fresh24)) cm erwartet")
         if let s = w.snowDepth, s >= 1 { t += " · \(tr.num(s)) cm" }
         return Line(icon: "snowflake", text: t, warn: w.fresh24 >= 1)
     }
 
     func freshText(_ w: Weather, _ tr: Tr) -> String {
-        tr.t("\(tr.num(w.fresh24)) cm vers", "\(tr.num(w.fresh24)) cm fresh", "\(tr.num(w.fresh24)) cm neu")
+        tr.t("\(tr.num(w.fresh24)) cm verwacht", "\(tr.num(w.fresh24)) cm expected", "\(tr.num(w.fresh24)) cm erwartet")
     }
 
     // kop: naam van het gebied in kleine kapitalen, weerpictogram rechts
@@ -556,14 +617,14 @@ struct AreaView: View {
                     .background(gold.opacity(0.96), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 HStack(spacing: 6) {
-                    Tile(icon: "snowflake", value: "\(tr.num(w.fresh24)) cm", label: tr.t("vers", "fresh", "Neuschnee"), warn: w.fresh24 >= 15)
-                    Tile(icon: "mountain.2.fill", value: w.snowDepth.map { "\(tr.num($0)) cm" } ?? "–", label: tr.t("sneeuw", "snow", "Schnee"))
+                    Tile(icon: "snowflake", value: "\(tr.num(w.fresh24)) cm", label: tr.t("verwacht 24 u", "expected 24 h", "erwartet 24 Std."), warn: w.fresh24 >= 15)
+                    Tile(icon: "cloud.fill", value: w.cloud.map { "\(tr.num($0)) %" } ?? "–", label: tr.t("bewolking", "cloud cover", "Bewölkung"))
                     Tile(icon: "wind", value: "\(tr.num(w.wind)) km/h", label: w.gusts.map { "\(tr.t("stoten", "gusts", "Böen")) \(tr.num($0))" } ?? tr.t("wind", "wind", "Wind"), warn: (w.gusts ?? 0) >= 60)
                 }
                 HStack(spacing: 6) {
-                    Tile(icon: "eye", value: w.visibility.map { tr.distance($0) } ?? "–", label: tr.t("zicht", "visibility", "Sicht"), warn: (w.visibility ?? 9999) < 300)
+                    Tile(icon: "sunset.fill", value: w.sunset ?? "–", label: tr.t("zon onder", "sunset", "Sonnenuntergang"))
                     Tile(icon: "house.fill", value: temp(w.valleyTemp, tr), label: tr.t("dal", "valley", "Tal"))
-                    Tile(icon: "thermometer.snowflake", value: w.freezing.map { tr.height($0) } ?? "–", label: tr.t("vriesgrens", "freezing level", "Nullgrad"))
+                    Tile(icon: "thermometer.snowflake", value: w.freezing.map { tr.height($0) } ?? "–", label: tr.t("vriesgrens ≈", "freezing level ≈", "Nullgrad ≈"))
                 }
                 LiftBar(area: a, date: entry.date, tr: tr)
                 forecast(w, tr, count: 3)
