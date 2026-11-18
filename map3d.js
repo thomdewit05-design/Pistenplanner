@@ -19,6 +19,9 @@ const M3 = (() => {
 
   // bij het opstarten alleen kijken of het toestel WebGL kent; een echte proefcontext maken kostte opstarttijd (lukt het later toch niet, dan vangt failGl dat op)
   const supported = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
+  // Scherpte van de 3D-kaart: op een telefoon met een 3x-scherm is 1,75x ruim scherp genoeg en scheelt het een kwart van de pixels
+  // die elk beeld berekend moeten worden; met batterij sparen nog iets lager.
+  const glRatio = () => Math.min(devicePixelRatio || 1, saving() ? 1.25 : 1.75);
   const loaded = () => !!window.maplibregl && !failed;
   function load(){
     if(window.maplibregl) return Promise.resolve();
@@ -479,7 +482,7 @@ const M3 = (() => {
     if(dirty.has("huts")) gl.getSource("huts").setData(hutsData());
     if(dirty.has("slope") && gl.getLayer("slope")) gl.setLayoutProperty("slope", "visibility", S.slopeOn ? "visible" : "none");
     if(dirty.has("sun")){ gl.getSource("sun")?.setData(sunData()); sunShadeLayer(); gl.setSky(skyNow()); }
-    if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); }
+    if(dirty.has("sky")){ gl.setSky(skyNow()); snowFx(); if(gl.setPixelRatio && gl.getPixelRatio() !== glRatio()) gl.setPixelRatio(glRatio()); }
     if(dirty.has("peaks")) gl.getSource("peaks").setData(peaksData());
     dirty.clear();
   }
@@ -497,7 +500,7 @@ const M3 = (() => {
     if(!proto){ maplibregl.addProtocol("skidem", tileFrom("dem")); maplibregl.addProtocol("skiwinter", tileFrom("winter")); maplibregl.addProtocol("skislope", tileFrom("slope")); proto = true; }
     // hooguit 2x de schermresolutie: een iPhone heeft 3x, dat is 2,25 keer zoveel pixels om te tekenen voor bijna geen verschil
     gl = new maplibregl.Map({container:el, style:style(), center, zoom, pitch:58, bearing:0, maxPitch:80, minZoom:5,
-      pixelRatio:Math.min(devicePixelRatio || 1, 2), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
+      pixelRatio:glRatio(), attributionControl:{compact:true}, fadeDuration:150, renderWorldCopies:false,
       canvasContextAttributes:{antialias:(devicePixelRatio || 1) < 2}});   // gladde randen; op een retinascherm is dat niet nodig en scheelt het veel rekenwerk
     styled = false;
     // al tekenen zodra de stijl er is: "load" wacht tot álle tegels binnen zijn, dan zag je lang geen pistes

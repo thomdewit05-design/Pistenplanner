@@ -410,7 +410,6 @@ function drawNumbers(){
     if(!numLayer.hasLayer(lab.m)) lab.m.addTo(numLayer);
   }
 }
-map.on("zoomend moveend", drawNumbers);
 const pisteLabel = e => e.name ? (e.ref ? `piste ${e.ref} ${e.name}` : e.name) : e.ref ? `piste ${e.ref}` : (e.diff==="f" ? "de skiroute" : `de ${DIFF[e.diff].adj} piste`);
 const liftLabel = e => `de ${LIFT[e.kind]||"lift"} ${e.name || e.ref || ""}`.trim();
 
@@ -443,7 +442,7 @@ function drawPistes(){
     (groups[k] ||= []).push(e.pts);
   }
   const runs = Object.keys(groups).filter(k => k.startsWith("r_")).flatMap(k => groups[k]);
-  const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", ...o});
+  const opt = (o) => ({renderer:canvas, interactive:false, lineCap:"round", lineJoin:"round", smoothFactor:1.5, ...o});   // iets minder punten per lijn: sneller tekenen, geen zichtbaar verschil
   if(groups.dim) L.polyline(groups.dim, opt({color:"#8C99A6", weight:2, opacity:.45, dashArray:"3 5"})).addTo(pisteLayer);
   if(S.night && runs.length) L.polyline(runs, opt({color:"#FFE680", weight:13, opacity:.45})).addTo(pisteLayer);   // lichtgloed
   // zachte schaduw onder de pistes geeft diepte; daarop een witte rand en de pistekleur
@@ -3309,7 +3308,6 @@ function hutPopup(h){
     toast(b.dataset.a === "to" ? `Route naar ${h.name || k[0].toLowerCase()}.` : `${h.name || k[0]} toegevoegd als tussenstop.`);
   });
 }
-map.on("zoomend moveend", () => { if(S.area) drawHuts(false); });
 map.on("zoomend", () => { if(S.area && !$("layerMenu").hidden) renderHutInfo(); });
 
 // Hutten en restaurants komen van de eigen site (data/h000.json ..., elke maand bijgewerkt door GitHub).
@@ -3547,15 +3545,16 @@ function sunTime(){
 }
 const SUN_MIN = .12;   // minder licht dan dit = schaduw (zon schuurt langs of staat achter de helling)
 // per piste: hoe recht schijnt de zon erop (helling en richting van de piste; bergen die schaduw werpen tellen niet mee)
-function sunShade(){
+// only (optioneel): alleen deze pistes uitrekenen, zonder het geheugen aan te raken (voor de zonbalk van één piste)
+function sunShade(only){
   const A = S.area, d = sunTime(), key = Math.floor(d.ms / 6e5) + (S.sunAt ?? -1) * 1e9;
-  if(A.sun?.key === key) return A.sun;
+  if(!only && A.sun?.key === key) return A.sun;
   const c = A.bounds.getCenter(), {alt, az} = sunPos(d.ms, c.lat, c.lng), rad = Math.PI/180;
   const v = new Float32Array(A.edges.length).fill(-1), N = A.nodes;
   // bergen rondom: hoe lager de piste, hoe hoger de horizon (dalbodem ca. 12 graden, toppen vrij)
   let lo = Infinity, hi = -Infinity; for(const n of N) if(n.ele != null){ lo = Math.min(lo, n.ele); hi = Math.max(hi, n.ele); }
-  if(alt > 2) for(const e of A.edges){
-    if(e.t !== "r") continue;
+  if(alt > 2) for(const e of (only ? only.map(i => A.edges[i]) : A.edges)){
+    if(!e || e.t !== "r") continue;
     const ele = ((N[e.a].ele ?? lo) + (N[e.b].ele ?? lo)) / 2, hz = hi > lo ? 12 * (1 - (ele - lo) / (hi - lo)) : 0, a = alt - hz;
     if(a <= 0){ v[e.i] = -.2; continue; }
     const sl = Math.min(35, Math.max(6, Math.atan(Math.max(0, e.drop || 0) / Math.max(e.len, 1)) / rad)) * rad;
@@ -3567,6 +3566,7 @@ function sunShade(){
     }
     v[e.i] = len ? acc/len : -1;
   }
+  if(only) return {key, alt, az, v, time:d};
   return A.sun = {key, alt, az, v, time:d};
 }
 map.createPane("sun").style.cssText = "z-index:390;pointer-events:none";
@@ -3671,7 +3671,6 @@ function drawArrows(){
     }
   }
 }
-map.on("zoomend moveend", () => { if(S.path?.length) drawArrows(); });
 
 // ================= bergtoppen =================
 // Toppen met naam en hoogte uit OpenStreetMap, per gebied lang bewaard (bergen veranderen niet).
@@ -3725,7 +3724,14 @@ function drawPeaks(){
       html:`<div class="peak"><i></i>${name ? `<b>${esc(name)}</b>` : ""}<span>${ele.toLocaleString(LOCALE)} m</span></div>`})}).addTo(peakLayer);
   }
 }
-map.on("zoomend moveend", () => { if(S.area) drawPeaks(); });
+// Na schuiven of zoomen: nummers, hutten, toppen en routepijltjes samen bijwerken, één keer per beeld.
+// (Bij zoomen komen "zoomend" en "moveend" allebei; eerst liep al dit werk dan twee keer achter elkaar.)
+let settleRaf = 0;
+function mapSettled(){
+  if(settleRaf) return;
+  settleRaf = requestAnimationFrame(() => { settleRaf = 0; drawNumbers(); if(S.area){ drawHuts(false); drawPeaks(); } if(S.path?.length) drawArrows(); });
+}
+map.on("zoomend moveend", mapSettled);
 
 // ================= dagroute =================
 // Elke dag (per skigebied) een andere kant-en-klare dag: vanaf je hotel of het dalstation langs een handvol mooie pistes
@@ -4698,12 +4704,12 @@ function profileSvg(dist, ele){
 function sunTimeline(edges){
   const keep = S.sunAt, cells = [];
   for(let h = 8; h <= 16; h++){
-    S.sunAt = h * 60 + 30; if(S.area) S.area.sun = null;
-    const sun = sunShade(); let acc = 0, len = 0;
+    S.sunAt = h * 60 + 30;
+    const sun = sunShade(edges); let acc = 0, len = 0;
     for(const i of edges){ if(sun.v[i] === -1) continue; acc += sun.v[i] * S.area.edges[i].len; len += S.area.edges[i].len; }
     cells.push({h, lit:sun.alt > 2 && len && acc / len >= SUN_MIN});
   }
-  S.sunAt = keep; if(S.area) S.area.sun = null;
+  S.sunAt = keep;
   return `<div class="sun-tl">${cells.map(c => `<span class="${c.lit ? "lit" : "sh"}" title="${c.h}:30"><i></i><small>${c.h}</small></span>`).join("")}</div>`;
 }
 // temperatuur op een hoogte: tussen dal en top in (uit het weer van het gebied)
@@ -5442,7 +5448,7 @@ function swipeDismiss(el){
 const PERF = {on:false, log:[], spans:[], act:"", actT:0};
 const PERF_FNS = ["dayRoute", "openArea", "update", "renderResult", "renderToday", "renderMe", "renderPlan", "renderGroup", "renderAreas", "renderDiary", "renderStatus", "renderWeather",
   "drawPistes", "drawNumbers", "drawHuts", "drawPeaks", "drawSun", "drawHeat", "drawArrows", "fitRoute", "fitArea", "planLunch", "computePath", "defaultRoute", "onPos", "apply3d", "openDetail",
-  "setTab", "openPicker", "openTrip", "openCompare", "renderSeason", "renderBadges", "loadWeather", "buildSteps", "toggleFollow", "navTick", "applyBase", "showCollected", "ensureDetail"];
+  "mapSettled", "setTab", "openPicker", "openTrip", "openCompare", "renderSeason", "renderBadges", "loadWeather", "buildSteps", "toggleFollow", "navTick", "applyBase", "showCollected", "ensureDetail"];
 function perfStart(){
   if(PERF.on) return; PERF.on = true;
   for(const n of PERF_FNS){ const f = window[n]; if(typeof f !== "function" || f._p) continue;

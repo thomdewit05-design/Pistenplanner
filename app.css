@@ -2178,3 +2178,7 @@ ol.steps>li{content-visibility:auto;contain-intrinsic-size:auto 58px}
 .fab,.fab.glass,.lchip,.ov-pill,.tile,.hero-alt,.m-search,.wr-x,.leaflet-control-zoom a,.ios .toast,.ios .prof-tip,.sb-x{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .fab.glass,.ov-pill.glass{background:color-mix(in srgb,var(--surface) 93%,transparent)}
 .lchip{background:rgba(255,255,255,.93)}
+/* prestaties: geen vervaging terwijl het paneel gesleept wordt, en een dekkende kop boven scrollende schermen
+   (vervaging boven bewegende inhoud moet elk beeld opnieuw berekend worden) */
+.sheet.dragging{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:color-mix(in srgb,var(--surface) 96%,transparent)!important}
+.ios .picker.scrolled>.picker-head,.ios .picker.scrolled .dash-head,.ios .picker.scrolled .menu-head{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--bg)!important}
