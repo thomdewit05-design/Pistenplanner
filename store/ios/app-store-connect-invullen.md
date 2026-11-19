@@ -434,28 +434,28 @@ Skipilot: navegação de esqui
 Mapa de pistas e navegação
 ```
 
-**Promotional Text** (Promotietekst; 160 van 170 tekens)
+**Promotional Text** (Promotietekst; 158 van 170 tekens)
 
 ```text
-Escolha o destino e o Skipilot diz-lhe que pistas e teleféricos apanhar, com instruções por voz. Em mais de 1800 estâncias de esqui, mesmo sem rede na montanha.
+Escolha o destino e o Skipilot diz quais pistas e teleféricos pegar, com instruções por voz. Em mais de 1.800 estâncias de esqui, mesmo sem sinal na montanha.
 ```
 
-**Keywords** (Trefwoorden; 95 van 100 tekens)
+**Keywords** (Trefwoorden; 97 van 100 tekens)
 
 ```text
-ski,pistas,neve,snowboard,estância,rota,gps,alpes,teleférico,mapa,inverno,montanha,diário,meteo
+ski,pistas,neve,snowboard,estância,estação,rota,gps,alpes,teleférico,mapa,inverno,montanha,diário
 ```
 
-**Description** (Beschrijving; 199 van 4000 tekens)
+**Description** (Beschrijving; 200 van 4000 tekens)
 
 ```text
-Nunca mais se perca nas pistas. O Skipilot é o seu piloto na estância de esqui: escolha para onde quer ir e a app diz-lhe que pistas e teleféricos deve apanhar, passo a passo, com instruções por voz.
+Nunca mais se perca nas pistas. O Skipilot é o seu piloto na estância de esqui: escolha para onde quer ir e o app diz quais pistas e teleféricos você deve pegar, passo a passo, com instruções por voz.
 ```
 
-**What's New in This Version** (Wat is er nieuw; 94 van 4000 tekens)
+**What's New in This Version** (Wat is er nieuw; 99 van 4000 tekens)
 
 ```text
-• O mapa de pistas completo: ao abrir Courchevel, Lech ou Les Arcs, vê toda a área interligada
+• O mapa de pistas completo: ao abrir Courchevel, Lech ou Les Arcs, você vê toda a área interligada
 ```
 
 **Support URL**: `https://thomdewit05-design.github.io/Pistenplanner/support-pt.html`
@@ -629,6 +629,7 @@ Skipilot: スキー場ナビ
 - Het **telefoonnummer** bij de gegevens voor de keurder.
 - **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of in de simulator.
 - Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
+- Wat de vertalers zelf als onzeker hebben opgegeven en wat een moedertaalspreker het snelst kan nakijken: de namen van Apple-onderdelen (Live Activity, het pad naar "Volgen" in de instellingen, de energiebesparingsmodus) zijn uit het hoofd vertaald en niet op een toestel gecontroleerd; de Siri-zinnen in de beschrijving ("naar het dal", "naar mijn hotel") zijn vertaald, terwijl Siri ze alleen in het Nederlands, Engels en Duits kent.
 - De knop **Add for Review / Submit for Review**.
 
 ## 9. Controlelijst
