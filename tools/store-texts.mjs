@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 const ROOT = new URL("..", import.meta.url).pathname, CHECK = process.argv.includes("--check");
 const read = p => readFileSync(ROOT + p, "utf8");
 const LANGS = [["nl", "Nederlands", "Dutch"], ["en", "Engels", "English (U.S.)"], ["de", "Duits", "German"], ["fr", "Frans", "French"], ["it", "Italiaans", "Italian"],
-  ["es", "Spaans", "Spanish (Spain)"], ["pt", "Portugees", "Portuguese (Portugal)"], ["ru", "Russisch", "Russian"], ["zh", "Chinees", "Chinese (Simplified)"], ["ja", "Japans", "Japanese"]];
+  ["es", "Spaans", "Spanish (Spain)"], ["pt", "Portugees", "Portuguese (Brazil)"], ["ru", "Russisch", "Russian"], ["zh", "Chinees", "Chinese (Simplified)"], ["ja", "Japans", "Japanese"]];
 const FIELDS = [["Naam", 30, "Name"], ["Ondertitel", 30, "Subtitle"], ["Promotietekst", 170, "Promotional Text"], ["Trefwoorden", 100, "Keywords"], ["Beschrijving", 4000, "Description"], ["Wat is er nieuw", 4000, "What's New in This Version"]];
 const page = (kind, l) => l === "nl" ? {privacy:"privacy.html", terms:"voorwaarden.html", support:"support.html"}[kind] : `${kind}-${l}.html`;
 const cfg = read("config.js"), site = /site:\s*"([^"]+)"/.exec(cfg)[1], owner = /name:\s*"([^"]+)"/.exec(cfg)[1], email = /email:\s*"([^"]+)"/.exec(cfg)[1];
@@ -143,7 +143,7 @@ ${block(notes)}
 
 Voeg onder de versie deze tien talen toe (linksboven bij de taalkeuze, "Add Language") en vul per taal de velden in. De namen tussen haakjes zijn de Nederlandse namen van de velden.
 
-App Store Connect kent twee soorten Portugees en Chinees. De app heeft er van elk één: kies **Portuguese (Portugal)** en **Chinese (Simplified)**.
+App Store Connect kent twee soorten Portugees en Chinees. De app heeft er van elk één: kies **Portuguese (Brazil)** en **Chinese (Simplified)**, want de app zelf is in Braziliaans Portugees en vereenvoudigd Chinees geschreven. Apple toont die pagina ook aan gebruikers in Portugal.
 
 De **Name** en **Subtitle** staan onder "App Information" (per taal); de overige velden onder de versie.
 

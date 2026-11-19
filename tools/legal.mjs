@@ -17,7 +17,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-app
 main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
 header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
 header img{width:44px;height:44px}
-h1{font-size:28px;line-height:1.15;margin:0}
+h1{font-size:clamp(21px,6.6vw,28px);line-height:1.15;margin:0;min-width:0;overflow-wrap:anywhere;hyphens:auto}
 h2{font-size:19px;margin:28px 0 6px}
 p,li{color:var(--ink)}
 .meta{color:var(--muted);font-size:14px;margin:0 0 12px}
