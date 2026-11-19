@@ -194,7 +194,8 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   if(await p.evaluate(() => document.getElementById("sheet").classList.contains("open"))) problems.push(`[${tag}] de lade sluit niet`);
   // Vandaag: het bovenste blok past zonder scrollen
   // ook als de waarschuwing "liften sluiten over … min" erbij staat (die hangt af van het tijdstip)
-  await p.evaluate(() => { const d = new Date(Date.now() + 45 * 60000); S.liftClose = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); setTab("today"); }); await p.waitForTimeout(600);
+  await p.evaluate(() => { const d = zoned(Date.now() + 45 * 60000);   // de klok van het skigebied, niet die van de telefoon
+    S.liftClose = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); setTab("today"); }); await p.waitForTimeout(600);
   const td = await p.evaluate(() => { const a = document.querySelector("#today .acts")?.getBoundingClientRect(); return a ? Math.round(a.bottom) : 0; });
   if(!(await p.evaluate(() => !!document.querySelector("#today .closing-card")))) problems.push(`[${tag}] test: de waarschuwing 'liften sluiten' verscheen niet`);
   console.log(`${tag}: bovenste blok van Vandaag eindigt op ${td}px van ${innerHeightOf(phone)}px`);

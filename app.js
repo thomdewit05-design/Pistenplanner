@@ -2441,7 +2441,7 @@ window.addEventListener("hashchange", () => {
   const before = pendingShare; parseShareHash();
   if(G.pending){
     const code = G.pending; G.pending = null;
-    if(code !== G.code){ if(G.code) gLeave(); openGroup(); $("gCode").value = code; if(G.name){ $("gName").value = G.name; gStart(code); } }
+    if(code !== G.code) askJoin(code);
     try{ history.replaceState(null, "", "#" + (S.area?.id || "")); }catch(e){}
     return;
   }
@@ -2563,33 +2563,40 @@ function sentToday(add){
 // ntfy.sh ziet dus alleen onleesbare tekst en kan de code niet uit de kanaalnaam halen. Zonder WebCrypto: het oude kanaal.
 const gCry = {code:null, key:null, topic:null};
 const b64 = u8 => btoa(String.fromCharCode(...u8)), unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function gKeys(){
-  if(gCry.code === G.code) return gCry;
-  gCry.code = G.code; gCry.key = null; gCry.topic = null;
-  try{
-    if(!crypto?.subtle) throw 0;
-    const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(G.code), "PBKDF2", false, ["deriveKey"]);
-    gCry.key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:enc.encode("skipilot-groep-v2"), iterations:120000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt", "decrypt"]);
-    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("skipilot-kanaal-v2:" + G.code)));
-    gCry.topic = "skipilot-g-" + [...h.slice(0, 12)].map(x => x.toString(16).padStart(2, "0")).join("");
-  }catch(e){ gCry.key = null; gCry.topic = null; }
-  return gCry;
+// De sleutel volgt uit de groepscode. Eén berekening per code: wie tegelijk vraagt (verbinden en het eerste bericht) wacht op dezelfde,
+// anders ging dat eerste bericht onversleuteld naar het oude kanaal.
+function gKeys(code = G.code){
+  if(gCry.code === code && gCry.p) return gCry.p;
+  gCry.code = code;
+  return gCry.p = (async () => {
+    const k = {code, key:null, topic:null};
+    try{
+      if(!code || !crypto?.subtle) throw 0;
+      const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(code), "PBKDF2", false, ["deriveKey"]);
+      k.key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:enc.encode("skipilot-groep-v2"), iterations:120000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt", "decrypt"]);
+      const h = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("skipilot-kanaal-v2:" + code)));
+      k.topic = "skipilot-g-" + [...h.slice(0, 12)].map(x => x.toString(16).padStart(2, "0")).join("");
+    }catch(e){ k.key = null; k.topic = null; }
+    return k;
+  })();
 }
-async function gSeal(obj){
-  const k = await gKeys(); if(!k.key) return JSON.stringify(obj);
+async function gSeal(obj, code = G.code){
+  const k = await gKeys(code); if(!k.key) return JSON.stringify(obj);
   const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, k.key, new TextEncoder().encode(JSON.stringify(obj))));
   return JSON.stringify({e:2, iv:b64(iv), c:b64(ct)});
 }
 async function gOpen(raw){
-  const m = JSON.parse(raw); if(m.e !== 2) return gCry.key ? null : m;   // op het versleutelde kanaal alleen versleutelde berichten
-  const k = await gKeys(); if(!k.key) return null;
+  const m = JSON.parse(raw), k = await gKeys();
+  if(m.e !== 2) return k.key ? null : m;   // op het versleutelde kanaal alleen versleutelde berichten
+  if(!k.key) return null;
   try{ return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(m.iv)}, k.key, unb64(m.c)))); }catch(e){ return null; }
 }
 async function gSend(obj){
   if(!G.code) return false;
-  const msg = await gSeal({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj});
+  const code = G.code, legacy = gTopic();   // vastgehouden: de code kan tijdens het versleutelen al gewist zijn (groep verlaten)
+  const msg = await gSeal({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj}, code);
   try{
-    const r = await fetch(NTFY + ((await gKeys()).topic || gTopic()), {method:"POST", body:msg});
+    const r = await fetch(NTFY + ((await gKeys(code)).topic || legacy), {method:"POST", body:msg, keepalive:true});
     if(r.status === 429){ G.conn = "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw."; renderGroup(); return false; }
     if(r.ok) sentToday(1);
     return r.ok;
@@ -2622,6 +2629,8 @@ function gHandle(d){
   }
   if(d.t === "plan" && d.ts > G.planTs){
     G.planTs = d.ts; G.plan = d;
+    // een plan van vóór het openen van de app laat je route met rust: je ziet het wel in de groep en kunt het daar overnemen
+    if(d.ts < (G.adoptAfter || 0)){ drawMembers(); renderGroup(); return; }
     // bij het opnieuw verbinden komen oude berichten snel achter elkaar binnen: alleen de laatste toepassen
     clearTimeout(G.planTimer); G.planTimer = setTimeout(async () => {
       const p = G.plan; await adoptPlan(p);
@@ -2754,14 +2763,35 @@ function gDrawQr(){ try{ const qr = qrcode(0, "M"); qr.addData(gUrl()); qr.make(
 function gStart(code){
   const name = $("gName").value.trim();
   if(!name){ toast("Vul eerst je naam in."); $("gName").focus(); return; }
-  G.name = name; G.code = code.toUpperCase(); G.plan = null; G.planTs = 0; G.lastPos = null; gSave();
+  G.name = name; G.code = code.toUpperCase(); G.plan = null; G.planTs = 0; G.lastPos = null; G.adoptAfter = 0; gSave();   // net meegedaan: het lopende plan van de groep geldt
   gConnect(); gSend({t:"hello"}); renderGroup(); gDrawQr(); drawMembers();
   if(G.sharePos && S.watch == null) startWatch();
 }
 function gLeave(){
-  gSend({t:"bye"}); G.es?.close(); G.es = null;
+  gSend({t:"bye"});   // gSend houdt de code zelf vast, dus het afscheid gaat versleuteld naar het goede kanaal
+  G.es?.close(); G.es = null;
   G.code = null; G.members = new Map(); G.plan = null; S.planBy = null; gSave();
   drawMembers(); renderGroup(); update(); toast("Je hebt de groep verlaten.");
+}
+// Een uitnodigingslink doet je niet vanzelf meedoen: eerst vragen, met de keuze om je positie te delen.
+function askJoin(code){
+  document.querySelector(".join-ask")?.remove();
+  const g = document.createElement("div"); g.className = "dl-gate join-ask"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true");
+  g.innerHTML = `<div class="dl-card"><div class="dl-art">${I("group")}</div><p class="dl-kick">${tr("Uitnodiging")}</p><h2 class="dl-title" data-notr>${trf("Meedoen met groep {0}?", esc(code.toUpperCase()))}</h2>
+    <p class="dl-lead">${G.code ? `<span>Je verlaat dan je huidige groep.</span> ` : ""}<span>De groep ziet je naam en de route die je deelt.</span></p>
+    <label class="g-field">Jouw naam<input type="text" id="jaName" maxlength="20" placeholder="Bijvoorbeeld Sam" autocomplete="nickname"></label>
+    <label class="switch"><span>Mijn positie delen met de groep</span><input type="checkbox" id="jaShare"><i></i></label>
+    <button type="button" class="btn primary" id="jaYes">${I("check")}Meedoen</button><button type="button" class="btn ghost" id="jaNo">Niet meedoen</button></div>`;
+  document.body.appendChild(g);
+  $("jaName").value = G.name || ""; $("jaShare").checked = false;   // delen staat uit tot je het zelf aanzet
+  const close = () => { g.classList.add("out"); setTimeout(() => g.remove(), 280); };
+  $("jaNo").onclick = close;
+  $("jaYes").onclick = () => {
+    const name = $("jaName").value.trim(); if(!name){ toast("Vul eerst je naam in."); $("jaName").focus(); return; }
+    if(G.code) gLeave();
+    G.sharePos = $("jaShare").checked; $("gSharePos").checked = G.sharePos; $("gName").value = name; $("gCode").value = code;
+    close(); openGroup(); gStart(code); toast(trf("Je doet mee met groep {0}.", code.toUpperCase()));
+  };
 }
 function openGroup(){ $("group").hidden = false; renderGroup(); if(G.code) gDrawQr(); }
 $("groupBtn").onclick = openGroup;
@@ -6033,11 +6063,9 @@ setTimeout(prefetch3d, 3000);
   else { map.setView([46.6, 10.4], 6, {animate:false}); hideSplash(); setTimeout(openPicker, FIRST_RUN ? 600 : 0); }
   if(G.pending && G.pending !== G.code){
     const code = G.pending; G.pending = null;
-    if(G.code) gLeave();
-    openGroup(); $("gCode").value = code;
-    if(G.name){ $("gName").value = G.name; gStart(code); toast(`Je doet mee met groep ${code}.`); }
-    else toast("Vul je naam in en tik op Meedoen.", 3500);
-  } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
+    if(G.code){ G.adoptAfter = Date.now(); gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }   // je huidige groep blijft tot je kiest
+    askJoin(code);
+  } else if(G.code){ G.adoptAfter = Date.now(); gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
   diaryLive(); drawTrack(); apply3d(); pollAction();
   if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }

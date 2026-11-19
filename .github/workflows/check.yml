@@ -37,3 +37,9 @@ jobs:
         run: node tools/weather.mjs
       - name: Locatie op de berg (gps-storing, aankomen, onbekend gebied)
         run: node tools/gps.mjs
+      - name: Volle opslag (tijdelijke gegevens eerst weg, eerlijke melding)
+        run: node tools/storage.mjs
+      - name: Groepen (uitnodiging vraagt eerst, berichten versleuteld, oud plan verandert je route niet)
+        run: node tools/group.mjs
+      - name: Servicewerker (gedownload gebied blijft na een update)
+        run: node tools/sw.mjs

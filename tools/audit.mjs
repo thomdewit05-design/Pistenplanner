@@ -37,6 +37,14 @@ for(const lang of LANGS){
       if(S.area?.id !== whole[0] || S.area.edges.filter(e => e.t === "r").length < 600) out.push("Courchevel opent niet de hele pistekaart");
       return out; });
     bad.forEach(k => problems.push(`deelgebied klopt niet: ${k}`)); }
+  // de servicewerker en de pagina noemen dezelfde versie en dezelfde kaartgegevens; de opslag van gebieden hangt niet aan de versie
+  if(lang === "nl"){ const bad = await p.evaluate(async () => { const sw = await (await fetch("sw.js")).text(), html = await (await fetch("index.html")).text(), out = [];
+      const v = /VERSION = "v(\d+)"/.exec(sw)?.[1], hv = [...new Set([...html.matchAll(/\?v=(\d+)/g)].map(m => m[1]))];
+      if(!v || hv.length !== 1 || hv[0] !== v) out.push(`sw.js heeft versie ${v}, index.html ${hv.join(", ")}`);
+      if(!sw.includes(`data/index.json?${DATA_V}"`)) out.push(`sw.js bewaart een andere lijst dan de app vraagt (${DATA_V})`);
+      if(/DATA = `data-\$\{VERSION\}`/.test(sw) || /\?v=\d+"/.test(sw)) out.push("sw.js koppelt de opslag van gebieden of de startbestanden weer aan een vast versienummer");
+      return out; });
+    bad.forEach(b => problems.push(b)); }
   // zinnen met een invulplek (trf): elke zin heeft een vertaling in alle talen, anders verschijnt een veiligheidsmelding half in het Nederlands
   if(lang === "nl"){ const src = await p.evaluate(async () => (await fetch("app.js")).text());
     const keys = [...new Set([...src.matchAll(/trf\("((?:[^"\\]|\\.)+)"/g)].map(m => m[1].replace(/\\"/g, '"')))];
