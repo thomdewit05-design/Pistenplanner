@@ -1108,27 +1108,27 @@ function renderResult(){
   $("gSendBtn")?.addEventListener("click", sendPlan);
   $("goAllBtn")?.addEventListener("click", startAll);
   let warn = S.target && S.target.kind==="r" && (DIFF[S.target.e.diff].lvl > S.level || (DIFF[S.target.e.diff].lvl===4 && !S.free))
-    ? `<p class="notice bad">${I("warn")}<span><strong>Let op:</strong> ${esc(S.target.label)} is ${DIFF[S.target.e.diff].nl}, moeilijker dan je ingestelde niveau.</span></p>` : "";
+    ? `<p class="notice bad">${I("warn")}<span data-notr><strong>${tr("Let op:")}</strong> ${trf("{0} is {1}, moeilijker dan je ingestelde niveau.", esc(S.target.label), tr(DIFF[S.target.e.diff].nl))}</span></p>` : "";
   // liftsluiting
   if(tm.late.length){
     const s = steps[tm.late[0]];
-    warn += `<div class="notice bad">${I("clock")}<span><strong>Je haalt ${esc(liftLabel(s.e))} niet meer.</strong> Je bent er om ${hhmm(s.eta)}, de laatste lift gaat om ${S.liftClose}. Kies een kortere route of ga <button type="button" class="linkbtn" id="valley2">naar het dal</button>.</span></div>`;
+    warn += `<div class="notice bad">${I("clock")}<span data-notr><strong>${trf("Je haalt {0} niet meer.", esc(liftLabel(s.e)))}</strong> ${trf("Je bent er om {0}, de laatste lift gaat volgens jouw instelling om {1}.", hhmm(s.eta), S.liftClose)} <button type="button" class="linkbtn" id="valley2">${tr("Ga naar het dal")}</button> · <button type="button" class="linkbtn lift-times">${tr("Lifttijden aanpassen")}</button></span></div>`;
   } else if(tm.lastLift != null && tm.close - tm.lastLift < 30){
-    warn += `<p class="notice info">${I("clock")}<span>Krap: je neemt de laatste lift om ${hhmm(tm.lastLift)}. De liften sluiten om ${S.liftClose}.</span></p>`;
+    warn += `<p class="notice info">${I("clock")}<span data-notr>${trf("Krap: je neemt de laatste lift om {0}. De liften sluiten volgens jouw instelling om {1}.", hhmm(tm.lastLift), S.liftClose)} <button type="button" class="linkbtn lift-times">${tr("Lifttijden aanpassen")}</button></span></p>`;
   }
   const riskyLifts = steps.filter(s => s.t==="l" && S.risk?.lifts.has(s.e.i)).length;
-  if(riskyLifts) warn += `<p class="notice info">${I("wind")}<span>${riskyLifts === 1 ? "Eén lift" : riskyLifts + " liften"} op je route ${riskyLifts === 1 ? "is" : "zijn"} bij deze wind mogelijk dicht (${S.risk.reason}). Controleer de <button type="button" class="linkbtn" id="openStatus2" style="color:var(--accent)">liftstatus</button>.</span></p>`;
-  if(tm.planned) warn += `<p class="notice info">${I("clock")}<span>De liften zijn nu dicht. Tijden zijn gerekend vanaf de opening om ${S.liftOpen}.</span></p>`;
+  if(riskyLifts) warn += `<p class="notice info">${I("wind")}<span data-notr>${riskyLifts === 1 ? trf("Eén lift op je route is bij deze wind mogelijk dicht ({0}).", S.risk.reason) : trf("{0} liften op je route zijn bij deze wind mogelijk dicht ({1}).", riskyLifts, S.risk.reason)} <button type="button" class="linkbtn" id="openStatus2" style="color:var(--accent)">${tr("Liftstatus bekijken")}</button></span></p>`;
+  if(tm.planned) warn += `<p class="notice info">${I("clock")}<span data-notr>${trf("Volgens jouw instelling zijn de liften nu dicht. Tijden zijn gerekend vanaf de opening om {0}.", S.liftOpen)} <button type="button" class="linkbtn lift-times">${tr("Lifttijden aanpassen")}</button></span></p>`;
   // ruimer gezocht: vertel wat er buiten je instellingen valt
   if(S.relax){
     const over = steps.filter(s => s.t==="r" && s.items.some(x => overLevel(x.e) && !S.target?.edges.includes(x.e.i)));
     const downs = path.filter(s => s.rev && s.e.t==="l").length, walk = path.filter(s => s.e.extra).reduce((t, s) => t + s.e.len, 0);
     const bits = [];
-    if(over.length) bits.push(over.length === 1 ? `één ${over[0].e.diff==="f" ? "skiroute" : DIFF[over[0].e.diff].adj + " piste"} boven je niveau` : `${over.length} pistes boven je niveau`);
-    if(downs && !S.down) bits.push(downs === 1 ? "één keer met de lift naar beneden" : `${downs} keer met de lift naar beneden`);
-    if(walk) bits.push(`${Math.round(walk/10)*10} m lopen`);
+    if(over.length) bits.push(over.length === 1 ? tr(over[0].e.diff==="f" ? "één skiroute boven je niveau" : "één piste boven je niveau") : trf("{0} pistes boven je niveau", over.length));
+    if(downs && !S.down) bits.push(downs === 1 ? tr("één keer met de lift naar beneden") : trf("{0} keer met de lift naar beneden", downs));
+    if(walk) bits.push(`${Math.round(walk/10)*10} m ${tr("lopen")}`);
     if(bits.length) warn = (!over.length && !(downs && !S.down) ? `<p class="notice info">${I("warn")}<span>${tr("Op deze route loop je")} ${Math.round(walk/10)*10} m.</span></p>`
-      : `<p class="notice ${over.length ? "bad" : "info"}">${I("warn")}<span><strong>Binnen je instellingen kon het niet.</strong> Deze route gaat via ${bits.join(" en ")}.</span></p>`) + warn;
+      : `<p class="notice ${over.length ? "bad" : "info"}">${I("warn")}<span data-notr><strong>${tr("Binnen je instellingen kon het niet.")}</strong> ${trf("Deze route gaat via {0}.", bits.join(` ${tr("en")} `))}</span></p>`) + warn;
   }
   const lastWp = S.wps[S.wps.length-1];
   const home = getHome(), atHome = home && S.to === homeNode();
@@ -1147,6 +1147,7 @@ function renderResult(){
       + `<li class="end"><span class="node">${atHome ? I(home.kind === "auto" ? "car" : "bed") : I("flag")}</span><div class="st-body"><div class="st-title"><span>${esc(endLabel)}</span></div><div class="st-sub">Aankomst rond ${arrive}</div>${homeWalk > 40 ? `<div class="st-sub">Daarna nog ${km(homeWalk)} lopen</div>` : ""}</div><span></span></li></ol>`;
     $("lunchAdd")?.addEventListener("click", lunchForm);
     $("valley2")?.addEventListener("click", () => toValley(false));
+    document.querySelectorAll(".lift-times").forEach(b => b.onclick = liftTimes);
     bindProfile();
     $("openStatus2")?.addEventListener("click", openStatus);
     res.querySelectorAll(".st-info").forEach(b => b.onclick = ev => { ev.stopPropagation(); openDetail(+b.dataset.ei); });
@@ -1400,6 +1401,8 @@ function stopWatch(){
 }
 let firstFix = true;
 // alleen een stukje lopen is geen reden voor de waarschuwing "buiten je instellingen": dan staat er hoeveel meter
+// hele zinnen met een invulplek ({0}, {1}) vertalen: zo blijft de woordvolgorde per taal goed en valt een zin met vet erin niet in stukken uiteen
+const trf = (t, ...v) => tr(t).replace(/\{(\d)\}/g, (m, i) => v[+i] ?? "");
 const walkOnly = path => relaxOnlyWalk(path) > 0 && !path.some(x => x.e.t === "r" && overLevel(x.e));
 function relaxOnlyWalk(path){
   if(path.some(s => s.rev && s.e.t === "l") && !S.down) return 0;
@@ -2181,15 +2184,15 @@ function renderWeather(d, savedAt){
     <small>${txt} · wind ${Math.round(c.wind_speed_10m)} km/u${fresh >= 1 ? ` · ${Math.round(fresh)} cm vers` : ""}</small></span>
     <svg class="ic chev"><use href="#i-chev"/></svg>`;
   const notes = [];
-  if(c.wind_gusts_10m >= 60) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (stoten tot ${Math.round(c.wind_gusts_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
-  else if(c.wind_gusts_10m == null && c.wind_speed_10m >= 45) notes.push(`<p class="notice bad">${I("wind")}<span><strong>Harde wind op de top</strong> (gemiddeld ${Math.round(c.wind_speed_10m)} km/u). Hoge liften en gondels kunnen dicht zijn.</span></p>`);
+  if(c.wind_gusts_10m >= 60) notes.push(`<p class="notice bad">${I("wind")}<span data-notr><strong>${tr("Harde wind op de top")}</strong> ${trf("(stoten tot {0} km/u).", Math.round(c.wind_gusts_10m))} ${tr("Hoge liften en gondels kunnen dicht zijn.")}</span></p>`);
+  else if(c.wind_gusts_10m == null && c.wind_speed_10m >= 45) notes.push(`<p class="notice bad">${I("wind")}<span data-notr><strong>${tr("Harde wind op de top")}</strong> ${trf("(gemiddeld {0} km/u).", Math.round(c.wind_speed_10m))} ${tr("Hoge liften en gondels kunnen dicht zijn.")}</span></p>`);
   // poederdag en sneeuw op komst
   const Dd = top.daily, i0 = Math.max(0, Dd.time.indexOf(c.time.slice(0, 10)));
   const coming = Dd.snowfall_sum.slice(i0 + 1, i0 + 4).reduce((a, x) => a + (x || 0), 0);
-  if(fresh >= 15) notes.push(`<p class="notice good">${I("snow")}<span><strong>Poederdag!</strong> ${Math.round(fresh)} cm verse sneeuw in 24 uur. Vroeg erbij zijn loont: pistes in de schaduw blijven het langst poederig.</span></p>`);
-  else if(coming >= 10) notes.push(`<p class="notice info">${I("snow")}<span><strong>Sneeuw op komst:</strong> de komende drie dagen ongeveer ${Math.round(coming)} cm.</span></p>`);
-  if(c.visibility == null && c.fog >= 50) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Mist op de top.</strong> Blijf op gemarkeerde pistes.</span></p>`);
-  if(c.visibility != null && c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span><strong>Slecht zicht op de top</strong> (${c.visibility < 200 ? "minder dan 200 m" : Math.round(c.visibility/100)*100 + " m"}). Blijf op gemarkeerde pistes.</span></p>`);
+  if(fresh >= 15) notes.push(`<p class="notice good">${I("snow")}<span data-notr><strong>${tr("Poederdag!")}</strong> ${trf("{0} cm verse sneeuw in 24 uur. Vroeg erbij zijn loont: pistes in de schaduw blijven het langst poederig.", Math.round(fresh))}</span></p>`);
+  else if(coming >= 10) notes.push(`<p class="notice info">${I("snow")}<span data-notr><strong>${tr("Sneeuw op komst:")}</strong> ${trf("de komende drie dagen ongeveer {0} cm.", Math.round(coming))}</span></p>`);
+  if(c.visibility == null && c.fog >= 50) notes.push(`<p class="notice bad">${I("fog")}<span data-notr><strong>${tr("Mist op de top.")}</strong> ${tr("Blijf op gemarkeerde pistes.")}</span></p>`);
+  if(c.visibility != null && c.visibility < 1000) notes.push(`<p class="notice bad">${I("fog")}<span data-notr><strong>${tr("Slecht zicht op de top")}</strong> (${c.visibility < 200 ? tr("minder dan 200 m") : Math.round(c.visibility/100)*100 + " m"}). ${tr("Blijf op gemarkeerde pistes.")}</span></p>`);
   const D = top.daily, today = c.time.slice(0, 10), start = Math.max(0, D.time.indexOf(today));
   const days = D.time.slice(start, start + 4).map((t, k) => {
     const i = start + k, [dt, di] = wxInfo(D.weather_code[i]);
@@ -2348,7 +2351,7 @@ function renderSos(){
   $("sosLocal").hidden = !loc;
   if(loc){ $("sosLocal").href = `tel:${loc[0]}`; $("sosLocalNum").textContent = `Bel ${loc[0]}`; $("sosLocalTxt").textContent = loc[1]; }
   if(!S.pos){
-    $("sosLoc").innerHTML = `<p class="empty">${S.watch==null ? "<strong>Locatie staat uit.</strong> Sta locatie toe voor deze app, of geef de naam van de piste of lift door." : "Locatie zoeken… Ga zo mogelijk naar een open plek."}</p>`;
+    $("sosLoc").innerHTML = `<p class="empty" data-notr>${S.watch==null ? `<strong>${tr("Locatie staat uit.")}</strong> ${tr("Sta locatie toe voor deze app, of geef de naam van de piste of lift door.")}` : tr("Locatie zoeken… Ga zo mogelijk naar een open plek.")}</p>`;
     $("sosCopy").disabled = $("sosShare").disabled = true; return;
   }
   const {lat, lon, acc} = S.pos, pl = nearestPlace(), alt = sosAlt();
@@ -2456,7 +2459,7 @@ function computeRisk(c, fresh){
       if(gust >= 90 || (g.top ?? 0) >= top - 500) g.edges.forEach(i => lifts.add(i));
     }
   }
-  S.risk = {lifts, gust, fresh, reason:noGust ? `wind ${Math.round(c.wind_speed_10m)} km/u op ${top} m` : `windstoten tot ${gust} km/u op ${top} m`};
+  S.risk = {lifts, gust, fresh, reason:noGust ? trf("wind {0} km/u op {1} m", Math.round(c.wind_speed_10m), top) : trf("windstoten tot {0} km/u op {1} m", gust, top)};
   if(lifts.size || before){ drawPistes(); update(); }
   if(!$("status").hidden) renderStatus();
 }
@@ -5648,6 +5651,7 @@ function actionHits(q){
   if(q.length < 2) return [];
   return actionList().filter(a => norm(tr(a.t) + " " + a.t + " " + tr(a.where)).includes(q)).slice(0, 5);
 }
+const liftTimes = () => openMenuAt("liftClose");   // de lifttijden zijn een eigen instelling, geen gegeven van het skigebied
 function openMenuAt(id){
   setTab("map"); openMenu();
   setTimeout(() => { const el = $(id) || document.querySelector(`#${id}`); const sec = el?.closest(".m-sec") || el; if(!sec) return;
