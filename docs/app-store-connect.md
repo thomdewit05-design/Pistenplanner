@@ -16,22 +16,10 @@ In App Store Connect vind je dit onder je app → **App-privacy** → Bewerken. 
 Twijfel je bij locatie? Apple telt het als verzamelen als gegevens de telefoon verlaten, ook als ze versleuteld zijn. Vul dus **"Precieze locatie: ja, appfunctionaliteit, niet gekoppeld, niet volgen"** in.
 
 ## 2. Beoordelingsnotities (App Review Information → Notes)
-Plak dit erin. Apple is streng bij HealthKit, en zonder uitleg volgt vaak een afwijzing.
-
-> Skipilot is a ski map and navigation app. HealthKit is used only to **write** a finished ski day as a workout (start/end time, distance, estimated active energy) when the user turns on "Save to Apple Health" in Menu → Notifications & Health. The app never reads health data and never sends it off the device or uses it for advertising.
-> Location is used for navigation and the ski diary. Only when the user joins a group and enables position sharing is the position sent, end-to-end encrypted (AES-GCM, key derived from the group code), via ntfy.sh to group members.
-> Ski areas must be downloaded once before use so the map works without mobile signal. To test: pick "Ski Arlberg", tap Download (about 25 MB).
-> Motion sensor: used during a recorded ski day to detect jumps (on device only).
+Eén set notities, in `store/ios/app-store-nl.md` onder "Opmerking voor de beoordelaar". Plak die in zijn geheel. Apple is streng bij HealthKit en locatie op de achtergrond; beide staan erin uitgelegd.
 
 ## 3. Wat er nieuw is in deze versie
-Dit is de tekst voor "Wat is er nieuw". Vertalingen kun je per taal toevoegen.
-
-> Skipilot 1.1
-> • Download je skigebied: de winterkaart, 3D en navigatie werken nu ook zonder bereik
-> • Groepen zijn versleuteld
-> • Batterij sparen, automatisch onder 20%
-> • Opslaan in Apple Gezondheid, Apple Watch-app, nieuwe widgets en Siri-opdrachten
-> • Steilheidskaart, zon en schaduw, heatmap van je sporen, reisplanner en nog veel meer
+De tekst staat in `store/ios/app-store-nl.md` (Nederlands) en `store/ios/app-store-en.md` (Engels) onder "Wat is er nieuw".
 
 ## 4. Screenshots
 - **Apple Watch:** voor een app met een Watch-onderdeel zijn screenshots van de Watch verplicht. Gebruik 410×502 (Series 10/11, 46 mm) of een van de andere toegestane maten. Maak ze in de simulator met Xcode, of op je eigen Watch: tegelijk op de zijknop en de Digital Crown drukken. De foto staat dan in Foto's op je iPhone.

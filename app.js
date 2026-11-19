@@ -5965,6 +5965,9 @@ i18nStart();
 $("langSel").value = LANG;
 $("langSel").onchange = e => { if(e.target.value !== LANG) setLang(e.target.value); };
 
+// privacy en voorwaarden: in een andere taal dan Nederlands open je de Engelse pagina
+document.addEventListener("click", e => { const l = e.target.closest?.("a[href$='privacy.html'],a[href$='voorwaarden.html'],a[href$='privacy-en.html'],a[href$='terms-en.html']"); if(!l) return;
+  const priv = /privacy/.test(l.getAttribute("href")); l.setAttribute("href", LANG === "nl" ? (priv ? "privacy.html" : "voorwaarden.html") : (priv ? "privacy-en.html" : "terms-en.html")); }, true);
 // eerste start zonder verbinding: geen dood spoor, maar een scherm met een knop
 function startFail(){
   const g = document.createElement("div"); g.className = "dl-gate start-fail"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true");

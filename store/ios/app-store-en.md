@@ -31,7 +31,7 @@ NAVIGATE
 • Off the route? Skipilot recalculates automatically
 • "To the valley": the fastest way down from where you are
 • Elevation profile, times, and a warning if you won't make the last lift
-• On your lock screen, in the Dynamic Island and on your Apple Watch, with a tap on your wrist before every turn
+• On your lock screen, in the Dynamic Island and in the Apple Watch app, with a tap on your wrist before every turn
 • Siri: "to the valley" or "to my hotel"
 
 SKI TOGETHER
@@ -45,7 +45,7 @@ MAPS
 • Satellite, terrain and street maps
 
 WIDGETS
-• Ski area: weather at the top, fresh snow, snow depth and wind, on your home screen and lock screen
+• Ski area: weather at the top, expected snow, cloud cover and wind, on your home screen and lock screen
 • Ski day: today's distance, vertical and runs at a glance
 
 HANDY EXTRAS
@@ -53,13 +53,14 @@ HANDY EXTRAS
 • Lunch stop: the app picks a mountain hut on your route, around the time you want to eat
 • Enter your hotel's address and get back easily at the end of the day
 • Buy a ski pass: straight to the resort's ticket shop
-• Weather at the top and in the valley, with wind and visibility warnings
+• Weather at the top and in the valley, with wind and fog warnings
+• Measured snow depth from weather stations in Austria and Switzerland
 • Ski diary with distance, vertical, top speed and season records
 • Speedometer and GPX export
 • SOS button with the right emergency number and your exact location
 
 MORE THAN 1,800 SKI AREAS
-In the Alps (Austria, France, Switzerland, Italy, Germany, Slovenia), the Pyrenees, Scandinavia and North America. The runs and lifts of every area are built into the app, so planning and navigation work without signal.
+In the Alps (Austria, France, Switzerland, Italy, Germany, Slovenia), the Pyrenees, Scandinavia and North America. Download your ski area once; after that the map, 3D and navigation also work without signal on the mountain.
 
 PRIVACY
 No account needed. Skipilot is free thanks to ads, never during navigation. Your routes and ski diary stay on your iPhone. Your position is only shared with your group members when you use a group yourself.
@@ -67,14 +68,17 @@ No account needed. Skipilot is free thanks to ads, never during navigation. Your
 SAFETY
 Skipilot is a guide. Run data comes from OpenStreetMap and may differ from reality. The app doesn't know which runs and lifts are actually open today and has no avalanche information. Always follow the signs and the ski patrol.
 
-Available in English, Dutch, German, French and Italian.
-Run data © OpenStreetMap contributors, via OpenSkiMap. Satellite imagery © Esri.
+Available in English, Dutch, German, French, Italian, Spanish, Portuguese, Russian, Chinese and Japanese.
+Run data © OpenStreetMap contributors, via OpenSkiMap. Weather: MET Norway. Satellite imagery © Esri.
 
 ## What's New
-• Today's day route, with lunch at a mountain hut
-• Navigation on your Apple Watch, with a tap on your wrist before every turn
-• Snowboard mode
-• 3D mountains and a winter map with villages and peaks, now loading much faster
-• Enter your hotel's address and buy a ski pass
-• New, cleaner iOS style and a new icon
-• Now also in French and Italian
+• The whole piste map: open Courchevel, Lech or Les Arcs and you see the entire connected area
+• Better weather: forecast from MET Norway and measured snow depth from weather stations
+• Honest numbers: the resort's stated piste kilometres next to what is measured on the map
+• Smoother, also in your iPhone's Low Power Mode
+• A GPS dropout in the gondola no longer stops your recording or navigation
+• Warnings for wind, fog and the last lift now in all ten languages
+• Now also in Spanish, Portuguese, Russian, Chinese and Japanese
+
+## Review notes
+See "Opmerking voor de beoordelaar" in `app-store-nl.md`: one set of notes, in English, for all localisations.

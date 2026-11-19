@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Skipilot</title>
+<link rel="icon" href="icons/logo.svg">
+<style>
+:root{--bg:#F3F6F9;--card:#fff;--ink:#0F1B2A;--muted:#5E6E80;--line:#E1E7EE;--accent:#2A6FDB}
+@media (prefers-color-scheme:dark){:root{--bg:#0B1520;--card:#121E2C;--ink:#E8EEF5;--muted:#9AAABB;--line:#26364A;--accent:#6EA2F0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+header img{width:44px;height:44px}
+h1{font-size:28px;line-height:1.15;margin:0}
+h2{font-size:19px;margin:28px 0 6px}
+p,li{color:var(--ink)}
+.meta{color:var(--muted);font-size:14px;margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 18px 14px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;table-layout:fixed}
+th,td{text-align:left;vertical-align:top;padding:8px 6px;border-top:1px solid var(--line);overflow-wrap:anywhere;hyphens:auto}
+th{color:var(--muted);font-weight:600}
+a{color:var(--accent)}
+.todo{background:#FFF1C2;color:#5A4300;padding:0 4px;border-radius:4px}
+@media (prefers-color-scheme:dark){.todo{background:#5A4300;color:#FFF1C2}}
+.back{display:inline-block;margin-top:28px}
+</style>
+</head>
+<body>
+<main>
+<header><img src="icons/logo.svg" alt=""><h1>Privacy policy</h1></header>
+<p class="meta">Skipilot · last updated on 19 November 2026 · <a href="privacy.html">Nederlands</a></p>
+
+<div class="card">
+<h2>In short</h2>
+<ul>
+  <li class="ads-off">Skipilot has no accounts and no analytics services. The website shows no ads; the free iPhone app shows ads from Google AdMob (see below).</li>
+  <li class="ads-on" hidden>Skipilot has no accounts and no analytics services. The app and the website show ads from Google; Google first asks for your consent for cookies.</li>
+  <li>Your routes, settings, ski diary and saved places are stored only on your own phone.</li>
+  <li>Your location is used on your phone for navigation. Only if you use a group yourself is your position sent to your group members, encrypted.</li>
+  <li>The app uses Apple Health, photos and the motion sensor only if you turn that on yourself. That data stays on your own phone.</li>
+</ul>
+</div>
+
+<h2>Who is responsible?</h2>
+<p>Skipilot is made by <span data-cfg="name" class="todo">[name]</span>. You can email privacy questions to <span data-cfg="email" class="todo">[email address]</span>.</p>
+
+<h2>What stays on your phone</h2>
+<p>The app stores in your phone's (or browser's) storage: your settings (level, preferences, theme, language), your saved routes and favourites, your ski diary with the GPS points of your ski days, the location of your hotel or car, runs you closed yourself, your group name and group code, your photos, your weight (if you enter it), the downloaded ski areas and, if you have Pro, your licence code. This data is not sent anywhere. You can erase it via Menu &gt; Storage and privacy, or by deleting the app.</p>
+
+<h2>Your location</h2>
+<p>If you give permission, the app uses your phone's GPS to show you on the map, to navigate, to keep your ski diary and to show your speed. That happens on your phone. Your location only goes to others if you are in a group and "Share my position" is on (see below).</p>
+
+<h2>Apple Health (iPhone app)</h2>
+<p>If you turn on "Save to Apple Health", your iPhone first asks for permission. After a ski day the app saves it as a workout in Apple Health: the start and end time, the distance and an estimate of the calories. For that estimate you can enter your weight; it stays on your phone. The app reads nothing from Apple Health and does not send this data anywhere. Health data is never used for advertising.</p>
+
+<h2>Photos, motion sensor and Apple Watch</h2>
+<p>Photos you take or choose for your ski day are stored only on your phone. The app uses the motion sensor while recording a ski day to recognise jumps; that also happens on your phone. If you have the Apple Watch app, your iPhone sends your ski day and route directly to your watch. Widgets and the Live Activity show data that is already on your phone.</p>
+
+<h2>Downloaded ski areas</h2>
+<p>Before you use a ski area, you download it: the run data and the elevation data for the winter map and 3D are then stored on your phone, so everything works without signal. You erase them via Menu &gt; Storage and privacy.</p>
+
+<h2>Services of others</h2>
+<p>To work, the app fetches data from other services. As with any website, they see your IP address and what is requested.</p>
+<table>
+  <tr><th>Service</th><th>What for</th><th>What is sent</th></tr>
+  <tr><td>GitHub Pages</td><td>Hosting of the app and the run data</td><td>Ordinary web requests</td></tr>
+  <tr><td>Esri, OpenTopoMap, OpenStreetMap</td><td>Map tiles (satellite, terrain, street map)</td><td>Which part of the map you view</td></tr>
+  <tr><td>Amazon Web Services (Terrain Tiles)</td><td>Elevation data for the winter map, steepness, the 3D map and 3D navigation</td><td>Which part of the map you view in 3D</td></tr>
+  <tr><td>MET Norway (api.met.no)</td><td>Weather forecast, also in the widgets and the powder alert</td><td>The position of the highest and lowest lift station of the ski area (not your own position)</td></tr>
+  <tr><td>GeoSphere Austria, WSL Institute SLF</td><td>Measured snow depth at weather stations</td><td>No data about you; the app fetches the measurements of stations near the ski area</td></tr>
+  <tr><td>Photon (komoot)</td><td>Searching for an address (hotel or car park)</td><td>What you type and the position of the ski area; only if you search for an address yourself</td></tr>
+  <tr><td>Overpass (OpenStreetMap)</td><td>Huts, restaurants, peaks, webcams and opening hours</td><td>The area of the ski area</td></tr>
+  <tr><td>ntfy.sh (snow reports)</td><td>What the snow on a run is like, reported by other skiers</td><td>Only if you rate a run yourself: which run and what kind of snow. Anonymous; your position is only checked on your phone and not sent.</td></tr>
+  <tr><td>ntfy.sh</td><td>Groups</td><td>Only if you use a group: your name in the group, the route you share and, if you turn it on, your position and day total (km and vertical metres). Messages are encrypted on your phone (AES-GCM) with a key derived only from the group code; ntfy.sh therefore sees only unreadable text. They are kept there temporarily (about 12 hours by default).</td></tr>
+  <tr><td>Google AdMob (iPhone app)</td><td>An ad banner in the ski area picker, the route description, the diary and the menu of the free iPhone app, and occasionally a full-screen ad at a pause; never during navigation</td><td>Data about your device, your IP address, how you see and use the ads and, only if you give permission, your iPhone's advertising ID. See below.</td></tr>
+<tr class="ads-on" hidden><td>Google AdSense</td><td>Ads on the website and in the app (in the ski area picker, the diary and the menu; never during navigation)</td><td>Data about your device and browser, your IP address, the page you view and, if you consent, cookies and similar techniques. See below.</td></tr>
+  <tr><td>Lemon Squeezy</td><td>Checking a Pro licence (Pro is currently not for sale in the app)</td><td>Only if you have entered a licence code: your licence code and the type of device (for example "iPhone"), to activate the code and check it once a week.</td></tr>
+</table>
+
+<h2>Ads in the iPhone app</h2>
+<p>In the free iPhone app we show ads from Google AdMob (Google Ireland Limited). On first use a message from Google asks for your consent for personalised ads, and then your iPhone asks whether Skipilot may track you. If you refuse, you get ads that are not tailored to you. You change your choice with Google in the app via Menu → <i>Ad privacy settings</i>, and with Apple via Settings → Privacy &amp; Security → Tracking. More about AdMob: <a href="https://policies.google.com/technologies/ads?hl=en" target="_blank" rel="noopener">policies.google.com/technologies/ads</a>.</p>
+
+<div class="ads-on" hidden>
+<h2>Ads and cookies</h2>
+<p>To keep Skipilot free, the website and the app show ads from Google AdSense (Google Ireland Limited). On your first visit a message from Google asks whether you consent to cookies and personalised ads. If you do not consent, you get ads that are not tailored to you; Google then uses only what is needed to show ads and prevent abuse.</p>
+<p>You can always change your choice via the button or shield Google shows at the bottom of the page, or by clearing this website's cookies in your browser. More about how Google uses data: <a href="https://policies.google.com/technologies/partner-sites?hl=en" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a>.</p>
+</div>
+
+<h2>Legal basis</h2>
+<p>The data is used to make the app work as you ask (performance of the agreement) and, for a purchase, to meet the legal record-keeping obligation. For personalised ads in the iPhone app, your consent is the legal basis.<span class="ads-on" hidden> For cookies and personalised ads, your consent is the legal basis.</span> For your location, your phone first asks for permission; you can always withdraw it in your phone's settings.</p>
+
+<h2>How long</h2>
+<p>Data on your phone stays until you erase it. Group messages disappear from ntfy.sh after a short time. Order data is kept for seven years, because tax law requires it.</p>
+
+<h2>Your rights</h2>
+<p>You may ask which data about you exists, have it corrected or deleted, and object. Email <span data-cfg="email" class="todo">[email address]</span> for that. If you are not satisfied with how your data is handled, you can file a complaint with the Dutch Data Protection Authority (<a href="https://www.autoriteitpersoonsgegevens.nl/en" target="_blank" rel="noopener">Autoriteit Persoonsgegevens</a>).</p>
+
+<h2>Changes</h2>
+<p>If the app changes, this policy may change too. The date at the top shows when that last happened. The Dutch version of this policy is leading.</p>
+
+<a class="back" href="./">← Back to Skipilot</a>
+</main>
+<script src="config.js"></script>
+<script>
+// advertentieteksten alleen tonen als advertenties aan staan
+if(((window.PP_CONFIG || {}).ads || {}).client){ document.querySelectorAll(".ads-on").forEach(e => e.hidden = false); document.querySelectorAll(".ads-off").forEach(e => e.hidden = true); }
+// naam en e-mailadres uit config.js invullen
+const c = (window.PP_CONFIG || {}).contact || {};
+document.querySelectorAll("[data-cfg]").forEach(el => {
+  const v = c[el.dataset.cfg]; if(!v) return;
+  if(el.dataset.cfg === "email"){ const a = document.createElement("a"); a.href = "mailto:" + v; a.textContent = v; el.replaceWith(a); }
+  else { el.textContent = v; el.classList.remove("todo"); }
+});
+</script>
+</body>
+</html>

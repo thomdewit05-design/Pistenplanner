@@ -9,7 +9,7 @@ Skipilot: pistenavigatie
 Pistekaart en skinavigatie
 
 ## Promotietekst (max. 170 tekens)
-Kies waar je heen wilt en Skipilot vertelt welke pistes en liften je neemt, met gesproken aanwijzingen. In meer dan 1.800 skigebieden, ook zonder bereik.
+Kies waar je heen wilt en Skipilot vertelt welke pistes en liften je neemt, met gesproken aanwijzingen. In meer dan 1.800 skigebieden, ook zonder bereik op de berg.
 
 ## Trefwoorden (max. 100 tekens, gescheiden door komma's)
 ski,piste,skigebied,wintersport,route,navigatie,lift,gps,alpen,snowboard,kaart,skidagboek,sneeuw
@@ -31,7 +31,7 @@ NAVIGEREN
 • Ben je van de route af, dan rekent Skipilot vanzelf een nieuwe route
 • "Naar het dal": de snelste weg naar beneden, vanaf waar je bent
 • Hoogteprofiel, tijden en een waarschuwing als je de laatste lift niet meer haalt
-• Op je toegangsscherm, in het Dynamic Island en op je Apple Watch, met een tikje op je pols voor elke afslag
+• Op je toegangsscherm, in het Dynamic Island en in de Apple Watch-app, met een tikje op je pols voor elke afslag
 • Siri: "naar het dal" of "naar mijn hotel"
 
 SAMEN SKIËN
@@ -45,7 +45,7 @@ KAARTEN
 • Satellietkaart, terreinkaart en gewone kaart
 
 WIDGETS
-• Skigebied: het weer bovenop de berg, verse sneeuw, sneeuwhoogte en wind, op je beginscherm en toegangsscherm
+• Skigebied: het weer bovenop de berg, verwachte sneeuw, bewolking en wind, op je beginscherm en toegangsscherm
 • Skidag: kilometers, hoogtemeters en afdalingen van vandaag in één oogopslag
 
 HANDIGE EXTRA'S
@@ -53,13 +53,14 @@ HANDIGE EXTRA'S
 • Lunchstop: de app kiest een hut op je route, rond het tijdstip dat jij wilt lunchen
 • Vul het adres van je hotel in en kom aan het eind van de dag makkelijk terug
 • Skipas kopen: rechtstreeks naar de ticketshop van het skigebied
-• Weer op de top en in het dal, met waarschuwingen voor wind en zicht
+• Weer op de top en in het dal, met waarschuwingen voor wind en mist
+• Gemeten sneeuwhoogte van meetstations in Oostenrijk en Zwitserland
 • Skidagboek met kilometers, hoogtemeters, topsnelheid en seizoensrecords
 • Snelheidsmeter en GPX-export
 • SOS-knop met het juiste noodnummer en je exacte plek
 
 MEER DAN 1.800 SKIGEBIEDEN
-In de Alpen (Oostenrijk, Frankrijk, Zwitserland, Italië, Duitsland, Slovenië), de Pyreneeën, Scandinavië en Noord-Amerika. De pistes en liften van alle gebieden zitten in de app, dus plannen en navigeren werkt ook zonder bereik.
+In de Alpen (Oostenrijk, Frankrijk, Zwitserland, Italië, Duitsland, Slovenië), de Pyreneeën, Scandinavië en Noord-Amerika. Download je skigebied één keer; daarna werken de kaart, 3D en de navigatie ook zonder bereik op de berg.
 
 PRIVACY
 Geen account nodig. Skipilot is gratis dankzij advertenties, nooit tijdens het navigeren. Je routes en je skidagboek blijven op je iPhone. Je positie gaat alleen naar je groepsgenoten als je zelf een groep gebruikt.
@@ -67,21 +68,46 @@ Geen account nodig. Skipilot is gratis dankzij advertenties, nooit tijdens het n
 VEILIGHEID
 Skipilot is een hulpmiddel. De pistedata komt van OpenStreetMap en kan afwijken van de werkelijkheid. De app weet niet welke pistes en liften vandaag echt open zijn en kent geen lawinegevaar. Volg altijd de borden en de pistedienst.
 
-Beschikbaar in het Nederlands, Engels, Duits, Frans en Italiaans.
-Pistedata © OpenStreetMap-bijdragers, via OpenSkiMap. Satellietbeelden © Esri.
+Beschikbaar in het Nederlands, Engels, Duits, Frans, Italiaans, Spaans, Portugees, Russisch, Chinees en Japans.
+Pistedata © OpenStreetMap-bijdragers, via OpenSkiMap. Weer: MET Norway. Satellietbeelden © Esri.
 
 ## Wat is er nieuw
-• Dagroute van vandaag, met lunch in een hut
-• Navigatie op je Apple Watch, met een tikje op je pols voor elke afslag
-• Snowboardmodus
-• 3D-bergen en een winterkaart met dorpen en bergtoppen, die veel sneller laden
-• Hotel-adres invullen en skipas kopen
-• Nieuwe, strakkere iOS-stijl en een nieuw icoon
-• Nu ook in het Frans en Italiaans
+• De hele pistekaart: open je Courchevel, Lech of Les Arcs, dan zie je het hele aaneengesloten gebied
+• Beter weer: voorspelling van MET Norway en gemeten sneeuwhoogte van meetstations
+• Eerlijke cijfers: de pistekilometers volgens het skigebied naast wat op de kaart gemeten is
+• Soepeler, ook in de energiebesparingsmodus van je iPhone
+• Een gps-storing in de gondel stopt je opname en navigatie niet meer
+• Waarschuwingen voor wind, mist en de laatste lift nu in alle tien talen
+• Nu ook in het Spaans, Portugees, Russisch, Chinees en Japans
 
 ## Opmerking voor de beoordelaar (App Review Information → Notes)
-Skipilot is a ski navigation app. No login is required.
-To test: tap the ski area name at the top, search for "Zillertal Arena" (or any other area), then tap two points on the map to plan a route and tap "Start navigatie" (Start navigation). Language can be switched to English, German, French or Italian in the menu (top left) under Taal / Language. To try a ready-made route, open a ski area and tap "Dagroute van vandaag" (Today's day route).
-All run and lift data for 1,800+ ski areas is bundled in the app, so route planning and turn-by-turn voice navigation work offline on the mountain. Location is only used while navigating or recording the ski diary. The app includes two home screen widgets (ski area weather and ski day stats) and a Live Activity for navigation that also appears on Apple Watch (watchOS 11+). Background location is used only during active navigation, so the Live Activity can show the next turn while the phone is locked.
-Group location sharing is optional and only active when the user creates or joins a group.
-App Tracking Transparency: the permission request ("Allow Skipilot to track your activity…") appears automatically about 1 second after the app is first opened, before any ad is loaded or any advertising data is collected. If another system alert (such as the location permission) is showing at that moment, the prompt appears as soon as that alert is closed. Google AdMob is only started after the user has answered this prompt; with "Ask App Not to Track" the app shows non-personalized ads only. The free app shows a Google AdMob banner in the ski area list, the route details, the ski diary and the menu, and occasionally a full-screen ad at a natural pause (never during navigation), after the Google consent form and the App Tracking Transparency prompt.
+Dit is de enige set notities; plak hem in zijn geheel.
+
+Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required.
+
+How to test
+1. On first launch a short tour appears; then pick a ski area, for example "Ski Arlberg" or "Zillertal Arena".
+2. A ski area must be downloaded once before use (about 10 to 30 MB), so the map, 3D and navigation work without mobile signal on the mountain. Tap "Download".
+3. Tap two points on the map to plan a route, or tap "Dagroute van vandaag" (Today's day route) for a ready-made route. Then tap "Start navigatie" (Start navigation).
+4. The language can be changed in the menu under Taal / Language. Available: Dutch, English, German, French, Italian, Spanish, Portuguese, Russian, Chinese and Japanese.
+
+Location
+Location is used to show the user on the map, for navigation and for the ski diary. Background location is used only while the user has started navigation, so the Live Activity (Lock Screen, Dynamic Island, Apple Watch) can show the next turn while the phone is locked with gloves on. It stops as soon as navigation ends.
+
+Groups
+Group position sharing is optional. Only when the user creates or joins a group and enables position sharing is the position sent to group members, end-to-end encrypted (AES-GCM, key derived from the group code), via ntfy.sh.
+
+HealthKit
+HealthKit is used only to write a finished ski day as a workout (start and end time, distance, estimated active energy) when the user turns on "Save to Apple Health" in the menu. The app never reads health data, never sends it off the device and never uses it for advertising.
+
+Camera, photos and motion
+The camera and photo library are used only when the user adds a photo to a ski day or saves a share image. The motion sensor is used during a recorded ski day to detect jumps. All of this stays on the device.
+
+Ads and tracking
+The app is free with ads from Google AdMob. The App Tracking Transparency prompt appears about one second after the first launch, before any ad is loaded or any advertising data is collected; if another system alert is showing, it appears as soon as that alert is closed. AdMob is only started after the user has answered. With "Ask App Not to Track" the app shows non-personalised ads only. There is a banner in the ski area list, the route details, the ski diary and the menu, and occasionally a full-screen ad at a natural pause; never during navigation or right after it. There are no in-app purchases in this version.
+
+Widgets and Watch
+The app includes home screen and lock screen widgets (ski area weather, ski day stats), a Live Activity for navigation and an Apple Watch app that shows the ski day and the next turn.
+
+Data
+Run and lift data comes from OpenStreetMap via OpenSkiMap. Weather comes from MET Norway; measured snow depth from GeoSphere Austria and SLF Switzerland. The app does not know which lifts are open today; it says so in the app.
