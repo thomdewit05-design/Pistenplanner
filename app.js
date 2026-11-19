@@ -1079,12 +1079,16 @@ function renderResult(){
     // het punt het dichtst bij je bestemming dat je wél kunt halen
     const near = !S.wps.length && !S.target && S.via==null ? nearestReachable(S.from, S.to) : null, alt = near && near.d <= 2000 ? near : null;
     const altBtn = alt ? `<button type="button" class="btn primary" id="altBtn">${I("flag")}Naar het dichtstbijzijnde punt · ${km(alt.d)} van je bestemming</button>` : "";
-    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${who ? `<span>${who}</span> ` : ""}${S.closed.size ? "<span>Probeer een gesloten piste of lift te openen.</span> " : ""}<span>Dit deel van het skigebied is vanaf je vertrekpunt niet over pistes en liften te bereiken, bijvoorbeeld omdat je er met de skibus heen moet; die staat niet in de kaart.</span></p>`;
+    res.innerHTML = `<p class="empty"><strong>Geen route gevonden.</strong> ${who ? `<span>${who}</span> ` : ""}${S.closed.size ? "<span>Probeer een gesloten piste of lift te openen.</span> " : ""}<span>${tips.length ? "Met je huidige instellingen is dit punt niet te bereiken." : "Dit deel van het skigebied is vanaf je vertrekpunt niet over pistes en liften te bereiken, bijvoorbeeld omdat je er met de skibus heen moet; die staat niet in de kaart."}</span></p>`;
+    const tipBtns = tips.length ? `<div class="cta nr-tips">${S.level < 3 ? `<button type="button" class="btn ghost" id="nrLevel">${I("ski")}Hoger niveau proberen</button>` : ""}${!S.free ? `<button type="button" class="btn ghost" id="nrFree">${I("flag")}Skiroutes meenemen</button>` : ""}${S.closed.size ? `<button type="button" class="btn ghost" id="nrOpen">${I("check")}Open en dicht bekijken</button>` : ""}</div>` : "";
     peek.innerHTML = S.planBy ? `<p class="empty"><strong>Je kunt de route van ${esc(S.planBy)} niet volgen</strong> met jouw niveau of instellingen. Kies een hoger niveau, of vraag om een makkelijkere bestemming.</p>`
-                              : `<div class="peek-empty"><p><b>Hier kom je niet over de piste</b>${alt ? "Wel kun je dichtbij komen." : "Kies een ander punt, of laat de app een rondje voorstellen."}</p>
+                              : `<div class="peek-empty"><p><b>Hier kom je niet over de piste</b>${alt ? "Wel kun je dichtbij komen." : tips.length ? "Met je huidige instellingen is dit punt niet te bereiken." : "Kies een ander punt, of laat de app een rondje voorstellen."}</p>${tipBtns}
                                  <div class="cta">${altBtn || `<button type="button" class="btn ghost" id="suggestBtn">${I("loop")}Stel een route voor</button>`}<button type="button" class="btn ghost" id="clearBtn">${I("close")}Route wissen</button></div></div>`;
     $("altBtn")?.addEventListener("click", () => { S.to = alt.n; update(); fitRoute(); });
     $("suggestBtn")?.addEventListener("click", () => { defaultRoute(); update(); fitRoute(); });
+    $("nrLevel")?.addEventListener("click", () => document.querySelector(`#level [data-v="${S.level + 1}"]`)?.click());
+    $("nrFree")?.addEventListener("click", () => { const f = $("free"); if(f && !f.checked) f.click(); });
+    $("nrOpen")?.addEventListener("click", openStatus);
     $("clearBtn")?.addEventListener("click", clearRoute);
     return setPeek();
   }
@@ -2514,7 +2518,7 @@ $("statusBtn").onclick = openStatus;
 $("statusClose").onclick = closeStatus;
 $("statusQ").addEventListener("input", renderStatus);
 document.querySelectorAll("#statusTab button").forEach(b => b.onclick = () => { stTab = b.dataset.v; renderStatus(); });
-$("statusReset").onclick = () => { if(!S.closed.size) return; S.closed = new Set(); drawPistes(); update(); renderStatus(); toast("Alles staat weer op open."); };
+$("statusReset").onclick = e => { if(!S.closed.size) return; if(!tapTwice(e.currentTarget, "Tik nog een keer om alles weer op open te zetten.")) return; S.closed = new Set(); drawPistes(); update(); renderStatus(); toast("Alles staat weer op open."); };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("status").hidden) closeStatus(); });
 $("shareStatus").onclick = () => {
   const url = shareUrl(), p = $("sharePanel");
@@ -2857,6 +2861,7 @@ function renderRoutes(){
     if(!isSide()) setSheet(false);
   });
   $("mrList").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    if(!tapTwice(b, "Tik nog een keer om deze route te verwijderen.")) return;
     const list = loadRoutes(), [r] = list.splice(+b.dataset.del, 1);
     saveRoutes(list); renderRoutes(); toast(`"${r.name}" verwijderd.`);
   });
@@ -5415,7 +5420,7 @@ async function _openTrip(){
   el.querySelectorAll("[data-pk]").forEach(cb => cb.onchange = () => { const cur = tripGet() || {area:$("tpArea").value, from:$("tpFrom").value, to:$("tpTo").value};
     cur.pack = [...el.querySelectorAll("[data-pk]:checked")].map(x => +x.dataset.pk); tripSet(cur.from ? cur : {...cur}); buzz("select");
     if(cur.pack.length === PACK.length){ buzz("success"); confetti(50); toast(tr("Alles ingepakt. Goede reis!")); } });
-  $("tpDel")?.addEventListener("click", () => { tripSet(null); el.hidden = true; if(!$("today").hidden) renderToday(); toast(tr("Vakantie verwijderd.")); });
+  $("tpDel")?.addEventListener("click", e => { if(!tapTwice(e.currentTarget, "Tik nog een keer om je vakantie te verwijderen.")) return; tripSet(null); el.hidden = true; if(!$("today").hidden) renderToday(); toast(tr("Vakantie verwijderd.")); });
   tripInfo($("tpArea").value);
 }
 // weer, sneeuwzekerheid, skipas en de route ernaartoe voor het gekozen gebied
@@ -5543,8 +5548,11 @@ function downloadGate(row, bounds){
 async function downloadArea(btn, A = S.area){
   if(!A) return;
   const tiles = areaTiles(A.bounds); btn.disabled = true;
-  const {bytes} = await fetchTiles(tiles, d => btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(d / tiles.length * 100)}%`);
-  btn.disabled = false; btn.innerHTML = `${I("check")}${tr("Klaar")} · ${fmtMB(bytes)} MB`;
+  const {bytes, fails} = await fetchTiles(tiles, d => btn.innerHTML = `${I("down")}${tr("Downloaden…")} ${Math.round(d / tiles.length * 100)}%`);
+  btn.disabled = false;
+  // mislukt (geen bereik): niet "Klaar" melden en de oude download laten staan
+  if(fails > tiles.length * .1){ btn.innerHTML = `${I("warn")}${tr("Niet gelukt, tik om het opnieuw te proberen")}`; toast(fails >= tiles.length ? "Downloaden is niet gelukt. Controleer je verbinding." : "Een deel van de kaart is niet gedownload. Probeer het opnieuw met een betere verbinding.", 4500); return; }
+  btn.innerHTML = `${I("check")}${tr("Klaar")} · ${fmtMB(bytes)} MB`;
   try{ localStorage.setItem("pp-dl-" + A.id, JSON.stringify({v:1, t:Date.now(), n:tiles.length, b:bytes})); }catch(e){}
   buzz("success"); toast(`${A.row[1]}: ${tiles.length} ${tr("kaarttegels bewaard voor offline.")}`, 3500);
 }
@@ -5651,6 +5659,8 @@ function actionHits(q){
   if(q.length < 2) return [];
   return actionList().filter(a => norm(tr(a.t) + " " + a.t + " " + tr(a.where)).includes(q)).slice(0, 5);
 }
+// wissen vraagt om een tweede tik (dezelfde manier als bij een skidag)
+function tapTwice(b, msg){ if(b.dataset.sure === "1") return true; b.dataset.sure = "1"; b.style.color = "var(--danger)"; toast(msg); setTimeout(() => { b.dataset.sure = ""; b.style.color = ""; }, 4000); return false; }
 const liftTimes = () => openMenuAt("liftClose");   // de lifttijden zijn een eigen instelling, geen gegeven van het skigebied
 function openMenuAt(id){
   setTab("map"); openMenu();
@@ -5955,13 +5965,19 @@ i18nStart();
 $("langSel").value = LANG;
 $("langSel").onchange = e => { if(e.target.value !== LANG) setLang(e.target.value); };
 
+// eerste start zonder verbinding: geen dood spoor, maar een scherm met een knop
+function startFail(){
+  const g = document.createElement("div"); g.className = "dl-gate start-fail"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true");
+  g.innerHTML = `<div class="dl-card"><div class="empty-ill">${ART("offline")}</div><h2 class="dl-title">Geen verbinding</h2><p class="dl-lead">De lijst met skigebieden kon niet laden. Controleer je internet en probeer het opnieuw.</p><button type="button" class="btn primary" id="startRetry">${I("loop")}Opnieuw proberen</button></div>`;
+  document.body.appendChild(g); $("startRetry").onclick = () => location.reload();
+}
 // ================= start =================
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
 applyBase(); update(); setPeek(); $("threeBtn").hidden = !M3.supported;
 setTimeout(prefetch3d, 3000);
 (async () => {
   try{ const r = await fetch(`data/index.json?${DATA_V}`); if(!r.ok) throw new Error(r.status); S.index = await r.json(); }
-  catch(e){ hideSplash(); $("areaStats").textContent = "Lijst kon niet laden. Herlaad de app."; return; }
+  catch(e){ hideSplash(); startFail(); return; }
   renderCountries();
   parseShareHash();
   const nAreas = S.index.length.toLocaleString(LOCALE);
