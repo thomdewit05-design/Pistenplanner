@@ -2,7 +2,9 @@
 // Gebruik: node tools/build_www.mjs (vanuit de projectmap), daarna npx cap sync ios. Of in één keer: npm run ios.
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-const FILES = ["index.html", "app.css", "app.js", "i18n.js", "config.js", "ads.js", "map3d.js", "terrain.js", "privacy.html", "voorwaarden.html", "privacy-en.html", "terms-en.html", "support.html"];
+// privacy, voorwaarden en hulp in alle talen van de app (gemaakt door tools/legal.mjs)
+const LEGAL = ["privacy.html", "voorwaarden.html", "support.html", ...["en", "de", "fr", "it", "es", "pt", "ru", "zh", "ja"].flatMap(l => [`privacy-${l}.html`, `terms-${l}.html`, `support-${l}.html`])];
+const FILES = ["index.html", "app.css", "app.js", "i18n.js", "config.js", "ads.js", "map3d.js", "terrain.js", ...LEGAL];
 const DIRS = ["icons", "vendor", "data"];
 
 rmSync("www", { recursive: true, force: true });

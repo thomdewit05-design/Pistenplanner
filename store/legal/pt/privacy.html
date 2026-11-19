@@ -1,0 +1,67 @@
+<div class="card">
+<h2>Em resumo</h2>
+<ul>
+  <li class="ads-off">O Skipilot não tem contas nem serviços de análise. O site não mostra anúncios; a app gratuita para iPhone mostra anúncios do Google AdMob (ver abaixo).</li>
+  <li class="ads-on" hidden>O Skipilot não tem contas nem serviços de análise. A app e o site mostram anúncios da Google; para isso, a Google pede primeiro o seu consentimento para cookies.</li>
+  <li>As suas rotas, definições, diário de esqui e locais guardados ficam apenas no seu próprio telemóvel.</li>
+  <li>A sua localização é utilizada no seu telemóvel para a navegação. Só se usar um grupo por sua iniciativa é que a sua posição é enviada aos membros do seu grupo, encriptada.</li>
+  <li>A app só utiliza a Saúde da Apple, as fotografias e o sensor de movimento se for o próprio utilizador a ativá-los. Esses dados ficam no seu próprio telemóvel.</li>
+</ul>
+</div>
+
+<h2>Quem é o responsável?</h2>
+<p>O Skipilot é desenvolvido por <span data-cfg="name" class="todo">[nome]</span>. As perguntas sobre privacidade podem ser enviadas por e-mail para <span data-cfg="email" class="todo">[endereço de e-mail]</span>.</p>
+
+<h2>O que fica no seu telemóvel</h2>
+<p>A app guarda no armazenamento do seu telemóvel (ou do browser): as suas definições (nível, preferências, tema, idioma), as suas rotas guardadas e favoritos, o seu diário de esqui com os pontos de GPS dos seus dias de esqui, o local do seu hotel ou carro, as pistas que fechou, o nome e o código do seu grupo, as suas fotografias, o seu peso (se o indicar), as estâncias de esqui descarregadas e, se tiver o Pro, o seu código de licença. Estes dados não são enviados para lado nenhum. Pode apagá-los em Menu &gt; Armazenamento e privacidade, ou eliminando a app.</p>
+
+<h2>A sua localização</h2>
+<p>Se der autorização, a app utiliza o GPS do seu telemóvel para o mostrar no mapa, navegar, manter o seu diário de esqui e mostrar a sua velocidade. Isso acontece no seu telemóvel. A sua localização só é enviada a outras pessoas se estiver num grupo e "Compartilhar minha posição com o grupo" estiver ativado (ver abaixo).</p>
+
+<h2>Saúde da Apple (app para iPhone)</h2>
+<p>Se ativar "Salvar no Saúde", o seu iPhone pede primeiro autorização. Depois de um dia de esqui, a app guarda-o como treino na Saúde da Apple: a hora de início e de fim, a distância e uma estimativa das calorias. Para essa estimativa pode indicar o seu peso; este fica no seu telemóvel. A app não lê nada da Saúde da Apple e não envia estes dados para lado nenhum. Os dados de saúde nunca são utilizados para anúncios.</p>
+
+<h2>Fotografias, sensor de movimento e Apple Watch</h2>
+<p>As fotografias que tira ou escolhe para o seu dia de esqui são guardadas pela app apenas no seu telemóvel. A app utiliza o sensor de movimento durante a gravação de um dia de esqui para reconhecer saltos; também isso acontece no seu telemóvel. Se tiver a app para Apple Watch, o seu iPhone envia o seu dia de esqui e a sua rota diretamente para o seu relógio. Os widgets e a Atividade em direto mostram dados que já estão no seu telemóvel.</p>
+
+<h2>Estâncias de esqui descarregadas</h2>
+<p>Antes de utilizar uma estância de esqui, tem de a descarregar: os dados das pistas e os dados de altitude para o mapa de inverno e o 3D são então guardados no seu telemóvel, para que tudo funcione sem rede. Pode apagá-los em Menu &gt; Armazenamento e privacidade.</p>
+
+<h2>Serviços de terceiros</h2>
+<p>Para funcionar, a app vai buscar dados a outros serviços. Ao fazê-lo, estes veem, como acontece com qualquer site, o seu endereço IP e o que é pedido.</p>
+<table>
+  <tr><th>Serviço</th><th>Para quê</th><th>O que é enviado</th></tr>
+  <tr><td>GitHub Pages</td><td>Alojamento da app e dos dados das pistas</td><td>Pedidos web normais</td></tr>
+  <tr><td>Esri, OpenTopoMap, OpenStreetMap</td><td>Mosaicos de mapa (satélite, relevo, mapa)</td><td>A parte do mapa que está a ver</td></tr>
+  <tr><td>Amazon Web Services (Terrain Tiles)</td><td>Dados de altitude para o mapa de inverno, a inclinação, o mapa 3D e a navegação 3D</td><td>A parte do mapa que está a ver em 3D</td></tr>
+  <tr><td>MET Norway (api.met.no)</td><td>Previsão meteorológica, também nos widgets e no alerta de neve fresca</td><td>A localização da estação de teleférico mais alta e da mais baixa da estância de esqui (não a sua própria posição)</td></tr>
+  <tr><td>GeoSphere Austria, WSL-Institut SLF</td><td>Altura de neve medida em estações de medição</td><td>Nenhum dado sobre si; a app vai buscar as medições de estações junto à estância de esqui</td></tr>
+  <tr><td>Photon (komoot)</td><td>Pesquisa de uma morada (hotel ou parque de estacionamento)</td><td>O que escreve e a localização da estância de esqui; apenas se for o próprio utilizador a pesquisar uma morada</td></tr>
+  <tr><td>Overpass (OpenStreetMap)</td><td>Refúgios, restaurantes, cumes, webcams e horários de abertura</td><td>A área da estância de esqui</td></tr>
+  <tr><td>ntfy.sh (relatos de neve)</td><td>Como está a neve numa pista, comunicado por outros esquiadores</td><td>Apenas se for o próprio utilizador a avaliar uma pista: que pista e que tipo de neve. Anónimo; a sua posição só é verificada no seu telemóvel e não é enviada.</td></tr>
+  <tr><td>ntfy.sh</td><td>Grupos</td><td>Apenas se usar um grupo: o seu nome no grupo, a rota que partilha e, se o ativar, a sua posição e o total do dia (km e metros de desnível). As mensagens são encriptadas no seu telemóvel (AES-GCM) com uma chave que deriva apenas do código do grupo; o ntfy.sh vê, portanto, apenas texto ilegível. São aí guardadas temporariamente (por predefinição, cerca de 12 horas).</td></tr>
+  <tr><td>Google AdMob (app para iPhone)</td><td>Uma faixa de anúncios no seletor de estâncias de esqui, na descrição da rota, no diário e no menu da app gratuita para iPhone e, de vez em quando, um anúncio em ecrã inteiro numa pausa; nunca durante a navegação</td><td>Dados sobre o seu dispositivo, o seu endereço IP, a forma como vê e utiliza os anúncios e, apenas se der o seu consentimento, o identificador de publicidade do seu iPhone. Ver abaixo.</td></tr>
+<tr class="ads-on" hidden><td>Google AdSense</td><td>Anúncios no site e na app (no seletor de estâncias de esqui, no diário e no menu; nunca durante a navegação)</td><td>Dados sobre o seu dispositivo e browser, o seu endereço IP, a página que está a ver e, se der o seu consentimento, cookies e técnicas semelhantes. Ver abaixo.</td></tr>
+  <tr><td>Lemon Squeezy</td><td>Verificação de uma licença Pro (de momento, o Pro não está à venda na app)</td><td>Apenas se tiver introduzido um código de licença: o seu código de licença e o tipo de dispositivo (por exemplo, "iPhone"), para ativar o código e verificá-lo uma vez por semana.</td></tr>
+</table>
+
+<h2>Anúncios na app para iPhone</h2>
+<p>Na app gratuita para iPhone mostramos anúncios do Google AdMob (Google Ireland Limited). Na primeira utilização, uma mensagem da Google pede o seu consentimento para anúncios personalizados e, em seguida, o seu iPhone pergunta se o Skipilot o pode seguir. Se recusar, recebe anúncios que não são adaptados a si. A sua escolha junto da Google altera-se na app em Menu → <i>Privacidade dos anúncios</i>, e a escolha junto da Apple em Definições → Privacidade e segurança → Seguimento. Mais sobre o AdMob: <a href="https://policies.google.com/technologies/ads?hl=pt-PT" target="_blank" rel="noopener">policies.google.com/technologies/ads</a>.</p>
+
+<div class="ads-on" hidden>
+<h2>Anúncios e cookies</h2>
+<p>Para manter o Skipilot gratuito, o site e a app mostram anúncios do Google AdSense (Google Ireland Limited). Na sua primeira visita, uma mensagem da Google pergunta se dá o seu consentimento para cookies e anúncios personalizados. Se não der o seu consentimento, recebe anúncios que não são adaptados a si; nesse caso, a Google utiliza apenas o que é necessário para mostrar anúncios e combater abusos.</p>
+<p>Pode alterar a sua escolha em qualquer momento através do botão ou do pequeno escudo que a Google mostra na parte inferior da página, ou apagando os cookies deste site no seu browser. Mais sobre a forma como a Google utiliza os dados: <a href="https://policies.google.com/technologies/partner-sites?hl=pt-PT" target="_blank" rel="noopener">policies.google.com/technologies/partner-sites</a>.</p>
+</div>
+
+<h2>Porque é que isto é permitido (fundamento jurídico)</h2>
+<p>Os dados são utilizados para fazer a app funcionar como pede (execução do contrato) e, no caso de uma compra, para cumprir a obrigação legal de conservação de registos. Para os anúncios personalizados na app para iPhone, o fundamento é o seu consentimento.<span class="ads-on" hidden> Para os cookies e os anúncios personalizados, o fundamento é o seu consentimento.</span> Para a sua localização, o seu telemóvel pede primeiro autorização; pode retirá-la em qualquer momento nas definições do seu telemóvel.</p>
+
+<h2>Durante quanto tempo</h2>
+<p>Os dados no seu telemóvel permanecem lá até os apagar. As mensagens de grupo desaparecem do ntfy.sh ao fim de pouco tempo. Os dados das encomendas são conservados durante sete anos, porque a lei fiscal assim o exige.</p>
+
+<h2>Os seus direitos</h2>
+<p>Pode perguntar que dados existem sobre si, pedir que sejam corrigidos ou apagados, e opor-se. Para isso, envie um e-mail para <span data-cfg="email" class="todo">[endereço de e-mail]</span>. Se não estiver satisfeito com a forma como os seus dados são tratados, pode apresentar uma reclamação junto da autoridade neerlandesa de proteção de dados, a <a href="https://www.autoriteitpersoonsgegevens.nl" target="_blank" rel="noopener">Autoriteit Persoonsgegevens</a>.</p>
+
+<h2>Alterações</h2>
+<p>Se a app mudar, esta política também pode mudar. A data no topo mostra quando isso aconteceu pela última vez.</p>
