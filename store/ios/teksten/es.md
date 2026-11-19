@@ -6,13 +6,13 @@ Bron voor `store/ios/app-store-connect-invullen.md`. De koppen zijn in elke taal
 Skipilot: navegación de esquí
 
 ## Ondertitel
-Mapa de pistas y rutas de esquí
+Mapa de pistas y guía por voz
 
 ## Promotietekst
 Elige adónde quieres ir y Skipilot te dice qué pistas y remontes tomar, con indicaciones por voz. En más de 1.800 estaciones de esquí, también sin cobertura.
 
 ## Trefwoorden
-esquiar,pistas,estación,nieve,snowboard,remontes,forfait,gps,ruta,alpes,pirineos,mapa,montaña,ski
+esquiar,estación,nieve,snowboard,remontes,forfait,gps,ruta,alpes,pirineos,montaña,ski,invierno
 
 ## Beschrijving
 No vuelvas a perderte en las pistas. Skipilot es tu piloto en la estación de esquí: elige adónde quieres ir y la app te dice qué pistas y remontes tienes que tomar, paso a paso, con indicaciones por voz.
