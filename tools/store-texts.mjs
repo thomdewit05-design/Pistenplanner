@@ -21,9 +21,10 @@ for(const [l] of LANGS){
   if(!existsSync(ROOT + f)){ problems.push(`${f} ontbreekt`); continue; }
   const src = read(f), T = texts[l] = {};
   for(const [name, max] of FIELDS){
-    const m = new RegExp(`^## ${name}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`, "m").exec(src);
+    const m = new RegExp(`(?:^|\\n)## ${name}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`).exec(src);   // zonder "m": $ is het einde van het bestand, niet van de regel
     if(!m || !m[1].trim()){ problems.push(`${f}: blok "${name}" ontbreekt`); continue; }
     T[name] = m[1].trim();
+    if(name === "Beschrijving" && len(T[name]) < 800) problems.push(`${f}: de beschrijving is maar ${len(T[name])} tekens; het blok is niet heel ingelezen of de tekst is te kort`);
     if(len(T[name]) > max) problems.push(`${f}: ${name} is ${len(T[name])} tekens, Apple staat er ${max} toe`);
   }
   if(T.Naam && !T.Naam.startsWith("Skipilot")) problems.push(`${f}: de naam begint niet met "Skipilot"`);
