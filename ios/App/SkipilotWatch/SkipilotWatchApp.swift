@@ -22,8 +22,25 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     @Published var day: Day?
     @Published var ts: Date?
 
+    /// Het scherm waarop de app opent: 0 = navigatie, 1 = skidag, 2 = noodknop.
+    var startTab = 0
+
     override init() {
         super.init()
+        #if DEBUG
+        // Voorbeeldstand voor schermafbeeldingen (alleen in de proefbouw). De app wacht dan niet op de iPhone maar toont vaste
+        // voorbeeldgegevens. Het scherm komt uit de omgeving (SKIPILOT_DEMO=nav|day|sos) of uit de startargumenten ("-demo nav").
+        // Zie .github/workflows/watch-shots.yml.
+        let args = ProcessInfo.processInfo.arguments
+        let fromArgs = args.firstIndex(of: "-demo").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
+        if let demo = ProcessInfo.processInfo.environment["SKIPILOT_DEMO"] ?? fromArgs {
+            nav = Nav(dist: 350, instruction: "Houd rechts aan naar piste 12", icon: "arrow.turn.up.right", current: "Piste 11",
+                      eta: Date().addingTimeInterval(20 * 60), badge: "12", color: "#D22E2E", arrived: false, dest: "Rüfikopf")
+            day = Day(km: 31.4, hm: 6200, vmax: 71, runs: 17, since: Date().addingTimeInterval(-(4 * 3600 + 12 * 60)), area: "Ski Arlberg")
+            startTab = demo == "day" ? 1 : demo == "sos" ? 2 : 0
+            return
+        }
+        #endif
         if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
     }
 
@@ -59,13 +76,15 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
 
 struct RootView: View {
     @EnvironmentObject var model: WatchModel
+    @State private var tab = 0
     var body: some View {
-        TabView {
-            NavView()
-            DayView()
-            SOSView()
+        TabView(selection: $tab) {
+            NavView().tag(0)
+            DayView().tag(1)
+            SOSView().tag(2)
         }
         .tabViewStyle(.verticalPage)
+        .onAppear { tab = model.startTab }
     }
 }
 

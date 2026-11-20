@@ -1214,6 +1214,16 @@ Skipilotは補助ツールです。コースデータはOpenStreetMapによる�
 2. `store/screenshots/1290x2796/ja-2.jpg`
 3. `store/screenshots/1290x2796/ja-3.jpg`
 
+---
+
+### Apple Watch
+
+Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze drie, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
+
+1. `store/screenshots/watch/1-nav.png` (de volgende afslag)
+2. `store/screenshots/watch/2-day.png` (je skidag)
+3. `store/screenshots/watch/3-sos.png` (de noodknop)
+
 ## 7. De versie afmaken
 
 | Veld | Waarde |
@@ -1227,7 +1237,6 @@ Skipilotは補助ツールです。コースデータはOpenStreetMapによる�
 ## 8. Dit kan alleen Thom
 
 - Het **telefoonnummer** bij de gegevens voor de keurder.
-- **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of in de simulator.
 - Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
 - Wat de vertalers zelf als onzeker hebben opgegeven en wat een moedertaalspreker het snelst kan nakijken: de namen van Apple-onderdelen (Live Activity, het pad naar "Volgen" in de instellingen, de energiebesparingsmodus) zijn uit het hoofd vertaald en niet op een toestel gecontroleerd; de Siri-zinnen in de beschrijving ("naar het dal", "naar mijn hotel") zijn vertaald, terwijl Siri ze alleen in het Nederlands, Engels en Duits kent.
 - De knop **Add for Review / Submit for Review**.
@@ -1236,6 +1245,7 @@ Skipilotは補助ツールです。コースデータはOpenStreetMapによる�
 
 - [ ] Alle tien talen staan onder de versie, elk met naam, ondertitel, promotietekst, trefwoorden, beschrijving en "Wat is er nieuw".
 - [ ] Elke taal heeft drie schermafbeeldingen in het vak van 6,9 inch.
+- [ ] Onder Apple Watch staan drie schermafbeeldingen.
 - [ ] Support-URL en privacy-URL openen in de browser en tonen de pagina in de juiste taal.
 - [ ] App-privacy bevat de regels uit hoofdstuk 4 en geen andere.
 - [ ] De notities voor de keurder staan er in hun geheel.
