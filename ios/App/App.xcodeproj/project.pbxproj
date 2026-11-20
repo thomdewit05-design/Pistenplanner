@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5A1E0C0100000000000000C2 /* MoreViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000C1 /* MoreViews.swift */; };
 		5A1E0C0100000000000000C4 /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000C3 /* Strings.swift */; };
+		5A1E0C0100000000000000C6 /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000C5 /* Workout.swift */; };
 		5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */; };
 		5A1E0C0100000000000000A5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A2 /* Assets.xcassets */; };
 		5A1E0C0100000000000000A6 /* SkipilotWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A3 /* SkipilotWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -84,6 +85,8 @@
 /* Begin PBXFileReference section */
 		5A1E0C0100000000000000C1 /* MoreViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreViews.swift; sourceTree = "<group>"; };
 		5A1E0C0100000000000000C3 /* Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Strings.swift; sourceTree = "<group>"; };
+		5A1E0C0100000000000000C5 /* Workout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workout.swift; sourceTree = "<group>"; };
+		5A1E0C0100000000000000C7 /* SkipilotWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SkipilotWatch.entitlements; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipilotWatchApp.swift; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A3 /* SkipilotWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SkipilotWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -238,6 +241,8 @@
 			isa = PBXGroup;
 			children = (
 				5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */,
+				5A1E0C0100000000000000C5 /* Workout.swift */,
+				5A1E0C0100000000000000C7 /* SkipilotWatch.entitlements */,
 				5A1E0C0100000000000000C3 /* Strings.swift */,
 				5A1E0C0100000000000000C1 /* MoreViews.swift */,
 				5A1E0C0100000000000000A2 /* Assets.xcassets */,
@@ -394,6 +399,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */,
+				5A1E0C0100000000000000C6 /* Workout.swift in Sources */,
 				5A1E0C0100000000000000C4 /* Strings.swift in Sources */,
 				5A1E0C0100000000000000C2 /* MoreViews.swift in Sources */,
 			);
@@ -698,6 +704,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skipilot;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				CODE_SIGN_ENTITLEMENTS = SkipilotWatch/SkipilotWatch.entitlements;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Skipilot does not read data from Apple Health.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "While you navigate, Skipilot runs a workout session on your Watch so it can tap your wrist for each turn, even with your arm down. The session is not saved to Apple Health.";
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = nl.skipilot.app;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -727,6 +737,10 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Skipilot;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				CODE_SIGN_ENTITLEMENTS = SkipilotWatch/SkipilotWatch.entitlements;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Skipilot does not read data from Apple Health.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "While you navigate, Skipilot runs a workout session on your Watch so it can tap your wrist for each turn, even with your arm down. The session is not saved to Apple Health.";
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = nl.skipilot.app;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
 				LD_RUNPATH_SEARCH_PATHS = (

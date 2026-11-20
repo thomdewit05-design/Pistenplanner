@@ -56,7 +56,7 @@ if(!s1) problems.push("bij het starten van de navigatie gaat er niets naar de pl
 else {
   const o = s1.o;
   if(o.steps.length !== n1) problems.push(`er gaan ${o.steps.length} stappen mee, de route heeft er ${n1}`);
-  if(o.pre !== true || o.strong !== false || o.tap !== true) problems.push(`de standaardinstellingen van de trilsignalen kloppen niet: tap ${o.tap}, pre ${o.pre}, strong ${o.strong}`);
+  if(o.pre !== true || o.strong !== false || o.tap !== true || o.bg !== true) problems.push(`de standaardinstellingen van de trilsignalen kloppen niet: tap ${o.tap}, pre ${o.pre}, strong ${o.strong}, bg ${o.bg}`);
   const ok = new Set(["arrow.up", "arrow.turn.up.right", "arrow.turn.up.left", "arrow.up.right", "arrow.up.left", "cablecar", "figure.walk", "flag.checkered", "figure.skiing.downhill"]);
   const bad = o.steps.filter(s => !ok.has(s.icon) || !s.next || !s.line?.length);
   if(bad.length) problems.push(`${bad.length} stappen zonder geldige richting, tekst of lijn (de Watch kiest de trilling uit de richting)`);
@@ -71,7 +71,7 @@ for(const [id, key] of [["watchStrong", "strong"], ["watchPre", "pre"]]){
   if(after === before) problems.push(`de schakelaar ${id} komt niet aan op de Watch`);
 }
 const stored = await p.evaluate(() => localStorage.getItem("pp-watch"));
-if(stored !== JSON.stringify({pre:false, strong:true})) problems.push(`de instellingen van de trilsignalen worden niet bewaard: ${stored}`);
+if(stored !== JSON.stringify({pre:false, strong:true, bg:true})) problems.push(`de instellingen van de trilsignalen worden niet bewaard: ${stored}`);
 
 // 3. oefenknoppen: elk signaal gaat naar de Watch, en zonder Watch staat dat er
 for(const k of ["left", "right", "lift", "off"]){

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
-    branches: [watch-shots, watch-meer, watch-weer]
+    branches: [watch-shots, watch-meer, watch-weer, watch-sessie, watch-complicatie]
     paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
 permissions:
   contents: write

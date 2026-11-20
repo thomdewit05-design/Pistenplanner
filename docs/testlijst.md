@@ -149,7 +149,14 @@ Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop 
 - [ ] Het signaal bij de afslag klopt met de werkelijke richting: links voelt als links.
 - [ ] Sla bewust verkeerd af: één keer de "van de route af"-trilling, niet steeds opnieuw; het scherm kleurt rood.
 - [ ] Bij het dalstation van een lift: de oplopende trilling. Op je bestemming: de "gelukt"-trilling.
-- [ ] **Arm naar beneden, scherm uit**: komen de signalen dan nog door? In deze versie waarschijnlijk niet altijd; schrijf op wanneer wel en wanneer niet. De volgende stap (trainingssessie op de Watch) moet dit oplossen.
+- [ ] **Arm naar beneden, scherm uit** (instelling *Ook met je arm naar beneden* aan):
+  - De eerste keer vraagt de Watch (of de iPhone) toestemming voor Gezondheid. Sta die toe.
+  - Start een route op de iPhone met de Watch-app **dicht**: de Watch-app start vanzelf en bovenaan de wijzerplaat verschijnt het trainingsicoon.
+  - De signalen komen door met je arm naar beneden en het scherm uit.
+  - Stop de navigatie: het trainingsicoon verdwijnt binnen een paar seconden.
+  - Kijk daarna in de app Conditie of Gezondheid: er staat **geen** training van Skipilot bij door het navigeren.
+  - Weiger je de toestemming, dan staat op de Watch dat hij alleen trilt met Skipilot in beeld.
+  - Zet de instelling uit en start opnieuw: geen trainingsicoon.
 - [ ] Schrijf op welke tussenpozen niet prettig voelen (te snel, te zwak, te veel op elkaar lijkend); die stel ik daarna bij.
 
 **Weer, groep en noodgeval op de Watch**

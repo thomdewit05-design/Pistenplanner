@@ -11,6 +11,8 @@ enum Strings {
     }()
     static let table: [String: [String: String]] = [
         "en": [
+            "Trilt nu ook met je arm naar beneden.": "Now also buzzes with your arm down.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "No Health permission: the Watch only buzzes while Skipilot is on screen.",
             "Links": "Left",
             "Rechts": "Right",
             "Rechtdoor": "Straight on",
@@ -65,6 +67,8 @@ enum Strings {
             "W": "W",
         ],
         "de": [
+            "Trilt nu ook met je arm naar beneden.": "Vibriert jetzt auch bei gesenktem Arm.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Keine Health-Berechtigung: Die Watch vibriert nur, wenn Skipilot angezeigt wird.",
             "Links": "Links",
             "Rechts": "Rechts",
             "Rechtdoor": "Geradeaus",
@@ -119,6 +123,8 @@ enum Strings {
             "W": "W",
         ],
         "fr": [
+            "Trilt nu ook met je arm naar beneden.": "Vibre aussi le bras baissé.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Pas d’autorisation Santé : la Watch ne vibre que si Skipilot est à l’écran.",
             "Links": "Gauche",
             "Rechts": "Droite",
             "Rechtdoor": "Tout droit",
@@ -173,6 +179,8 @@ enum Strings {
             "W": "O",
         ],
         "it": [
+            "Trilt nu ook met je arm naar beneden.": "Ora vibra anche con il braccio abbassato.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Nessun permesso per Salute: il Watch vibra solo con Skipilot sullo schermo.",
             "Links": "Sinistra",
             "Rechts": "Destra",
             "Rechtdoor": "Dritto",
@@ -227,6 +235,8 @@ enum Strings {
             "W": "O",
         ],
         "es": [
+            "Trilt nu ook met je arm naar beneden.": "Ahora también vibra con el brazo bajado.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Sin permiso de Salud: el Watch solo vibra con Skipilot en pantalla.",
             "Links": "Izquierda",
             "Rechts": "Derecha",
             "Rechtdoor": "Recto",
@@ -281,6 +291,8 @@ enum Strings {
             "W": "O",
         ],
         "pt": [
+            "Trilt nu ook met je arm naar beneden.": "Agora também vibra com o braço abaixado.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Sem permissão do Saúde: o Watch só vibra com o Skipilot na tela.",
             "Links": "Esquerda",
             "Rechts": "Direita",
             "Rechtdoor": "Em frente",
@@ -335,6 +347,8 @@ enum Strings {
             "W": "O",
         ],
         "ru": [
+            "Trilt nu ook met je arm naar beneden.": "Теперь вибрирует и с опущенной рукой.",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "Нет доступа к «Здоровью»: часы вибрируют, только когда Skipilot на экране.",
             "Links": "Налево",
             "Rechts": "Направо",
             "Rechtdoor": "Прямо",
@@ -389,6 +403,8 @@ enum Strings {
             "W": "З",
         ],
         "zh": [
+            "Trilt nu ook met je arm naar beneden.": "现在手臂放下时也会振动。",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "没有“健康”权限：只有 Skipilot 显示在屏幕上时手表才会振动。",
             "Links": "左转",
             "Rechts": "右转",
             "Rechtdoor": "直行",
@@ -443,6 +459,8 @@ enum Strings {
             "W": "西",
         ],
         "ja": [
+            "Trilt nu ook met je arm naar beneden.": "腕を下ろしていても振動します。",
+            "Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.": "ヘルスケアの許可がありません：Skipilotを表示中のみ振動します。",
             "Links": "左",
             "Rechts": "右",
             "Rechtdoor": "直進",
