@@ -29,7 +29,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project ios/App/App.xcodeproj -target SkipilotWatch -sdk watchsimulator -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO SYMROOT="$RUNNER_TEMP/watch" build > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -60; tail -n 40 build.log; exit 1; }
+            CODE_SIGNING_ALLOWED=NO SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG SYMROOT="$RUNNER_TEMP/watch" build > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -60; tail -n 40 build.log; exit 1; }
           tail -n 5 build.log
           find "$RUNNER_TEMP/watch" -maxdepth 2 -name "*.app"
       - name: Simulator kiezen en starten
