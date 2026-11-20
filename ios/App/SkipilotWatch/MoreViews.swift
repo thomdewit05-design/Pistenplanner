@@ -96,8 +96,12 @@ struct GroupView: View {
                                 }
                             }
                             Spacer(minLength: 0)
+                            // hoe lang geleden gezien; in de laatste minuut staat er niets (dan is de plek vers)
                             if let s = m.seen {
-                                Text(s, style: .relative).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).frame(maxWidth: 46, alignment: .trailing).minimumScaleFactor(0.7)
+                                TimelineView(.periodic(from: .now, by: 30)) { ctx in
+                                    let ago = Int(ctx.date.timeIntervalSince(s) / 60)
+                                    if ago >= 1 { Text(durText(ago)).font(.system(size: 11)).foregroundStyle(ago >= 10 ? .orange : .secondary).lineLimit(1) }
+                                }
                             }
                         }
                     }
