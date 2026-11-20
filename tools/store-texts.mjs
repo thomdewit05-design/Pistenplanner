@@ -35,7 +35,7 @@ for(const [l] of LANGS){
 if(len(notes) > 4000) problems.push(`store/ios/review-notes.txt is ${len(notes)} tekens, Apple staat er 4000 toe`);
 
 // schermafbeeldingen van de Apple Watch (gemaakt door .github/workflows/watch-shots.yml)
-const WATCH = ["1-nav.png", "2-day.png", "3-sos.png"].filter(f => existsSync(`${ROOT}store/screenshots/watch/${f}`));
+const WATCH = ["1-nav.png", "2-day.png", "3-wx.png", "4-group.png", "5-sos.png"].filter(f => existsSync(`${ROOT}store/screenshots/watch/${f}`));
 const block = t => "```text\n" + t + "\n```";
 const perLang = LANGS.filter(([l]) => texts[l]).map(([l, nl, apple]) => { const T = texts[l];
   return `### ${nl} — in App Store Connect: **${apple}**
@@ -156,11 +156,13 @@ ${perLang}
 
 ### Apple Watch
 
-${WATCH.length === 3 ? `Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze drie, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
+${WATCH.length === 5 ? `Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze vijf, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
 
 1. \`store/screenshots/watch/1-nav.png\` (de volgende afslag)
 2. \`store/screenshots/watch/2-day.png\` (je skidag)
-3. \`store/screenshots/watch/3-sos.png\` (de noodknop)` : "De schermafbeeldingen van de Watch ontbreken nog; zie hoofdstuk 8."}
+3. \`store/screenshots/watch/3-wx.png\` (weer en lifttijden)
+4. \`store/screenshots/watch/4-group.png\` (je groep)
+5. \`store/screenshots/watch/5-sos.png\` (de noodknop met je locatie)` : "De schermafbeeldingen van de Watch ontbreken nog; zie hoofdstuk 8."}
 
 ## 7. De versie afmaken
 
@@ -175,7 +177,7 @@ ${WATCH.length === 3 ? `Apple vraagt ook schermafbeeldingen van de Watch-app. Ze
 ## 8. Dit kan alleen Thom
 
 - Het **telefoonnummer** bij de gegevens voor de keurder.
-${WATCH.length === 3 ? "" : "- **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of start de bouwstap \"Watch-schermafbeeldingen\" op GitHub.\n"}- **Schermafbeeldingen van de iPad**: de app werkt ook op de iPad, dus Apple vraagt ze in het vak *iPad 13" Display* (2064×2752 staand of 2752×2064 liggend), minstens één. Maak ze op je eigen iPad (bovenste knop en volumeknop tegelijk) en zet ze bij de primaire taal; ze gelden dan voor alle talen. Proberen kan ook met \`DEVICE=ipad node tools/store-shots.mjs\`, maar de 3D-beelden laden daar niet betrouwbaar.
+${WATCH.length === 5 ? "" : "- **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of start de bouwstap \"Watch-schermafbeeldingen\" op GitHub.\n"}- **Schermafbeeldingen van de iPad**: de app werkt ook op de iPad, dus Apple vraagt ze in het vak *iPad 13" Display* (2064×2752 staand of 2752×2064 liggend), minstens één. Maak ze op je eigen iPad (bovenste knop en volumeknop tegelijk) en zet ze bij de primaire taal; ze gelden dan voor alle talen. Proberen kan ook met \`DEVICE=ipad node tools/store-shots.mjs\`, maar de 3D-beelden laden daar niet betrouwbaar.
 - Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
 - Wat de vertalers zelf als onzeker hebben opgegeven en wat een moedertaalspreker het snelst kan nakijken: de namen van Apple-onderdelen (Live Activity, het pad naar "Volgen" in de instellingen, de energiebesparingsmodus) zijn uit het hoofd vertaald en niet op een toestel gecontroleerd; de Siri-zinnen in de beschrijving ("naar het dal", "naar mijn hotel") zijn vertaald, terwijl Siri ze alleen in het Nederlands, Engels en Duits kent.
 - De knop **Add for Review / Submit for Review**.
