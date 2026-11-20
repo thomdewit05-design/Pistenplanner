@@ -2702,6 +2702,10 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   #detail.picker:has(.trip-form)>#tpInfo{grid-column:2;grid-row:2/span 3;min-width:0}
   #detail.picker:has(.trip-form)>section.dc,#detail.picker:has(.trip-form)>#tpDel{grid-column:1}
 }
+/* liggend: de knop "Overzicht" (3D) staat niet midden op de kaart maar rechtsboven, naast de knoppenkolom */
+@media (orientation:landscape) and (max-height:500px){
+  html body .ov-pill,html body:has(#layerChips[hidden]) .ov-pill{left:auto;right:calc(70px + var(--safe-r));top:calc(8px + var(--safe-t));transform:none;height:44px}
+}
 /* liggend op een smal scherm: nog zuiniger */
 @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
   .area-stats{display:none}
