@@ -25,7 +25,8 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         CAPPluginMethod(name: "review", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "day", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "health", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "battery", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "battery", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "watch", returnType: CAPPluginReturnPromise)
     ]
     static let actionKey = "pp-siri-action"
     static let actionNote = Notification.Name("ppSiriAction")
@@ -39,8 +40,11 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     private var steps: [Step] = []
     private var idx = 0
     private var dest = "", lang = "nl"
-    private var tap = true          // Apple Watch: tikje op je pols vlak voor een afslag
-    private var alerted = -1        // stap waarvoor dat tikje al gegeven is
+    private var tap = true          // Apple Watch: trilsignaal bij een afslag
+    private var pre = true          // ook een vooraankondiging, ruim voor de afslag
+    private var alerted = -1        // stap waarvoor het signaal bij de afslag al gegeven is
+    private var preAlerted = -1     // stap waarvoor de vooraankondiging al gegeven is
+    private var offRoute = false    // van de route af (één signaal per keer dat het gebeurt)
     private var manager: CLLocationManager?
     private var lastPush = Date.distantPast
     private var lastKey: [Int]? = nil
@@ -74,9 +78,11 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         }
         guard !list.isEmpty else { return call.reject("Geen stappen") }
         let d = call.getString("dest") ?? "", l = call.getString("lang") ?? "nl", t = call.getBool("tap") ?? true
+        let pr = call.getBool("pre") ?? true, strong = call.getBool("strong") ?? false
         DispatchQueue.main.async {
-            self.steps = list; self.idx = 0; self.lastKey = nil; self.alerted = -1
-            self.dest = d; self.lang = l; self.tap = t
+            self.steps = list; self.idx = 0; self.lastKey = nil; self.alerted = -1; self.preAlerted = -1; self.offRoute = false
+            self.dest = d; self.lang = l; self.tap = t; self.pre = pr
+            WatchLink.shared.send(["hapt": ["on": t, "pre": pr, "strong": strong]])
             self.startLocation()
             self.push(self.manager?.location, force: true)
             call.resolve(["live": self.liveEnabled()])
@@ -98,7 +104,15 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         }
     }
 
-    // opdracht van Siri die nog uitgevoerd moet worden ("valley", "hut", "home", "stop"), of ""
+    // Vanuit de webapp: extra onderdelen voor de Apple Watch (weer, groep, noodgegevens, instellingen), of een trilsignaal om te oefenen.
+    // Capacitor.nativePromise("Nav", "watch", {state: {...}}) of {test: "left" | "right" | ...}
+    @objc func watch(_ call: CAPPluginCall) {
+        if let t = call.getString("test") { call.resolve(["sent": WatchLink.shared.test(t)]); return }
+        if let st = call.options["state"] as? [String: Any] { WatchLink.shared.send(st) }
+        call.resolve(["paired": WatchLink.shared.available])
+    }
+
+    // opdracht van Siri of van de Apple Watch die nog uitgevoerd moet worden ("valley", "hut", "home", "stop", "rec", "recstop"), of ""
     @objc func pending(_ call: CAPPluginCall) {
         let d = UserDefaults.standard, a = d.string(forKey: Self.actionKey) ?? ""
         d.removeObject(forKey: Self.actionKey)
@@ -254,12 +268,24 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         return (bi, rem)
     }
 
+    // de richting van een stap voor het trilsignaal op de Watch, uit het pictogram dat de webapp meegeeft
+    static func turn(_ icon: String) -> String {
+        if icon.contains("left") { return "left" }
+        if icon.contains("right") { return "right" }
+        if icon.contains("cablecar") { return "lift" }
+        if icon.contains("flag") { return "arrive" }
+        if icon.contains("walk") { return "walk" }
+        return "straight"
+    }
+
     private func push(_ loc: CLLocation?, force: Bool = false) {
         guard !steps.isEmpty else { return }
-        var dist = steps[idx].len, frac = 1.0
-        if let loc = loc, let r = locate(loc.coordinate) {
-            idx = r.i; dist = r.rem
-            frac = steps[idx].len > 0 ? min(1, r.rem / steps[idx].len) : 0
+        var dist = steps[idx].len, frac = 1.0, off = false
+        if let loc = loc {
+            if let r = locate(loc.coordinate) {
+                idx = r.i; dist = r.rem
+                frac = steps[idx].len > 0 ? min(1, r.rem / steps[idx].len) : 0
+            } else if loc.horizontalAccuracy >= 0 && loc.horizontalAccuracy < 60 { off = true }   // ver van de lijn, met een bruikbare positie
         }
         let key = [idx, Int(dist / 10)], now = Date()
         // niet vaker dan nodig: bij een nieuwe stap of 10 m verschil, hooguit elke 2 seconden
@@ -270,13 +296,30 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         lastKey = key; lastPush = now
         let s = steps[idx], last = idx == steps.count - 1
         let leftMin = s.min * frac + steps[(idx + 1)...].reduce(0) { $0 + $1.min }
-        // vlak voor de afslag (of bij aankomst) één melding: op de Apple Watch een tikje op je pols, op de iPhone een geluidje
+        // Twee momenten per afslag. Vooraankondiging: ruim ervoor, verder weg naarmate je harder gaat (minstens 8 seconden vooruit).
+        // Bij de afslag zelf (of bij aankomst): het volledige signaal. Op de iPhone hoort daar een melding bij.
         let arrived = last && dist < 30
-        let alert = tap && alerted != idx && (arrived || (!last && dist <= 120))
-        if alert { alerted = idx }
+        let speed = max(0, loc?.speed ?? 0)
+        let nowDist = max(45.0, speed * 4), preDist = max(150.0, speed * 9)
+        let alert = tap && alerted != idx && (arrived || (!last && dist <= nowDist))
+        let preAlert = tap && pre && !alert && !last && preAlerted != idx && alerted != idx && dist <= preDist && dist > nowDist + 25
+        if alert { alerted = idx; preAlerted = idx }
+        if preAlert { preAlerted = idx }
+        let offNow = tap && off && !offRoute
+        offRoute = off
+        let leftM = dist + steps[(idx + 1)...].reduce(0) { $0 + $1.len }
+        // de twee stappen daarna, voor op het horloge
+        var after: [[String: Any]] = []
+        for k in (idx + 1)..<min(steps.count, idx + 3) {
+            let n = steps[k]
+            after.append(["text": n.next, "badge": n.badge ?? "", "color": n.color ?? "", "turn": k == steps.count - 1 ? "arrive" : Self.turn(n.icon)])
+        }
+        let turn = last ? "arrive" : Self.turn(s.icon)
         WatchLink.shared.send(["nav": ["dist": dist, "instruction": s.next, "icon": last ? "flag.checkered" : s.icon, "current": s.title,
                                         "eta": now.addingTimeInterval(leftMin * 60).timeIntervalSince1970, "badge": s.badge ?? "",
-                                        "color": s.color ?? "", "arrived": arrived, "dest": dest]], tap: alert)
+                                        "color": s.color ?? "", "arrived": arrived, "dest": dest, "turn": turn,
+                                        "leftM": leftM, "off": off, "after": after]],
+                               tap: offNow ? "off" : alert ? "now" : preAlert ? "pre" : nil)
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
             updateLive(NavAttributes.ContentState(dist: dist, instruction: s.next, icon: last ? "flag.checkered" : s.icon,
@@ -379,18 +422,45 @@ final class WatchLink: NSObject, WCSessionDelegate {
         if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
     }
 
-    func send(_ part: [String: Any], tap: Bool = false) {
-        guard WCSession.isSupported() else { return }
+    /// Is er een Watch gekoppeld met de Skipilot-app erop?
+    var available: Bool {
+        guard WCSession.isSupported() else { return false }
         let s = WCSession.default
-        guard s.activationState == .activated, s.isPaired, s.isWatchAppInstalled else { return }
+        return s.activationState == .activated && s.isPaired && s.isWatchAppInstalled
+    }
+
+    /// tap: welk trilsignaal de Watch nu moet geven ("pre" = vooraankondiging, "now" = bij de afslag, "off" = van de route af,
+    /// of een eigen soort zoals "lastlift" en "group"); nil = alleen de toestand bijwerken.
+    func send(_ part: [String: Any], tap: String? = nil) {
+        guard available else { return }
+        let s = WCSession.default
         for (k, v) in part { context[k] = v }
         context["ts"] = Date().timeIntervalSince1970
-        if tap && s.isReachable { s.sendMessage(["tap": true, "ctx": context], replyHandler: nil, errorHandler: nil) }
-        if tap || Date().timeIntervalSince(lastSent) > 3 {
+        if let t = tap, s.isReachable { s.sendMessage(["tap": t, "ctx": context], replyHandler: nil, errorHandler: nil) }
+        if tap != nil || Date().timeIntervalSince(lastSent) > 3 {
             lastSent = Date()
             try? s.updateApplicationContext(context)
         }
     }
+
+    /// Een trilsignaal laten voelen om te oefenen. Geeft terug of de Watch bereikbaar was.
+    func test(_ kind: String) -> Bool {
+        guard available, WCSession.default.isReachable else { return false }
+        WCSession.default.sendMessage(["test": kind], replyHandler: nil, errorHandler: nil)
+        return true
+    }
+
+    // Opdracht van de Watch ("stop", "valley", "rec", "recstop"): door dezelfde deur als een Siri-opdracht naar de webapp.
+    private func command(_ message: [String: Any]) -> Bool {
+        guard let cmd = message["cmd"] as? String, ["stop", "valley", "rec", "recstop", "home", "hut"].contains(cmd) else { return false }
+        UserDefaults.standard.set(cmd, forKey: NavPlugin.actionKey)
+        DispatchQueue.main.async { NotificationCenter.default.post(name: NavPlugin.actionNote, object: nil) }
+        return true
+    }
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+        replyHandler(["ok": command(message)])
+    }
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) { _ = command(message) }
 
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
     func sessionDidBecomeInactive(_ session: WCSession) {}

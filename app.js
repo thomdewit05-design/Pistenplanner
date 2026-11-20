@@ -1724,6 +1724,10 @@ const navNative = (m, o = {}) => {
 };
 const SF_ICON = {straight:"arrow.up", right:"arrow.turn.up.right", left:"arrow.turn.up.left", sright:"arrow.up.right", sleft:"arrow.up.left",
   lift:"cablecar", walk:"figure.walk", flag:"flag.checkered", ski:"figure.skiing.downhill"};
+// Apple Watch: instellingen van de trilsignalen (de signalen zelf staan in SkipilotWatchApp.swift)
+const WATCH = {pre:true, strong:false};
+try{ Object.assign(WATCH, JSON.parse(localStorage.getItem("pp-watch") || "{}")); }catch(e){}
+const watchSave = () => { try{ localStorage.setItem("pp-watch", JSON.stringify(WATCH)); }catch(e){} };
 let liveSig = null;
 function navLive(){
   if(!S.follow || !S.steps.length){ if(liveSig){ liveSig = null; navNative("stop"); } return; }
@@ -1735,7 +1739,7 @@ function navLive(){
       next:nx ? uc(tr(nx.say)) : tr("Je bent er bijna"), icon:SF_ICON[nx ? nx.icon : "flag"] || "arrow.up",
       badge:s.t === "r" ? s.e.ref || "" : "", color:s.t === "r" ? s.color : "#14202B"};
   });
-  navNative("start", {steps, dest:tr(S.to != null ? nodeLabel(S.to) : ""), lang:LANG, tap:S.watchTap});
+  navNative("start", {steps, dest:tr(S.to != null ? nodeLabel(S.to) : ""), lang:LANG, tap:S.watchTap, pre:WATCH.pre, strong:WATCH.strong});
 }
 
 // Siri-opdrachten (Shortcuts.swift): de app wordt geopend en vraagt hier welke opdracht er klaarstaat
@@ -5936,7 +5940,7 @@ applyTheme();
 document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => { try{ localStorage.setItem("pp-theme", b.dataset.v); }catch(e){} applyTheme(); });
 function syncMenu(){
   document.querySelectorAll("#pace button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === S.pace)));
-  $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("watchTap").checked = S.watchTap; $("watchRow").hidden = window.PP_STORE !== "ios"; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("sunny").checked = S.sunny; $("nightToggle").checked = S.night;
+  $("navAwake").checked = S.navAwake; $("speedoToggle").checked = S.speedo; $("watchTap").checked = S.watchTap; $("watchPre").checked = WATCH.pre; $("watchStrong").checked = WATCH.strong; $("watchRow").hidden = window.PP_STORE !== "ios"; $("noDrag").checked = S.noDrag; $("noMogul").checked = S.noMogul; $("sunny").checked = S.sunny; $("nightToggle").checked = S.night;
   $("setName").value = G.name || "";
   $("menuVer").textContent = `Versie ${APP_VERSION} · ${S.index.length.toLocaleString(LOCALE)} skigebieden`;
   // Testgereedschap (status van de advertenties, hapermeter) staat niet in het menu van gebruikers: zeven keer tikken op het versienummer zet het aan of uit.
@@ -6003,6 +6007,13 @@ $("saverToggle").onchange = e => { S.saver = e.target.checked; save(); applySave
 $("speedoToggle").onchange = e => { S.speedo = e.target.checked; save(); renderSpeedo(); };
 $("noDrag").onchange = e => { S.noDrag = e.target.checked; save(); update(); };
 $("watchTap").onchange = e => { S.watchTap = e.target.checked; save(); liveSig = null; navLive(); };
+$("watchPre").onchange = e => { WATCH.pre = e.target.checked; watchSave(); liveSig = null; navLive(); };
+$("watchStrong").onchange = e => { WATCH.strong = e.target.checked; watchSave(); liveSig = null; navLive(); };
+// een signaal laten voelen op de Watch, om de code te leren
+document.querySelectorAll(".watch-try [data-wt]").forEach(b => b.onclick = async () => {
+  const r = await navNative("watch", {test:b.dataset.wt});
+  toast(r?.sent ? "Kijk en voel op je Watch." : "Je Watch is niet bereikbaar. Open Skipilot op je Watch en probeer het opnieuw.", 3500);
+});
 $("noMogul").onchange = e => { S.noMogul = e.target.checked; save(); update(); };
 $("sunny").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunny = e.target.checked; save(); update(); };
 $("sunToggle").onchange = e => { if(e.target.checked && !requirePro("sun")){ e.target.checked = false; return; } S.sunOn = e.target.checked; save();
