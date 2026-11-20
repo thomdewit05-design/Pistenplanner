@@ -85,10 +85,10 @@ Toelichting, niet invullen:
 | Phone | **vult Thom in** |
 | Attachment | geen |
 
-**Notes** (2889 van 4000 tekens), in zijn geheel plakken:
+**Notes** (2955 van 4000 tekens), in zijn geheel plakken:
 
 ```text
-Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required.
+Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required. It runs on iPhone and iPad (full screen, portrait and landscape).
 
 How to test
 1. On first launch a short tour appears; then pick a ski area, for example "Ski Arlberg" or "Zillertal Arena".
@@ -1237,6 +1237,7 @@ Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze drie, in deze vol
 ## 8. Dit kan alleen Thom
 
 - Het **telefoonnummer** bij de gegevens voor de keurder.
+- **Schermafbeeldingen van de iPad**: de app werkt ook op de iPad, dus Apple vraagt ze in het vak *iPad 13" Display* (2064×2752 staand of 2752×2064 liggend), minstens één. Maak ze op je eigen iPad (bovenste knop en volumeknop tegelijk) en zet ze bij de primaire taal; ze gelden dan voor alle talen. Proberen kan ook met `DEVICE=ipad node tools/store-shots.mjs`, maar de 3D-beelden laden daar niet betrouwbaar.
 - Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
 - Wat de vertalers zelf als onzeker hebben opgegeven en wat een moedertaalspreker het snelst kan nakijken: de namen van Apple-onderdelen (Live Activity, het pad naar "Volgen" in de instellingen, de energiebesparingsmodus) zijn uit het hoofd vertaald en niet op een toestel gecontroleerd; de Siri-zinnen in de beschrijving ("naar het dal", "naar mijn hotel") zijn vertaald, terwijl Siri ze alleen in het Nederlands, Engels en Duits kent.
 - De knop **Add for Review / Submit for Review**.

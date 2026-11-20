@@ -1,4 +1,4 @@
-Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required.
+Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required. It runs on iPhone and iPad (full screen, portrait and landscape).
 
 How to test
 1. On first launch a short tour appears; then pick a ski area, for example "Ski Arlberg" or "Zillertal Arena".

@@ -112,3 +112,16 @@ Loop dit door op een echte iPhone, en waar het kan op een Android-telefoon.
   - Verwacht: alles leesbaar, niets valt weg.
 - [ ] **VoiceOver**
   - Verwacht: knoppen hebben een zinnig label.
+
+## iPad (één keer voor het indienen)
+De app is nu ook voor de iPad gebouwd. Dit kan ik niet zelf proberen; loop het na op een iPad via TestFlight.
+
+- [ ] De app start schermvullend, staand en liggend, en draait mee als je de iPad kantelt.
+- [ ] Liggend: het paneel en de tabbalk staan links, de kaart vult de rest; niets valt achter de camera of de ronde hoeken.
+- [ ] Staand: Vandaag, Plannen, Groep en Ik staan in een kolom in het midden, niet uitgerekt.
+- [ ] Een skigebied downloaden, een route plannen en "Start navigatie" werken; de kaart in 3D blijft soepel.
+- [ ] Het toetsenbord dekt het zoekveld en de naamvelden niet af.
+- [ ] Foto toevoegen opent de camera.
+- [ ] De widgets staan in de lijst met widgets op de iPad.
+- [ ] Zonder gps (iPad met alleen wifi): de app meldt dat er geen gps-ontvangst is en loopt niet vast.
+
