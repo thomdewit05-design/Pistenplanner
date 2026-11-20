@@ -1,6 +1,7 @@
 import SwiftUI
 import WatchConnectivity
 import WatchKit
+import WidgetKit
 
 // Skipilot op de Apple Watch: de volgende afslag met een trilsignaal op je pols (links voelt anders dan rechts),
 // je skidag live, bediening vanaf je pols en een noodknop.
@@ -179,6 +180,26 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
         if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
     }
 
+    // ---------- complicatie ----------
+    private var lastSnap = WatchSnapshot()
+    private var lastReload = Date.distantPast
+    /// De stand voor de wijzerplaat bewaren. De complicatie mag maar af en toe verversen: direct als er iets wezenlijks
+    /// verandert (navigatie begint of stopt, een andere afslag, aangekomen), anders hooguit eens per twee minuten.
+    private func saveSnapshot() {
+        var s = WatchSnapshot()
+        s.lang = lang
+        if let n = nav { s.navAt = Date(); s.dist = n.dist; s.instruction = n.instruction; s.turn = n.turn; s.arrived = n.arrived }
+        if let d = day { s.dayAt = Date(); s.km = d.km; s.hm = d.hm; s.runs = d.runs }
+        let big = (s.navAt == nil) != (lastSnap.navAt == nil) || s.instruction != lastSnap.instruction || s.turn != lastSnap.turn
+            || s.arrived != lastSnap.arrived || (s.dayAt == nil) != (lastSnap.dayAt == nil) || s.lang != lastSnap.lang
+        s.save()
+        lastSnap = s
+        if big || Date().timeIntervalSince(lastReload) > 120 {
+            lastReload = Date()
+            WidgetCenter.shared.reloadTimelines(ofKind: WatchSnapshot.kind)
+        }
+    }
+
     /// De trainingssessie loopt alleen zolang er genavigeerd wordt en de instelling aan staat.
     private func syncSession() {
         let navigating = nav != nil && !(nav?.arrived ?? false)
@@ -239,6 +260,7 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             }
             self.ts = Date()
             self.syncSession()
+            self.saveSnapshot()
             guard let tap = tap, self.haptOn else { return }
             switch tap {
             case "off": self.signal(.off)

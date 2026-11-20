@@ -167,3 +167,12 @@ Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop 
 - [ ] Zonder groep staat er een korte uitleg in plaats van een lege lijst.
 - [ ] *Noodgeval*: de coördinaten, de hoogte en de piste zijn dezelfde als in het SOS-scherm van de iPhone, en groot genoeg om voor te lezen.
 - [ ] Zet de iPhone-app in een andere taal (bijvoorbeeld Duits): na een paar seconden staat de Watch ook in die taal.
+
+**Complicatie op de wijzerplaat**
+- [ ] Houd de wijzerplaat ingedrukt → Wijzig → kies een plek → Skipilot. Er zijn vier vormen: rond, rechthoekig, in de hoek en als regel tekst.
+- [ ] Zonder skidag en zonder route: het ski-icoon (rechthoekig: "Start een route op je iPhone").
+- [ ] Tijdens een skidag: de kilometers van vandaag; rechthoekig ook hoogtemeters en afdalingen.
+- [ ] Tijdens navigeren: de pijl van de volgende afslag met de afstand. Na het stoppen komt de skidag terug.
+- [ ] De complicatie loopt een paar minuten achter; dat is normaal (de Watch laat hem maar af en toe verversen). Schrijf op als het veel langer is.
+- [ ] Tik op de complicatie: Skipilot opent op de Watch.
+- [ ] Smart Stack (Digital Crown omhoog draaien): Skipilot kan daar als widget worden toegevoegd.
