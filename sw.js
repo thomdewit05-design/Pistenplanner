@@ -1,5 +1,5 @@
 // Service worker: app en kaartdata offline beschikbaar, satelliettegels die je bekeken hebt ook.
-const VERSION = "v130";
+const VERSION = "v132";
 // De pistedata van gedownloade gebieden staat in een eigen opslag met een vaste naam: een update van de app wist ze niet.
 // (Nieuwe kaartgegevens krijgen een ander adres, ?d5 in plaats van ?d4, en komen er dus vanzelf naast.)
 const SHELL = `shell-${VERSION}`, DATA = "data-1", TILES = "tiles-v1";

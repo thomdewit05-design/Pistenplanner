@@ -730,6 +730,16 @@ const M3 = (() => {
   // ---------- je skidag terugkijken ----------
   // De camera vliegt langs het spoor van die dag; het paarse spoor groeit mee achter een stip aan.
   let rp = null;
+  // De grootste kijkhoek (graden vanaf recht omlaag; 64 = schuin, 12 = bijna recht van boven) waarbij niets de kijklijn kruist.
+  // rays: per punt op de piste een lijst [afstand langs de grond naar de camera toe, hoogte van de grond boven dat punt].
+  // De kijklijn stijgt vanaf het punt met 1/tan(hoek) per meter; de camera staat op Lm·sin(hoek) afstand. Tot 60 m speling.
+  function sightPitch(rays, Lm){
+    for(let pitch = 64; pitch > 12; pitch -= 4){
+      const t = Math.tan(pitch * Math.PI / 180), D = Lm * Math.sin(pitch * Math.PI / 180);
+      if(rays.every(hs => hs.every(([m, h]) => m > D || h + Math.min(60, m * .25) <= m / t))) return pitch;
+    }
+    return 12;
+  }
   const FLY_Z = 14.8;   // de tegels gaan niet verder dan zoom 14 (gedownload), dus dichterbij vliegen vraagt niets extra's op
   function replay(coords, done, opt = {}){
     if(!gl || coords.length < 2) return false;
@@ -765,21 +775,18 @@ const M3 = (() => {
         // De hoogte van het punt onder de camera zelf meegeven (net als bij navigeren): zolang de hoogtetegels er nog niet zijn rekent
         // MapLibre met 0 m en hangt de camera in de berg; dan zie je alleen een wit vlak.
         const tq = gl.queryTerrainElevation(p), ele = tq != null && tq > 0 ? tq : fallbackEle(p[1], p[0]) * EXAG;
-        // Niet door de berg: de camera hangt schuin achter het punt. Draait het beeld mee, dan kan daar een helling of kam staan.
-        // We meten de grond onder de kijklijn (op drie plekken tussen punt en camera) en kijken steiler omlaag tot de lijn vrij is;
-        // steiler kijken tilt de camera op en haalt hem dichterbij.
+        // De piste moet altijd te zien zijn: de camera hangt schuin achter het punt, en daartussen kan een kam of bergtop staan.
+        // We meten de grond onder de kijklijn, elke 150 m tussen punt en camera, en kijken steiler omlaag tot de lijn vrij is;
+        // steiler kijken tilt de camera op en haalt hem dichterbij. Dat doen we ook voor twee punten verderop op de piste,
+        // zodat het beeld al kantelt vóór de top ervoor schuift in plaats van erna.
         const mpp = 40075016.686 * Math.cos(p[1] * rad) / (512 * 2 ** FLY_Z), Lm = 1.5 * gl.getCanvas().clientHeight * mpp;   // afstand camera–punt in meters
-        const back = (rp.bearing + 180) * rad, clear = pitch => {
-          const D = Lm * Math.sin(pitch * rad), H = Lm * Math.cos(pitch * rad);
-          for(const f of [.4, .7, 1]){
-            const m = D * f, q = [p[0] + m * Math.sin(back) / (R * rad * Math.cos(p[1] * rad)), p[1] + m * Math.cos(back) / (R * rad)];
-            const g0 = gl.queryTerrainElevation(q), g = g0 != null && g0 > 0 ? g0 : fallbackEle(q[1], q[0]) * EXAG;
-            if(g + 70 > ele + H * f) return false;
-          }
-          return true;
-        };
-        let want = 64; while(want > 28 && !clear(want)) want -= 4;
-        rp.pitch += (want - rp.pitch) * (want < rp.pitch ? .2 : .03);   // snel omhoog als er iets in de weg staat, rustig terug
+        const back = (rp.bearing + 180) * rad, sinB = Math.sin(back), cosB = Math.cos(back);
+        const ground = q => { const g0 = gl.queryTerrainElevation(q); return g0 != null && g0 > 0 ? g0 : fallbackEle(q[1], q[0]) * EXAG; };
+        const rays = [[p, ele], ...[300, 600].map(a => { const q = at(Math.min(total, d + a)).p; return [q, ground(q)]; })].map(([q, e0]) => {
+          const hs = []; for(let m = 150; m <= Lm; m += 150) hs.push([m, ground([q[0] + m * sinB / (R * rad * Math.cos(q[1] * rad)), q[1] + m * cosB / (R * rad)]) - e0]);
+          return hs; });
+        let want = sightPitch(rays, Lm);
+        rp.pitch += (want - rp.pitch) * (want < rp.pitch ? .25 : .03);   // snel omhoog als er iets in de weg staat, rustig terug
         gl.jumpTo({center:p, bearing:rp.bearing, zoom:FLY_Z, pitch:rp.pitch, elevation:ele});
         if(k < 1){ rp.raf = requestAnimationFrame(step); return; }
         // klaar: het hele spoor in beeld
@@ -847,6 +854,6 @@ const M3 = (() => {
     return pop;
   }
 
-  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable, select, replay, stopReplay,
+  return {supported, loaded, load, open, close, sync, followLeaflet, navCam, meAt, popup, overview, pickCable, select, replay, stopReplay, sightPitch,
           get mode(){ return mode; }, get failed(){ return failed; }, get gl(){ return gl; }};
 })();

@@ -45,3 +45,5 @@ jobs:
         run: node tools/sw.mjs
       - name: Apple Watch, webkant (stappen en instellingen gaan mee, opdrachten van de Watch werken)
         run: node tools/watch.mjs
+      - name: Vlieg erlangs (de piste blijft in beeld, ook met een bergtop ervoor)
+        run: node tools/sight.mjs
