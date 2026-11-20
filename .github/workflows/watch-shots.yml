@@ -1,0 +1,88 @@
+# Schermafbeeldingen van de Apple Watch-app voor de App Store.
+# De Watch-app krijgt zijn gegevens normaal van de iPhone; hier start hij in de simulator met voorbeeldgegevens (-demo, alleen in de proefbouw).
+# De afbeeldingen komen in store/screenshots/watch/ op dezelfde branch en als artefact bij deze bouw.
+name: Watch-schermafbeeldingen
+on:
+  workflow_dispatch:
+  push:
+    branches: [horloge]
+    paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: watch-shots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shots:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Watch-app bouwen voor de simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -target SkipilotWatch -sdk watchsimulator -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO SYMROOT="$RUNNER_TEMP/watch" build > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -60; tail -n 40 build.log; exit 1; }
+          tail -n 5 build.log
+          find "$RUNNER_TEMP/watch" -maxdepth 2 -name "*.app"
+      - name: Simulator kiezen en starten
+        run: |
+          xcrun simctl list devices available | grep -i "watch" || true
+          # voorkeur: 46 mm (416x496), dan Ultra, dan welke Watch er ook is
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)['devices']
+          w = [(x['name'], x['udid']) for rt, xs in d.items() if 'watchOS' in rt for x in xs]
+          pref = ['Series 11 (46mm)', 'Series 10 (46mm)', 'Ultra 3', 'Ultra 2', 'Ultra', '(45mm)', '']
+          w.sort(key=lambda t: next(i for i, p in enumerate(pref) if p in t[0]))
+          print(w[0][1] if w else '')")
+          if [ -z "$UDID" ]; then echo "Geen Watch-simulator op deze machine."; xcrun simctl list runtimes; exit 1; fi
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl list devices | grep "$UDID"
+      - name: Schermafbeeldingen maken
+        run: |
+          APP=$(find "$RUNNER_TEMP/watch" -maxdepth 2 -name "SkipilotWatch.app" | head -1)
+          BID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          echo "app: $APP ($BID)"
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p store/screenshots/watch
+          n=1
+          for scene in nav day sos; do
+            xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
+            sleep 8
+            xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$n-$scene.png"
+            n=$((n + 1))
+          done
+          ls -la store/screenshots/watch
+      - name: Controleren (maat en niet leeg)
+        run: |
+          python3 - <<'PY'
+          import struct, sys, glob, zlib
+          OK = {(422, 514), (410, 502), (416, 496), (396, 484), (368, 448), (312, 390)}
+          files = sorted(glob.glob("store/screenshots/watch/*.png")); bad = []
+          if len(files) != 3: bad.append(f"{len(files)} afbeeldingen, verwacht 3")
+          sizes = set()
+          for f in files:
+              b = open(f, "rb").read(); w, h = struct.unpack(">II", b[16:24]); sizes.add((w, h))
+              if (w, h) not in OK: bad.append(f"{f}: {w}x{h} is geen maat die de App Store aanneemt")
+              if len(b) < 6000: bad.append(f"{f}: maar {len(b)} bytes, waarschijnlijk een leeg scherm")
+              print(f, f"{w}x{h}", len(b), "bytes")
+          if len(set(open(f, "rb").read() for f in files)) != len(files): bad.append("twee afbeeldingen zijn gelijk: de app opende niet op het gevraagde scherm")
+          if bad: print("\n".join(bad)); sys.exit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: watch-schermafbeeldingen
+          path: store/screenshots/watch
+      - name: Afbeeldingen vastleggen op de branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add store/screenshots/watch
+          if git diff --cached --quiet; then echo "Geen verandering."; exit 0; fi
+          git commit -m "Schermafbeeldingen van de Apple Watch (gemaakt in de simulator)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
