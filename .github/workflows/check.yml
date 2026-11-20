@@ -43,3 +43,5 @@ jobs:
         run: node tools/group.mjs
       - name: Servicewerker (gedownload gebied blijft na een update)
         run: node tools/sw.mjs
+      - name: Apple Watch, webkant (stappen en instellingen gaan mee, opdrachten van de Watch werken)
+        run: node tools/watch.mjs

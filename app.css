@@ -2681,6 +2681,8 @@ a.btn,.btn a,a.btn *{text-decoration:none}
   .dash>*,.group>*,.diary>*,.menu>*,.dash>.dash-head,.picker>.picker-head{width:100%;max-width:620px;margin-left:auto!important;margin-right:auto!important}
   .sheet{width:min(600px,100%)}
 }
+/* Apple Watch: knoppen om een trilsignaal te voelen */
+.watch-try{margin:6px 0 10px}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}

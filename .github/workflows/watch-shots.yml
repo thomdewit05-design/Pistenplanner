@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
-    branches: [watch-shots]
+    branches: [watch-shots, watch-meer]
     paths: ["ios/App/SkipilotWatch/**"]
 permissions:
   contents: write
@@ -57,7 +57,7 @@ jobs:
           xcrun simctl install "$UDID" "$APP"
           mkdir -p store/screenshots/watch
           n=1
-          for scene in nav day sos; do
+          for scene in nav day sos ctrl off flash; do
             xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
             SIMCTL_CHILD_SKIPILOT_DEMO="$scene" xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
             sleep 8
@@ -71,7 +71,7 @@ jobs:
           import struct, sys, glob, zlib
           OK = {(422, 514), (410, 502), (416, 496), (396, 484), (368, 448), (312, 390)}
           files = sorted(glob.glob("store/screenshots/watch/*.png")); bad = []
-          if len(files) != 3: bad.append(f"{len(files)} afbeeldingen, verwacht 3")
+          if len(files) != 6: bad.append(f"{len(files)} afbeeldingen, verwacht 6")
           sizes = set()
           for f in files:
               b = open(f, "rb").read(); w, h = struct.unpack(">II", b[16:24]); sizes.add((w, h))
