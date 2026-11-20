@@ -58,7 +58,7 @@ jobs:
           n=1
           for scene in nav day sos; do
             xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
-            xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
+            SIMCTL_CHILD_SKIPILOT_DEMO="$scene" xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
             sleep 8
             xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$n-$scene.png"
             n=$((n + 1))
