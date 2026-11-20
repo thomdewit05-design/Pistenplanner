@@ -85,7 +85,7 @@ Toelichting, niet invullen:
 | Phone | **vult Thom in** |
 | Attachment | geen |
 
-**Notes** (2955 van 4000 tekens), in zijn geheel plakken:
+**Notes** (3312 van 4000 tekens), in zijn geheel plakken:
 
 ```text
 Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required. It runs on iPhone and iPad (full screen, portrait and landscape).
@@ -112,7 +112,7 @@ Ads and tracking
 The app is free with ads from Google AdMob. The App Tracking Transparency prompt appears about one second after the first launch, before any ad is loaded or any advertising data is collected; if another system alert is showing, it appears as soon as that alert is closed. AdMob is only started after the user has answered. With "Ask App Not to Track" the app shows non-personalised ads only. There is a banner in the ski area list, the route details, the ski diary and the menu, and occasionally a full-screen ad at a natural pause; never during navigation or right after it. There are no in-app purchases in this version.
 
 Widgets and Watch
-The app includes home screen and lock screen widgets (ski area weather, ski day stats), a Live Activity for navigation and an Apple Watch app that shows the ski day and the next turn.
+The app includes home screen and lock screen widgets (ski area weather, ski day stats), a Live Activity for navigation and an Apple Watch app that shows the ski day and the next turn. While navigation is running, the Watch app holds an HKWorkoutSession (downhill skiing) so it stays active and can play a haptic for each turn with the wrist down. No HKLiveWorkoutBuilder is used: nothing is written to or read from HealthKit by the Watch app, and the session ends when navigation stops. The user can turn this off in Settings > Apple Watch.
 
 Data
 Run and lift data comes from OpenStreetMap via OpenSkiMap. Weather comes from MET Norway; measured snow depth from GeoSphere Austria and SLF Switzerland. The app does not know which lifts are open today; it says so in the app.

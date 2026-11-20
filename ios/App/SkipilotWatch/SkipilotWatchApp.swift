@@ -7,7 +7,8 @@ import WatchKit
 // De gegevens komen van de iPhone-app (WatchLink in NavPlugin.swift) via WatchConnectivity; opdrachten gaan dezelfde weg terug.
 @main
 struct SkipilotWatchApp: App {
-    @StateObject private var model = WatchModel()
+    @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var delegate
+    @StateObject private var model = WatchModel.shared
     var body: some Scene {
         WindowGroup { RootView().environmentObject(model) }
     }
@@ -128,6 +129,17 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     @Published var haptOn = true
     @Published var haptPre = true
     @Published var haptStrong = false
+    @Published var haptBg = true           // ook trillen met je arm naar beneden (trainingssessie tijdens het navigeren)
+    @Published var bgState: NavSession.State = .off
+
+    static let shared = WatchModel()
+    /// De iPhone heeft gevraagd om de sessie (bij het starten van de navigatie); die blijft tot de navigatie stopt.
+    var wantSession: Bool {
+        get { wantUntil.map { $0 > Date() } ?? false }
+        set { wantUntil = newValue ? Date().addingTimeInterval(45) : nil }   // de eerste afslag volgt binnen een paar seconden
+    }
+    private var wantUntil: Date?
+    private var watchdog: Timer?
 
     /// Het scherm waarop de app opent: 0 = navigatie, 1 = skidag, 2 = weer en liften, 3 = groep, 4 = bediening, 5 = noodknop.
     var startTab = 0
@@ -163,7 +175,29 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             return
         }
         #endif
+        NavSession.shared.onChange = { [weak self] st in DispatchQueue.main.async { self?.bgState = st } }
         if WCSession.isSupported() { WCSession.default.delegate = self; WCSession.default.activate() }
+    }
+
+    /// De trainingssessie loopt alleen zolang er genavigeerd wordt en de instelling aan staat.
+    private func syncSession() {
+        let navigating = nav != nil && !(nav?.arrived ?? false)
+        if nav?.arrived == true { wantSession = false }
+        let want = haptOn && haptBg && (navigating || wantSession)
+        if want {
+            NavSession.shared.start()
+            // waakhond: komt er een kwartier niets meer van de iPhone (batterij leeg, app gestopt), dan stopt de sessie vanzelf
+            if watchdog == nil {
+                watchdog = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+                    guard let self = self, let last = self.ts, Date().timeIntervalSince(last) > 15 * 60 else { return }
+                    self.wantSession = false; NavSession.shared.stop(); self.watchdog?.invalidate(); self.watchdog = nil
+                }
+            }
+        } else {
+            NavSession.shared.stop()
+            if bgState == .denied && !(haptOn && haptBg) { bgState = .off }
+            watchdog?.invalidate(); watchdog = nil
+        }
     }
 
     private func apply(_ ctx: [String: Any], tap: String?) {
@@ -201,8 +235,10 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             }
             if let h = ctx["hapt"] as? [String: Any] {
                 self.haptOn = h["on"] as? Bool ?? true; self.haptPre = h["pre"] as? Bool ?? true; self.haptStrong = h["strong"] as? Bool ?? false
+                self.haptBg = h["bg"] as? Bool ?? true
             }
             self.ts = Date()
+            self.syncSession()
             guard let tap = tap, self.haptOn else { return }
             switch tap {
             case "off": self.signal(.off)
@@ -335,6 +371,9 @@ struct NavView: View {
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(Color.red, in: Capsule())
                     }
+                    if model.bgState == .denied {
+                        Text(L("Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld.")).font(.system(size: 10)).foregroundStyle(.orange).multilineTextAlignment(.center)
+                    }
                     if !n.after.isEmpty {
                         Divider().padding(.vertical, 4)
                         VStack(alignment: .leading, spacing: 5) {
@@ -466,7 +505,14 @@ struct HapticsView: View {
                     }
                 }
             } footer: {
-                Text(L("Tik om te voelen. Ruim voor een afslag krijg je dezelfde code zachter."))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("Tik om te voelen. Ruim voor een afslag krijg je dezelfde code zachter."))
+                    if model.bgState == .on {
+                        Label(L("Trilt nu ook met je arm naar beneden."), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    } else if model.bgState == .denied {
+                        Label(L("Geen toestemming voor Gezondheid: de Watch trilt alleen met Skipilot in beeld."), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    }
+                }
             }
         }
         .navigationTitle(L("Trilsignalen"))
