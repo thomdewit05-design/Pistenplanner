@@ -4,9 +4,10 @@
 name: Watch-schermafbeeldingen
 on:
   workflow_dispatch:
+  # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
     branches: [watch-shots]
-    paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
+    paths: ["ios/App/SkipilotWatch/**"]
 permissions:
   contents: write
 concurrency:

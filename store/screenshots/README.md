@@ -10,4 +10,8 @@ Opnieuw maken: `node tools/store-shots.mjs` (alle talen) of `node tools/store-sh
 
 De koppen staan in `captions.json`, de opmaak in `compose.html`.
 
-**Apple Watch:** voor een app met een Watch-onderdeel vraagt Apple ook schermafbeeldingen van de Watch (bijvoorbeeld 410×502). Die maak je in de simulator of op je eigen Watch; dat kan dit script niet.
+## Apple Watch
+
+`watch/1-nav.png`, `watch/2-day.png`, `watch/3-sos.png` (416×496, het vak van de Series 10 en 11 van 46 mm).
+
+De Watch-app krijgt zijn gegevens van de iPhone. Voor de afbeeldingen start hij in de simulator met voorbeeldgegevens: de proefbouw kent een voorbeeldstand (`SKIPILOT_DEMO=nav|day|sos`, alleen in de Debug-bouw). De bouwstap **Watch-schermafbeeldingen** op GitHub (`.github/workflows/watch-shots.yml`) bouwt de app, start hem drie keer en legt de afbeeldingen hier vast. Opnieuw maken: Actions → Watch-schermafbeeldingen → Run workflow.

@@ -34,6 +34,8 @@ for(const [l] of LANGS){
 }
 if(len(notes) > 4000) problems.push(`store/ios/review-notes.txt is ${len(notes)} tekens, Apple staat er 4000 toe`);
 
+// schermafbeeldingen van de Apple Watch (gemaakt door .github/workflows/watch-shots.yml)
+const WATCH = ["1-nav.png", "2-day.png", "3-sos.png"].filter(f => existsSync(`${ROOT}store/screenshots/watch/${f}`));
 const block = t => "```text\n" + t + "\n```";
 const perLang = LANGS.filter(([l]) => texts[l]).map(([l, nl, apple]) => { const T = texts[l];
   return `### ${nl} — in App Store Connect: **${apple}**
@@ -150,6 +152,16 @@ De **Name** en **Subtitle** staan onder "App Information" (per taal); de overige
 
 ${perLang}
 
+---
+
+### Apple Watch
+
+${WATCH.length === 3 ? `Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze drie, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
+
+1. \`store/screenshots/watch/1-nav.png\` (de volgende afslag)
+2. \`store/screenshots/watch/2-day.png\` (je skidag)
+3. \`store/screenshots/watch/3-sos.png\` (de noodknop)` : "De schermafbeeldingen van de Watch ontbreken nog; zie hoofdstuk 8."}
+
 ## 7. De versie afmaken
 
 | Veld | Waarde |
@@ -163,8 +175,7 @@ ${perLang}
 ## 8. Dit kan alleen Thom
 
 - Het **telefoonnummer** bij de gegevens voor de keurder.
-- **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of in de simulator.
-- Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
+${WATCH.length === 3 ? "" : "- **Schermafbeeldingen van de Apple Watch** (bijvoorbeeld 410×502): Apple vraagt ze omdat de app een Watch-onderdeel heeft. Maak ze op je eigen Watch (zijknop en Digital Crown tegelijk) of start de bouwstap \"Watch-schermafbeeldingen\" op GitHub.\n"}- Nakijken van de vertalingen als je iemand kent die de taal spreekt, vooral Russisch, Chinees en Japans. De Nederlandse tekst is de bron; de juridische pagina's zeggen dat de Nederlandse versie leidend is.
 - Wat de vertalers zelf als onzeker hebben opgegeven en wat een moedertaalspreker het snelst kan nakijken: de namen van Apple-onderdelen (Live Activity, het pad naar "Volgen" in de instellingen, de energiebesparingsmodus) zijn uit het hoofd vertaald en niet op een toestel gecontroleerd; de Siri-zinnen in de beschrijving ("naar het dal", "naar mijn hotel") zijn vertaald, terwijl Siri ze alleen in het Nederlands, Engels en Duits kent.
 - De knop **Add for Review / Submit for Review**.
 
@@ -172,6 +183,7 @@ ${perLang}
 
 - [ ] Alle tien talen staan onder de versie, elk met naam, ondertitel, promotietekst, trefwoorden, beschrijving en "Wat is er nieuw".
 - [ ] Elke taal heeft drie schermafbeeldingen in het vak van 6,9 inch.
+- [ ] Onder Apple Watch staan drie schermafbeeldingen.
 - [ ] Support-URL en privacy-URL openen in de browser en tonen de pagina in de juiste taal.
 - [ ] App-privacy bevat de regels uit hoofdstuk 4 en geen andere.
 - [ ] De notities voor de keurder staan er in hun geheel.
