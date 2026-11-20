@@ -5,7 +5,7 @@ name: Watch-schermafbeeldingen
 on:
   workflow_dispatch:
   push:
-    branches: [horloge]
+    branches: [watch-shots]
     paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
 permissions:
   contents: write
