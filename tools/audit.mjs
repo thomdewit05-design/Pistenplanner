@@ -37,6 +37,12 @@ for(const lang of LANGS){
       if(S.area?.id !== whole[0] || S.area.edges.filter(e => e.t === "r").length < 600) out.push("Courchevel opent niet de hele pistekaart");
       return out; });
     bad.forEach(k => problems.push(`deelgebied klopt niet: ${k}`)); }
+  // zinnen met een invulplek (trf): elke zin heeft een vertaling in alle talen, anders verschijnt een veiligheidsmelding half in het Nederlands
+  if(lang === "nl"){ const src = await p.evaluate(async () => (await fetch("app.js")).text());
+    const keys = [...new Set([...src.matchAll(/trf\("((?:[^"\\]|\\.)+)"/g)].map(m => m[1].replace(/\\"/g, '"')))];
+    const miss = await p.evaluate(keys => keys.flatMap(k => Object.keys(EXACT).filter(l => l !== "nl" && EXACT[l][k] == null).map(l => `${l}: ${k}`)), keys);
+    if(keys.length < 15) problems.push(`maar ${keys.length} zinnen met een invulplek gevonden; de controle leest app.js niet goed`);
+    miss.slice(0, 12).forEach(m => problems.push(`zin zonder vertaling (${m})`)); }
   await p.evaluate(async () => { const r = S.index.find(r => /Arlberg/.test(r[1])) || S.index[0]; localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); }).catch(e => problems.push(`[${lang}] gebied openen: ${e.message}`));
   await p.waitForTimeout(2000);
   const screens = [["kaart", () => {}], ["vandaag", () => setTab("today")], ["groep", () => setTab("group")], ["ik", () => setTab("me")],
