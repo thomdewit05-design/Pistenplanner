@@ -256,6 +256,44 @@ for(const phone of ["iPhone SE", "iPhone 15"]){
   if(r.chips.some(c => /Buiten je instellingen|Boven je niveau/.test(c))) problems.push(`[${tag}] de dagroute waarschuwt: ${JSON.stringify(r.chips)}`);
   await ctx.close();
 }
+// iPad, staand en liggend: de kolom links (paneel en tabbalk) en de kaart ernaast; schermen binnen beeld
+for(const [name, w, h] of [["iPad 11 staand", 834, 1194], ["iPad 11 liggend", 1194, 834], ["iPad 13 staand", 1032, 1376], ["iPad 13 liggend", 1376, 1032]]){
+  const ctx = await browser.newContext({viewport:{width:w, height:h}, deviceScaleFactor:1, isMobile:true, hasTouch:true, serviceWorkers:"block"});
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  await ctx.addInitScript(() => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", "nl"); });
+  const p = await ctx.newPage(); p.on("pageerror", e => problems.push(`[${name}] fout in de pagina: ${e.message}`));
+  await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() => typeof S !== "undefined" && S.index.length > 0);
+  const r = await p.evaluate(async () => { const wait = ms => new Promise(r => setTimeout(r, ms));
+    closePicker(); const row = S.index.find(r => /Arlberg/.test(r[1])); localStorage.setItem("pp-dl-" + row[0], JSON.stringify({v:1, t:Date.now()})); await openArea(row[0]); document.documentElement.classList.add("ios");
+    dayRoute(); await wait(1200);
+    const box = e => e.getBoundingClientRect(), hit = (a, b) => a.width && b.width && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+    const tab = box(document.querySelector(".tabbar")), sheet = box(document.getElementById("sheet")), fabs = [...document.querySelectorAll(".fabs .fab")].map(box), side = isSide();
+    // de route ligt in het vrije deel van de kaart: rechts van de kolom (breed) of boven het paneel (staand)
+    const pts = S.path.flatMap(s => s.e.pts).map(q => map.latLngToContainerPoint(q)), minX = Math.min(...pts.map(q => q.x)), maxX = Math.max(...pts.map(q => q.x)), minY = Math.min(...pts.map(q => q.y)), maxY = Math.max(...pts.map(q => q.y));
+    const out = {side, tabInView:tab.left >= 0 && tab.right <= innerWidth && tab.bottom <= innerHeight, tabOverSheet:hit(tab, sheet), tabOverFab:fabs.some(f => hit(tab, f)),
+      tabInCol:Math.abs(tab.left - sheet.left) < 3 && Math.abs(tab.right - sheet.right) < 3, route:{minX:Math.round(minX), maxX:Math.round(maxX), minY:Math.round(minY), maxY:Math.round(maxY)}, sheet:{right:Math.round(sheet.right), top:Math.round(sheet.top)},
+      brand:getComputedStyle(document.querySelector(".brandline")).display, w:innerWidth, h:innerHeight, screens:{}};
+    for(const t of ["today", "plan", "group", "me"]){ setTab(t); await wait(1100);   // wachten tot het scherm is ingeschoven
+      const el = [...document.querySelectorAll(".picker:not([hidden])")].pop(); if(!el){ out.screens[t] = "geen scherm"; continue; }
+      const b = box(el), kids = [...el.children].map(box).filter(k => k.width);
+      out.screens[t] = {inView:b.left >= 0 && b.right <= innerWidth + 1, scrollX:el.scrollWidth - el.clientWidth, widest:Math.round(Math.max(...kids.map(k => k.width))), overTab:hit(b, box(document.querySelector(".tabbar"))) && isSide()}; }
+    return out; });
+  if(!r.tabInView) problems.push(`[${name}] de tabbalk valt buiten beeld`);
+  if(r.tabOverFab) problems.push(`[${name}] de tabbalk ligt over een kaartknop`);
+  if(r.side){
+    if(!r.tabInCol || r.tabOverSheet) problems.push(`[${name}] de tabbalk staat niet netjes onder het paneel in de kolom links`);
+    if(r.route.minX < r.sheet.right + 4 || r.route.maxX > r.w - 60) problems.push(`[${name}] de route ligt niet in het vrije deel van de kaart: ${JSON.stringify(r.route)} naast een kolom tot ${r.sheet.right}`);
+    if(r.brand !== "none") problems.push(`[${name}] het kopje boven het paneel is nog zichtbaar in de app`);
+  } else if(r.route.maxY > r.sheet.top + 4 || r.route.minX < 0 || r.route.maxX > r.w) problems.push(`[${name}] de route ligt achter het paneel of buiten beeld: ${JSON.stringify(r.route)}, paneel vanaf ${r.sheet.top}`);
+  for(const [t, v] of Object.entries(r.screens)){
+    if(typeof v === "string"){ problems.push(`[${name}] scherm ${t}: ${v}`); continue; }
+    if(!v.inView || v.scrollX > 1) problems.push(`[${name}] scherm ${t} valt buiten beeld of schuift opzij: ${JSON.stringify(v)}`);
+    if(!r.side && v.widest > 640) problems.push(`[${name}] scherm ${t} rekt uit tot ${v.widest}px breed`);
+    if(v.overTab) problems.push(`[${name}] scherm ${t} ligt over de tabbalk`);
+  }
+  if(SHOTS) await p.screenshot({path:join(SHOTS, `${name.replace(/ /g, "-")}.png`)});
+  await ctx.close();
+}
 await browser.close(); server.close();
 console.log(problems.length ? problems.join("\n") + `\n\n${problems.length} problemen.` : "Alle schermen in orde.");
 process.exit(problems.length ? 1 : 0);

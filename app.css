@@ -2628,7 +2628,7 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .hero .hero-txt{text-shadow:0 1px 2px rgba(8,30,60,.5),0 2px 14px rgba(8,30,60,.42)}
 .hero:not(.nowx) .hero-sub{display:inline-block;margin:4px 0 0 -4px;padding:3px 11px;border-radius:999px;background:rgba(15,34,54,.46);text-shadow:none;font-size:15px}
 /* weerblok: op een telefoon twee kolommen, zodat de regels onder de getallen niet over drie of vier regels breken */
-@media (max-width:480px){ .wx-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} }
+.wx-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}   /* het paneel is nergens breder dan een telefoon, ook niet op de iPad */
 .wx-cell span{white-space:nowrap}
 .wx-cell small{display:block;line-height:1.25}
 .wx-cell b small{display:inline}
@@ -2656,6 +2656,31 @@ a.btn,.btn a,a.btn *{text-decoration:none}
 .sos-hold{margin:2px 0 8px;text-align:center;font:600 13px/1.3 var(--f-ui);color:var(--muted)}
 .nr-tips{margin:10px 0 0;display:flex;flex-wrap:wrap;gap:8px}
 .nr-tips .btn{flex:1 1 auto}
+/* ================= iPad en brede schermen =================
+   Breed (vanaf 900 px): één kolom links met het paneel, de schermen en de tabbalk; de kaart houdt de rest.
+   Staand op een tablet (600 tot 899 px): de telefoonindeling, maar met een leesbare breedte in het midden. */
+@media (min-width:900px){
+  :root{--col:440px}
+  body::after{display:none}                       /* de waas onderaan hoorde bij de tabbalk over de volle breedte */
+  .ios .brandline{display:none}
+  .topbar{width:var(--col)}
+  .sheet,.ios .sheet{width:var(--col);bottom:calc(var(--tab-h) + var(--safe-b) + 12px)}
+  .picker{inset:calc(12px + var(--safe-t)) auto calc(var(--tab-h) + var(--safe-b) + 12px) calc(12px + var(--safe-l));width:var(--col);padding-bottom:14px;overflow:hidden auto}
+  .picker>.handle,.dash .handle,.sheet-grab{display:none}
+  .sos{width:var(--col)}
+  .sheet .sheet-body::after,.dash::after,.group::after,.diary::after,.menu::after{height:14px;background:none}
+  .tabbar{left:calc(12px + var(--safe-l));right:auto;transform:none;width:var(--col);justify-content:space-between}
+  .tabbar button{flex:1 1 0}
+  body.following .tabbar,body.drawing .tabbar,body.rp-on .tabbar,body:has(#sos:not([hidden])) .tabbar,body:has(.onb) .tabbar{transform:translateY(160%)}
+  .nav-banner,.draw-bar,.speedo{left:calc(var(--col) + 26px + var(--safe-l))}
+  .sun-bar{left:calc(var(--col) + 26px + var(--safe-l))}
+  .ov-pill{left:calc(50% + var(--col) / 2 + 12px)}
+  .toast,.ios .toast{left:calc(var(--col) + 26px);right:86px}
+}
+@media (min-width:600px) and (max-width:899px){
+  .dash>*,.group>*,.diary>*,.menu>*,.dash>.dash-head,.picker>.picker-head{width:100%;max-width:620px;margin-left:auto!important;margin-right:auto!important}
+  .sheet{width:min(600px,100%)}
+}
 /* liggend, fijnafstelling 2 */
 @media (orientation:landscape) and (max-height:500px){
   .onb-art{width:132px;border-radius:18px}

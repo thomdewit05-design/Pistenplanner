@@ -577,7 +577,7 @@ landSync();
 const landPad = () => { const sh = $("sheet"), open = sh.classList.contains("open"), rail = document.body.classList.contains("following") ? 12 : 70;
   return {paddingTopLeft:[rail + (open ? sh.offsetWidth + 12 : 0), 58], paddingBottomRight:[66, open ? 16 : 70]}; };
 const sheetPad = () => isLand() ? landPad()
-  : isSide() ? {paddingTopLeft:[430, 80], paddingBottomRight:[70, 30]}
+  : isSide() ? {paddingTopLeft:[Math.round($("sheet").getBoundingClientRect().right || 416) + 24, 80], paddingBottomRight:[84, 30]}   // de kolom links (paneel en tabbalk) en de knoppen rechts
                                                  : {paddingTopLeft:[20, padTop()], paddingBottomRight:[70, padBottom()]};
 // wat het paneel en de tabbalk onderaan echt bedekken (het paneel loopt door achter de tabbalk), en de chips bovenaan
 function padBottom(){

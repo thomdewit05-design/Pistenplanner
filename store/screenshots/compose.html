@@ -12,6 +12,15 @@ html,body{margin:0;width:1290px;height:2796px;overflow:hidden}
 .phone{position:absolute;left:50%;transform:translateX(-50%);width:980px;top:600px;border-radius:132px;background:#0B1220;padding:24px;box-shadow:0 40px 120px rgba(5,20,60,.5),inset 0 0 0 3px rgba(255,255,255,.12)}
 .phone img{display:block;width:932px;border-radius:108px}
 .island{position:absolute;left:50%;top:52px;transform:translateX(-50%);width:250px;height:72px;border-radius:40px;background:#000}
+/* iPad (13 inch, 2064×2752): breder doek, een tabletkader zonder eilandje */
+.ipad,.ipad body{width:2064px;height:2752px}
+.ipad .cap{left:140px;right:140px;top:170px}
+.ipad .cap h1{font-size:150px}
+.ipad.cjk .cap h1{font-size:132px}
+.ipad.ru .cap h1{font-size:124px}
+.ipad .cap p{font-size:58px;margin-top:36px}
+.ipad .phone{width:1560px;top:640px;border-radius:84px;padding:30px}
+.ipad .phone img{width:1500px;border-radius:56px}
 </style></head><body><div class="bg"></div>
 <div class="cap"><h1 id="h"></h1><p id="s"></p></div>
 <div class="phone"><img id="img"></div>
@@ -20,6 +29,7 @@ const q = new URLSearchParams(location.search), lang = q.get('l'), n = +q.get('n
 fetch('captions.json').then(r => r.json()).then(C => {
   const [h, s] = C[lang][n]; document.getElementById('h').textContent = h; document.getElementById('s').textContent = s;
   if(['zh','ja'].includes(lang)) document.body.classList.add('cjk'); if(lang === 'ru') document.body.classList.add('ru');
+  if(q.get('d') === 'ipad'){ document.documentElement.classList.add('ipad'); document.body.classList.add('ipad'); }
   const img = document.getElementById('img'); img.onload = () => document.body.dataset.ready = 1; img.src = `${lang}-${'abc'[n]}.png`;
 });
 </script></body></html>
