@@ -83,11 +83,10 @@ Installeer de app **TestFlight** op je iPhone, voeg jezelf toe als interne teste
 Zonder het vinkje maakt de workflow alleen een proefbouw voor de simulator; dat gebeurt ook vanzelf bij elke wijziging aan de app.
 
 ### 6. Winkelpagina en beoordeling
-- **Teksten**: uit `store/listing-nl.md` en `store/listing-en.md` (Apple kent ook een *ondertitel* van max. 30 tekens en *trefwoorden* van max. 100 tekens).
-- **Schermafbeeldingen**: Apple wil iPhone 6,9" (1320 × 2868) of 6,5" (1284 × 2778). De Play-afbeeldingen (1080 × 1920) passen niet;
-  maak ze in de iOS-simulator, op een iPhone, of pas `promo/shots.mjs` aan naar dat formaat.
+- **Alles om in te vullen** staat in `app-store-connect-invullen.md` (tien talen, per scherm). De teksten per taal staan in `teksten/`.
+- **Schermafbeeldingen**: `store/screenshots/1290x2796/`, drie per taal voor het vak van 6,9 inch; opnieuw maken met `node tools/store-shots.mjs`.
 - **Categorie**: Navigatie (tweede: Sport). **Leeftijd**: vul de vragenlijst in.
-- **Privacybeleid-URL**: `https://thomdewit05-design.github.io/Pistenplanner/privacy.html`. **Support-URL**: de website.
+- **Privacybeleid-URL** en **Support-URL**: per taal, zie het invulbestand.
 - **App-privacy** (controleer dit zelf): *Precieze locatie* en *Naam* worden alleen verzameld als je een groep gebruikt
   (gedeeld met je groepsgenoten via ntfy.sh), niet gekoppeld aan je identiteit, niet voor tracking.
   Locatie voor navigatie en het skidagboek blijft op de telefoon.
@@ -178,8 +177,6 @@ Kies in Xcode bij *Signing & Capabilities* je team en druk op ▶.
 
 Sinds deze versie toont Skipilot tijdens het navigeren de volgende afslag op het toegangsscherm en in het Dynamic Island (Live Activity), ook als de telefoon op slot zit. Daarvoor gebruikt de app **locatie op de achtergrond**, alleen zolang de navigatie loopt (je ziet dan de blauwe balk of pijl bovenin).
 
-Apple vraagt bij de beoordeling waarom een app locatie op de achtergrond gebruikt. Zet bij **App Review Information → Notes** bijvoorbeeld:
-
-> Skipilot is a turn-by-turn navigation app for ski areas. While navigation is active, the app uses background location to keep the next turn, distance and arrival time up to date in a Live Activity on the Lock Screen and in the Dynamic Island, so skiers do not have to unlock their phone with gloves on. Background location is only used while the user has started navigation and stops as soon as navigation ends. To test: open a ski area (e.g. Zillertal Arena), plan a route, tap "Start navigation" and lock the phone.
+Apple vraagt bij de beoordeling waarom een app locatie op de achtergrond gebruikt. De uitleg staat in de notities voor de beoordelaar in `review-notes.txt` (één set, in het Engels); plak die bij **App Review Information → Notes**.
 
 Siri en de app Opdrachten kennen vanzelf: "Navigeer naar het dal met Skipilot", "Navigeer naar de dichtstbijzijnde hut met Skipilot", "Navigeer naar mijn verblijf met Skipilot" en "Stop navigatie in Skipilot" (ook in het Engels en Duits).

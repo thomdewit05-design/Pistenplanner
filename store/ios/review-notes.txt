@@ -1,0 +1,28 @@
+Skipilot is a ski map and turn-by-turn navigation app for ski areas. No login or account is required.
+
+How to test
+1. On first launch a short tour appears; then pick a ski area, for example "Ski Arlberg" or "Zillertal Arena".
+2. A ski area must be downloaded once before use (about 10 to 30 MB), so the map, 3D and navigation work without mobile signal on the mountain. Tap "Download".
+3. Tap two points on the map to plan a route, or tap "Dagroute van vandaag" (Today's day route) for a ready-made route. Then tap "Start navigatie" (Start navigation).
+4. The language can be changed in the menu under Taal / Language. Available: Dutch, English, German, French, Italian, Spanish, Portuguese, Russian, Chinese and Japanese.
+
+Location
+Location is used to show the user on the map, for navigation and for the ski diary. Background location is used only while the user has started navigation, so the Live Activity (Lock Screen, Dynamic Island, Apple Watch) can show the next turn while the phone is locked with gloves on. It stops as soon as navigation ends.
+
+Groups
+Group position sharing is optional. Only when the user creates or joins a group and enables position sharing is the position sent to group members, end-to-end encrypted (AES-GCM, key derived from the group code), via ntfy.sh.
+
+HealthKit
+HealthKit is used only to write a finished ski day as a workout (start and end time, distance, estimated active energy) when the user turns on "Save to Apple Health" in the menu. The app never reads health data, never sends it off the device and never uses it for advertising.
+
+Camera, photos and motion
+The camera and photo library are used only when the user adds a photo to a ski day or saves a share image. The motion sensor is used during a recorded ski day to detect jumps. All of this stays on the device.
+
+Ads and tracking
+The app is free with ads from Google AdMob. The App Tracking Transparency prompt appears about one second after the first launch, before any ad is loaded or any advertising data is collected; if another system alert is showing, it appears as soon as that alert is closed. AdMob is only started after the user has answered. With "Ask App Not to Track" the app shows non-personalised ads only. There is a banner in the ski area list, the route details, the ski diary and the menu, and occasionally a full-screen ad at a natural pause; never during navigation or right after it. There are no in-app purchases in this version.
+
+Widgets and Watch
+The app includes home screen and lock screen widgets (ski area weather, ski day stats), a Live Activity for navigation and an Apple Watch app that shows the ski day and the next turn.
+
+Data
+Run and lift data comes from OpenStreetMap via OpenSkiMap. Weather comes from MET Norway; measured snow depth from GeoSphere Austria and SLF Switzerland. The app does not know which lifts are open today; it says so in the app.

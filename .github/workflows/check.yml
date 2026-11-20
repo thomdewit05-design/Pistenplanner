@@ -19,6 +19,10 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Gegevensbestanden zijn geldige JSON
         run: python3 -c "import json,glob; [json.load(open(f, encoding='utf-8')) for f in sorted(glob.glob('data/*.json'))]; print('ok')"
+      - name: Privacy, voorwaarden en hulp in tien talen (zelfde opbouw als de Nederlandse, pagina's actueel)
+        run: node tools/legal.mjs --check
+      - name: App Store-teksten in tien talen (binnen Apples limieten, invulbestand actueel)
+        run: node tools/store-texts.mjs --check
       - name: Knoppen, labels en fouten controleren
         run: node tools/audit.mjs nl,de,fr,ru,ja
       - name: Routeberekening testen (niveau, gesloten liften, gezinsmodus)

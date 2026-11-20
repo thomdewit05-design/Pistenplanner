@@ -1,10 +1,13 @@
 # App Store-screenshots (iPhone)
 
-`1206x2622/<taal>-<1|2|3>.jpg`: drie per taal (nl, en, de, fr, it, es, pt, ru, zh, ja), voor het iPhone-vak van 6,1"/6,3" in App Store Connect.
+`1290x2796/<taal>-<1|2|3>.jpg`: drie per taal (nl, en, de, fr, it, es, pt, ru, zh, ja), voor het iPhone-vak van 6,9 inch in App Store Connect. Apple schaalt ze zelf naar de kleinere vakken.
 
 1. Elke dag een nieuwe route (dagroute op de winterkaart)
 2. De bergen in 3D
 3. Navigatie zoals in de auto
 
-De koppen staan in `captions.json`, de opmaak in `compose.html` (canvas 1290×2796, een schermafbeelding van de app in een telefoonframe).
-Andere formaten (1320×2868, 1290×2796, 1284×2778, 1179×2556) zijn een kwestie van schalen; de verhouding is gelijk.
+Opnieuw maken: `node tools/store-shots.mjs` (alle talen) of `node tools/store-shots.mjs nl,en`. Het script legt de echte app vast en zet die met een kop in een telefoonframe. Het heeft internet nodig voor de hoogtegegevens.
+
+De koppen staan in `captions.json`, de opmaak in `compose.html`.
+
+**Apple Watch:** voor een app met een Watch-onderdeel vraagt Apple ook schermafbeeldingen van de Watch (bijvoorbeeld 410×502). Die maak je in de simulator of op je eigen Watch; dat kan dit script niet.
