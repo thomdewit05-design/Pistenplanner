@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A1E0C0100000000000000C2 /* MoreViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000C1 /* MoreViews.swift */; };
+		5A1E0C0100000000000000C4 /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000C3 /* Strings.swift */; };
 		5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */; };
 		5A1E0C0100000000000000A5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A2 /* Assets.xcassets */; };
 		5A1E0C0100000000000000A6 /* SkipilotWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5A1E0C0100000000000000A3 /* SkipilotWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -80,6 +82,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5A1E0C0100000000000000C1 /* MoreViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreViews.swift; sourceTree = "<group>"; };
+		5A1E0C0100000000000000C3 /* Strings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Strings.swift; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkipilotWatchApp.swift; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5A1E0C0100000000000000A3 /* SkipilotWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SkipilotWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -234,6 +238,8 @@
 			isa = PBXGroup;
 			children = (
 				5A1E0C0100000000000000A1 /* SkipilotWatchApp.swift */,
+				5A1E0C0100000000000000C3 /* Strings.swift */,
+				5A1E0C0100000000000000C1 /* MoreViews.swift */,
 				5A1E0C0100000000000000A2 /* Assets.xcassets */,
 			);
 			path = SkipilotWatch;
@@ -388,6 +394,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A1E0C0100000000000000A4 /* SkipilotWatchApp.swift in Sources */,
+				5A1E0C0100000000000000C4 /* Strings.swift in Sources */,
+				5A1E0C0100000000000000C2 /* MoreViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
-    branches: [watch-shots, watch-meer]
+    branches: [watch-shots, watch-meer, watch-weer]
     paths: ["ios/App/SkipilotWatch/**"]
 permissions:
   contents: write
@@ -56,12 +56,16 @@ jobs:
           echo "app: $APP ($BID)"
           xcrun simctl install "$UDID" "$APP"
           mkdir -p store/screenshots/watch
+          rm -f store/screenshots/watch/*.png
           n=1
-          for scene in nav day sos ctrl off flash; do
+          # het scherm, en de taal waarin (de laatste twee tonen dat de vertaling van de iPhone-taal werkt)
+          for item in nav:nl day:nl wx:nl group:nl sos:nl ctrl:nl off:nl flash:nl wx:de group:ja; do
+            scene=${item%%:*}; lang=${item##*:}
             xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
-            SIMCTL_CHILD_SKIPILOT_DEMO="$scene" xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
+            SIMCTL_CHILD_SKIPILOT_DEMO="$scene" SIMCTL_CHILD_SKIPILOT_LANG="$lang" xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "(nl)" -AppleLocale nl_NL
             sleep 8
-            xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$n-$scene.png"
+            name="$n-$scene"; [ "$lang" != nl ] && name="$n-$scene-$lang"
+            xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$name.png"
             n=$((n + 1))
           done
           ls -la store/screenshots/watch
@@ -71,7 +75,7 @@ jobs:
           import struct, sys, glob, zlib
           OK = {(422, 514), (410, 502), (416, 496), (396, 484), (368, 448), (312, 390)}
           files = sorted(glob.glob("store/screenshots/watch/*.png")); bad = []
-          if len(files) != 6: bad.append(f"{len(files)} afbeeldingen, verwacht 6")
+          if len(files) != 10: bad.append(f"{len(files)} afbeeldingen, verwacht 10")
           sizes = set()
           for f in files:
               b = open(f, "rb").read(); w, h = struct.unpack(">II", b[16:24]); sizes.add((w, h))

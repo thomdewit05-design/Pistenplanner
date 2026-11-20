@@ -151,3 +151,12 @@ Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop 
 - [ ] Bij het dalstation van een lift: de oplopende trilling. Op je bestemming: de "gelukt"-trilling.
 - [ ] **Arm naar beneden, scherm uit**: komen de signalen dan nog door? In deze versie waarschijnlijk niet altijd; schrijf op wanneer wel en wanneer niet. De volgende stap (trainingssessie op de Watch) moet dit oplossen.
 - [ ] Schrijf op welke tussenpozen niet prettig voelen (te snel, te zwak, te veel op elkaar lijkend); die stel ik daarna bij.
+
+**Weer, groep en noodgeval op de Watch**
+- [ ] Veeg op de Watch omlaag naar *weer*: temperatuur op de top en in het dal, wind, verwachte sneeuw en "Liften sluiten over …". Klopt dat met de iPhone?
+- [ ] Zet op de iPhone de sluitingstijd van de liften op een half uur vanaf nu en begin te navigeren: het vak wordt rood en de Watch geeft één keer twee lange trillingen.
+- [ ] *Groep* (met een tweede telefoon in je groep): naam, afstand en windrichting kloppen; de pijl wijst zoals op een kaart met het noorden boven.
+- [ ] Laat de ander "Start voor iedereen" doen: één lange trilling op je Watch.
+- [ ] Zonder groep staat er een korte uitleg in plaats van een lege lijst.
+- [ ] *Noodgeval*: de coördinaten, de hoogte en de piste zijn dezelfde als in het SOS-scherm van de iPhone, en groot genoeg om voor te lezen.
+- [ ] Zet de iPhone-app in een andere taal (bijvoorbeeld Duits): na een paar seconden staat de Watch ook in die taal.
