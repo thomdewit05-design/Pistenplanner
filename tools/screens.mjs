@@ -217,6 +217,44 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   await shot("sos");
   await ctx.close();
 }
+// afwerking: de zichtbare gebreken uit de eindcontrole blijven weg
+for(const phone of ["iPhone SE", "iPhone 15"]){
+  const tag = `${phone} afwerking`;
+  // "Overslaan" overlapt niets, ook niet midden in de schuifanimatie
+  let ctx = await browser.newContext({...devices[phone], serviceWorkers:"block"});
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  await ctx.addInitScript(() => localStorage.setItem("pp-lang", "nl"));
+  let p = await ctx.newPage(); await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForSelector(".onb-skip");
+  for(let i = 0; i < 3; i++){ await p.waitForTimeout(250);
+    const hit = await p.evaluate(() => { const s = document.querySelector(".onb-skip").getBoundingClientRect();
+      return [...document.querySelectorAll(".onb-card h2,.onb-card p,.onb-card .onb-q,.onb-card .onb-art")].filter(e => { const r = e.getBoundingClientRect(); return r.width && !(r.right <= s.left || r.left >= s.right || r.bottom <= s.top || r.top >= s.bottom); }).map(e => e.textContent.trim().slice(0, 24)); });
+    if(hit.length) problems.push(`[${tag}] rondleiding stap ${i + 1}: "Overslaan" staat over ${JSON.stringify(hit)}`);
+    await p.locator(".onb-next").click().catch(() => {}); }
+  await ctx.close();
+  // met één skidag: smalle staaf, een gekleurde dag in de kalender; de vergelijking blijft binnen het scherm; de dagroute waarschuwt niet onnodig
+  ctx = await browser.newContext({...devices[phone], serviceWorkers:"block"});
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  await ctx.addInitScript(() => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", "nl");
+    const d = new Date(), k = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    localStorage.setItem("pp-day:" + k, JSON.stringify({areaName:"Ski Arlberg", pts:[], sum:{n:900, km:31.4, hm:6200, runs:17, vmax:71, secs:5.2 * 3600, lifts:15, jumps:0, airMax:0, from:d.getTime(), pistes:{}}})); });
+  p = await ctx.newPage(); p.on("pageerror", e => problems.push(`[${tag}] fout in de pagina: ${e.message}`));
+  await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() => typeof S !== "undefined" && S.index.length > 0);
+  const r = await p.evaluate(async () => { closePicker(); const row = S.index.find(r => /Arlberg/.test(r[1])); localStorage.setItem("pp-dl-" + row[0], JSON.stringify({v:1, t:Date.now()})); await openArea(row[0]);
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    setTab("me"); await wait(500);
+    const bar = document.querySelector(".me-season .bars i")?.getBoundingClientRect().width || 0, days = document.querySelectorAll(".cal-g i.l1,.cal-g i.l2,.cal-g i.l3,.cal-g i.l4").length;
+    const cell = document.querySelector(".cal-g i.l0"), cellBg = cell ? getComputedStyle(cell).backgroundColor : "";
+    openCompare(); await wait(700); const w = document.querySelector(".cmp-wrap");
+    const cmp = {scroll:w.scrollWidth - w.clientWidth, right:Math.round(w.getBoundingClientRect().right - innerWidth), over:[...w.querySelectorAll("td,th")].filter(t => t.scrollWidth > t.clientWidth + 1).map(t => t.textContent.slice(0, 16))};
+    document.getElementById("detail").hidden = true; setTab("map"); dayRoute(); await wait(700);
+    return {bar:Math.round(bar), days, cellBg, cmp, chips:[...document.querySelectorAll("#peek .stat")].map(x => x.textContent)}; });
+  if(!r.bar || r.bar > 30) problems.push(`[${tag}] seizoensgrafiek: staaf van ${r.bar}px breed bij één skidag`);
+  if(r.days !== 1) problems.push(`[${tag}] seizoenskalender: ${r.days} gekleurde dagen bij één skidag`);
+  if(!r.cellBg || /rgba\(0, 0, 0, 0\)|transparent/.test(r.cellBg)) problems.push(`[${tag}] seizoenskalender: lege dagen zijn onzichtbaar (${r.cellBg})`);
+  if(r.cmp.scroll > 1 || r.cmp.right > 0 || r.cmp.over.length) problems.push(`[${tag}] vergelijken valt buiten beeld: ${JSON.stringify(r.cmp)}`);
+  if(r.chips.some(c => /Buiten je instellingen|Boven je niveau/.test(c))) problems.push(`[${tag}] de dagroute waarschuwt: ${JSON.stringify(r.chips)}`);
+  await ctx.close();
+}
 await browser.close(); server.close();
 console.log(problems.length ? problems.join("\n") + `\n\n${problems.length} problemen.` : "Alle schermen in orde.");
 process.exit(problems.length ? 1 : 0);

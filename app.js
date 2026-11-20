@@ -158,7 +158,8 @@ function onboarding(custom){
       : k === "where" ? `<div class="onb-q"><button type="button" class="btn primary" id="onbNear">${I("locate")}Bij mij in de buurt</button><button type="button" class="btn ghost" id="onbSearch">${I("search")}Zelf zoeken</button></div>`
       : `<div class="onb-art">${custom ? `<span class="onb-ic">${I(k)}</span>` : art(k)}</div>`;
     const ownBtns = k === "where";
-    el.innerHTML = `<div class="onb-card">${custom?.label ? `<p class="label onb-label">${custom.label}</p>` : ""}<button type="button" class="onb-skip">Overslaan</button>${k === "ask" || k === "where" ? "" : body}<h2>${tr(h)}</h2><p>${tr(t)}</p>${k === "ask" || k === "where" ? body : ""}
+    // "Overslaan" staat buiten de kaart: binnen de schuivende kaart zou hij aan de kaart hangen in plaats van aan het scherm, en over de titel vallen
+    el.innerHTML = `<button type="button" class="onb-skip">Overslaan</button><div class="onb-card">${custom?.label ? `<p class="label onb-label">${custom.label}</p>` : ""}${k === "ask" || k === "where" ? "" : body}<h2>${tr(h)}</h2><p>${tr(t)}</p>${k === "ask" || k === "where" ? body : ""}
       <div class="onb-dots">${slides.map((_, j) => `<i class="${j === i ? "on" : ""}"></i>`).join("")}</div>
       ${ownBtns ? "" : `<button type="button" class="btn primary onb-next">${last ? "Aan de slag" : "Volgende"}</button>`}</div>`;
     el.querySelector(".onb-skip").onclick = done;
@@ -1093,7 +1094,7 @@ function renderResult(){
   const nP = steps.filter((s, i) => s.t==="r" && steps[i-1]?.t !== "r").length, nL = steps.filter(s=>s.t==="l").length;
   const tm = routeTiming(), arrive = hhmm(tm.end);
   peek.innerHTML = `<div class="eta"><b>${fmt(tot)}</b><span>${(pisteM/1000).toFixed(1).replace(".", DEC)} km piste · klaar om ${arrive}</span></div>
-    <div class="stats"><span class="stat">${I("ski")}${nP} ${nP === 1 ? "afdaling" : "afdalingen"}</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? (ov => `<span class="stat ${ov ? "off" : "care"}">${I("warn")}${ov ? "Boven je niveau" : "Buiten je instellingen"}</span>`)(path.some(x => x.e.t==="r" && overLevel(x.e))) : ""}</div>
+    <div class="stats"><span class="stat">${I("ski")}${nP} ${nP === 1 ? "afdaling" : "afdalingen"}</span><span class="stat">${I("lift")}${nL} liften</span><span class="stat">${Math.round(down).toLocaleString(LOCALE)} hm dalen</span>${S.board ? (flatM => flatM >= 50 ? `<span class="stat">${I("board")}${km(flatM)} vlak</span>` : "")(path.filter(x => x.e.t==="r" && boardFlat(x.e)===2).reduce((t, x) => t + x.e.len, 0)) : ""}${S.relax ? (ov => `<span class="stat ${ov ? "off" : "care"}">${I("warn")}${ov ? "Boven je niveau" : relaxOnlyWalk(path) ? `${relaxOnlyWalk(path)} m ${tr("lopen")}` : "Buiten je instellingen"}</span>`)(path.some(x => x.e.t==="r" && overLevel(x.e))) : ""}</div>
     <div class="cta">${S.follow ? `<button type="button" class="btn stop" id="goBtn">${I("stop")}Navigatie stoppen</button><button type="button" class="btn primary" id="povBtn">${I("nav")}3D-weergave</button>`
                                : `<button type="button" class="btn primary" id="goBtn">${I("play")}Start navigatie</button>${G.code ? `<button type="button" class="btn ghost" id="goAllBtn">${I("group")}Start voor iedereen</button>` : ""}`}
       ${!S.follow && M3.supported && !M3.failed ? `<button type="button" class="btn ghost" id="flyBtn" title="Vlieg door de route">${I("layers")}3D-vlucht</button>` : ""}<button type="button" class="btn ghost" id="valleyBtn" title="Naar het dal: snel of toeristisch">${I("down")}${tourOn() ? "Toeristisch naar het dal" : "Naar het dal"}</button>
@@ -1126,7 +1127,8 @@ function renderResult(){
     if(over.length) bits.push(over.length === 1 ? `één ${over[0].e.diff==="f" ? "skiroute" : DIFF[over[0].e.diff].adj + " piste"} boven je niveau` : `${over.length} pistes boven je niveau`);
     if(downs && !S.down) bits.push(downs === 1 ? "één keer met de lift naar beneden" : `${downs} keer met de lift naar beneden`);
     if(walk) bits.push(`${Math.round(walk/10)*10} m lopen`);
-    if(bits.length) warn = `<p class="notice ${over.length ? "bad" : "info"}">${I("warn")}<span><strong>Binnen je instellingen kon het niet.</strong> Deze route gaat via ${bits.join(" en ")}.</span></p>` + warn;
+    if(bits.length) warn = (!over.length && !(downs && !S.down) ? `<p class="notice info">${I("warn")}<span>${tr("Op deze route loop je")} ${Math.round(walk/10)*10} m.</span></p>`
+      : `<p class="notice ${over.length ? "bad" : "info"}">${I("warn")}<span><strong>Binnen je instellingen kon het niet.</strong> Deze route gaat via ${bits.join(" en ")}.</span></p>`) + warn;
   }
   const lastWp = S.wps[S.wps.length-1];
   const home = getHome(), atHome = home && S.to === homeNode();
@@ -1397,6 +1399,12 @@ function stopWatch(){
   update();
 }
 let firstFix = true;
+// alleen een stukje lopen is geen reden voor de waarschuwing "buiten je instellingen": dan staat er hoeveel meter
+const walkOnly = path => relaxOnlyWalk(path) > 0 && !path.some(x => x.e.t === "r" && overLevel(x.e));
+function relaxOnlyWalk(path){
+  if(path.some(s => s.rev && s.e.t === "l") && !S.down) return 0;
+  return Math.round(path.filter(s => s.e.extra).reduce((t, s) => t + s.e.len, 0) / 10) * 10;
+}
 async function onPos(p){
   const first = !S.pos;
   S.pos = {lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, alt:p.coords.altitude};
@@ -4088,7 +4096,7 @@ function dayRoute(extra = 0){
   const build = (list, back = true) => [{k:"n", n:start}, ...list.map(c => ({k:"p", ei:c.ei})), ...(back ? [{k:"n", n:start}] : [])];
   let back = true;
   let path = null, mins = 0;
-  for(let round = 0; round < 12 && mins < budget * .8; round++){
+  for(let round = 0; round < 20 && mins < budget * .8; round++){
     const pool = cands.filter(c => !used.has(c.ei)); if(!pool.length) break;
     pool.forEach(c => c.s = c.w * Math.min(3, .4 + far(c) / 1500) * (.6 + .8 * rnd()));
     const c = pool.sort((x, y) => y.s - x.s)[0]; used.add(c.ei);
@@ -4097,7 +4105,7 @@ function dayRoute(extra = 0){
     while(left.length){ const d = distFrom(cur); left.sort((x, y) => d[x.ch.start] - d[y.ch.start]); const n = left.shift(); order.push(n); cur = n.ch.end; }
     S.wps = build(order); let p = computePath(), b = true;
     if(p && S.relax){ S.wps = build(order, false); const q = computePath(); if(q && !S.relax){ p = q; b = false; } }
-    if(!p || (S.relax && round < 8)) continue;   // liever niets boven je niveau of buiten je instellingen
+    if(!p || (S.relax && (round < 8 || !walkOnly(p)))) continue;   // liever niets buiten je instellingen; een stukje lopen mag als het anders een halve dag wordt   // liever niets boven je niveau of buiten je instellingen
     const m = p.reduce((t, x) => t + x.min, 0);
     if(m > budget * 1.1 && pick.length) continue;
     pick.length = 0; pick.push(...order); path = p; mins = m; back = b;
@@ -4113,7 +4121,7 @@ function dayRoute(extra = 0){
   S.day.key = wpsSig();
   update(); requestAnimationFrame(fitRoute);   // eerst het paneel tonen, dan de kaart verschuiven
   buzz("success");
-  toast(`Dagroute: ${pick.length} pistes${S.lunch ? `, lunch bij ${S.lunch.name}` : ""}. Morgen weer een andere.`, 4000);
+  toast("Dagroute klaar. Morgen weer een andere.", 4000);
 }
 
 // ================= hotel of auto =================
@@ -5161,7 +5169,7 @@ async function _openCompare(){
     <div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>${rows.map(col).join("")}</tr></thead><tbody>
       <tr><td>${I("ski")}${tr("Pistes")}</td>${rows.map(r => `<td>${officialKm(r) ? `${officialKm(r)[0]} km<small class="km-sub">${r[6]} ${tr("gemeten")}</small>` : `${r[6]} km<small class="km-sub">${tr("gemeten")}</small>`}</td>`).join("")}</tr>
       <tr><td>${I("lift")}${tr("Liften")}</td>${rows.map(r => `<td>${r[7]}</td>`).join("")}</tr>
-      <tr><td>${I("down")}${tr("Hoogte")}</td>${rows.map(r => `<td>${r[9] ?? "?"}–${r[10] ?? "?"} m</td>`).join("")}</tr>
+      <tr><td>${I("down")}${tr("Hoogte")} (m)</td>${rows.map(r => `<td>${r[9] ?? "?"}–${r[10] ?? "?"}</td>`).join("")}</tr>
       <tr><td>${I("snow")}${tr("Sneeuwhoogte")}</td>${rows.map((r, i) => `<td id="cmpD${i}"><i class="skel" style="width:40px;height:14px;display:inline-block"></i></td>`).join("")}</tr>
       <tr><td>${I("snow")}${tr("Vers (24 u)")}</td>${rows.map((r, i) => `<td id="cmpF${i}">–</td>`).join("")}</tr>
       <tr><td>${I("calendar")}${tr("Komende 3 dagen")}</td>${rows.map((r, i) => `<td id="cmpC${i}">–</td>`).join("")}</tr>
@@ -5478,7 +5486,7 @@ function downloadGate(row, bounds){
     g._close = close;
     const others = () => { const l = downloadedList().filter(d => d.id !== row[0]).slice(0, 6);
       return l.length ? `<p class="dl-sub">${tr("Gedownloade gebieden")}</p><div class="dl-list">${l.map(d => `<button type="button" class="dl-row" data-go="${d.id}">${I("check")}<b>${esc(d.row[1])}</b>${I("chev")}</button>`).join("")}</div>` : ""; };
-    const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${kmFull(row)} · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
+    const head = `<div class="dl-art">${I("down")}</div><p class="dl-kick">${esc(COUNTRY[row[2]] || row[2])} · ${kmShort(row)} · ${row[7]} ${tr("liften")}</p><h2 class="dl-title">${esc(row[1])}</h2>`;
     const offline = () => {
       g.innerHTML = `<div class="dl-card">${head.replace(/<div class="dl-art">.*?<\/div>/, `<div class="empty-ill">${ART("offline")}</div>`)}<p class="dl-lead off">${I("cloud")}<span>${tr("Je bent offline en dit gebied staat nog niet op je telefoon. Maak verbinding om het te downloaden.")}</span></p>
         <button type="button" class="btn primary dl-go" id="dlRetry">${I("reset")}${tr("Opnieuw proberen")}</button>${others()}
