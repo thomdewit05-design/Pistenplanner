@@ -1507,12 +1507,12 @@ function updateNav(){
   ban.classList.toggle("near", ns.rem < 100);
   $("navNow").textContent = nx ? uc(nx.say) : "Je bent er bijna";
   $("navArrow").innerHTML = `<use href="#i-${nx ? nx.icon : "flag"}"/>`;
-  const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit"});
+  const arrive = new Date(Date.now() + left*60000).toLocaleTimeString(LOCALE, {hour:"2-digit", minute:"2-digit", timeZone:areaTz()});
   // in de 3D-weergave staan tijd en aankomst onderin; bovenin dan alleen waar je nu bent
   $("navNext").innerHTML = `${I(s.t==="l" ? "lift" : s.t==="w" ? "walk" : "ski")}<span>${esc(s.title)}${POV.on ? "" : ` · nog ${fmt(left)} · aankomst ${arrive}`}</span>`;
   renderDash(ns, left, arrive);
   // liften gaan bijna dicht
-  const nowM = new Date().getHours()*60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
+  const nowM = areaMin(), close = toMin(S.liftClose), toGo = close - nowM;
   const liftAhead = S.steps.slice(ns.i).some(x => x.t==="l");
   const nw = $("navWarn");
   if(liftAhead && toGo > 0 && toGo <= 30){
@@ -1924,7 +1924,7 @@ const hhmm = m => { m = Math.round(m); return `${String(Math.floor(m/60) % 24).p
 const NIGHT_OPEN = "18:30", NIGHT_CLOSE = "22:00";   // gangbare tijden voor avondskiën
 // wanneer ben je bij elke stap; buiten de openingstijden rekenen we vanaf de opening
 function startTime(){
-  const now = new Date(), nowM = now.getHours()*60 + now.getMinutes();
+  const nowM = areaMin();
   const open = toMin(S.night ? NIGHT_OPEN : S.liftOpen), close = toMin(S.night ? NIGHT_CLOSE : S.liftClose);
   const planned = nowM < open || nowM >= close;
   // eigen begintijd van de dagroute (later dan de eerste lift, en nog niet voorbij)
@@ -2045,7 +2045,8 @@ const pad2 = n => String(n).padStart(2, "0");
 const locIso = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 // centimeters verse sneeuw uit millimeters neerslag: bij vorst ongeveer 1 cm per mm, rond het vriespunt de helft, daarboven regen
 const snowOf = (mm, t) => mm * (t <= 0 ? 1 : t < 1.5 ? .5 : 0);
-function metToOm(j, alt){
+function metToOm(j, alt, tz){
+  const Z = t => tz ? zoned(new Date(t).getTime(), tz) : new Date(t);   // dagen en uren op de klok van het skigebied
   const ts = j?.properties?.timeseries; if(!ts?.length) throw new Error("geen gegevens");
   const H = {time:[], temperature_2m:[], wind_speed_10m:[], snowfall:[], precipitation:[]}, sym = [];
   for(let i = 0; i < ts.length; i++){
@@ -2055,7 +2056,7 @@ function metToOm(j, alt){
     const nx = ts[i + 1]?.data.instant.details, T0 = det.air_temperature, T1 = nx?.air_temperature ?? T0, W0 = det.wind_speed * 3.6, W1 = (nx?.wind_speed ?? det.wind_speed) * 3.6;
     const mm = (b.details?.precipitation_amount || 0) / n;
     for(let k = 0; k < n; k++){ const f = k / n, T = T0 + (T1 - T0) * f;
-      H.time.push(locIso(new Date(t0 + k * 3600e3)).slice(0, 13) + ":00"); H.temperature_2m.push(+T.toFixed(1)); H.wind_speed_10m.push(+(W0 + (W1 - W0) * f).toFixed(1));
+      H.time.push(locIso(Z(t0 + k * 3600e3)).slice(0, 13) + ":00"); H.temperature_2m.push(+T.toFixed(1)); H.wind_speed_10m.push(+(W0 + (W1 - W0) * f).toFixed(1));
       H.precipitation.push(+mm.toFixed(2)); H.snowfall.push(+snowOf(mm, T).toFixed(2)); sym.push(b.summary?.symbol_code); }
   }
   const D = {time:[], weather_code:[], temperature_2m_max:[], temperature_2m_min:[], snowfall_sum:[], wind_speed_10m_max:[], sure:[]}, by = new Map();
@@ -2072,7 +2073,7 @@ function metToOm(j, alt){
     D.sure.push(dn < 3 ? 2 : dn < 5 ? 1 : 0); dn++;
   }
   const d0 = ts[0].data, det = d0.instant.details, T = det.air_temperature;
-  const current = {time:locIso(new Date(ts[0].time)), temperature_2m:T, apparent_temperature:det.apparent_air_temperature ?? T, weather_code:metCode((d0.next_1_hours || d0.next_6_hours)?.summary?.symbol_code),
+  const current = {time:locIso(Z(ts[0].time)), temperature_2m:T, apparent_temperature:det.apparent_air_temperature ?? T, weather_code:metCode((d0.next_1_hours || d0.next_6_hours)?.summary?.symbol_code),
     wind_speed_10m:det.wind_speed * 3.6, wind_gusts_10m:null, visibility:null, fog:det.fog_area_fraction ?? null, cloud:det.cloud_area_fraction ?? null, snow_depth:null,
     // nulgradengrens: afgeleid uit de temperatuur op deze hoogte (0,65 °C per 100 m); een schatting
     freezing_level_height:alt != null ? Math.max(0, alt + T / .0065) : null, flEst:true};
@@ -2085,7 +2086,7 @@ function metGet(lat, lon, alt){
   if(hit && Date.now() - hit.t < 30 * 60e3) return hit.p;
   // de lopende aanvraag wordt gedeeld, zodat twee schermen tegelijk niet twee keer vragen
   const p = fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${(+lat).toFixed(4)}&lon=${(+lon).toFixed(4)}${alt != null ? `&altitude=${Math.round(alt)}` : ""}`)
-    .then(res => { if(!res.ok) throw new Error(res.status); return res.json(); }).then(j => metToOm(j, alt));
+    .then(res => { if(!res.ok) throw new Error(res.status); return res.json(); }).then(j => metToOm(j, alt, tzAt(lat, lon)));
   metCache.set(key, {t:Date.now(), p}); p.catch(() => metCache.delete(key));
   return p;
 }
@@ -2169,7 +2170,7 @@ function renderWeather(d, savedAt){
   let c = top.current, cd = dal.current;
   // Bewaard weer (zonder bereik): niet de waarden van het moment van bewaren als "nu" tonen, maar het uur van nu uit de reeks.
   if(savedAt && top.hourly?.time){
-    const now = locIso(new Date()).slice(0, 13) + ":00", i = top.hourly.time.indexOf(now), j = dal.hourly?.time?.indexOf(now) ?? -1;
+    const now = locIso(zoned()).slice(0, 13) + ":00", i = top.hourly.time.indexOf(now), j = dal.hourly?.time?.indexOf(now) ?? -1;
     if(i >= 0) c = {...c, time:now, temperature_2m:top.hourly.temperature_2m[i], apparent_temperature:top.hourly.temperature_2m[i], wind_speed_10m:top.hourly.wind_speed_10m?.[i] ?? c.wind_speed_10m};
     if(j >= 0) cd = {...cd, time:now, temperature_2m:dal.hourly.temperature_2m[j]};
   }
@@ -2440,7 +2441,7 @@ window.addEventListener("hashchange", () => {
   const before = pendingShare; parseShareHash();
   if(G.pending){
     const code = G.pending; G.pending = null;
-    if(code !== G.code){ if(G.code) gLeave(); openGroup(); $("gCode").value = code; if(G.name){ $("gName").value = G.name; gStart(code); } }
+    if(code !== G.code) askJoin(code);
     try{ history.replaceState(null, "", "#" + (S.area?.id || "")); }catch(e){}
     return;
   }
@@ -2562,33 +2563,40 @@ function sentToday(add){
 // ntfy.sh ziet dus alleen onleesbare tekst en kan de code niet uit de kanaalnaam halen. Zonder WebCrypto: het oude kanaal.
 const gCry = {code:null, key:null, topic:null};
 const b64 = u8 => btoa(String.fromCharCode(...u8)), unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function gKeys(){
-  if(gCry.code === G.code) return gCry;
-  gCry.code = G.code; gCry.key = null; gCry.topic = null;
-  try{
-    if(!crypto?.subtle) throw 0;
-    const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(G.code), "PBKDF2", false, ["deriveKey"]);
-    gCry.key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:enc.encode("skipilot-groep-v2"), iterations:120000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt", "decrypt"]);
-    const h = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("skipilot-kanaal-v2:" + G.code)));
-    gCry.topic = "skipilot-g-" + [...h.slice(0, 12)].map(x => x.toString(16).padStart(2, "0")).join("");
-  }catch(e){ gCry.key = null; gCry.topic = null; }
-  return gCry;
+// De sleutel volgt uit de groepscode. Eén berekening per code: wie tegelijk vraagt (verbinden en het eerste bericht) wacht op dezelfde,
+// anders ging dat eerste bericht onversleuteld naar het oude kanaal.
+function gKeys(code = G.code){
+  if(gCry.code === code && gCry.p) return gCry.p;
+  gCry.code = code;
+  return gCry.p = (async () => {
+    const k = {code, key:null, topic:null};
+    try{
+      if(!code || !crypto?.subtle) throw 0;
+      const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(code), "PBKDF2", false, ["deriveKey"]);
+      k.key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:enc.encode("skipilot-groep-v2"), iterations:120000, hash:"SHA-256"}, base, {name:"AES-GCM", length:256}, false, ["encrypt", "decrypt"]);
+      const h = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("skipilot-kanaal-v2:" + code)));
+      k.topic = "skipilot-g-" + [...h.slice(0, 12)].map(x => x.toString(16).padStart(2, "0")).join("");
+    }catch(e){ k.key = null; k.topic = null; }
+    return k;
+  })();
 }
-async function gSeal(obj){
-  const k = await gKeys(); if(!k.key) return JSON.stringify(obj);
+async function gSeal(obj, code = G.code){
+  const k = await gKeys(code); if(!k.key) return JSON.stringify(obj);
   const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, k.key, new TextEncoder().encode(JSON.stringify(obj))));
   return JSON.stringify({e:2, iv:b64(iv), c:b64(ct)});
 }
 async function gOpen(raw){
-  const m = JSON.parse(raw); if(m.e !== 2) return gCry.key ? null : m;   // op het versleutelde kanaal alleen versleutelde berichten
-  const k = await gKeys(); if(!k.key) return null;
+  const m = JSON.parse(raw), k = await gKeys();
+  if(m.e !== 2) return k.key ? null : m;   // op het versleutelde kanaal alleen versleutelde berichten
+  if(!k.key) return null;
   try{ return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(m.iv)}, k.key, unb64(m.c)))); }catch(e){ return null; }
 }
 async function gSend(obj){
   if(!G.code) return false;
-  const msg = await gSeal({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj});
+  const code = G.code, legacy = gTopic();   // vastgehouden: de code kan tijdens het versleutelen al gewist zijn (groep verlaten)
+  const msg = await gSeal({v:1, id:G.id, name:G.name, ts:Date.now(), ...obj}, code);
   try{
-    const r = await fetch(NTFY + ((await gKeys()).topic || gTopic()), {method:"POST", body:msg});
+    const r = await fetch(NTFY + ((await gKeys(code)).topic || legacy), {method:"POST", body:msg, keepalive:true});
     if(r.status === 429){ G.conn = "De gratis dienst is even overbelast. Probeer het over een paar minuten opnieuw."; renderGroup(); return false; }
     if(r.ok) sentToday(1);
     return r.ok;
@@ -2621,6 +2629,8 @@ function gHandle(d){
   }
   if(d.t === "plan" && d.ts > G.planTs){
     G.planTs = d.ts; G.plan = d;
+    // een plan van vóór het openen van de app laat je route met rust: je ziet het wel in de groep en kunt het daar overnemen
+    if(d.ts < (G.adoptAfter || 0)){ drawMembers(); renderGroup(); return; }
     // bij het opnieuw verbinden komen oude berichten snel achter elkaar binnen: alleen de laatste toepassen
     clearTimeout(G.planTimer); G.planTimer = setTimeout(async () => {
       const p = G.plan; await adoptPlan(p);
@@ -2753,14 +2763,35 @@ function gDrawQr(){ try{ const qr = qrcode(0, "M"); qr.addData(gUrl()); qr.make(
 function gStart(code){
   const name = $("gName").value.trim();
   if(!name){ toast("Vul eerst je naam in."); $("gName").focus(); return; }
-  G.name = name; G.code = code.toUpperCase(); G.plan = null; G.planTs = 0; G.lastPos = null; gSave();
+  G.name = name; G.code = code.toUpperCase(); G.plan = null; G.planTs = 0; G.lastPos = null; G.adoptAfter = 0; gSave();   // net meegedaan: het lopende plan van de groep geldt
   gConnect(); gSend({t:"hello"}); renderGroup(); gDrawQr(); drawMembers();
   if(G.sharePos && S.watch == null) startWatch();
 }
 function gLeave(){
-  gSend({t:"bye"}); G.es?.close(); G.es = null;
+  gSend({t:"bye"});   // gSend houdt de code zelf vast, dus het afscheid gaat versleuteld naar het goede kanaal
+  G.es?.close(); G.es = null;
   G.code = null; G.members = new Map(); G.plan = null; S.planBy = null; gSave();
   drawMembers(); renderGroup(); update(); toast("Je hebt de groep verlaten.");
+}
+// Een uitnodigingslink doet je niet vanzelf meedoen: eerst vragen, met de keuze om je positie te delen.
+function askJoin(code){
+  document.querySelector(".join-ask")?.remove();
+  const g = document.createElement("div"); g.className = "dl-gate join-ask"; g.setAttribute("role", "dialog"); g.setAttribute("aria-modal", "true");
+  g.innerHTML = `<div class="dl-card"><div class="dl-art">${I("group")}</div><p class="dl-kick">${tr("Uitnodiging")}</p><h2 class="dl-title" data-notr>${trf("Meedoen met groep {0}?", esc(code.toUpperCase()))}</h2>
+    <p class="dl-lead">${G.code ? `<span>Je verlaat dan je huidige groep.</span> ` : ""}<span>De groep ziet je naam en de route die je deelt.</span></p>
+    <label class="g-field">Jouw naam<input type="text" id="jaName" maxlength="20" placeholder="Bijvoorbeeld Sam" autocomplete="nickname"></label>
+    <label class="switch"><span>Mijn positie delen met de groep</span><input type="checkbox" id="jaShare"><i></i></label>
+    <button type="button" class="btn primary" id="jaYes">${I("check")}Meedoen</button><button type="button" class="btn ghost" id="jaNo">Niet meedoen</button></div>`;
+  document.body.appendChild(g);
+  $("jaName").value = G.name || ""; $("jaShare").checked = false;   // delen staat uit tot je het zelf aanzet
+  const close = () => { g.classList.add("out"); setTimeout(() => g.remove(), 280); };
+  $("jaNo").onclick = close;
+  $("jaYes").onclick = () => {
+    const name = $("jaName").value.trim(); if(!name){ toast("Vul eerst je naam in."); $("jaName").focus(); return; }
+    if(G.code) gLeave();
+    G.sharePos = $("jaShare").checked; $("gSharePos").checked = G.sharePos; $("gName").value = name; $("gCode").value = code;
+    close(); openGroup(); gStart(code); toast(trf("Je doet mee met groep {0}.", code.toUpperCase()));
+  };
 }
 function openGroup(){ $("group").hidden = false; renderGroup(); if(G.code) gDrawQr(); }
 $("groupBtn").onclick = openGroup;
@@ -2835,7 +2866,10 @@ document.addEventListener("keydown", e => {
 // ================= mijn routes =================
 const routesKey = () => `pp-routes:${S.area.id}`;
 function loadRoutes(){ try{ return JSON.parse(localStorage.getItem(routesKey()) || "[]"); }catch(e){ return []; } }
-function saveRoutes(list){ try{ localStorage.setItem(routesKey(), JSON.stringify(list)); }catch(e){ toast("Opslaan lukte niet. Is het geheugen vol?"); } }
+function saveRoutes(list){
+  const put = () => localStorage.setItem(routesKey(), JSON.stringify(list));
+  try{ put(); return true; }catch(e){ pruneStore(true); try{ put(); return true; }catch(e2){ toast("Opslaan lukte niet: de opslag is vol."); return false; } }
+}
 // elke route kan als reeks punten bewaard worden
 function currentWps(){
   if(S.wps.length) return wpsOut();
@@ -2873,7 +2907,7 @@ $("mrSave").onclick = () => {
   const list = loadRoutes();
   list.unshift({name, wps, n:wps.length, ts:Date.now(), min:S.path.reduce((t, x) => t + x.min, 0),
                 km:S.path.filter(x => x.e.t==="r").reduce((t, x) => t + x.e.len, 0)/1000});
-  saveRoutes(list.slice(0, 30)); $("mrName").value = ""; renderRoutes(); toast(`Route "${name}" bewaard.`);
+  if(!saveRoutes(list.slice(0, 30))) return; $("mrName").value = ""; renderRoutes(); toast(`Route "${name}" bewaard.`);
 };
 $("myRoutes").addEventListener("toggle", renderRoutes);
 
@@ -2887,9 +2921,32 @@ const dayKey = k => "pp-day:" + k;
 const niceDate = k => new Date(+k.slice(0,4), +k.slice(4,6)-1, +k.slice(6,8)).toLocaleDateString(LOCALE, {weekday:"long", day:"numeric", month:"long"});
 const trackLayer = L.layerGroup().addTo(map);
 function loadDay(k){ try{ return JSON.parse(localStorage.getItem(dayKey(k)) || "null"); }catch(e){ return null; } }
+// Opslag: tijdelijke gegevens (bewaard weer, hutten, tellers per dag) mogen weg; je skidagen en instellingen nooit.
+// all = alles wat tijdelijk is; anders alleen wat oud is. Geeft het aantal weggegooide sleutels terug.
+function pruneStore(all){
+  let n = 0;
+  try{
+    const now = Date.now(), tk = todayKey(), keys = []; for(let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    for(const k of keys){
+      let drop = false;
+      if(k.startsWith("pp-wx:")){ if(all) drop = true; else { let t = 0; try{ t = JSON.parse(localStorage.getItem(k)).t || 0; }catch(e){} drop = now - t > 3 * 864e5; } }
+      else if(k.startsWith("pp-huts")) drop = all || !k.startsWith(`pp-huts2:${DATA_V}:`);          // hutten van oude kaartgegevens
+      else if(/^pp-(gear-|sr-n-|sent:)/.test(k)) drop = !k.endsWith(tk);                              // tellers van eerdere dagen
+      else if(k.startsWith("pp-status:")) drop = !k.endsWith(":" + tk);
+      if(drop){ localStorage.removeItem(k); n++; }
+    }
+  }catch(e){}
+  return n;
+}
 function saveDay(day){
-  try{ localStorage.setItem(dayKey(day.date), JSON.stringify(day)); }
-  catch(e){ toast("Het dagboek is vol. Verwijder een paar oude dagen."); }
+  const put = () => localStorage.setItem(dayKey(day.date), JSON.stringify(day));
+  try{ put(); return true; }
+  catch(e){
+    // vol: eerst ruimte maken met wat opnieuw op te halen is, dan nog één keer proberen
+    pruneStore(true);
+    try{ put(); return true; }
+    catch(e2){ if(Date.now() - (D.fullTold || 0) > 60000){ D.fullTold = Date.now(); toast("De opslag is vol: je skidag wordt niet bewaard. Verwijder een paar oude dagen in je skidagboek.", 6000); } return false; }
+  }
 }
 function listDays(){
   const out = [];
@@ -3459,6 +3516,7 @@ $("dAwake").onchange = e => { D.awake = e.target.checked; dSaveSettings(); keepA
 document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("diary").hidden) $("diary").hidden = true; });
 // oude dagen opruimen: hooguit 60 dagen bewaren
 (() => { const days = listDays(); days.slice(60).forEach(d => { try{ localStorage.removeItem(dayKey(d)); }catch(e){} }); })();
+pruneStore(false);   // oud bewaard weer en hutten van oude kaartgegevens opruimen
 
 // ================= hoogteprofiel =================
 // hoogte per knooppunt langs de route; tussen knooppunten lineair (de kaart kent alleen hoogtes op kruisingen en stations)
@@ -3844,17 +3902,27 @@ function sunPos(ms, lat, lon){
   return {alt:alt/rad, az:(az/rad + 360) % 360};
 }
 // tijdzone van het skigebied (de zon hangt af van de klok daar, niet van die op je telefoon thuis)
-function areaTz(){
-  const row = S.index.find(r => r[0] === S.area?.id), cc = row?.[2], lon = row?.[4] ?? 10;
-  if(cc === "US" || cc === "CA") return lon < -114 ? "America/Vancouver" : lon < -101 ? "America/Denver" : lon < -87 ? "America/Chicago" : "America/New_York";
+// Bij benadering, uit land en lengtegraad: goed genoeg voor "welke dag en welk uur is het daar", niet tot op de staatsgrens.
+function tzOf(cc, lon = 10){
+  if(cc === "US") return lon < -130 ? "America/Anchorage" : lon < -114 ? "America/Los_Angeles" : lon < -101 ? "America/Denver" : lon < -87 ? "America/Chicago" : "America/New_York";
+  if(cc === "CA") return lon < -114 ? "America/Vancouver" : lon < -101 ? "America/Edmonton" : lon < -90 ? "America/Winnipeg" : lon < -68 ? "America/Toronto" : lon < -59 ? "America/Halifax" : "America/St_Johns";
   return cc === "FI" ? "Europe/Helsinki" : "Europe/Paris";
 }
+function areaTz(row){ row ||= S.index.find(r => r[0] === S.area?.id); return tzOf(row?.[2], row?.[4] ?? 10); }
+// de tijdzone bij een punt: die van het dichtstbijzijnde skigebied
+function tzAt(lat, lon){ let best = null, bd = 1e9; for(const r of S.index){ const d = Math.abs(r[5] - lat) + Math.abs(r[4] - lon); if(d < bd){ bd = d; best = r; } } return tzOf(best?.[2], lon); }
+// Een datum waarvan getHours(), getDate() enzovoort de klok in die tijdzone geven. Alleen om af te lezen, niet om mee te rekenen.
+const ZFMT = {};
+function zoned(ms = Date.now(), tz = areaTz()){
+  try{ const f = ZFMT[tz] ||= new Intl.DateTimeFormat("en-GB", {timeZone:tz, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
+    const p = {}; for(const x of f.formatToParts(new Date(ms))) p[x.type] = +x.value; return new Date(p.year, p.month - 1, p.day, p.hour, p.minute); }
+  catch(e){ return new Date(ms); }
+}
+const areaMin = () => { const d = zoned(); return d.getHours() * 60 + d.getMinutes(); };   // minuten op de klok in het skigebied
 // we rekenen met nu, of met de opening als de liften dicht zijn; m = minuten op de klok in het skigebied
 function sunTime(){
   const now = Date.now(); let m;
-  try{ const p = new Intl.DateTimeFormat("en-GB", {timeZone:areaTz(), hour:"2-digit", minute:"2-digit", hourCycle:"h23"}).formatToParts(new Date(now));
-       m = +p.find(x => x.type === "hour").value * 60 + +p.find(x => x.type === "minute").value; }
-  catch(e){ const d = new Date(now); m = d.getHours()*60 + d.getMinutes(); }
+  m = areaMin();
   const open = toMin(S.liftOpen), close = toMin(S.liftClose);
   if(S.sunAt != null) return {ms:now + (S.sunAt - m) * 6e4, m:S.sunAt};   // gekozen met de tijdschuif
   if(m >= open && m < close) return {ms:now, m};
@@ -4092,7 +4160,7 @@ function dayRoute(extra = 0){
   }
   if(!cands.length){ toast("Voor dit gebied lukt geen dagroute met jouw niveau."); return; }
   // hoe lang je wilt skiën: van je begintijd (of nu / de eerste lift) tot je eindtijd (of een half uur voor de laatste lift)
-  const st = startTime(), nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  const st = startTime(), nowM = areaMin();
   let t0 = st.t; if(!S.night && S.dayFrom){ const f = Math.max(st.open, toMin(S.dayFrom)); if(nowM < f || st.planned) t0 = f; }
   const close = st.close, until = !S.night && S.dayTo ? Math.min(close - 10, toMin(S.dayTo)) : close - 30;
   const budget = Math.max(45, Math.min(540, until - t0));
@@ -4425,7 +4493,7 @@ function countUp(root){
 }
 const num = (v, dec = 0) => `<b data-n="${v}" data-dec="${dec}">${(+v).toLocaleString(LOCALE, {minimumFractionDigits:dec, maximumFractionDigits:dec})}</b>`;
 function greeting(){
-  const h = new Date().getHours();
+  const h = zoned().getHours();
   return h < 5 ? "Goedenacht" : h < 11 ? "Goedemorgen" : h < 15 ? "Goedemiddag" : h < 18 ? "Nog één afdaling?" : "Goedenavond";
 }
 const dashHead = (label, title, closeId) => `<div class="dash-head"><div><p class="label">${label}</p><h2>${title}</h2></div><button type="button" class="icon-btn" id="${closeId}" aria-label="Sluiten"><svg class="ic"><use href="#i-close"/></svg></button></div>`;
@@ -4455,7 +4523,7 @@ const HERO_ART = `<svg class="hero-art" viewBox="0 0 400 200" preserveAspectRati
 // eigen skyline per skigebied: uit de echte toppen (of, zolang die er niet zijn, de hoogste punten van het pistenet),
 // gezien vanuit het zuiden; drie lagen, sneeuwkappen, de naam van de hoogste top en een lucht naar het moment van de dag
 function heroSky(){
-  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  const h = areaMin() / 60;
   if(h >= 5 && h < 8) return {k:"dawn", a:"#F7C9A9", b:"#8FB0DE", fg:"#4B5E86"};
   if(h >= 8 && h < 16) return {k:"day", a:"#86BCE6", b:"#2F6E9F", fg:"#2B5A82"};
   if(h >= 16 && h < 18.5) return {k:"gold", a:"#F7C873", b:"#6E8EC6", fg:"#4A5F8E"};
@@ -4479,7 +4547,7 @@ function heroSkyline(A){
   const sorted = [...pts].sort((a, b) => b[2] - a[2]);
   const far = ridge(sorted.slice(0, 80), 70, 140, .55), mid = ridge(sorted.slice(0, 30), 64, 156, .75), near = ridge(sorted.slice(8, 60).map(p => [p[0], p[1], p[2] * .9, p[3]]), 150, 196, 1);
   const sky = heroSky(), top = sorted.find(p => p[3]) || sorted[0], tx = X(top[1]), ty = Y(top[2], 64, 156);
-  const hour = new Date().getHours() + new Date().getMinutes() / 60, sunX = 30 + ((hour - 6) / 14) * 340, sunY = 70 - Math.sin(Math.max(0, Math.min(1, (hour - 6) / 14)) * Math.PI) * 45;
+  const hour = areaMin() / 60, sunX = 30 + ((hour - 6) / 14) * 340, sunY = 70 - Math.sin(Math.max(0, Math.min(1, (hour - 6) / 14)) * Math.PI) * 45;
   const stars = sky.k === "night" ? Array.from({length:26}, (_, i) => `<circle cx="${(i * 97) % 400}" cy="${(i * 53) % 90}" r="${(i % 3) * .4 + .5}" fill="#fff" opacity="${.4 + (i % 4) * .15}"/>`).join("") : "";
   return `<svg class="hero-art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
     <defs><linearGradient id="hsSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.b}"/><stop offset="1" stop-color="${sky.a}"/></linearGradient>
@@ -4502,7 +4570,7 @@ function renderToday(){
   const lifts = A.edges.filter(e => e.t === "l"), liftKeys = new Set(lifts.map(e => e.key ?? e.i));
   const openKeys = new Set(lifts.filter(e => !S.closed.has(e.i)).map(e => e.key ?? e.i));
   const windRisk = [...(S.risk?.lifts || [])].filter(i => !S.closed.has(i)).length;
-  const nowM = new Date().getHours() * 60 + new Date().getMinutes(), close = toMin(S.liftClose), toGo = close - nowM;
+  const nowM = areaMin(), close = toMin(S.liftClose), toGo = close - nowM;
   const sk = S.wxFail === A.id ? '<i class="nodata">–</i>' : '<i class="skel"></i>';
   const tile = (icon, label, val, unit, sub) => `<div class="tile">${I(icon)}<span>${label}</span><p>${val ?? sk}${val != null && unit ? `<small>${unit}</small>` : ""}</p>${sub ? `<small class="t-sub">${sub}</small>` : ""}</div>`;
   const home = getHome?.();
@@ -5995,11 +6063,9 @@ setTimeout(prefetch3d, 3000);
   else { map.setView([46.6, 10.4], 6, {animate:false}); hideSplash(); setTimeout(openPicker, FIRST_RUN ? 600 : 0); }
   if(G.pending && G.pending !== G.code){
     const code = G.pending; G.pending = null;
-    if(G.code) gLeave();
-    openGroup(); $("gCode").value = code;
-    if(G.name){ $("gName").value = G.name; gStart(code); toast(`Je doet mee met groep ${code}.`); }
-    else toast("Vul je naam in en tik op Meedoen.", 3500);
-  } else if(G.code){ gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
+    if(G.code){ G.adoptAfter = Date.now(); gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }   // je huidige groep blijft tot je kiest
+    askJoin(code);
+  } else if(G.code){ G.adoptAfter = Date.now(); gConnect(); drawMembers(); if(G.sharePos && S.watch == null) startWatch(); }
   try{ history.replaceState(null, "", "#" + S.area.id); }catch(e){}
   diaryLive(); drawTrack(); apply3d(); pollAction();
   if(D.rec){ startWatch(); keepAwake(); toast("Het skidagboek neemt weer op."); }

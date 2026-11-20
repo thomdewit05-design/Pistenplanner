@@ -64,6 +64,22 @@ for(const withStation of [true, false]){
   console.log(`${tag}: sneeuw "${r.cell.replace(/\s+/g, " ").trim()}"`);
   await ctx.close();
 }
+// tijdzone: met de telefoon op Nederlandse tijd volgen de uren van het weer en de klok voor de liften het skigebied
+{ const ctx = await browser.newContext({...devices["iPhone 15"], serviceWorkers:"block", timezoneId:"Europe/Amsterdam"});
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  await ctx.addInitScript(() => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", "nl"); });
+  const p = await ctx.newPage(); await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() => typeof S !== "undefined" && S.index.length > 0);
+  const fx = JSON.parse(await readFile(join(ROOT, "tools/fixtures/met-arlberg.json"), "utf8"));
+  const r = await p.evaluate(fx => { const t = fx.properties.timeseries[0].time, ms = new Date(t).getTime();
+    const want = tz => new Intl.DateTimeFormat("sv-SE", {timeZone:tz, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"}).format(new Date(ms)).replace(" ", "T");
+    const wh = S.index.find(r => /Whistler/.test(r[1])), fi = S.index.find(r => r[2] === "FI"), at = S.index.find(r => /Arlberg/.test(r[1]));
+    return {van:metToOm(fx, 2000, "America/Vancouver").current.time, vanWant:want("America/Vancouver"), ams:metToOm(fx, 2000).current.time, amsWant:want("Europe/Amsterdam"),
+      tz:[areaTz(wh), areaTz(fi), areaTz(at)], at:tzAt(wh[5], wh[4]), diff:(zoned(ms, "Europe/Paris").getTime() - zoned(ms, "America/Vancouver").getTime()) / 36e5}; }, fx);
+  if(r.van !== r.vanWant) problems.push(`[tijdzone] het weer voor Whistler staat op ${r.van}, verwacht ${r.vanWant}`);
+  if(r.ams !== r.amsWant) problems.push(`[tijdzone] zonder tijdzone hoort de klok van de telefoon te gelden: ${r.ams} tegenover ${r.amsWant}`);
+  if(r.tz.join() !== "America/Vancouver,Europe/Helsinki,Europe/Paris" || r.at !== "America/Vancouver") problems.push(`[tijdzone] verkeerde tijdzones: ${JSON.stringify(r.tz)} en ${r.at}`);
+  if(r.diff !== 9) problems.push(`[tijdzone] het verschil tussen de Alpen en Whistler is ${r.diff} uur, verwacht 9`);
+  await ctx.close(); }
 await browser.close(); server.close();
 console.log(problems.length ? problems.join("\n") + `\n\n${problems.length} problemen.` : "Weerlaag in orde.");
 process.exit(problems.length ? 1 : 0);
