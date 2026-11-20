@@ -79,10 +79,12 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
         guard !list.isEmpty else { return call.reject("Geen stappen") }
         let d = call.getString("dest") ?? "", l = call.getString("lang") ?? "nl", t = call.getBool("tap") ?? true
         let pr = call.getBool("pre") ?? true, strong = call.getBool("strong") ?? false
+        let bg = call.getBool("bg") ?? true
         DispatchQueue.main.async {
             self.steps = list; self.idx = 0; self.lastKey = nil; self.alerted = -1; self.preAlerted = -1; self.offRoute = false
             self.dest = d; self.lang = l; self.tap = t; self.pre = pr
-            WatchLink.shared.send(["hapt": ["on": t, "pre": pr, "strong": strong]])
+            WatchLink.shared.send(["hapt": ["on": t, "pre": pr, "strong": strong, "bg": bg]])
+            if t && bg { WatchLink.shared.wake() }
             self.startLocation()
             self.push(self.manager?.location, force: true)
             call.resolve(["live": self.liveEnabled()])
@@ -442,6 +444,15 @@ final class WatchLink: NSObject, WCSessionDelegate {
             try? s.updateApplicationContext(context)
         }
     }
+
+    /// De Watch-app starten met een trainingssessie, zodat hij tijdens het navigeren actief blijft en kan trillen
+    /// met het scherm uit. De Watch bewaart die sessie niet (zie Workout.swift in de Watch-app).
+    func wake() {
+        guard available, HKHealthStore.isHealthDataAvailable() else { return }
+        let c = HKWorkoutConfiguration(); c.activityType = .downhillSkiing; c.locationType = .outdoor
+        health.startWatchApp(with: c) { _, _ in }
+    }
+    private let health = HKHealthStore()
 
     /// Een trilsignaal laten voelen om te oefenen. Geeft terug of de Watch bereikbaar was.
     func test(_ kind: String) -> Bool {

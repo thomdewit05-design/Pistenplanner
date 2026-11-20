@@ -149,7 +149,14 @@ Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop 
 - [ ] Het signaal bij de afslag klopt met de werkelijke richting: links voelt als links.
 - [ ] Sla bewust verkeerd af: één keer de "van de route af"-trilling, niet steeds opnieuw; het scherm kleurt rood.
 - [ ] Bij het dalstation van een lift: de oplopende trilling. Op je bestemming: de "gelukt"-trilling.
-- [ ] **Arm naar beneden, scherm uit**: komen de signalen dan nog door? In deze versie waarschijnlijk niet altijd; schrijf op wanneer wel en wanneer niet. De volgende stap (trainingssessie op de Watch) moet dit oplossen.
+- [ ] **Arm naar beneden, scherm uit** (instelling *Ook met je arm naar beneden* aan):
+  - De eerste keer vraagt de Watch (of de iPhone) toestemming voor Gezondheid. Sta die toe.
+  - Start een route op de iPhone met de Watch-app **dicht**: de Watch-app start vanzelf en bovenaan de wijzerplaat verschijnt het trainingsicoon.
+  - De signalen komen door met je arm naar beneden en het scherm uit.
+  - Stop de navigatie: het trainingsicoon verdwijnt binnen een paar seconden.
+  - Kijk daarna in de app Conditie of Gezondheid: er staat **geen** training van Skipilot bij door het navigeren.
+  - Weiger je de toestemming, dan staat op de Watch dat hij alleen trilt met Skipilot in beeld.
+  - Zet de instelling uit en start opnieuw: geen trainingsicoon.
 - [ ] Schrijf op welke tussenpozen niet prettig voelen (te snel, te zwak, te veel op elkaar lijkend); die stel ik daarna bij.
 
 **Weer, groep en noodgeval op de Watch**
@@ -160,3 +167,12 @@ Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop 
 - [ ] Zonder groep staat er een korte uitleg in plaats van een lege lijst.
 - [ ] *Noodgeval*: de coördinaten, de hoogte en de piste zijn dezelfde als in het SOS-scherm van de iPhone, en groot genoeg om voor te lezen.
 - [ ] Zet de iPhone-app in een andere taal (bijvoorbeeld Duits): na een paar seconden staat de Watch ook in die taal.
+
+**Complicatie op de wijzerplaat**
+- [ ] Houd de wijzerplaat ingedrukt → Wijzig → kies een plek → Skipilot. Er zijn vier vormen: rond, rechthoekig, in de hoek en als regel tekst.
+- [ ] Zonder skidag en zonder route: het ski-icoon (rechthoekig: "Start een route op je iPhone").
+- [ ] Tijdens een skidag: de kilometers van vandaag; rechthoekig ook hoogtemeters en afdalingen.
+- [ ] Tijdens navigeren: de pijl van de volgende afslag met de afstand. Na het stoppen komt de skidag terug.
+- [ ] De complicatie loopt een paar minuten achter; dat is normaal (de Watch laat hem maar af en toe verversen). Schrijf op als het veel langer is.
+- [ ] Tik op de complicatie: Skipilot opent op de Watch.
+- [ ] Smart Stack (Digital Crown omhoog draaien): Skipilot kan daar als widget worden toegevoegd.
