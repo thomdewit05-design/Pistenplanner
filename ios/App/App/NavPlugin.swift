@@ -105,10 +105,10 @@ public class NavPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate {
     }
 
     // Vanuit de webapp: extra onderdelen voor de Apple Watch (weer, groep, noodgegevens, instellingen), of een trilsignaal om te oefenen.
-    // Capacitor.nativePromise("Nav", "watch", {state: {...}}) of {test: "left" | "right" | ...}
+    // Capacitor.nativePromise("Nav", "watch", {state: {...}, tap: "lastlift" | "group"}) of {test: "left" | "right" | ...}
     @objc func watch(_ call: CAPPluginCall) {
         if let t = call.getString("test") { call.resolve(["sent": WatchLink.shared.test(t)]); return }
-        if let st = call.options["state"] as? [String: Any] { WatchLink.shared.send(st) }
+        if let st = call.options["state"] as? [String: Any] { WatchLink.shared.send(st, tap: call.getString("tap")) }
         call.resolve(["paired": WatchLink.shared.available])
     }
 

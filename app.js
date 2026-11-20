@@ -1742,6 +1742,63 @@ function navLive(){
   navNative("start", {steps, dest:tr(S.to != null ? nodeLabel(S.to) : ""), lang:LANG, tap:S.watchTap, pre:WATCH.pre, strong:WATCH.strong});
 }
 
+// Apple Watch: weer en lifttijden, je groep en de noodgegevens. De Watch rekent niets zelf; hij toont wat hier wordt samengesteld.
+// Geen lege waarden (null) meesturen: de koppeling met de Watch weigert die.
+const WLINK = {sig:"", paired:null, chk:0, closeKey:""};
+function watchState(){
+  const A = S.area, st = {lang:LANG};
+  const w = A && S.wx && S.wx.area === A.id ? S.wx : null, wx = {};
+  if(A){
+    const toGo = toMin(S.liftClose) - areaMin();
+    Object.assign(wx, {area:tr(A.row[1]), close:S.liftClose, closeAt:Math.floor(Date.now() / 60000) * 60 + toGo * 60});
+    if(w){
+      const num = (k, v) => { if(v != null && isFinite(v)) wx[k] = Math.round(v); };
+      num("top", w.c?.temperature_2m); num("dal", w.cd?.temperature_2m); num("wind", w.c?.wind_speed_10m); num("snow", w.next24); num("depth", w.depth);
+      wx.txt = tr(w.txt || "");
+    }
+  }
+  st.wx = wx;
+  const group = {};
+  if(G.code){
+    const me = S.pos ? [S.pos.lat, S.pos.lon] : null;
+    group.members = [...G.members.values()].map(m => {
+      const o = {name:m.name || "?", seen:Math.round((m.seen || 0) / 1000)};
+      if(me && m.lat != null && isFinite(m.lat)){ o.dist = Math.round(meters(me[0], me[1], m.lat, m.lon) / 10) * 10; o.brg = Math.round(((bearing(me, [m.lat, m.lon]) % 360) + 360) % 360 / 5) * 5; }
+      return o;
+    }).sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9) || a.name.localeCompare(b.name)).slice(0, 6);
+  }
+  st.group = group;
+  const near = S.pos ? nearestPlace() : null, cc = near && near.d < 1000 ? near.cc : A?.row[2];
+  const sos = {num:EMERGENCY[cc] || "112"};
+  if(S.pos){
+    Object.assign(sos, {lat:+S.pos.lat.toFixed(5), lon:+S.pos.lon.toFixed(5), place:near ? tr(near.txt) : ""});
+    if(isFinite(S.pos.acc)) sos.acc = Math.round(S.pos.acc);
+    const alt = sosAlt(); if(alt != null && isFinite(alt)) sos.alt = Math.round(alt);
+  }
+  st.sos = sos;
+  return st;
+}
+// tap: een trilsignaal dat de Watch erbij moet geven ("lastlift", "group")
+async function watchPush(tap){
+  if(window.PP_STORE !== "ios") return;
+  const now = Date.now();
+  if(!tap && WLINK.paired === false && now - WLINK.chk < 300000) return;   // geen Watch: af en toe opnieuw kijken
+  const st = watchState(), sig = JSON.stringify(st);
+  if(!tap && sig === WLINK.sig) return;
+  WLINK.sig = sig; WLINK.chk = now;
+  const r = await navNative("watch", tap && S.watchTap ? {state:st, tap} : {state:st});
+  if(r) WLINK.paired = !!r.paired;
+}
+function watchTick(){
+  if(window.PP_STORE !== "ios") return;
+  // laatste lift nadert: één keer per dag, en alleen als je op de berg bezig bent (navigeren of opnemen)
+  const toGo = S.area ? toMin(S.liftClose) - areaMin() : -1, key = S.area ? S.area.id + new Date().toDateString() : "";
+  const warn = toGo > 0 && toGo <= 30 && (S.follow || D.rec) && WLINK.closeKey !== key;
+  if(warn) WLINK.closeKey = key;
+  watchPush(warn ? "lastlift" : null);
+}
+setInterval(watchTick, 20000);
+
 // Siri-opdrachten (Shortcuts.swift): de app wordt geopend en vraagt hier welke opdracht er klaarstaat
 let actionBusy = false;
 async function pollAction(){
@@ -2638,7 +2695,7 @@ function gHandle(d){
     // bij het opnieuw verbinden komen oude berichten snel achter elkaar binnen: alleen de laatste toepassen
     clearTimeout(G.planTimer); G.planTimer = setTimeout(async () => {
       const p = G.plan; await adoptPlan(p);
-      if(p.go && p.id !== G.id && G.follow && Date.now() - (p.srv || p.ts) < 120000) goBanner(p);
+      if(p.go && p.id !== G.id && G.follow && Date.now() - (p.srv || p.ts) < 120000){ goBanner(p); watchPush("group"); }
     }, 500);
   }
   drawMembers(); renderGroup();

@@ -2,6 +2,7 @@
 // - Bij het starten gaan de stappen mee met een geldige richting, en de instellingen van de trilsignalen.
 // - De schakelaars en de oefenknoppen komen aan.
 // - Opdrachten van de Watch (stoppen, naar het dal, opname) roepen de juiste functie aan.
+// - Weer, groep en noodgegevens gaan zonder lege waarden mee, alleen als er iets verandert; "laatste lift" trilt één keer.
 // Niet getest: de trillingen zelf en de verbinding tussen een echte iPhone en een echte Watch.
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
@@ -30,7 +31,7 @@ await ctx.addInitScript(() => {
     if(plugin !== "Nav") return Promise.reject(new Error("geen plug-in"));
     N.calls.push({m, o});
     if(m === "pending") return Promise.resolve({action:N.queue.shift() || null});
-    if(m === "watch") return Promise.resolve({sent:N.reach});
+    if(m === "watch") return Promise.resolve(o.test ? {sent:N.reach} : {paired:true});
     return Promise.resolve({});
   }};
   window.__cmd = a => { N.queue.push(a); dispatchEvent(new Event("ppaction")); };
@@ -98,7 +99,49 @@ await p.evaluate(() => { const st = S.steps[0].line[0]; __cmd("valley"); setTime
 const c5 = await p.evaluate(() => ({follow:S.follow, steps:S.steps.length, starts:__nav.calls.filter(c => c.m === "start").length, toast:document.getElementById("toast").textContent}));
 if(!c5.follow || !c5.steps || c5.starts <= calls0) problems.push(`'Naar het dal' vanaf de Watch start geen navigatie: ${JSON.stringify(c5)}`);
 
-// 5. een onbekende opdracht doet niets
+// 6. weer, groep en noodgegevens voor de Watch
+const st = await p.evaluate(async () => {
+  const pos = S.steps[0].line[0]; __fix(pos[0], pos[1]); await new Promise(r => setTimeout(r, 200));
+  S.wx = {area:S.area.id, c:{temperature_2m:-6.6, wind_speed_10m:23.7}, cd:{temperature_2m:1.2}, next24:11.6, depth:null, txt:"Lichte sneeuw"};
+  G.code = "TEST"; G.members = new Map([
+    ["a", {id:"a", name:"Ver", lat:pos[0] + .02, lon:pos[1], seen:Date.now() - 60000}],
+    ["b", {id:"b", name:"Dichtbij", lat:pos[0], lon:pos[1] + .002, seen:Date.now()}],
+    ["c", {id:"c", name:"Zonder plek", seen:Date.now()}]]);
+  S.liftClose = "16:30";
+  return {st:watchState(), nowMin:areaMin()};
+});
+{
+  const {wx, group, sos, lang} = st.st, raw = JSON.stringify(st.st);
+  if(/null/.test(raw)) problems.push(`er gaat een lege waarde (null) naar de Watch; die weigert het hele bericht: ${raw.slice(0, 200)}`);
+  if(lang !== "nl") problems.push(`de taal gaat niet mee naar de Watch: ${lang}`);
+  if(wx.top !== -7 || wx.dal !== 1 || wx.wind !== 24 || wx.snow !== 12 || "depth" in wx || !wx.area || wx.close !== "16:30") problems.push(`het weer voor de Watch klopt niet: ${JSON.stringify(wx)}`);
+  const left = Math.round((wx.closeAt - Date.now() / 1000) / 60), want = 16 * 60 + 30 - st.nowMin;
+  if(Math.abs(left - want) > 1) problems.push(`de sluitingstijd voor de Watch klopt niet: nog ${left} min, verwacht ${want}`);
+  const m = group.members || [];
+  if(m.length !== 3 || m[0].name !== "Dichtbij" || m[2].name !== "Zonder plek") problems.push(`de groep staat niet op afstand: ${JSON.stringify(m)}`);
+  else {
+    if(Math.abs(m[0].brg - 90) > 5 || Math.abs(m[0].dist - 150) > 30) problems.push(`'Dichtbij' ligt 150 m naar het oosten, de Watch krijgt ${m[0].dist} m en ${m[0].brg}°`);
+    if(m[1].brg % 360 !== 0 || Math.abs(m[1].dist - 2220) > 60) problems.push(`'Ver' ligt 2,2 km naar het noorden, de Watch krijgt ${m[1].dist} m en ${m[1].brg}°`);
+    if("dist" in m[2] || "brg" in m[2]) problems.push("een groepslid zonder locatie krijgt toch een afstand");
+  }
+  if(sos.num !== "112" || typeof sos.lat !== "number" || typeof sos.lon !== "number" || !sos.place || !(sos.alt > 500)) problems.push(`de noodgegevens voor de Watch kloppen niet: ${JSON.stringify(sos)}`);
+}
+// versturen: alleen als er iets veranderd is; zonder groep gaat er een lege groep mee
+const sent = await p.evaluate(async () => { const n = () => __nav.calls.filter(c => c.m === "watch" && c.o.state).length;
+  WLINK.sig = "";   // de klok van 20 s kan deze toestand al verstuurd hebben
+  const a = n(); await watchPush(); const b = n(); await watchPush(); const c = n();
+  G.code = null; await watchPush(); const last = __nav.calls.filter(c => c.m === "watch" && c.o.state).pop().o;
+  return {first:b - a, again:c - b, group:last.state.group, tap:last.tap || null}; });
+if(sent.first !== 1 || sent.again !== 0) problems.push(`de toestand gaat niet precies één keer naar de Watch: ${JSON.stringify(sent)}`);
+if(sent.group.members || sent.tap) problems.push(`zonder groep gaat er toch een groep of een trilsignaal mee: ${JSON.stringify(sent)}`);
+// laatste lift: één keer een trilsignaal, een half uur voor sluiten en alleen als je bezig bent
+const ll = await p.evaluate(async () => { const m = areaMin() + 20, hh = String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  S.liftClose = hh; const taps = () => __nav.calls.filter(c => c.m === "watch" && c.o.tap === "lastlift").length;
+  const a = taps(); watchTick(); await new Promise(r => setTimeout(r, 100)); const b = taps(); watchTick(); await new Promise(r => setTimeout(r, 100)); const c = taps();
+  return {follow:S.follow, first:b - a, again:c - b, ok:m < 24 * 60}; });
+if(ll.ok && ll.follow && (ll.first !== 1 || ll.again !== 0)) problems.push(`het signaal 'laatste lift' komt niet precies één keer: ${JSON.stringify(ll)}`);
+
+// 7. een onbekende opdracht doet niets
 const errs = problems.length; await p.evaluate(() => __cmd("bestaat-niet")); await wait(300);
 if(problems.length !== errs) problems.push("een onbekende opdracht geeft een fout");
 

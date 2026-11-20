@@ -1218,11 +1218,13 @@ Skipilotは補助ツールです。コースデータはOpenStreetMapによる�
 
 ### Apple Watch
 
-Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze drie, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
+Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze vijf, in deze volgorde, onder het tabblad **Apple Watch** bij de primaire taal (Dutch), in het vak *Apple Watch Series 10 / 11 (46mm)* (416×496). Ze gelden dan voor alle talen.
 
 1. `store/screenshots/watch/1-nav.png` (de volgende afslag)
 2. `store/screenshots/watch/2-day.png` (je skidag)
-3. `store/screenshots/watch/3-sos.png` (de noodknop)
+3. `store/screenshots/watch/3-wx.png` (weer en lifttijden)
+4. `store/screenshots/watch/4-group.png` (je groep)
+5. `store/screenshots/watch/5-sos.png` (de noodknop met je locatie)
 
 ## 7. De versie afmaken
 

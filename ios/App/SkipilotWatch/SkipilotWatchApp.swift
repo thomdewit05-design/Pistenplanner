@@ -47,26 +47,26 @@ enum Signal: String, CaseIterable, Identifiable {
     }
     var title: String {
         switch self {
-        case .left:     return String(localized: "Links", comment: "haptic")
-        case .right:    return String(localized: "Rechts", comment: "haptic")
-        case .straight: return String(localized: "Rechtdoor", comment: "haptic")
-        case .lift:     return String(localized: "Lift nemen", comment: "haptic")
-        case .arrive:   return String(localized: "Aangekomen", comment: "haptic")
-        case .off:      return String(localized: "Van de route af", comment: "haptic")
-        case .lastlift: return String(localized: "Laatste lift nadert", comment: "haptic")
-        case .group:    return String(localized: "Bericht van je groep", comment: "haptic")
+        case .left:     return L("Links")
+        case .right:    return L("Rechts")
+        case .straight: return L("Rechtdoor")
+        case .lift:     return L("Lift nemen")
+        case .arrive:   return L("Aangekomen")
+        case .off:      return L("Van de route af")
+        case .lastlift: return L("Laatste lift nadert")
+        case .group:    return L("Bericht van je groep")
         }
     }
     var hint: String {
         switch self {
-        case .left:     return String(localized: "tik-tik … tik-tik", comment: "haptic hint")
-        case .right:    return String(localized: "tik-tik-tik", comment: "haptic hint")
-        case .straight: return String(localized: "één tik", comment: "haptic hint")
-        case .lift:     return String(localized: "oplopend", comment: "haptic hint")
-        case .arrive:   return String(localized: "gelukt", comment: "haptic hint")
-        case .off:      return String(localized: "mislukt", comment: "haptic hint")
-        case .lastlift: return String(localized: "twee lange", comment: "haptic hint")
-        case .group:    return String(localized: "één lange", comment: "haptic hint")
+        case .left:     return L("tik-tik … tik-tik")
+        case .right:    return L("tik-tik-tik")
+        case .straight: return L("één tik")
+        case .lift:     return L("oplopend")
+        case .arrive:   return L("gelukt")
+        case .off:      return L("mislukt")
+        case .lastlift: return L("twee lange")
+        case .group:    return L("één lange")
         }
     }
     var symbol: String {
@@ -110,10 +110,17 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     struct Nav { var dist: Double; var instruction: String; var icon: String; var current: String; var eta: Date; var badge: String; var color: String
                  var arrived: Bool; var dest: String; var turn: String; var leftM: Double; var off: Bool; var after: [Next] }
     struct Day { var km: Double; var hm: Int; var vmax: Int; var runs: Int; var since: Date; var area: String }
+    struct Wx { var area: String; var top: Int?; var dal: Int?; var wind: Int?; var snow: Int?; var depth: Int?; var text: String; var close: String; var closeAt: Date? }
+    struct Member: Identifiable { let id = UUID(); var name: String; var dist: Double?; var brg: Double?; var seen: Date? }
+    struct Sos { var num: String; var lat: Double?; var lon: Double?; var alt: Int?; var acc: Int?; var place: String }
     enum Sending: Equatable { case idle, busy(String), done(String), failed }
 
     @Published var nav: Nav?
     @Published var day: Day?
+    @Published var wx: Wx?
+    @Published var group: [Member]?        // nil = geen groep
+    @Published var sos = Sos(num: "112", lat: nil, lon: nil, alt: nil, acc: nil, place: "")
+    @Published var lang = Strings.lang
     @Published var ts: Date?
     @Published var flash: Signal?          // het signaal dat net gegeven is: even groot in beeld
     @Published var sending: Sending = .idle
@@ -122,7 +129,7 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
     @Published var haptPre = true
     @Published var haptStrong = false
 
-    /// Het scherm waarop de app opent: 0 = navigatie, 1 = skidag, 2 = bediening, 3 = noodknop.
+    /// Het scherm waarop de app opent: 0 = navigatie, 1 = skidag, 2 = weer en liften, 3 = groep, 4 = bediening, 5 = noodknop.
     var startTab = 0
     var demo: String?
 
@@ -143,7 +150,15 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
                               Next(text: "Volg piste 180", badge: "180", color: "#1E66CC", turn: "straight")])
             day = Day(km: 31.4, hm: 6200, vmax: 71, runs: 17, since: Date().addingTimeInterval(-(4 * 3600 + 12 * 60)), area: "Ski Arlberg")
             reachable = true
-            startTab = d == "day" ? 1 : d == "ctrl" || d == "hapt" ? 2 : d == "sos" ? 3 : 0
+            if let l = ProcessInfo.processInfo.environment["SKIPILOT_LANG"] { Strings.lang = l; lang = l }
+            wx = Wx(area: "Ski Arlberg", top: -7, dal: 1, wind: 24, snow: 12, depth: 145, text: "Lichte sneeuw", close: "16:30", closeAt: Date().addingTimeInterval(80 * 60))
+            if d != "nogroup" {
+                group = [Member(name: "Sanne", dist: 240, brg: 60, seen: Date().addingTimeInterval(-40)),
+                         Member(name: "Daan", dist: 1850, brg: 215, seen: Date().addingTimeInterval(-180)),
+                         Member(name: "Opa Kees", dist: nil, brg: nil, seen: Date().addingTimeInterval(-1500))]
+            }
+            sos = Sos(num: "112", lat: 47.12894, lon: 10.26411, alt: 2140, acc: 8, place: "Op piste 12 (rood)")
+            startTab = d == "day" ? 1 : d == "wx" ? 2 : d == "group" || d == "nogroup" ? 3 : d == "ctrl" || d == "hapt" ? 4 : d == "sos" ? 5 : 0
             if d == "flash" { flash = .left }
             return
         }
@@ -169,6 +184,21 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
                 self.day = Day(km: km, hm: d["hm"] as? Int ?? 0, vmax: d["vmax"] as? Int ?? 0, runs: d["runs"] as? Int ?? 0,
                                since: Date(timeIntervalSince1970: d["since"] as? Double ?? Date().timeIntervalSince1970), area: d["area"] as? String ?? "")
             } else if ctx["day"] != nil { self.day = nil }
+            if let l = ctx["lang"] as? String, l != self.lang { Strings.lang = l; self.lang = l; UserDefaults.standard.set(l, forKey: "lang") }
+            if let w = ctx["wx"] as? [String: Any], let area = w["area"] as? String {
+                let at = w["closeAt"] as? Double
+                self.wx = Wx(area: area, top: w["top"] as? Int, dal: w["dal"] as? Int, wind: w["wind"] as? Int, snow: w["snow"] as? Int, depth: w["depth"] as? Int,
+                             text: w["txt"] as? String ?? "", close: w["close"] as? String ?? "", closeAt: at.map { Date(timeIntervalSince1970: $0) })
+            } else if ctx["wx"] != nil { self.wx = nil }
+            if let g = ctx["group"] as? [String: Any] {
+                self.group = (g["members"] as? [[String: Any]]).map { list in
+                    list.map { Member(name: $0["name"] as? String ?? "?", dist: $0["dist"] as? Double, brg: $0["brg"] as? Double,
+                                      seen: ($0["seen"] as? Double).flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil }) }
+                }
+            }
+            if let o = ctx["sos"] as? [String: Any] {
+                self.sos = Sos(num: o["num"] as? String ?? "112", lat: o["lat"] as? Double, lon: o["lon"] as? Double, alt: o["alt"] as? Int, acc: o["acc"] as? Int, place: o["place"] as? String ?? "")
+            }
             if let h = ctx["hapt"] as? [String: Any] {
                 self.haptOn = h["on"] as? Bool ?? true; self.haptPre = h["pre"] as? Bool ?? true; self.haptStrong = h["strong"] as? Bool ?? false
             }
@@ -237,8 +267,10 @@ struct RootView: View {
             TabView(selection: $tab) {
                 NavView().tag(0)
                 DayView().tag(1)
-                ControlView().tag(2)
-                SOSView().tag(3)
+                WeatherView().tag(2)
+                GroupView().tag(3)
+                ControlView().tag(4)
+                SOSView().tag(5)
             }
             .tabViewStyle(.verticalPage)
             .onAppear { tab = model.startTab }
@@ -298,7 +330,7 @@ struct NavView: View {
                         if n.leftM > 0 { Text("· " + distText(n.leftM)).font(.system(size: 12)).foregroundStyle(.secondary) }
                     }
                     if n.off {
-                        Label(String(localized: "Van de route af", comment: "watch off route"), systemImage: "exclamationmark.triangle.fill")
+                        Label(L("Van de route af"), systemImage: "exclamationmark.triangle.fill")
                             .font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(Color.red, in: Capsule())
@@ -306,7 +338,7 @@ struct NavView: View {
                     if !n.after.isEmpty {
                         Divider().padding(.vertical, 4)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(String(localized: "Daarna", comment: "watch next steps")).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                            Text(L("Daarna")).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).textCase(.uppercase)
                             ForEach(n.after) { a in
                                 HStack(alignment: .top, spacing: 5) {
                                     Image(systemName: turnSymbol(a.turn)).font(.system(size: 12, weight: .bold)).foregroundStyle(skiGold).frame(width: 16)
@@ -324,7 +356,7 @@ struct NavView: View {
             VStack(spacing: 8) {
                 Image(systemName: "figure.skiing.downhill").font(.system(size: 40, weight: .semibold)).foregroundStyle(skiGold)
                 Text("Skipilot").font(.system(size: 20, weight: .bold, design: .rounded))
-                Text(String(localized: "Start een route op je iPhone", comment: "watch idle")).font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text(L("Start een route op je iPhone")).font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             .containerBackground(skiBlue.gradient, for: .tabView)
         }
@@ -348,7 +380,7 @@ struct DayView: View {
                 }
                 HStack {
                     stat("\(d.hm)", "m ↓"); Spacer(); stat("\(d.vmax)", "km/h"); Spacer()
-                    stat("\(d.runs)", String(localized: "afdalingen", comment: "watch runs"))
+                    stat("\(d.runs)", L("afdalingen"))
                 }
             }
             .padding(.horizontal, 6)
@@ -356,7 +388,7 @@ struct DayView: View {
         } else {
             VStack(spacing: 8) {
                 Image(systemName: "record.circle").font(.system(size: 36)).foregroundStyle(.red)
-                Text(String(localized: "Neem je skidag op met de iPhone-app", comment: "watch day idle")).font(.system(size: 13)).multilineTextAlignment(.center).foregroundStyle(.secondary)
+                Text(L("Neem je skidag op met de iPhone-app")).font(.system(size: 13)).multilineTextAlignment(.center).foregroundStyle(.secondary)
             }
             .containerBackground(skiNight.gradient, for: .tabView)
         }
@@ -376,16 +408,16 @@ struct ControlView: View {
         ScrollView {
             VStack(spacing: 6) {
                 if model.nav != nil {
-                    cmdButton(String(localized: "Stop navigatie", comment: "watch control"), "xmark", "stop", tint: .red)
+                    cmdButton(L("Stop navigatie"), "xmark", "stop", tint: .red)
                 }
-                cmdButton(String(localized: "Naar het dal", comment: "watch control"), "arrow.down.to.line", "valley", tint: skiBlue)
+                cmdButton(L("Naar het dal"), "arrow.down.to.line", "valley", tint: skiBlue)
                 if model.day != nil {
-                    cmdButton(String(localized: "Stop opname", comment: "watch control"), "stop.circle", "recstop", tint: .gray)
+                    cmdButton(L("Stop opname"), "stop.circle", "recstop", tint: .gray)
                 } else {
-                    cmdButton(String(localized: "Start opname", comment: "watch control"), "record.circle", "rec", tint: .gray)
+                    cmdButton(L("Start opname"), "record.circle", "rec", tint: .gray)
                 }
                 NavigationLink { HapticsView() } label: {
-                    Label(String(localized: "Trilsignalen", comment: "watch control"), systemImage: "applewatch.radiowaves.left.and.right").frame(maxWidth: .infinity)
+                    Label(L("Trilsignalen"), systemImage: "applewatch.radiowaves.left.and.right").frame(maxWidth: .infinity)
                 }
                 status
             }
@@ -396,14 +428,14 @@ struct ControlView: View {
     @ViewBuilder var status: some View {
         switch model.sending {
         case .failed:
-            Label(String(localized: "iPhone niet bereikbaar", comment: "watch control"), systemImage: "iphone.slash").font(.system(size: 12)).foregroundStyle(.orange)
+            Label(L("iPhone niet bereikbaar"), systemImage: "iphone.slash").font(.system(size: 12)).foregroundStyle(.orange)
         case .done:
-            Label(String(localized: "Gedaan", comment: "watch control"), systemImage: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(.green)
+            Label(L("Gedaan"), systemImage: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(.green)
         case .busy:
             ProgressView().controlSize(.small)
         case .idle:
             if !model.reachable {
-                Text(String(localized: "Open Skipilot op je iPhone", comment: "watch control")).font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text(L("Open Skipilot op je iPhone")).font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
         }
     }
@@ -434,23 +466,43 @@ struct HapticsView: View {
                     }
                 }
             } footer: {
-                Text(String(localized: "Tik om te voelen. Ruim voor een afslag krijg je dezelfde code zachter.", comment: "watch haptics footer"))
+                Text(L("Tik om te voelen. Ruim voor een afslag krijg je dezelfde code zachter."))
             }
         }
-        .navigationTitle(String(localized: "Trilsignalen", comment: "watch control"))
+        .navigationTitle(L("Trilsignalen"))
     }
 }
 
+/// Noodknop met wat je de hulpdienst moet vertellen: coördinaten, hoogte en de piste waar je bent.
 struct SOSView: View {
+    @EnvironmentObject var model: WatchModel
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "cross.case.fill").font(.system(size: 30)).foregroundStyle(.white)
-            Text(String(localized: "Noodgeval op de piste?", comment: "watch sos")).font(.system(size: 14, weight: .semibold)).multilineTextAlignment(.center)
-            Link(destination: URL(string: "tel:112")!) {
-                Label("112", systemImage: "phone.fill").font(.system(size: 20, weight: .bold))
-                    .frame(maxWidth: .infinity)
+        let o = model.sos
+        ScrollView {
+            VStack(spacing: 8) {
+                Text(L("Noodgeval op de piste?")).font(.system(size: 14, weight: .semibold)).multilineTextAlignment(.center)
+                Link(destination: URL(string: "tel:\(o.num)")!) {
+                    Label(o.num, systemImage: "phone.fill").font(.system(size: 20, weight: .bold)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).tint(.red)
+                if let lat = o.lat, let lon = o.lon {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L("Lees dit voor aan de hulpdienst")).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                        Text(String(format: "%.5f", lat)).font(.system(size: 22, weight: .bold, design: .rounded)).monospacedDigit()
+                        Text(String(format: "%.5f", lon)).font(.system(size: 22, weight: .bold, design: .rounded)).monospacedDigit()
+                        if !o.place.isEmpty { Text(o.place).font(.system(size: 14, weight: .semibold)).fixedSize(horizontal: false, vertical: true) }
+                        HStack(spacing: 6) {
+                            if let a = o.alt { Text("\(L("Hoogte")) \(a) m") }
+                            if let acc = o.acc { Text("± \(acc) m") }
+                        }
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 2)
+                } else {
+                    Text(L("Locatie onbekend. Open Skipilot op je iPhone.")).font(.system(size: 12)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                }
             }
-            .buttonStyle(.borderedProminent).tint(.red)
+            .padding(.horizontal, 4)
         }
         .containerBackground(Color(red: 0.55, green: 0.08, blue: 0.1).gradient, for: .tabView)
     }
