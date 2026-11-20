@@ -194,10 +194,12 @@ for(const phone of ["iPhone 15 landscape", "iPhone SE landscape"]){
   if(await p.evaluate(() => document.getElementById("sheet").classList.contains("open"))) problems.push(`[${tag}] de lade sluit niet`);
   // Vandaag: het bovenste blok past zonder scrollen
   // ook als de waarschuwing "liften sluiten over … min" erbij staat (die hangt af van het tijdstip)
+  // vlak voor middernacht (in het skigebied) valt "over 45 minuten" op de volgende dag: dan is de waarschuwing niet na te bootsen
+  const wraps = await p.evaluate(() => zoned(Date.now() + 45 * 60000).getDate() !== zoned().getDate());
   await p.evaluate(() => { const d = zoned(Date.now() + 45 * 60000);   // de klok van het skigebied, niet die van de telefoon
     S.liftClose = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); setTab("today"); }); await p.waitForTimeout(600);
   const td = await p.evaluate(() => { const a = document.querySelector("#today .acts")?.getBoundingClientRect(); return a ? Math.round(a.bottom) : 0; });
-  if(!(await p.evaluate(() => !!document.querySelector("#today .closing-card")))) problems.push(`[${tag}] test: de waarschuwing 'liften sluiten' verscheen niet`);
+  if(!wraps && !(await p.evaluate(() => !!document.querySelector("#today .closing-card")))) problems.push(`[${tag}] test: de waarschuwing 'liften sluiten' verscheen niet`);
   console.log(`${tag}: bovenste blok van Vandaag eindigt op ${td}px van ${innerHeightOf(phone)}px`);
   if(!td || td > innerHeightOf(phone) + 2) problems.push(`[${tag}] Vandaag: het bovenste blok past niet zonder scrollen (${td}px)`);
   await shot("vandaag");
