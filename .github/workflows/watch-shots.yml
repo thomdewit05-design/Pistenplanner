@@ -7,7 +7,7 @@ on:
   # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
     branches: [watch-shots, watch-meer, watch-weer]
-    paths: ["ios/App/SkipilotWatch/**"]
+    paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
 permissions:
   contents: write
 concurrency:
@@ -99,4 +99,6 @@ jobs:
           git add store/screenshots/watch
           if git diff --cached --quiet; then echo "Geen verandering."; exit 0; fi
           git commit -m "Schermafbeeldingen van de Apple Watch (gemaakt in de simulator)"
+          # intussen kan er een andere wijziging op de branch gezet zijn: die eerst ophalen
+          git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
