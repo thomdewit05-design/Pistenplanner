@@ -125,3 +125,29 @@ De app is nu ook voor de iPad gebouwd. Dit kan ik niet zelf proberen; loop het n
 - [ ] De widgets staan in de lijst met widgets op de iPad.
 - [ ] Zonder gps (iPad met alleen wifi): de app meldt dat er geen gps-ontvangst is en loopt niet vast.
 
+
+## Apple Watch: trilsignalen en bedienen (⛷ = op de berg)
+
+Nodig: een iPhone met de TestFlight-versie en een gekoppelde Apple Watch waarop Skipilot staat. Dit kan niet in een simulator; alleen jij kunt het voelen.
+
+**Thuis, de code leren**
+- [ ] Ik → Instellingen → Apple Watch: tik op *Links*, *Rechts*, *Lift* en *Van de route af*. De Watch trilt en toont een groot scherm met dezelfde betekenis.
+- [ ] Links (tik-tik … tik-tik) en rechts (tik-tik-tik) zijn met je ogen dicht uit elkaar te houden. Ook door een jas of handschoen heen?
+- [ ] Op de Watch: Bedienen → Trilsignalen. Elke knop geeft hetzelfde signaal als de knop op de iPhone.
+- [ ] Sluit Skipilot op de Watch en tik op de iPhone op een oefenknop: er staat dat de Watch niet bereikbaar is.
+- [ ] Zet *Sterker* aan: elk signaal komt twee keer. Zet *Vooraankondiging* uit: bij het navigeren komt alleen het signaal bij de afslag.
+
+**Bedienen vanaf je pols** (iPhone-app open of op de achtergrond)
+- [ ] Start een route op de iPhone. Op de Watch: de afslag, daaronder "Daarna" met de volgende stappen, de aankomsttijd en de afstand.
+- [ ] Watch → Bedienen → *Stop navigatie*: de iPhone stopt met navigeren.
+- [ ] Watch → *Naar het dal*: de iPhone plant de route naar het dal en begint te navigeren.
+- [ ] Watch → *Start opname* en daarna *Stop opname*: de skidag op de iPhone start en stopt.
+- [ ] iPhone-app helemaal afgesloten: de Watch meldt "iPhone niet bereikbaar" in plaats van te doen alsof het gelukt is.
+
+**⛷ Op de piste**
+- [ ] De vooraankondiging komt vroeg genoeg om nog te kunnen kiezen (ongeveer 150 m, bij hard skiën eerder).
+- [ ] Het signaal bij de afslag klopt met de werkelijke richting: links voelt als links.
+- [ ] Sla bewust verkeerd af: één keer de "van de route af"-trilling, niet steeds opnieuw; het scherm kleurt rood.
+- [ ] Bij het dalstation van een lift: de oplopende trilling. Op je bestemming: de "gelukt"-trilling.
+- [ ] **Arm naar beneden, scherm uit**: komen de signalen dan nog door? In deze versie waarschijnlijk niet altijd; schrijf op wanneer wel en wanneer niet. De volgende stap (trainingssessie op de Watch) moet dit oplossen.
+- [ ] Schrijf op welke tussenpozen niet prettig voelen (te snel, te zwak, te veel op elkaar lijkend); die stel ik daarna bij.
