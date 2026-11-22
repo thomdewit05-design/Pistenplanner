@@ -1226,6 +1226,8 @@ Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze vijf, in deze vol
 4. `store/screenshots/watch/4-group.png` (je groep)
 5. `store/screenshots/watch/5-sos.png` (de noodknop met je locatie)
 
+Dezelfde vijf staan er ook in de andere negen talen, in een map per taal: `store/screenshots/watch/en/`, `de/`, `fr/`, `it/`, `es/`, `pt/`, `ru/`, `zh/` en `ja/`. Zet ze bij de bijbehorende taal in App Store Connect als je per taal eigen afbeeldingen wilt; anders gebruikt Apple overal de Nederlandse.
+
 ## 7. De versie afmaken
 
 | Veld | Waarde |
