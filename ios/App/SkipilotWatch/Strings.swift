@@ -342,7 +342,7 @@ enum Strings {
             "u": "h",
             "min": "min",
             "N": "N",
-            "O": "L",
+            "O": "E",
             "Z": "S",
             "W": "O",
         ],

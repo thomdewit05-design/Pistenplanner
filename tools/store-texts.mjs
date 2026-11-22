@@ -162,7 +162,9 @@ ${WATCH.length === 5 ? `Apple vraagt ook schermafbeeldingen van de Watch-app. Ze
 2. \`store/screenshots/watch/2-day.png\` (je skidag)
 3. \`store/screenshots/watch/3-wx.png\` (weer en lifttijden)
 4. \`store/screenshots/watch/4-group.png\` (je groep)
-5. \`store/screenshots/watch/5-sos.png\` (de noodknop met je locatie)` : "De schermafbeeldingen van de Watch ontbreken nog; zie hoofdstuk 8."}
+5. \`store/screenshots/watch/5-sos.png\` (de noodknop met je locatie)
+
+Dezelfde vijf staan er ook in de andere negen talen, in een map per taal: \`store/screenshots/watch/en/\`, \`de/\`, \`fr/\`, \`it/\`, \`es/\`, \`pt/\`, \`ru/\`, \`zh/\` en \`ja/\`. Zet ze bij de bijbehorende taal in App Store Connect als je per taal eigen afbeeldingen wilt; anders gebruikt Apple overal de Nederlandse.` : "De schermafbeeldingen van de Watch ontbreken nog; zie hoofdstuk 8."}
 
 ## 7. De versie afmaken
 
