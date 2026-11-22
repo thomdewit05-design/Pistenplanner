@@ -155,21 +155,22 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
         let fromArgs = args.firstIndex(of: "-demo").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil }
         if let d = ProcessInfo.processInfo.environment["SKIPILOT_DEMO"] ?? fromArgs {
             demo = d
-            nav = Nav(dist: 350, instruction: "Houd rechts aan naar piste 12", icon: "arrow.turn.up.right", current: "Piste 11",
+            // de taal van de afbeelding; ook de voorbeeldteksten (die normaal van de iPhone komen) gaan dan in die taal
+            if let l = ProcessInfo.processInfo.environment["SKIPILOT_LANG"] { Strings.lang = l; lang = l }
+            nav = Nav(dist: 350, instruction: DemoText.t("Houd rechts aan naar piste 12"), icon: "arrow.turn.up.right", current: "Piste 11",
                       eta: Date().addingTimeInterval(20 * 60), badge: "12", color: "#D22E2E", arrived: false, dest: "Rüfikopf",
                       turn: "right", leftM: 4200, off: d == "off",
-                      after: [Next(text: "Neem de lift Rüfikopfbahn", badge: "", color: "", turn: "lift"),
-                              Next(text: "Volg piste 180", badge: "180", color: "#1E66CC", turn: "straight")])
+                      after: [Next(text: DemoText.t("Neem de lift Rüfikopfbahn"), badge: "", color: "", turn: "lift"),
+                              Next(text: DemoText.t("Volg piste 180"), badge: "180", color: "#1E66CC", turn: "straight")])
             day = Day(km: 31.4, hm: 6200, vmax: 71, runs: 17, since: Date().addingTimeInterval(-(4 * 3600 + 12 * 60)), area: "Ski Arlberg")
             reachable = true
-            if let l = ProcessInfo.processInfo.environment["SKIPILOT_LANG"] { Strings.lang = l; lang = l }
-            wx = Wx(area: "Ski Arlberg", top: -7, dal: 1, wind: 24, snow: 12, depth: 145, text: "Lichte sneeuw", close: "16:30", closeAt: Date().addingTimeInterval(80 * 60))
+            wx = Wx(area: "Ski Arlberg", top: -7, dal: 1, wind: 24, snow: 12, depth: 145, text: DemoText.t("Lichte sneeuw"), close: "16:30", closeAt: Date().addingTimeInterval(80 * 60))
             if d != "nogroup" {
                 group = [Member(name: "Sanne", dist: 240, brg: 60, seen: Date().addingTimeInterval(-40)),
                          Member(name: "Daan", dist: 1850, brg: 215, seen: Date().addingTimeInterval(-180)),
-                         Member(name: "Opa Kees", dist: nil, brg: nil, seen: Date().addingTimeInterval(-1500))]
+                         Member(name: "Kees", dist: nil, brg: nil, seen: Date().addingTimeInterval(-1500))]
             }
-            sos = Sos(num: "112", lat: 47.12894, lon: 10.26411, alt: 2140, acc: 8, place: "Op piste 12 (rood)")
+            sos = Sos(num: "112", lat: 47.12894, lon: 10.26411, alt: 2140, acc: 8, place: DemoText.t("Op piste 12 (rood)"))
             startTab = d == "day" ? 1 : d == "wx" ? 2 : d == "group" || d == "nogroup" ? 3 : d == "ctrl" || d == "hapt" ? 4 : d == "sos" ? 5 : 0
             if d == "flash" { flash = .left }
             return
@@ -553,3 +554,21 @@ struct SOSView: View {
         .containerBackground(Color(red: 0.55, green: 0.08, blue: 0.1).gradient, for: .tabView)
     }
 }
+
+#if DEBUG
+/// Voorbeeldteksten voor de schermafbeeldingen in alle talen. In het echt komen deze teksten al vertaald van de iPhone.
+enum DemoText {
+    static let table: [String: [String: String]] = [
+        "en": ["Houd rechts aan naar piste 12": "Keep right onto piste 12", "Neem de lift Rüfikopfbahn": "Take the Rüfikopfbahn lift", "Volg piste 180": "Follow piste 180", "Lichte sneeuw": "Light snow", "Op piste 12 (rood)": "On piste 12 (red)"],
+        "de": ["Houd rechts aan naar piste 12": "Rechts halten auf Piste 12", "Neem de lift Rüfikopfbahn": "Nimm den Lift Rüfikopfbahn", "Volg piste 180": "Folge Piste 180", "Lichte sneeuw": "Leichter Schneefall", "Op piste 12 (rood)": "Auf Piste 12 (rot)"],
+        "fr": ["Houd rechts aan naar piste 12": "Serrez à droite vers la piste 12", "Neem de lift Rüfikopfbahn": "Prenez la remontée Rüfikopfbahn", "Volg piste 180": "Suivez la piste 180", "Lichte sneeuw": "Neige légère", "Op piste 12 (rood)": "Sur la piste 12 (rouge)"],
+        "it": ["Houd rechts aan naar piste 12": "Tieni la destra verso la pista 12", "Neem de lift Rüfikopfbahn": "Prendi l'impianto Rüfikopfbahn", "Volg piste 180": "Segui la pista 180", "Lichte sneeuw": "Neve debole", "Op piste 12 (rood)": "Sulla pista 12 (rossa)"],
+        "es": ["Houd rechts aan naar piste 12": "Mantente a la derecha hacia la pista 12", "Neem de lift Rüfikopfbahn": "Toma el remonte Rüfikopfbahn", "Volg piste 180": "Sigue la pista 180", "Lichte sneeuw": "Nieve ligera", "Op piste 12 (rood)": "En la pista 12 (roja)"],
+        "pt": ["Houd rechts aan naar piste 12": "Mantenha a direita para a pista 12", "Neem de lift Rüfikopfbahn": "Pegue o teleférico Rüfikopfbahn", "Volg piste 180": "Siga a pista 180", "Lichte sneeuw": "Neve fraca", "Op piste 12 (rood)": "Na pista 12 (vermelha)"],
+        "ru": ["Houd rechts aan naar piste 12": "Держитесь правее на трассу 12", "Neem de lift Rüfikopfbahn": "Сядьте на подъёмник Rüfikopfbahn", "Volg piste 180": "Следуйте по трассе 180", "Lichte sneeuw": "Небольшой снег", "Op piste 12 (rood)": "На трассе 12 (красная)"],
+        "zh": ["Houd rechts aan naar piste 12": "靠右进入 12 号雪道", "Neem de lift Rüfikopfbahn": "乘坐 Rüfikopfbahn 缆车", "Volg piste 180": "沿 180 号雪道滑行", "Lichte sneeuw": "小雪", "Op piste 12 (rood)": "在 12 号雪道（红色）"],
+        "ja": ["Houd rechts aan naar piste 12": "右へ進んでコース12へ", "Neem de lift Rüfikopfbahn": "リフト Rüfikopfbahn に乗る", "Volg piste 180": "コース180を進む", "Lichte sneeuw": "小雪", "Op piste 12 (rood)": "コース12（赤）"]
+    ]
+    static func t(_ nl: String) -> String { table[Strings.lang]?[nl] ?? nl }
+}
+#endif

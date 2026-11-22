@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   # ook bij een wijziging aan de Watch-app op deze branch (een handmatige start werkt pas als dit bestand op main staat)
   push:
-    branches: [watch-shots, watch-meer, watch-weer, watch-sessie, watch-complicatie]
+    branches: [watch-shots, watch-meer, watch-weer, watch-sessie, watch-complicatie, watch-talen]
     paths: ["ios/App/SkipilotWatch/**", ".github/workflows/watch-shots.yml"]
 permissions:
   contents: write
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   shots:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,7 +68,20 @@ jobs:
             xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$name.png"
             n=$((n + 1))
           done
-          ls -la store/screenshots/watch
+          # de vijf winkelafbeeldingen in de andere negen talen, elk in een eigen map
+          for lang in en de fr it es pt ru zh ja; do
+            case $lang in pt) loc=pt_BR; al=pt-BR;; zh) loc=zh_CN; al=zh-Hans;; en) loc=en_GB; al=en;; ja) loc=ja_JP; al=ja;; *) loc=${lang}_$(echo $lang | tr a-z A-Z); al=$lang;; esac
+            rm -rf "store/screenshots/watch/$lang"; mkdir -p "store/screenshots/watch/$lang"
+            n=1
+            for scene in nav day wx group sos; do
+              xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
+              SIMCTL_CHILD_SKIPILOT_DEMO="$scene" SIMCTL_CHILD_SKIPILOT_LANG="$lang" xcrun simctl launch "$UDID" "$BID" -demo "$scene" -AppleLanguages "($al)" -AppleLocale "$loc"
+              sleep 7
+              xcrun simctl io "$UDID" screenshot --type=png "store/screenshots/watch/$lang/$n-$scene.png"
+              n=$((n + 1))
+            done
+          done
+          ls -laR store/screenshots/watch
       - name: Controleren (maat en niet leeg)
         run: |
           python3 - <<'PY'
@@ -83,6 +96,13 @@ jobs:
               if len(b) < 6000: bad.append(f"{f}: maar {len(b)} bytes, waarschijnlijk een leeg scherm")
               print(f, f"{w}x{h}", len(b), "bytes")
           if len(set(open(f, "rb").read() for f in files)) != len(files): bad.append("twee afbeeldingen zijn gelijk: de app opende niet op het gevraagde scherm")
+          for lang in "en de fr it es pt ru zh ja".split():
+              sub = sorted(glob.glob(f"store/screenshots/watch/{lang}/*.png"))
+              if len(sub) != 5: bad.append(f"{lang}: {len(sub)} afbeeldingen, verwacht 5")
+              for f in sub:
+                  b = open(f, "rb").read(); w, h = struct.unpack(">II", b[16:24])
+                  if (w, h) not in OK or len(b) < 6000: bad.append(f"{f}: {w}x{h}, {len(b)} bytes")
+              if len(set(open(f, "rb").read() for f in sub)) != len(sub): bad.append(f"{lang}: twee afbeeldingen zijn gelijk")
           if bad: print("\n".join(bad)); sys.exit(1)
           PY
       - uses: actions/upload-artifact@v4
