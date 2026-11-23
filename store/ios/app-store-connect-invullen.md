@@ -1,4 +1,4 @@
-# App Store Connect invullen: Skipilot 1.1.0
+# App Store Connect invullen: Skipilot 1.2.0
 
 Dit bestand is gemaakt door `tools/store-texts.mjs`. Pas het niet met de hand aan: verander de bron (`store/ios/teksten/`, `store/ios/review-notes.txt`) en draai het script opnieuw.
 
@@ -21,7 +21,7 @@ Aan het eind lever je een korte lijst: wat is ingevuld, wat is overgeslagen en w
 |---|---|
 | App | Skipilot |
 | Bundle ID | `nl.skipilot.app` |
-| Versie | `1.1.0` |
+| Versie | `1.2.0` |
 | Primaire taal (Primary Language) | Dutch |
 | Categorie (Primary Category) | Navigation |
 | Tweede categorie (Secondary Category) | Sports |
@@ -1230,7 +1230,7 @@ Apple vraagt ook schermafbeeldingen van de Watch-app. Zet deze vijf, in deze vol
 
 | Veld | Waarde |
 |---|---|
-| Build | De nieuwste build van versie 1.1.0 uit TestFlight |
+| Build | De nieuwste build van versie 1.2.0 uit TestFlight |
 | Export Compliance | Niets te kiezen: de app meldt zelf dat hij alleen standaardversleuteling gebruikt (`ITSAppUsesNonExemptEncryption = false`). Komt de vraag toch: "None of the algorithms mentioned above" |
 | Advertising Identifier (IDFA) | **Yes**, voor het tonen van advertenties ("Serve advertisements within the app") |
 | Version Release | Handmatig vrijgeven ("Manually release this version") |
