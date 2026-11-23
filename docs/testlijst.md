@@ -1,4 +1,4 @@
-# Testlijst Skipilot 1.1 (TestFlight)
+# Testlijst Skipilot 1.2 (TestFlight)
 
 Loop dit door op een echte iPhone, en waar het kan op een Android-telefoon.
 
@@ -57,7 +57,7 @@ Loop dit door op een echte iPhone, en waar het kan op een Android-telefoon.
 - [ ] **Dagkaart en Wrapped delen**
   - Verwacht: het beeld klopt en het delen werkt.
 
-## 4. Groep (twee telefoons, allebei met versie 1.1)
+## 4. Groep (twee telefoons, allebei met dezelfde versie)
 - [ ] **Groep maken en meedoen**
   - Doen: op telefoon A een groep maken, op telefoon B meedoen met de code.
 - [ ] **Positie delen**
