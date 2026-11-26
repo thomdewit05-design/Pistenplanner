@@ -37,3 +37,12 @@ Opnieuw maken: `python3 tools/promo-voice.py <map met het stemmodel> [stem]`. He
 - `tools/promo-clips.mjs`: neemt bewegende beelden op uit de echte app, beeld voor beeld (de platte kaart die inzoomt, de 3D-kaart die draait) naar `clips/<taal>/` (niet in git). Eerst draaien: `node tools/promo-clips.mjs en zoom,orbit 150`.
 - Film maken: `PAGE=promo-film FPS=60 node tools/promo-video.mjs en`.
 - Geluid: `python3 tools/promo-sound.py <map met het stemmodel>`; de tijden van de zinnen en effecten staan bovenin en horen bij de scènes in `promo-film.html`.
+
+## Vier korte video's voor Instagram en TikTok
+
+Alle vier Engels, 1080×1920, zonder geluid; ze delen `kit.js` (hulpjes en het afspelen). Maken met `PAGE=promo-<naam> node tools/promo-video.mjs en`.
+
+- `promo-tips.html` → `skipilot-promo-tips-en.mp4` (17 s): "3 Apple Watch settings every skier needs". De twee instellingenschermen van Apple zijn nagetekend; het derde is het echte scherm van Skipilot.
+- `promo-resort.html` → `skipilot-promo-resort-en.mp4` (14 s): per skigebied, met de 3D-kaart beeldvullend. Het fragment komt uit `DSF=2.5 node tools/promo-clips.mjs en full 150`; naam en cijfers staan bovenin de pagina. Voor een ander gebied: `AREA` in `tools/promo-clips.mjs` aanpassen en opnieuw opnemen.
+- `promo-wrapped.html` → `skipilot-promo-wrapped-en.mp4` (15 s): "Your ski day, wrapped", alleen cijfers (voorbeeldgegevens in `STATS`).
+- `promo-types.html` → `skipilot-promo-types-en.mp4` (18 s): "Which skier are you?", zes types met een getekend pictogram (`TYPES`).
