@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: today's best day route</title>
+<!-- Per skigebied: "today's best day route", 1080×1920, 14 s. De draaiende 3D-kaart uit de echte app beeldvullend
+     (DSF=2.5 node tools/promo-clips.mjs en full 150), met de echte cijfers van de dagroute eroverheen.
+     Voor een ander gebied: AREA in tools/promo-clips.mjs aanpassen, het fragment opnieuw opnemen en hieronder de naam en cijfers invullen.
+     Maken: PAGE=promo-resort node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #clip{width:1080px;height:1920px;object-fit:cover}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(9,17,27,.9) 0%,rgba(9,17,27,.55) 22%,rgba(9,17,27,0) 42%,rgba(9,17,27,0) 58%,rgba(9,17,27,.75) 82%,rgba(9,17,27,.95) 100%)}
+  #kick{left:84px;top:230px;font-weight:700;font-size:44px;letter-spacing:5px;color:#FFC400;text-transform:uppercase}
+  #name{left:78px;top:292px;width:940px;font-weight:700;font-size:150px;line-height:.95;letter-spacing:-5px}
+  #sub{left:86px;top:470px;font-weight:500;font-size:52px;color:#D7E6F5}
+  .st{top:1120px;width:440px;height:230px;border-radius:44px;background:rgba(15,28,43,.82);box-shadow:0 0 0 3px rgba(255,255,255,.12) inset,0 24px 60px rgba(0,0,0,.4);opacity:0}
+  .st b{position:absolute;left:36px;top:30px;font-weight:700;font-size:112px;line-height:1;letter-spacing:-3px;color:#fff;font-variant-numeric:tabular-nums}
+  .st span{position:absolute;left:40px;top:150px;font-weight:600;font-size:42px;color:#9FD0FF}
+  #dim{width:1080px;height:1920px;background:rgba(9,17,27,.78);opacity:0}
+  #end{left:0;top:0;width:1080px;text-align:center;opacity:0}
+  #end h2{margin:560px 70px 0;font-weight:700;font-size:150px;line-height:.96;letter-spacing:-5px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end .app{margin-top:90px} #end img{width:140px;height:140px;border-radius:32px;vertical-align:middle;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  #end .app b{font-size:104px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:28px}
+  #end .btn{display:inline-block;margin-top:60px;padding:26px 56px;border-radius:60px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:52px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <img id="clip" class="abs" alt=""><div id="shade" class="abs"></div>
+  <div id="kick" class="abs"></div><div id="name" class="abs"></div><div id="sub" class="abs"></div>
+  <div id="stats"></div>
+  <div id="dim" class="abs"></div>
+  <div id="end" class="abs"><h2></h2><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><div class="btn"></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+// ---------- het gebied (de cijfers komen uit de dagroute in de app op de dag van de opname) ----------
+const KICK = "Today's best day route", NAME = "Les 3 Vallées", SUB = "France · 600 km of runs · 169 lifts";
+const STATS = [[24, 0, "runs"], [23, 0, "lifts"], [53.9, 1, "km of runs"], [10219, 0, "m of descent"]];
+const END = ["Any resort.<br><em>One tap.</em>", "Free on the App Store"];
+const FRAMES = 150, FIRST = 18;                 // de eerste beelden overslaan: daar laadt het landschap nog
+$("kick").textContent = KICK; $("name").textContent = NAME; $("sub").textContent = SUB;
+$("end").querySelector("h2").innerHTML = END[0]; $("end").querySelector(".btn").textContent = END[1];
+const cards = STATS.map(([v, dec, unit], i) => { const d = document.createElement("div"); d.className = "abs st"; d.style.left = (i % 2 ? 560 : 80) + "px"; d.style.top = (1060 + Math.floor(i / 2) * 260) + "px";
+  d.innerHTML = `<b>0</b><span>${unit}</span>`; $("stats").appendChild(d); return d; });
+
+function render(t){
+  clipFrame($("clip"), "full", FIRST + Math.round(eio(seg(t, 0, 12.2)) * (FRAMES - 1 - FIRST)), FRAMES);
+  $("clip").style.transform = `scale(${1.02 + t * .004})`;
+  const k = seg(t, .3, .7); $("kick").style.opacity = Math.min(k, 1 - seg(t, 10.6, 11)); tf($("kick"), (1 - eo(k)) * -40, 0);
+  const n = seg(t, .5, 1.1); $("name").style.opacity = Math.min(n, 1 - seg(t, 10.6, 11)); tf($("name"), 0, (1 - eo(n)) * 50);
+  $("sub").style.opacity = Math.min(seg(t, 1.1, 1.5), 1 - seg(t, 10.6, 11));
+  cards.forEach((c, i) => { const a = 3.0 + i * .9, u = seg(t, a, a + .45), out = seg(t, 10.4 + i * .06, 10.8 + i * .06);
+    c.style.opacity = u > 0 ? 1 - out : 0; c.style.transform = `translateY(${(1 - eo(u)) * 80 + out * 60}px) scale(${u > 0 ? lerp(.85, 1, back(u)) : .85})`;
+    c.querySelector("b").textContent = count(t, a + .05, .8, STATS[i][0], STATS[i][1]); });
+  $("dim").style.opacity = eio(seg(t, 10.7, 11.5));
+  const en = $("end"), eu = seg(t, 11.2, 11.6); en.style.opacity = eu; en.querySelector("h2").style.transform = `scale(${pop(t, 11.2, .5) || .4})`;
+  en.querySelector(".app").style.opacity = seg(t, 11.9, 12.3); const b = en.querySelector(".btn"), bu = seg(t, 12.3, 12.7); b.style.opacity = bu; b.style.transform = `scale(${(bu > 0 ? lerp(.6, 1, back(bu)) : .6) * (t > 12.7 ? 1 + Math.sin((t - 12.7) * 6) * .03 : 1)})`;
+}
+boot(14, render);
+</script>
+</body>
+</html>
