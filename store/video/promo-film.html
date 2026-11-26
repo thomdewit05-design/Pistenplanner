@@ -12,7 +12,7 @@
   html,body{margin:0;background:#000;overflow:hidden}
   #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#060B12;font-family:'Barlow',system-ui,sans-serif;color:#fff}
   .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
-  #bgclip{width:1080px;height:1920px;object-fit:cover;opacity:0;filter:saturate(1.05)}
+  #bgclip{width:1080px;height:1920px;object-fit:cover;opacity:0;filter:saturate(1.05);transform-origin:50% 30%}   /* alleen de kaart, niet de knoppen van de app */
   #bgshade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(6,11,18,.86) 0%,rgba(6,11,18,.35) 45%,rgba(6,11,18,.9) 100%)}
   #base{width:1080px;height:1920px;background:radial-gradient(120% 70% at 50% 0%,#12263C 0%,#0A1420 55%,#060B12 100%)}
   #glow{width:1500px;height:1500px;left:-210px;border-radius:50%;background:radial-gradient(closest-side,rgba(31,127,214,.5),rgba(31,127,214,.14) 55%,transparent 72%);opacity:0}
@@ -118,7 +118,7 @@ function render(t){
   // opening: de 3D-berg uit de app, donker, langzaam draaiend
   const open = Math.min(seg(t, 0, 1.2), 1 - seg(t, 2.9, 3.7));
   if(t < 3.8) frame($("bgclip"), "orbit", Math.round(t / 3.8 * 46));
-  $("bgclip").style.opacity = open; $("bgshade").style.opacity = open; $("bgclip").style.transform = `scale(${1.12 + t * .012})`;
+  $("bgclip").style.opacity = open; $("bgshade").style.opacity = open; $("bgclip").style.transform = `scale(${2.3 + t * .03})`;
   const [gy, go] = key(t, [[3.2, 900, 0], [4.2, 1000, .9], [13.2, 900, 1], [15, 1000, .8], [19, 1000, .8], [20, 1150, 1], [24, 1150, 1], [24.8, 1100, 0]]);
   $("glow").style.transform = `translate(0px,${gy - 750}px)`; $("glow").style.opacity = go * (.85 + Math.sin(t * .9) * .1);
   $("brand").style.opacity = eio(seg(t, 24.1, 25.2));

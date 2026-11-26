@@ -37,7 +37,9 @@ if(only.includes("zoom")){
   const v = await p.evaluate(() => { map.options.zoomSnap = 0; map.options.zoomDelta = .01; const c = map.getCenter(); return {lat:c.lat, lng:c.lng, z:map.getZoom()}; });
   for(let i = 0; i < N; i++){ const u = ease(i / (N - 1));
     await p.evaluate(([v, u]) => new Promise(r => { map.setView([v.lat + .012 * u, v.lng - .004 * u], v.z + .9 * u, {animate:false}); requestAnimationFrame(() => requestAnimationFrame(r)); }), [v, u]);
-    await p.waitForTimeout(i === 0 ? 800 : 120); await p.screenshot({path:join(dir, String(i).padStart(4, "0") + ".jpg"), type:"jpeg", quality:90}); }
+    // wachten tot alle kaarttegels van deze stand er staan; anders zit er een donker beeld tussen
+    await p.waitForFunction(() => ![...document.querySelectorAll(".leaflet-tile")].some(t => !t.classList.contains("leaflet-tile-loaded")), null, {timeout:1200}).catch(() => {});
+    await p.waitForTimeout(i === 0 ? 800 : 260); await p.screenshot({path:join(dir, String(i).padStart(4, "0") + ".jpg"), type:"jpeg", quality:90}); }
   console.log(`zoom: ${N} beelden in ${Math.round((Date.now() - t0) / 1000)} s`);
   await p.evaluate(v => map.setView([v.lat, v.lng], v.z, {animate:false}), v); await p.waitForTimeout(1500);
 }
