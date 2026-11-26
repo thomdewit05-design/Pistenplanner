@@ -67,24 +67,38 @@
   <div id="bar" class="abs"></div>
 </div>
 <script>
-// ---------- ondertitels: [van, tot, y, tekst, klasse]. *woord* = geel gemarkeerd. Hier aanpassen of vertalen. ----------
-const CAPS = [
-  [0.10, 1.75, 520, "POV: you *never* get lost on the mountain again", "xl"],
-  [1.85, 3.30, 250, "*One tap*", "xl"],
-  [3.35, 5.30, 230, "Your whole ski day. *Planned.*", ""],
-  [5.40, 7.00, 230, "Phone in your *pocket*", ""],
-  [7.05, 9.70, 215, "Your Watch *taps* you the way", ""],
-  [9.80, 12.10, 230, "Check the mountain in *3D*", ""],
-  [12.20, 14.40, 230, "*Find* your friends", ""],
-  [14.45, 16.10, 230, "Weather. Snow. *Lifts.*", ""],
-  [16.20, 19.00, 250, "Then *flex* your ski day", "sm"],
-];
-const END = ["Your navigation on the slopes", "Free on the App Store"];
+// ---------- teksten per taal (?l=en of ?l=nl). Ondertitels: [van, tot, y, tekst, klasse]; *woord* = geel gemarkeerd. ----------
 const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 22;
+const T = {
+  en:{caps:[
+      [0.10, 1.75, 520, "POV: you *never* get lost on the mountain again", "xl"],
+      [1.85, 3.30, 250, "*One tap*", "xl"],
+      [3.35, 5.30, 230, "Your whole ski day. *Planned.*", ""],
+      [5.40, 7.00, 230, "Phone in your *pocket*", ""],
+      [7.05, 9.70, 215, "Your Watch *taps* you the way", ""],
+      [9.80, 12.10, 230, "Check the mountain in *3D*", ""],
+      [12.20, 14.40, 230, "*Find* your friends", ""],
+      [14.45, 16.10, 230, "Weather. Snow. *Lifts.*", ""],
+      [16.20, 19.00, 250, "Then *flex* your ski day", "sm"]],
+    nums:["km today", "metres of descent", "km/h top speed"], end:["Your navigation on the slopes", "Free on the App Store"], loc:"en-US"},
+  nl:{caps:[
+      [0.10, 1.75, 500, "POV: je raakt *nooit* meer de weg kwijt op de berg", "xl"],
+      [1.85, 3.30, 250, "*Eén tik*", "xl"],
+      [3.35, 5.30, 230, "Je hele skidag. *Gepland.*", ""],
+      [5.40, 7.00, 230, "Telefoon in je *zak*", ""],
+      [7.05, 9.70, 215, "Je Watch *tikt* je de weg", ""],
+      [9.80, 12.10, 230, "Bekijk de berg in *3D*", ""],
+      [12.20, 14.40, 230, "*Vind* je vrienden", ""],
+      [14.45, 16.10, 230, "Weer. Sneeuw. *Liften.*", ""],
+      [16.20, 19.00, 250, "En dan: je skidag in *cijfers*", "sm"]],
+    nums:["km vandaag", "meter gedaald", "km/u topsnelheid"], end:["Jouw navigatie op de piste", "Gratis in de App Store"], loc:"nl-NL"}
+};
+const L = T[LANG] || T.en, CAPS = L.caps, END = L.end;
 const $ = id => document.getElementById(id);
 document.querySelectorAll("img[data-k]").forEach(i => i.src = `shots/${LANG}/${i.dataset.k}.png`);
 document.querySelectorAll("img[data-w]").forEach(i => i.src = `shots/watch-${LANG}/${i.dataset.w}.png`);
 $("bg").src = `shots/${LANG}/3d.png`;
+["n1", "n2", "n3"].forEach((id, k) => $(id).querySelector("i").textContent = L.nums[k]); document.documentElement.lang = LANG;
 $("end").querySelector("p").textContent = END[0]; $("end").querySelector(".btn").textContent = END[1];
 const img = k => document.querySelector(`img[data-k="${k}"]`);
 const capEls = CAPS.map(([a, b, y, txt, cls]) => { const d = document.createElement("div"); d.className = "abs cap " + cls;
@@ -149,7 +163,7 @@ function render(t){
   [["n1", 16.5, 31.4, 1, 640], ["n2", 17.2, 6200, 0, 930], ["n3", 17.9, 71, 0, 1220]].forEach(([id, t0, val, dec, yy]) => {
     const e = $(id), u = seg(t, t0, t0 + .3), o = 1 - seg(t, 18.85, 19.05), c = eo(seg(t, t0, t0 + .7));
     e.style.opacity = u > 0 ? o : 0; tf(e, 0, yy, u > 0 ? lerp(1.6, 1, back(u)) : 1.6);
-    e.querySelector("b").textContent = dec ? (val * c).toFixed(1) : Math.round(val * c).toLocaleString("en-US"); });
+    e.querySelector("b").textContent = dec ? (val * c).toLocaleString(L.loc, {minimumFractionDigits:1, maximumFractionDigits:1}) : Math.round(val * c).toLocaleString(L.loc); });
 
   // ----- afsluiting -----
   const en = $("end"), eu = seg(t, 19.05, 19.6); en.style.opacity = eu > 0 ? 1 : 0; tf(en, 0, 420);

@@ -73,19 +73,30 @@
   <div id="end" class="abs"><img src="../../icons/icon-512.png" alt=""><h1>Skipilot</h1><p></p><div class="btn"></div><small></small></div>
 </div>
 <script>
-// ---------- teksten (hier aanpassen of vertalen) ----------
-const TEXT = {
-  h1:["Never get lost on the mountain <span class=gold>again.</span>"],
-  h2:["Pick your destination.", "Skipilot shows the way, across runs and lifts."],
-  h3:["Your Watch taps you the way.", "Left feels different from right. Gloves stay on."],
-  h4:["Preview your route in 3D.", "See the whole mountain before you drop in."],
-  h5:["Your group on the map.", "Plus weather, snow and lifts at a glance."],
-  h6:["Your ski day in numbers.", "Distance, descent and top speed."],
-  end:["Your navigation on the slopes.", "Free on the App Store", "iPhone · iPad · Apple Watch · works offline"]
-};
+// ---------- teksten per taal (?l=en of ?l=nl) ----------
 const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 30;
+const TEXTS = {
+  en:{h1:["Never get lost on the mountain <span class=gold>again.</span>"],
+    h2:["Pick your destination.", "Skipilot shows the way, across runs and lifts."],
+    h3:["Your Watch taps you the way.", "Left feels different from right. Gloves stay on."],
+    h4:["Preview your route in 3D.", "See the whole mountain before you drop in."],
+    h5:["Your group on the map.", "Plus weather, snow and lifts at a glance."],
+    h6:["Your ski day in numbers.", "Distance, descent and top speed."],
+    end:["Your navigation on the slopes.", "Free on the App Store", "iPhone · iPad · Apple Watch · works offline"],
+    stats:["km", "m descent", "km/h top"], loc:"en-US"},
+  nl:{h1:["Nooit meer zoeken op de <span class=gold>berg.</span>"],
+    h2:["Kies je bestemming.", "Skipilot wijst de weg, over pistes en liften."],
+    h3:["Je Watch tikt je de weg.", "Links voelt anders dan rechts. Handschoenen aan."],
+    h4:["Bekijk je route in 3D.", "Zie de hele berg voor je vertrekt."],
+    h5:["Je groep op de kaart.", "En weer, sneeuw en liften in één oogopslag."],
+    h6:["Je skidag in cijfers.", "Afstand, hoogtemeters en topsnelheid."],
+    end:["Jouw navigatie op de piste.", "Gratis in de App Store", "iPhone · iPad · Apple Watch · werkt zonder internet"],
+    stats:["km", "m gedaald", "km/u top"], loc:"nl-NL"}
+};
+const TEXT = TEXTS[LANG] || TEXTS.en;
 const $ = id => document.getElementById(id);
 for(const k of ["h1","h2","h3","h4","h5","h6"]){ const e = $(k); e.querySelector("h1").innerHTML = TEXT[k][0]; const p = e.querySelector("p"); if(p) p.textContent = TEXT[k][1] || ""; }
+document.querySelectorAll("#stats span").forEach((e, k) => e.textContent = TEXT.stats[k]); document.documentElement.lang = LANG;
 $("end").querySelector("p").textContent = TEXT.end[0]; $("end").querySelector(".btn").textContent = TEXT.end[1]; $("end").querySelector("small").textContent = TEXT.end[2];
 document.querySelectorAll("img[data-k]").forEach(i => i.src = `shots/${LANG}/${i.dataset.k}.png`);
 document.querySelectorAll("img[data-w]").forEach(i => i.src = `shots/watch-${LANG}/${i.dataset.w}.png`);
@@ -153,7 +164,7 @@ function render(t){
   // ----- cijfers van de skidag -----
   const st = $("stats"), so = inOut(t, 22.8, 26.0, .45), c = eo(seg(t, 23.0, 24.2));
   st.style.opacity = so; tf(st, 0, 1290 + (1 - eo(seg(t, 22.8, 23.4))) * 60);
-  $("s1").textContent = (31.4 * c).toFixed(1); $("s2").textContent = Math.round(6200 * c).toLocaleString("en-US"); $("s3").textContent = Math.round(71 * c);
+  $("s1").textContent = (31.4 * c).toLocaleString(TEXT.loc, {minimumFractionDigits:1, maximumFractionDigits:1}); $("s2").textContent = Math.round(6200 * c).toLocaleString(TEXT.loc); $("s3").textContent = Math.round(71 * c);
 
   // ----- afsluiting -----
   const en = $("end"), eoo = eo(seg(t, 26.4, 27.2)); en.style.opacity = eoo; tf(en, 0, 360 + (1 - eoo) * 80);
