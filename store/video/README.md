@@ -2,6 +2,8 @@
 
 `skipilot-promo-en.mp4`: 1080×1920, 30 s, 30 beelden per seconde, zonder geluid. Met de echte schermen van de app.
 
+`skipilot-promo-tiktok-en.mp4`: de TikTok-versie, 22 s, met snelle sneden en grote ondertitels (`promo-tiktok.html`; maken met `PAGE=promo-tiktok node tools/promo-video.mjs en`). De ondertitels staan bovenin in `CAPS`.
+
 - `promo.html`: de animatie. Teksten staan bovenin het script in `TEXT`, de tijden in `render`. Bekijken in de browser: `promo.html?play` (R = opnieuw, P = pauze).
 - `shots/<taal>/`: de schermen van de app, vastgelegd met `node tools/promo-shots.mjs en` (heeft internet nodig voor de winterkaart en 3D).
 - `shots/watch-<taal>/`: de Watch-schermen uit `store/screenshots/watch/<taal>/`.
