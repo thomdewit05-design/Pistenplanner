@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: which skier are you?</title>
+<!-- "Which skier are you?": 1080×1920, 18 s. Zes types skiër, snel achter elkaar, elk met een getekend pictogram en één droge zin.
+     De types staan bovenin (TYPES). Maken: PAGE=promo-types node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  .card{width:1080px;height:1920px;overflow:hidden}
+  .no{position:absolute;left:84px;top:250px;font-weight:700;font-size:60px;letter-spacing:1px;opacity:.75}
+  .ico{position:absolute;left:240px;top:400px;width:600px;height:600px}
+  .name{position:absolute;left:70px;top:1050px;width:940px;text-align:center;font-weight:700;font-size:112px;line-height:1;letter-spacing:-3px}
+  .say{position:absolute;left:110px;top:1300px;width:860px;text-align:center;font-weight:500;font-size:56px;line-height:1.16}
+  #intro h1{position:absolute;left:80px;top:640px;width:920px;margin:0;text-align:center;font-weight:700;font-size:170px;line-height:.95;letter-spacing:-6px}
+  #intro p{position:absolute;left:0;top:1040px;width:1080px;margin:0;text-align:center;font-weight:600;font-size:58px;color:#FFC400}
+  #end{width:1080px;height:1920px;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);opacity:0;text-align:center}
+  #end h2{margin:520px 80px 0;font-weight:700;font-size:150px;line-height:.98;letter-spacing:-5px}
+  #end p{margin:44px 110px 0;font-weight:500;font-size:60px;line-height:1.15;color:#D7E6F5}
+  #end .app{margin-top:90px}
+  #end img{width:130px;height:130px;border-radius:30px;vertical-align:middle}
+  #end b{font-size:96px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:26px}
+  #dots{left:0;top:200px;width:1080px;text-align:center}
+  #dots i{display:inline-block;width:120px;height:10px;border-radius:5px;margin:0 6px;background:rgba(255,255,255,.3);overflow:hidden}
+  #dots i b{display:block;height:100%;background:#fff;width:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="cards"></div>
+  <div id="dots" class="abs"></div>
+  <div id="end" class="abs"><h2></h2><p></p><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+const INTRO = ["Which skier", "are you?", "6 types. Tag yours."];
+// [naam, zin, achtergrond, tekstkleur, pictogram (SVG, 200×200)]
+const W = "#fff", N = "#0F1C2B", G = "#FFC400";
+const TYPES = [
+  ["The Map Reader", "Stops at every junction. Unfolds the map. In the wind.", "#1F7FD6", W,
+    `<g transform="rotate(-8 100 100)"><path d="M30 50 L75 36 L125 50 L170 36 V150 L125 164 L75 150 L30 164Z" fill="#fff"/><path d="M75 36 V150 M125 50 V164" stroke="#B9CCE0" stroke-width="4"/><path d="M45 130 Q70 90 95 110 T150 70" fill="none" stroke="#D22E2E" stroke-width="7" stroke-linecap="round"/><circle cx="150" cy="70" r="9" fill="#D22E2E"/></g><text x="150" y="60" font-size="70" font-weight="700" fill="${G}">?</text>`],
+  ["The First-Lift Fanatic", "In the queue at 8:29. Has been awake since five.", G, N,
+    `<circle cx="100" cy="150" r="60" fill="#F59E0B"/><rect x="0" y="150" width="200" height="60" fill="${G}"/><g stroke="#F59E0B" stroke-width="8" stroke-linecap="round"><path d="M100 60 V36 M40 95 L22 78 M160 95 L178 78 M22 140 H4 M196 140 H178"/></g><line x1="10" y1="40" x2="190" y2="20" stroke="${N}" stroke-width="5"/><g transform="translate(110 28)"><line x1="0" y1="0" x2="0" y2="20" stroke="${N}" stroke-width="5"/><rect x="-26" y="18" width="52" height="44" rx="12" fill="${N}"/><rect x="-18" y="26" width="36" height="16" rx="5" fill="#9FD0FF"/></g>`],
+  ["The Après Pro", "Two runs. Then “just one drink” at eleven a.m.", "#D22E2E", W,
+    `<path d="M52 60 H128 V150 Q128 172 106 172 H74 Q52 172 52 150Z" fill="#fff"/><path d="M128 84 H150 Q168 84 168 104 V118 Q168 138 150 138 H128" fill="none" stroke="#fff" stroke-width="14"/><rect x="62" y="84" width="56" height="78" rx="8" fill="${G}"/><path d="M52 60 Q60 34 80 46 Q92 24 108 44 Q126 34 128 60Z" fill="#fff"/><g fill="#fff" opacity=".9"><circle cx="150" cy="40" r="7"/><circle cx="170" cy="58" r="5"/><circle cx="36" cy="44" r="6"/></g>`],
+  ["The Speed Demon", "“Was that a slow sign?” Too late to tell.", "#14202B", W,
+    `<g stroke="#1F7FD6" stroke-width="9" stroke-linecap="round"><path d="M10 70 H70 M0 100 H60 M16 130 H76"/></g><g transform="rotate(-18 120 100)"><rect x="70" y="118" width="110" height="10" rx="5" fill="#fff"/><ellipse cx="124" cy="92" rx="34" ry="24" fill="${G}"/><circle cx="160" cy="76" r="20" fill="#fff"/><rect x="164" y="68" width="18" height="12" rx="5" fill="#1F7FD6"/></g><text x="24" y="182" font-size="44" font-weight="700" fill="${G}">71 km/h</text>`],
+  ["The One Who Gets Lost", "“I’m at the lift.” Which lift? “The lift.”", "#12447C", W,
+    `<path d="M100 20 C62 20 38 48 38 82 C38 126 100 184 100 184 C100 184 162 126 162 82 C162 48 138 20 100 20Z" fill="#fff"/><text x="100" y="118" text-anchor="middle" font-size="110" font-weight="700" fill="#D22E2E">?</text><g fill="none" stroke="#9FD0FF" stroke-width="6" stroke-dasharray="4 14" stroke-linecap="round"><path d="M14 170 Q40 120 20 80"/><path d="M186 170 Q160 130 182 96"/></g>`],
+  ["The Photographer", "Skied 4 km. Took 312 photos. All of the same peak.", "#F59E0B", N,
+    `<rect x="26" y="62" width="148" height="104" rx="18" fill="${N}"/><rect x="66" y="42" width="52" height="30" rx="8" fill="${N}"/><circle cx="100" cy="114" r="36" fill="#fff"/><circle cx="100" cy="114" r="24" fill="#1F7FD6"/><path d="M84 124 L98 100 L108 114 L114 106 L122 124Z" fill="#fff"/><circle cx="150" cy="84" r="7" fill="${G}"/><g fill="#fff"><path d="M168 30 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z"/><path d="M30 28 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/></g>`],
+];
+const END = ["Tag yours.", "We all know one who needs this app."];
+const T0 = 2.0, STEP = 2.25, TE = T0 + TYPES.length * STEP;
+const C = $("cards"), els = [];
+{ const d = document.createElement("div"); d.id = "intro"; d.className = "abs card"; d.style.background = "linear-gradient(160deg,#0F1C2B,#12447C)"; d.innerHTML = `<h1>${INTRO[0]}<br>${INTRO[1]}</h1><p>${INTRO[2]}</p>`; C.appendChild(d); }
+TYPES.forEach(([name, say, bg, fg, svg], i) => { const d = document.createElement("div"); d.className = "abs card"; d.style.background = bg; d.style.color = fg;
+  d.innerHTML = `<div class="no">${i + 1} / ${TYPES.length}</div><svg class="ico" viewBox="0 0 200 200" font-family="Barlow">${svg}</svg><div class="name">${name}</div><div class="say">${say}</div>`; C.appendChild(d); els.push(d); });
+$("dots").innerHTML = TYPES.map(() => "<i><b></b></i>").join("");
+$("end").querySelector("h2").textContent = END[0]; $("end").querySelector("p").textContent = END[1];
+
+function render(t){
+  const ih = $("intro").querySelector("h1"); ih.style.transform = `scale(${pop(t, .1, .5) || .4})`; $("intro").querySelector("p").style.opacity = seg(t, .8, 1.2);
+  els.forEach((el, i) => { const a = T0 + i * STEP, u = eio(seg(t, a - .35, a + .05)), dir = i % 2 ? -1 : 1;
+    // elke kaart komt van een andere kant
+    el.style.transform = `translate(${(1 - u) * 1080 * dir}px,0px) rotate(${(1 - u) * 6 * dir}deg)`; el.style.opacity = t >= a - .35 ? 1 : 0;
+    const ic = el.querySelector(".ico"); ic.style.transform = `scale(${pop(t, a, .45) || .4}) rotate(${Math.sin((t - a) * 3) * 3}deg)`;
+    const nu = seg(t, a + .2, a + .5), nm = el.querySelector(".name"); nm.style.opacity = nu; nm.style.transform = `translateY(${(1 - eo(nu)) * 40}px)`;
+    const su = seg(t, a + .55, a + .9), sy = el.querySelector(".say"); sy.style.opacity = su; sy.style.transform = `translateY(${(1 - eo(su)) * 30}px)`; });
+  // voortgang: zes streepjes bovenaan, zoals bij verhalen
+  const dots = $("dots"); dots.style.opacity = Math.min(seg(t, T0 - .2, T0 + .1), 1 - seg(t, TE - .2, TE)); [...dots.children].forEach((d, i) => { d.firstChild.style.width = (seg(t, T0 + i * STEP, T0 + (i + 1) * STEP) * 100) + "%"; });
+  const en = $("end"), eu = eio(seg(t, TE - .35, TE + .1)); en.style.opacity = t >= TE - .35 ? 1 : 0; en.style.transform = `translateY(${(1 - eu) * 1920}px)`;
+  en.querySelector("h2").style.transform = `scale(${pop(t, TE + .1, .5) || .4})`; en.querySelector("p").style.opacity = seg(t, TE + .6, TE + 1.0); en.querySelector(".app").style.opacity = seg(t, TE + 1.0, TE + 1.4);
+}
+boot(18, render);
+</script>
+</body>
+</html>

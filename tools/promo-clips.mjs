@@ -20,7 +20,7 @@ const server = createServer(async (rq, res) => {
 }).listen(PORT);
 const AREA = "Les Trois Vallées";
 const browser = await chromium.launch();
-const ctx = await browser.newContext({viewport:{width:430, height:932}, deviceScaleFactor:1.5, isMobile:true, hasTouch:true, serviceWorkers:"block", locale:lang, permissions:["geolocation"], geolocation:{latitude:45.33, longitude:6.58, accuracy:8}});
+const ctx = await browser.newContext({viewport:{width:430, height:932}, deviceScaleFactor:+process.env.DSF || 1.5, isMobile:true, hasTouch:true, serviceWorkers:"block", locale:lang, permissions:["geolocation"], geolocation:{latitude:45.33, longitude:6.58, accuracy:8}});
 await ctx.addInitScript(l => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", l); localStorage.setItem("pp-theme", "light"); }, lang);
 const p = await ctx.newPage(); p.on("pageerror", e => console.log("fout in de pagina:", e.message));
 await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() => typeof S !== "undefined" && S.index.length > 0);
@@ -53,5 +53,18 @@ if(only.includes("orbit")){
       g.jumpTo({bearing:v.b - 28 + 56 * u, zoom:v.z + .12 + .28 * u, pitch:Math.min(70, v.p + 4 * u)}); g.once("idle", fin); setTimeout(fin, 1600); }), [v, u]);
     await p.screenshot({path:join(dir, String(i).padStart(4, "0") + ".jpg"), type:"jpeg", quality:90}); }
   console.log(`orbit: ${N} beelden in ${Math.round((Date.now() - t0) / 1000)} s`);
+}
+// full: de 3D-kaart beeldvullend, zonder de knoppen en het paneel van de app (voor de video per skigebied; DSF=2.5 voor scherpte)
+if(only.includes("full")){
+  const dir = await dirOf("full"), t0 = Date.now();
+  if(!only.includes("orbit")){ await p.evaluate(() => { document.getElementById("threeBtn").click(); return 0; }); await p.waitForTimeout(25000); }
+  await p.addStyleTag({content:"#sheet,.topbar,.fabs,#tabbar,#ovBtn,#toast,.maplibregl-ctrl,.leaflet-control-container,#navDash,#layerChips{display:none!important}"});
+  await p.evaluate(() => { M3.gl.setPadding({top:0, bottom:0, left:0, right:0}); return 0; }); await p.waitForTimeout(4000);
+  const v = await p.evaluate(() => { const g = M3.gl; return {b:g.getBearing(), z:g.getZoom(), p:g.getPitch()}; });
+  for(let i = 0; i < N; i++){ const u = ease(i / (N - 1));
+    await p.evaluate(([v, u]) => new Promise(r => { const g = M3.gl; let done = false; const fin = () => { if(!done){ done = true; r(); } };
+      g.jumpTo({bearing:v.b - 40 + 80 * u, zoom:v.z + .05 + .35 * u, pitch:Math.min(72, v.p + 6 * u)}); g.once("idle", fin); setTimeout(fin, 1600); }), [v, u]);
+    await p.screenshot({path:join(dir, String(i).padStart(4, "0") + ".jpg"), type:"jpeg", quality:88}); }
+  console.log(`full: ${N} beelden in ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 await browser.close(); server.close();
