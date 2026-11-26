@@ -150,9 +150,9 @@ function render(t){
   TAPS.forEach((p, i) => { const u = seg(t, p.t, p.t + .6), e = rings[i]; e.style.opacity = u > 0 && u < 1 ? (1 - u) * .9 : 0; place(e, 470, 560, Wk[0], Wk[1], Wk[2] * (1 + u * .3), Wk[3], Wk[4], Wk[5], 110); });
 
   // ----- drie toestellen: groep, laatste lift, je dag -----
-  [["f1", 19.7, 195, 14, "l1"], ["f2", 21.0, 540, 0, "l2"], ["f3", 22.3, 885, -14, "l3"]].forEach(([id, t0, cx, ry, lab], i) => {
+  [["f1", 19.7, 188, 14, "l1"], ["f2", 21.0, 540, 0, "l2"], ["f3", 22.3, 892, -14, "l3"]].forEach(([id, t0, cx, ry, lab], i) => {
     const el = $(id), u = eo(seg(t, t0, t0 + .9)), out = eio(seg(t, 24.0, 24.7)), focus = Math.min(seg(t, t0, t0 + .5), 1 - seg(t, t0 + 1.15, t0 + 1.5)) * (i < 2 ? 1 : 0) + (i === 2 ? seg(t, t0, t0 + .5) : 0);
-    place(el, 620, 1297, cx, lerp(2500, 1130, u) + out * 1500 - focus * 40, .56 + focus * .06, 5, ry * (1 - focus * .4), 0, i === 1 ? 40 : 0); el.style.opacity = t > t0 && t < 24.75 ? 1 : 0; el.style.filter = `brightness(${.62 + focus * .38})`;
+    place(el, 620, 1297, cx, lerp(2500, 1130, u) + out * 1500 - focus * 40, .6 + focus * .06, 5, ry * (1 - focus * .4), 0, i === 1 ? 40 : 0); el.style.opacity = t > t0 && t < 24.75 ? 1 : 0; el.style.filter = `brightness(${.62 + focus * .38})`;
     const L = $(lab), on = i < 2 ? Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, t0 + 1.2, t0 + 1.4)) : Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, 23.9, 24.2));
     L.style.opacity = on; L.style.transform = `translate(0px,${330 + (1 - eo(seg(t, t0 + .1, t0 + .6))) * 40}px)`; });
 
