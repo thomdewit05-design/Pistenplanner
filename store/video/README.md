@@ -1,6 +1,6 @@
 # Promovideo
 
-`skipilot-promo-en.mp4`: 1080×1920, 30 s, 30 beelden per seconde, zonder geluid. Met de echte schermen van de app.
+`skipilot-promo-en.mp4` en `skipilot-promo-nl.mp4`: 1080×1920, 30 s, 30 beelden per seconde, zonder geluid. Met de echte schermen van de app. De TikTok-versie bestaat ook in beide talen (`skipilot-promo-tiktok-en.mp4`, `-nl.mp4`). De teksten staan per taal bovenin de twee html-bestanden.
 
 `skipilot-promo-tiktok-en.mp4`: de TikTok-versie, 22 s, met snelle sneden en grote ondertitels (`promo-tiktok.html`; maken met `PAGE=promo-tiktok node tools/promo-video.mjs en`). De ondertitels staan bovenin in `CAPS`.
 
