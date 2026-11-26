@@ -171,7 +171,8 @@ final class WatchModel: NSObject, ObservableObject, WCSessionDelegate {
             }
             sos = Sos(num: "112", lat: 47.12894, lon: 10.26411, alt: 2140, acc: 8, place: "Op piste 12 (rood)")
             startTab = d == "day" ? 1 : d == "wx" ? 2 : d == "group" || d == "nogroup" ? 3 : d == "ctrl" || d == "hapt" ? 4 : d == "sos" ? 5 : 0
-            if d == "flash" { flash = .left }
+            if d == "flash" || d == "left" { flash = .left }
+            if d == "right" { flash = .right }
             return
         }
         #endif
