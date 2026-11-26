@@ -28,3 +28,12 @@ Opnieuw maken: `python3 tools/promo-voice.py <map met het stemmodel> [stem]`. He
 ## Follow the line (getekend)
 
 `skipilot-promo-line-en.mp4`: 20 s, een getekende animatie in één doorlopend shot (`promo-line.html`; maken met `PAGE=promo-line node tools/promo-video.mjs en`). Alles is met code getekend als SVG; alleen het pictogram is een bestand. De route staat bovenin als rijen punten (`A`, `LIFT`, `B`, `C`), het tempo in `dist(t)`, de camera en de inzoom in `render`.
+
+## De hoofdfilm
+
+`skipilot-promo-film-en-sound.mp4`: 30 s, 60 beelden per seconde, met Engelse stem en geluidseffecten. `skipilot-promo-film-en.mp4` is dezelfde film zonder geluid (om muziek onder te zetten); `-sound.wav` is stem met effecten, `-voice.wav` alleen de stem.
+
+- `promo-film.html`: de film. Toestellen met diepte (CSS-3D), de standen per moment staan als sleutelstanden in `render`.
+- `tools/promo-clips.mjs`: neemt bewegende beelden op uit de echte app, beeld voor beeld (de platte kaart die inzoomt, de 3D-kaart die draait) naar `clips/<taal>/` (niet in git). Eerst draaien: `node tools/promo-clips.mjs en zoom,orbit 150`.
+- Film maken: `PAGE=promo-film FPS=60 node tools/promo-video.mjs en`.
+- Geluid: `python3 tools/promo-sound.py <map met het stemmodel>`; de tijden van de zinnen en effecten staan bovenin en horen bij de scènes in `promo-film.html`.
