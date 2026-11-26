@@ -30,7 +30,7 @@
   #tap{width:150px;height:150px;border-radius:50%;border:8px solid #fff;opacity:0;z-index:4;box-shadow:0 0 30px rgba(255,255,255,.6)}
   #wipe{position:absolute;inset:0;background:#fff;opacity:0;z-index:5}
   .watch{width:470px;height:560px}
-  .watch .band{position:absolute;left:92px;width:286px;height:420px;background:linear-gradient(90deg,#10161d,#2a3542 45%,#10161d);border-radius:44px}
+  .watch .band{position:absolute;left:92px;width:286px;height:300px;background:linear-gradient(90deg,#10161d,#2a3542 45%,#10161d);border-radius:44px}
   .watch .case{position:absolute;inset:0;border-radius:120px;background:linear-gradient(145deg,#9AA3AF 0%,#2A313B 20%,#0b0f14 50%,#3B434F 82%,#9AA3AF 100%)}
   .watch .inner{position:absolute;inset:9px;border-radius:112px;background:#05080C}
   .watch .wscr{position:absolute;left:27px;top:32px;width:416px;height:496px;border-radius:92px;overflow:hidden;background:#000}
@@ -66,7 +66,7 @@
     <div id="pA" class="dev phone"><div class="body"></div><div class="bezel"></div>
       <div class="scr"><img id="sMap" data-k="map"><img id="sClip"><img id="sNav" data-k="nav"><div id="wipe"></div><div id="tap" class="abs"></div></div><div class="glare"></div></div>
     <div id="rings"></div>
-    <div id="wA" class="dev watch"><div class="band" style="top:-330px"></div><div class="band" style="bottom:-330px"></div><div class="crown"></div><div class="case"></div><div class="inner"></div>
+    <div id="wA" class="dev watch"><div class="band" style="top:-210px"></div><div class="band" style="bottom:-210px"></div><div class="crown"></div><div class="case"></div><div class="inner"></div>
       <div class="wscr"><img data-w="1-nav" style="position:absolute;width:100%;height:100%"><img data-w="left" style="position:absolute;width:100%;height:100%"><img data-w="right" style="position:absolute;width:100%;height:100%"></div><div class="wglare"></div></div>
   </div>
 
@@ -129,8 +129,8 @@ function render(t){
 
   // ----- de telefoon -----
   // sleutelstanden: [t, cx, cy, schaal, rotX, rotY, rotZ]
-  const P = key(t, [[3.2, 1500, 1260, .92, 6, -42, 6], [4.4, 560, 1210, .86, 4, -14, 1.5], [8.1, 540, 1200, .88, 3, -9, 1], [9.0, 540, 1215, .93, 2, 0, 0], [13.0, 540, 1205, .96, 2, 6, 0],
-    [14.0, 500, 1210, .88, 3, 12, -1], [15.9, 330, 1190, .7, 4, 28, -2], [19.0, 300, 1190, .68, 4, 30, -2], [19.9, -500, 1250, .6, 4, 46, -6]]);
+  const P = key(t, [[3.2, 1500, 1300, 1.0, 6, -42, 6], [4.4, 560, 1250, .96, 4, -14, 1.5], [8.1, 540, 1245, .98, 3, -9, 1], [9.0, 540, 1260, 1.03, 2, 0, 0], [13.0, 540, 1250, 1.06, 2, 6, 0],
+    [14.0, 500, 1250, .98, 3, 12, -1], [15.9, 320, 1230, .76, 4, 28, -2], [19.0, 295, 1230, .74, 4, 30, -2], [19.9, -520, 1280, .64, 4, 46, -6]]);
   const pA = $("pA"); place(pA, 620, 1297, P[0], P[1], P[2], P[3], P[4] + Math.sin(t * .7) * 1.2, P[5]); pA.style.opacity = t > 3.2 && t < 19.95 ? 1 : 0;
   pA.querySelector(".glare").style.backgroundPosition = `${P[4] * 6}px 0`;
   // wat er op het scherm staat
@@ -143,18 +143,18 @@ function render(t){
   const fl = $("fl"); fl.style.width = "760px"; fl.style.height = "120px"; fl.style.transform = `translate(${P[0] - 380}px,${P[1] + 620 * P[2]}px)`; fl.style.opacity = t > 3.6 && t < 19.5 ? .8 : 0;
 
   // ----- de Watch -----
-  const Wk = key(t, [[15.1, 1500, 1180, 1.05, 4, -40, 8], [16.2, 720, 1150, 1.12, 3, -16, 3], [19.0, 710, 1150, 1.14, 3, -13, 3], [19.9, 1600, 1200, 1, 4, -44, 8]]);
+  const Wk = key(t, [[15.1, 1500, 1240, .95, 4, -40, 8], [16.2, 735, 1210, 1.0, 3, -16, 3], [19.0, 725, 1210, 1.02, 3, -13, 3], [19.9, 1600, 1260, .9, 4, -44, 8]]);
   let shake = 0; for(const p of TAPS){ const u = (t - p.t) / .15; if(u > 0 && u < 1) shake = p.dir * Math.sin(u * Math.PI) * (1 - u * .5) * 26; }
   const wA = $("wA"); place(wA, 470, 560, Wk[0] + shake, Wk[1], Wk[2], Wk[3], Wk[4] + shake * .25, Wk[5] + shake * .12, 120); wA.style.opacity = t > 15.1 && t < 19.95 ? 1 : 0;
   const ws = t < 16.75 ? "1-nav" : t < 17.95 ? "left" : "right"; for(const k of ["1-nav", "left", "right"]) wimg(k).style.opacity = k === ws ? 1 : 0;
   TAPS.forEach((p, i) => { const u = seg(t, p.t, p.t + .6), e = rings[i]; e.style.opacity = u > 0 && u < 1 ? (1 - u) * .9 : 0; place(e, 470, 560, Wk[0], Wk[1], Wk[2] * (1 + u * .3), Wk[3], Wk[4], Wk[5], 110); });
 
   // ----- drie toestellen: groep, laatste lift, je dag -----
-  [["f1", 19.7, 215, 14, "l1"], ["f2", 21.0, 540, 0, "l2"], ["f3", 22.3, 865, -14, "l3"]].forEach(([id, t0, cx, ry, lab], i) => {
+  [["f1", 19.7, 195, 14, "l1"], ["f2", 21.0, 540, 0, "l2"], ["f3", 22.3, 885, -14, "l3"]].forEach(([id, t0, cx, ry, lab], i) => {
     const el = $(id), u = eo(seg(t, t0, t0 + .9)), out = eio(seg(t, 24.0, 24.7)), focus = Math.min(seg(t, t0, t0 + .5), 1 - seg(t, t0 + 1.15, t0 + 1.5)) * (i < 2 ? 1 : 0) + (i === 2 ? seg(t, t0, t0 + .5) : 0);
-    place(el, 620, 1297, cx, lerp(2500, 1240, u) + out * 1500 - focus * 40, .5 + focus * .06, 5, ry * (1 - focus * .4), 0, i === 1 ? 40 : 0); el.style.opacity = t > t0 && t < 24.75 ? 1 : 0; el.style.filter = `brightness(${.62 + focus * .38})`;
+    place(el, 620, 1297, cx, lerp(2500, 1130, u) + out * 1500 - focus * 40, .56 + focus * .06, 5, ry * (1 - focus * .4), 0, i === 1 ? 40 : 0); el.style.opacity = t > t0 && t < 24.75 ? 1 : 0; el.style.filter = `brightness(${.62 + focus * .38})`;
     const L = $(lab), on = i < 2 ? Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, t0 + 1.2, t0 + 1.4)) : Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, 23.9, 24.2));
-    L.style.opacity = on; L.style.transform = `translate(0px,${300 + (1 - eo(seg(t, t0 + .1, t0 + .6))) * 40}px)`; });
+    L.style.opacity = on; L.style.transform = `translate(0px,${330 + (1 - eo(seg(t, t0 + .1, t0 + .6))) * 40}px)`; });
 
   // ----- slot -----
   const en = $("end"), eu = eo(seg(t, 24.9, 25.9)); en.style.opacity = seg(t, 24.9, 25.4); en.style.transform = `translate(0px,${430 + (1 - eu) * 50}px)`;
