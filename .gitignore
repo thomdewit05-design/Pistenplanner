@@ -13,3 +13,5 @@ node_modules/
 www/
 promo/phones/
 promo/frames/
+
+store/video/.frames/

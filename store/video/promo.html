@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot promo</title>
+<!-- Promovideo van Skipilot: 1080×1920, 30 s, met de echte schermen van de app (tools/promo-shots.mjs).
+     De tijdlijn staat stil tot seek(t) wordt aangeroepen; tools/promo-video.mjs legt zo elk beeld exact vast.
+     In een gewone browser speelt de video vanzelf af (?play). Teksten staan in TEXT, tijden in de functie render. -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;
+    background:linear-gradient(180deg,#0F1C2B 0%,#12365C 45%,#1F7FD6 100%);font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #mount{left:0;top:0;width:1080px;height:1920px}
+  .flake{position:absolute;border-radius:50%;background:#fff}
+  .head{left:80px;width:920px;text-align:center;opacity:0}
+  .head h1{margin:0;font-weight:700;font-size:92px;line-height:1.04;letter-spacing:-1.5px}
+  .head p{margin:22px 0 0;font-weight:500;font-size:46px;line-height:1.2;color:#CFE4F8}
+  .head .gold{color:#FFC400}
+  #h1 h1{font-size:128px;line-height:1.02}
+  .phone{width:600px;height:1258px;border-radius:86px;background:#0b0f14;box-shadow:0 50px 120px rgba(0,0,0,.55),0 0 0 3px #2b3340 inset;opacity:0}
+  .phone .scr{position:absolute;left:18px;top:18px;right:18px;bottom:18px;border-radius:70px;overflow:hidden;background:#dfe9f3}
+  .phone img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;opacity:0;transform-origin:50% 35%}
+  #tap{width:120px;height:120px;border-radius:50%;border:8px solid #FFC400;opacity:0;z-index:4}
+  #watch{width:470px;height:560px;opacity:0}
+  #watch .band{position:absolute;left:95px;width:280px;height:250px;background:linear-gradient(90deg,#1b2430,#2b3848,#1b2430);border-radius:40px}
+  #watch .case{position:absolute;left:0;top:0;width:470px;height:560px;border-radius:118px;background:#0b0f14;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 4px #3a4554 inset}
+  #watch .wscr{position:absolute;left:27px;top:32px;width:416px;height:496px;border-radius:92px;overflow:hidden;background:#000}
+  #watch img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  #watch .crown{position:absolute;right:-18px;top:150px;width:22px;height:90px;border-radius:10px;background:#3a4554}
+  .ring{width:470px;height:560px;border-radius:130px;border:6px solid #FFC400;opacity:0}
+  .stat{left:0;width:1080px;text-align:center;opacity:0}
+  .stat .card{display:inline-block;margin:0 10px;padding:26px 34px 22px;border-radius:38px;background:rgba(15,28,43,.9);box-shadow:0 24px 60px rgba(0,0,0,.4);min-width:230px}
+  .stat b{display:block;font-weight:700;font-size:84px;line-height:1;color:#FFC400;font-variant-numeric:tabular-nums}
+  .stat span{display:block;margin-top:8px;font-weight:500;font-size:34px;color:#CFE4F8}
+  #end{left:0;width:1080px;text-align:center;opacity:0}
+  #end img{width:300px;height:300px;border-radius:68px;box-shadow:0 40px 90px rgba(0,0,0,.45)}
+  #end h1{margin:54px 0 0;font-weight:700;font-size:150px;letter-spacing:-3px;line-height:1}
+  #end p{margin:20px 0 0;font-weight:500;font-size:52px;color:#CFE4F8}
+  #end .btn{display:inline-block;margin-top:64px;padding:30px 60px;border-radius:60px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:54px}
+  #end small{display:block;margin-top:36px;font-weight:500;font-size:38px;color:#CFE4F8}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="mount" class="abs" viewBox="0 0 1080 1920" preserveAspectRatio="none">
+    <g id="m3"><path d="M-100 1500 L160 1120 L330 1330 L560 980 L800 1300 L960 1150 L1200 1480 L1200 2300 L-100 2300Z" fill="#1A5FA8" opacity=".55"/></g>
+    <g id="m2"><path d="M-100 1640 L120 1380 L300 1520 L520 1260 L700 1470 L900 1300 L1200 1620 L1200 2300 L-100 2300Z" fill="#12447C" opacity=".8"/>
+      <path d="M520 1260 L585 1338 L548 1352 L520 1322 L486 1350 L460 1332Z M900 1300 L958 1362 L920 1372 L896 1348 L866 1368 L850 1352Z M120 1380 L172 1420 L140 1436 L112 1412 L84 1434 L70 1420Z" fill="#fff" opacity=".85"/></g>
+    <g id="m1"><path d="M-100 1800 L200 1600 L420 1740 L640 1560 L860 1720 L1200 1580 L1200 2300 L-100 2300Z" fill="#0F2E52"/></g>
+  </svg>
+  <div id="snow" class="abs" style="width:1080px;height:1920px"></div>
+
+  <div id="h1" class="abs head"><h1></h1></div>
+  <div id="h2" class="abs head"><h1></h1><p></p></div>
+  <div id="h3" class="abs head"><h1></h1><p></p></div>
+  <div id="h4" class="abs head"><h1></h1><p></p></div>
+  <div id="h5" class="abs head"><h1></h1><p></p></div>
+  <div id="h6" class="abs head"><h1></h1><p></p></div>
+
+  <div id="pB" class="abs phone"><div class="scr"><img data-k="today"></div></div>
+  <div id="pA" class="abs phone"><div class="scr">
+      <img data-k="map"><img data-k="route"><img data-k="nav"><img data-k="3d"><img data-k="group-map"><img data-k="me">
+      <div id="tap" class="abs"></div></div></div>
+
+  <div id="r1" class="abs ring"></div><div id="r2" class="abs ring"></div>
+  <div id="watch" class="abs"><div class="band" style="top:-150px"></div><div class="band" style="bottom:-150px"></div><div class="crown"></div>
+    <div class="case"></div><div class="wscr"><img data-w="1-nav"><img data-w="3-wx"></div></div>
+
+  <div id="stats" class="abs stat"><div class="card"><b id="s1">0</b><span>km</span></div><div class="card"><b id="s2">0</b><span>m descent</span></div><div class="card"><b id="s3">0</b><span>km/h top</span></div></div>
+
+  <div id="end" class="abs"><img src="../../icons/icon-512.png" alt=""><h1>Skipilot</h1><p></p><div class="btn"></div><small></small></div>
+</div>
+<script>
+// ---------- teksten (hier aanpassen of vertalen) ----------
+const TEXT = {
+  h1:["Never get lost on the mountain <span class=gold>again.</span>"],
+  h2:["Pick your destination.", "Skipilot shows the way, across runs and lifts."],
+  h3:["Your Watch taps you the way.", "Left feels different from right. Gloves stay on."],
+  h4:["Preview your route in 3D.", "See the whole mountain before you drop in."],
+  h5:["Your group on the map.", "Plus weather, snow and lifts at a glance."],
+  h6:["Your ski day in numbers.", "Distance, descent and top speed."],
+  end:["Your navigation on the slopes.", "Free on the App Store", "iPhone · iPad · Apple Watch · works offline"]
+};
+const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 30;
+const $ = id => document.getElementById(id);
+for(const k of ["h1","h2","h3","h4","h5","h6"]){ const e = $(k); e.querySelector("h1").innerHTML = TEXT[k][0]; const p = e.querySelector("p"); if(p) p.textContent = TEXT[k][1] || ""; }
+$("end").querySelector("p").textContent = TEXT.end[0]; $("end").querySelector(".btn").textContent = TEXT.end[1]; $("end").querySelector("small").textContent = TEXT.end[2];
+document.querySelectorAll("img[data-k]").forEach(i => i.src = `shots/${LANG}/${i.dataset.k}.png`);
+document.querySelectorAll("img[data-w]").forEach(i => i.src = `shots/watch-${LANG}/${i.dataset.w}.png`);
+const img = k => document.querySelector(`img[data-k="${k}"]`), wimg = k => document.querySelector(`img[data-w="${k}"]`);
+
+// sneeuw: vaste vlokken, de plek volgt uit de tijd (geen toeval per beeld)
+const FL = []; { let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for(let i = 0; i < 70; i++){ const d = document.createElement("div"); d.className = "flake"; const r = 3 + rnd() * 7; d.style.width = d.style.height = r + "px"; d.style.opacity = (.25 + rnd() * .55).toFixed(2);
+    $("snow").appendChild(d); FL.push({d, x:rnd() * 1080, y:rnd() * 1920, v:60 + rnd() * 130, a:20 + rnd() * 40, p:rnd() * 6.28}); } }
+
+// ---------- hulpjes ----------
+const clamp = x => Math.max(0, Math.min(1, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = x => 1 - Math.pow(1 - x, 3);                      // rustig uitlopen
+const eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerp = (a, b, x) => a + (b - a) * x;
+const inOut = (t, a, b, f = .5) => Math.min(eo(seg(t, a, a + f)), 1 - eo(seg(t, b - f, b)));   // 0 → 1 → 0 tussen a en b
+const tf = (el, x, y, s = 1, r = 0) => { el.style.transform = `translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`; };
+function head(id, t, a, b, y){ const e = $(id), o = inOut(t, a, b); e.style.opacity = o; tf(e, 0, y + (1 - eo(seg(t, a, a + .6))) * 50 - eo(seg(t, b - .5, b)) * 30); }
+
+// ---------- de tijdlijn ----------
+function render(t){
+  t = Math.max(0, Math.min(DUR, t));
+  // achtergrond: bergen schuiven langzaam (parallax), sneeuw valt
+  $("m3").setAttribute("transform", `translate(0 ${80 - t * 2})`); $("m2").setAttribute("transform", `translate(0 ${90 - t * 3})`); $("m1").setAttribute("transform", `translate(0 ${100 - t * 4})`);
+  for(const f of FL){ const y = (f.y + f.v * t) % 1960 - 20, x = f.x + Math.sin(f.p + t * .8) * f.a; f.d.style.transform = `translate(${x}px,${y}px)`; }
+
+  // koppen
+  head("h1", t, .2, 3.1, 640);
+  head("h2", t, 3.2, 8.1, 250);
+  head("h3", t, 8.3, 13.1, 250);
+  head("h4", t, 13.3, 17.1, 250);
+  head("h5", t, 17.3, 22.1, 250);
+  head("h6", t, 22.3, 26.1, 250);
+
+  // ----- telefoon A: plek, maat, draaiing -----
+  const pA = $("pA"); let x = 240, y = 560, s = 1, r = 0, o = 1;
+  const enter = eo(seg(t, 3.0, 4.0)); y = lerp(2000, 560, enter);                                   // van onderen in beeld
+  const toW = eio(seg(t, 10.2, 11.0)), backW = eio(seg(t, 12.8, 13.6)), side = toW - backW;        // opzij voor de Watch
+  x += side * -250; s -= side * .2; r += side * -5;
+  const pair = eio(seg(t, 17.0, 17.8)) - eio(seg(t, 21.8, 22.5));                                  // naast telefoon B
+  x += pair * -210; s -= pair * .2; r += pair * -4; y += pair * 40;
+  const out = eio(seg(t, 25.9, 26.6)); y += out * 1600; o = t < 3 ? 0 : 1 - seg(t, 26.3, 26.6);
+  tf(pA, x, y, s, r); pA.style.opacity = o;
+  // schermen in telefoon A (overvloeien)
+  // elk volgend scherm komt óver het vorige heen (de plaatjes liggen in deze volgorde op elkaar), zodat er nooit een bleek tussenbeeld is
+  const show = {map:1, route:seg(t, 5.2, 5.9), nav:seg(t, 8.2, 8.9), "3d":seg(t, 13.2, 13.9), "group-map":seg(t, 17.0, 17.7), me:seg(t, 22.0, 22.7)};
+  for(const k in show) img(k).style.opacity = show[k];
+  img("3d").style.transform = `scale(${1 + eo(seg(t, 13.2, 17.7)) * .05})`;                        // langzaam de bergen in
+  // de tik op "Today's day route"
+  const tp = seg(t, 4.7, 5.4), tap = $("tap"); tap.style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; tf(tap, 222, 1009, .4 + tp * 1.1);
+
+  // ----- telefoon B (Vandaag), alleen in scène 5 -----
+  const pB = $("pB"), pb = eo(seg(t, 17.2, 18.1)), pbOut = eio(seg(t, 21.8, 22.5));
+  tf(pB, lerp(1200, 500, pb) + pbOut * 700, 640, .8, 5 - pbOut * 4); pB.style.opacity = t > 17.2 && t < 22.5 ? 1 : 0; img("today").style.opacity = 1;
+
+  // ----- Watch -----
+  const w = $("watch"), wi = eo(seg(t, 10.4, 11.2)), wo = eio(seg(t, 12.7, 13.4));
+  // het tikpatroon: rechts = drie snelle tikken; daarna nog een keer
+  let shake = 0; for(const t0 of [11.45, 11.61, 11.77, 12.25, 12.41, 12.57]){ const u = (t - t0) / .13; if(u > 0 && u < 1) shake = Math.sin(u * Math.PI * 2) * (1 - u) * 16; }
+  tf(w, lerp(1200, 540, wi) + wo * 700 + shake, 900, 1, lerp(10, 4, wi) + shake * .12); w.style.opacity = t > 10.4 && t < 13.4 ? 1 : 0;
+  wimg("1-nav").style.opacity = 1; wimg("3-wx").style.opacity = 0;
+  for(const [id, t0] of [["r1", 11.45], ["r2", 12.25]]){ const u = seg(t, t0, t0 + .7), e = $(id); e.style.opacity = u > 0 && u < 1 ? (1 - u) * .9 : 0; tf(e, 540, 900, 1 + u * .28, 4); }
+
+  // ----- cijfers van de skidag -----
+  const st = $("stats"), so = inOut(t, 22.8, 26.0, .45), c = eo(seg(t, 23.0, 24.2));
+  st.style.opacity = so; tf(st, 0, 1290 + (1 - eo(seg(t, 22.8, 23.4))) * 60);
+  $("s1").textContent = (31.4 * c).toFixed(1); $("s2").textContent = Math.round(6200 * c).toLocaleString("en-US"); $("s3").textContent = Math.round(71 * c);
+
+  // ----- afsluiting -----
+  const en = $("end"), eoo = eo(seg(t, 26.4, 27.2)); en.style.opacity = eoo; tf(en, 0, 360 + (1 - eoo) * 80);
+  const ic = en.querySelector("img"), bounce = seg(t, 26.4, 27.4); ic.style.transform = `scale(${bounce < 1 ? 1 + Math.sin(bounce * Math.PI) * .12 * (1 - bounce) + (bounce - 1) * .4 * (1 - bounce) : 1})`;
+  const bt = en.querySelector(".btn"); bt.style.opacity = seg(t, 27.3, 27.9); bt.style.transform = `translateY(${(1 - eo(seg(t, 27.3, 27.9))) * 30}px)`;
+  en.querySelector("small").style.opacity = seg(t, 27.8, 28.4);
+}
+window.seek = render; window.DUR = DUR;
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map(i => i.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + i.src.split("/").pop(); }))]).then(() => { render(0); document.body.dataset.ready = "1"; });
+
+// in een gewone browser: passend maken en afspelen (R = opnieuw, P = pauze)
+if(new URLSearchParams(location.search).has("play")){
+  const fit = () => { const k = Math.min(innerWidth / 1080, innerHeight / 1920); $("stage").style.transform = `translate(${(innerWidth - 1080 * k) / 2}px,${(innerHeight - 1920 * k) / 2}px) scale(${k})`; };
+  fit(); addEventListener("resize", fit);
+  let t0 = performance.now(), paused = 0, at = 0;
+  const loop = now => { if(!paused) at = ((now - t0) / 1000) % (DUR + 2); render(Math.min(at, DUR)); requestAnimationFrame(loop); };
+  addEventListener("keydown", e => { if(e.key === "r") t0 = performance.now(); if(e.key === "p"){ paused = !paused; if(!paused) t0 = performance.now() - at * 1000; } });
+  window.ready.then(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>
