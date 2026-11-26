@@ -24,3 +24,7 @@ Opnieuw maken: `python3 tools/promo-voice.py <map met het stemmodel> [stem]`. He
 ## Een dag met Skipilot
 
 `skipilot-promo-day-en.mp4`: 25 s, een skidag van 08:45 tot 17:15 met een klok die doortikt (`promo-day.html`; maken met `PAGE=promo-day node tools/promo-video.mjs en`). De tijden van de klok staan in `CLOCK`, de tikken op het scherm in `TAPSCR`. Het scherm met "Lifts close in 25 min" komt uit `node tools/promo-shots.mjs en closing`.
+
+## Follow the line (getekend)
+
+`skipilot-promo-line-en.mp4`: 20 s, een getekende animatie in één doorlopend shot (`promo-line.html`; maken met `PAGE=promo-line node tools/promo-video.mjs en`). Alles is met code getekend als SVG; alleen het pictogram is een bestand. De route staat bovenin als rijen punten (`A`, `LIFT`, `B`, `C`), het tempo in `dist(t)`, de camera en de inzoom in `render`.
