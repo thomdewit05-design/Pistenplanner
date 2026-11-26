@@ -20,3 +20,7 @@ Opnieuw maken: `python3 tools/promo-voice.py <map met het stemmodel> [stem]`. He
 ## De Watch-truc
 
 `skipilot-promo-watch-en.mp4`: 13 s, alleen de Apple Watch: links voelt anders dan rechts (`promo-watch.html`; maken met `PAGE=promo-watch node tools/promo-video.mjs en`). De schermen met de grote pijl (`shots/watch-en/left.png`, `right.png`) komen uit de simulator: de voorbeeldstand van de Watch-app kent de scènes `left` en `right`, en de bouwstap "Watch-schermafbeeldingen" legt ze vast. De tikpatronen in de animatie zijn die van de app (`Signal.pattern`).
+
+## Een dag met Skipilot
+
+`skipilot-promo-day-en.mp4`: 25 s, een skidag van 08:45 tot 17:15 met een klok die doortikt (`promo-day.html`; maken met `PAGE=promo-day node tools/promo-video.mjs en`). De tijden van de klok staan in `CLOCK`, de tikken op het scherm in `TAPSCR`. Het scherm met "Lifts close in 25 min" komt uit `node tools/promo-shots.mjs en closing`.

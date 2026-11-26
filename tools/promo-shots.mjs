@@ -38,6 +38,14 @@ if(want("map")) await shot("map");
 // Vandaag (weer, sneeuw, liften) en Ik (skidag in cijfers)
 if(want("today")){ await p.evaluate(() => { setTab("today"); return 0; }); await p.waitForTimeout(2500); await shot("today"); }
 if(want("me")){ await p.evaluate(() => { setTab("me"); return 0; }); await p.waitForTimeout(2500); await shot("me"); }
+// Vandaag aan het eind van de dag: de liften sluiten over 25 minuten (op de klok van het skigebied; lukt niet vlak voor middernacht)
+if(want("closing")){
+  const ok = await p.evaluate(() => { const d = zoned(Date.now() + 25 * 60000); if(d.getDate() !== zoned().getDate()) return false;
+    const keep = S.liftClose; S.liftClose = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); setTab("today"); window.__keepClose = keep; return true; });
+  await p.waitForTimeout(2500);
+  if(ok && await p.evaluate(() => !!document.querySelector("#today .closing-card"))) await shot("today-closing"); else console.log("closing: de waarschuwing is nu niet na te bootsen");
+  await p.evaluate(() => { if(window.__keepClose) S.liftClose = window.__keepClose; return 0; });
+}
 await p.evaluate(() => { setTab("map"); return 0; }); await p.waitForTimeout(800);
 // de groep op de kaart: nagebootste groepsleden rond het midden van het gebied
 if(want("group")){
