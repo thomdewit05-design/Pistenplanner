@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: the film</title>
+<!-- De hoofdfilm: 1080×1920, 30 s, 60 beelden per seconde. Bewegende beelden uit de echte app (tools/promo-clips.mjs) in een
+     toestel met diepte en licht, rustige typografie. seek(t) zet de tijdlijn en wacht tot het juiste beeld van een fragment
+     geladen is (PAGE=promo-film FPS=60 node tools/promo-video.mjs en); ?play speelt af in de browser.
+     Het geluid (stem en effecten) komt uit tools/promo-sound.py; de tijden daar horen bij de scènes hier. -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#060B12;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #bgclip{width:1080px;height:1920px;object-fit:cover;opacity:0;filter:saturate(1.05)}
+  #bgshade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(6,11,18,.86) 0%,rgba(6,11,18,.35) 45%,rgba(6,11,18,.9) 100%)}
+  #base{width:1080px;height:1920px;background:radial-gradient(120% 70% at 50% 0%,#12263C 0%,#0A1420 55%,#060B12 100%)}
+  #glow{width:1500px;height:1500px;left:-210px;border-radius:50%;background:radial-gradient(closest-side,rgba(31,127,214,.5),rgba(31,127,214,.14) 55%,transparent 72%);opacity:0}
+  #brand{width:1080px;height:1920px;background:linear-gradient(180deg,#0F1C2B 0%,#12447C 52%,#1F7FD6 100%);opacity:0}
+  #vig{width:1080px;height:1920px;background:radial-gradient(90% 70% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%);pointer-events:none}
+  .persp{width:1080px;height:1920px;perspective:2600px;perspective-origin:50% 45%}
+  .dev{position:absolute;left:0;top:0;transform-style:preserve-3d;will-change:transform,opacity;opacity:0}
+  .phone{width:620px;height:1297px}
+  .phone .body{position:absolute;inset:0;border-radius:92px;background:linear-gradient(145deg,#8E97A3 0%,#2A313B 22%,#141920 50%,#3B434F 80%,#9AA3AF 100%);box-shadow:0 0 0 2px rgba(255,255,255,.08) inset}
+  .phone .bezel{position:absolute;inset:7px;border-radius:86px;background:#05080C}
+  .phone .scr{position:absolute;left:20px;top:20px;width:580px;height:1257px;border-radius:72px;overflow:hidden;background:#0b0f14}
+  .scr img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  .glare{position:absolute;inset:0;border-radius:92px;background:linear-gradient(115deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.05) 22%,transparent 40%,transparent 70%,rgba(255,255,255,.07) 100%);pointer-events:none}
+  .floor{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.6),transparent);filter:blur(10px)}
+  #tap{width:150px;height:150px;border-radius:50%;border:8px solid #fff;opacity:0;z-index:4;box-shadow:0 0 30px rgba(255,255,255,.6)}
+  #wipe{position:absolute;inset:0;background:#fff;opacity:0;z-index:5}
+  .watch{width:470px;height:560px}
+  .watch .band{position:absolute;left:92px;width:286px;height:420px;background:linear-gradient(90deg,#10161d,#2a3542 45%,#10161d);border-radius:44px}
+  .watch .case{position:absolute;inset:0;border-radius:120px;background:linear-gradient(145deg,#9AA3AF 0%,#2A313B 20%,#0b0f14 50%,#3B434F 82%,#9AA3AF 100%)}
+  .watch .inner{position:absolute;inset:9px;border-radius:112px;background:#05080C}
+  .watch .wscr{position:absolute;left:27px;top:32px;width:416px;height:496px;border-radius:92px;overflow:hidden;background:#000}
+  .watch .crown{position:absolute;right:-20px;top:150px;width:24px;height:92px;border-radius:10px;background:linear-gradient(90deg,#3B434F,#9AA3AF)}
+  .watch .wglare{position:absolute;inset:0;border-radius:120px;background:linear-gradient(120deg,rgba(255,255,255,.2) 0%,transparent 34%,transparent 75%,rgba(255,255,255,.06) 100%)}
+  .ring{width:470px;height:560px;border-radius:132px;border:5px solid #FFC400;opacity:0}
+  .line{left:84px;width:912px;overflow:hidden}
+  .line div{font-weight:700;font-size:98px;line-height:1.06;letter-spacing:-2.5px}
+  .line.sub div{font-weight:500;font-size:50px;line-height:1.2;letter-spacing:-.5px;color:#B9CCE0}
+  .line.c{text-align:center}
+  .line em{font-style:normal;color:#FFC400}
+  .lab{left:0;width:1080px;text-align:center;font-weight:700;font-size:88px;line-height:1.1;letter-spacing:-2px;opacity:0}
+  #end{left:0;width:1080px;text-align:center;opacity:0}
+  #end img{width:300px;height:300px;border-radius:68px;box-shadow:0 50px 120px rgba(0,0,0,.5)}
+  #end h1{margin:56px 0 0;font-weight:700;font-size:176px;letter-spacing:-5px;line-height:1}
+  #end p{margin:20px 0 0;font-weight:500;font-size:56px;color:#D7E6F5;letter-spacing:-.5px}
+  #end .btn{display:inline-block;margin-top:70px;padding:30px 62px;border-radius:64px;background:#fff;color:#0F1C2B;font-weight:700;font-size:54px;letter-spacing:-.5px}
+  #end small{display:block;margin-top:34px;font-weight:500;font-size:38px;color:#B9CCE0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="base" class="abs"></div>
+  <img id="bgclip" class="abs" alt=""><div id="bgshade" class="abs" style="opacity:0"></div>
+  <div id="glow" class="abs"></div>
+  <div id="brand" class="abs"></div>
+
+  <div class="abs persp">
+    <div id="fl" class="floor abs"></div>
+    <div id="f1" class="dev phone"><div class="body"></div><div class="bezel"></div><div class="scr"><img data-k="group-map" style="opacity:1"></div><div class="glare"></div></div>
+    <div id="f3" class="dev phone"><div class="body"></div><div class="bezel"></div><div class="scr"><img data-k="me" style="opacity:1"></div><div class="glare"></div></div>
+    <div id="f2" class="dev phone"><div class="body"></div><div class="bezel"></div><div class="scr"><img data-k="today-closing" style="opacity:1"></div><div class="glare"></div></div>
+    <div id="pA" class="dev phone"><div class="body"></div><div class="bezel"></div>
+      <div class="scr"><img id="sMap" data-k="map"><img id="sClip"><img id="sNav" data-k="nav"><div id="wipe"></div><div id="tap" class="abs"></div></div><div class="glare"></div></div>
+    <div id="rings"></div>
+    <div id="wA" class="dev watch"><div class="band" style="top:-330px"></div><div class="band" style="bottom:-330px"></div><div class="crown"></div><div class="case"></div><div class="inner"></div>
+      <div class="wscr"><img data-w="1-nav" style="position:absolute;width:100%;height:100%"><img data-w="left" style="position:absolute;width:100%;height:100%"><img data-w="right" style="position:absolute;width:100%;height:100%"></div><div class="wglare"></div></div>
+  </div>
+
+  <div id="texts"></div>
+  <div id="l1" class="abs lab"></div><div id="l2" class="abs lab"></div><div id="l3" class="abs lab"></div>
+  <div id="end" class="abs"><img src="../../icons/icon-512.png" alt=""><h1>Skipilot</h1><p></p><div class="btn"></div><small></small></div>
+  <div id="vig" class="abs"></div>
+</div>
+<script>
+// ---------- teksten: [van, tot, y, regels, klasse per regel] ----------
+const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 30;
+const TEXT = [
+  [0.5, 3.1, 700, ["Every mountain has", "a thousand ways <em>down.</em>"], "c"],
+  [3.5, 5.3, 215, ["One tap."], ""],
+  [5.4, 8.1, 215, ["Your whole ski day,", "<em>planned.</em>"], ""],
+  [8.5, 13.0, 215, ["See it in <em>3D</em>", "before you go."], ""],
+  [13.5, 15.9, 215, ["Then put your", "phone away."], ""],
+  [16.0, 19.0, 215, ["Your Watch <em>taps</em>", "your wrist."], ""],
+];
+const LABS = ["Find your friends.", "Beat the last lift.", "Remember the day."];
+const END = ["Your navigation on the slopes.", "Free on the App Store", "iPhone · iPad · Apple Watch"];
+const CLIP = {zoom:150, orbit:150};            // aantal beelden per fragment (tools/promo-clips.mjs)
+const $ = id => document.getElementById(id);
+document.querySelectorAll("img[data-k]").forEach(i => i.src = `shots/${LANG}/${i.dataset.k}.png`);
+document.querySelectorAll("img[data-w]").forEach(i => i.src = `shots/watch-${LANG}/${i.dataset.w}.png`);
+$("end").querySelector("p").textContent = END[0]; $("end").querySelector(".btn").textContent = END[1]; $("end").querySelector("small").textContent = END[2];
+LABS.forEach((s, i) => $("l" + (i + 1)).textContent = s);
+const texts = TEXT.map(([a, b, y, lines, cls]) => lines.map((html, i) => { const d = document.createElement("div"); d.className = "abs line " + cls; d.innerHTML = `<div>${html}</div>`; $("texts").appendChild(d); return {d, a:a + i * .16, b, y:y + i * 106}; })).flat();
+const wimg = k => document.querySelector(`#wA img[data-w="${k}"]`);
+const rings = [0, 1, 2, 3, 4, 5, 6].map(() => { const r = document.createElement("div"); r.className = "dev ring"; r.style.opacity = 0; $("rings").appendChild(r); return r; });
+
+const clamp = x => Math.max(0, Math.min(1, x)), seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = x => 1 - Math.pow(1 - x, 4), eio = x => x < .5 ? 8 * x * x * x * x : 1 - Math.pow(-2 * x + 2, 4) / 2, lerp = (a, b, x) => a + (b - a) * x;
+// een toestel neerzetten: midden op (cx, cy), met schaal en draaiing in de ruimte
+function place(el, w, h, cx, cy, s, rx, ry, rz, z = 0){ el.style.transform = `translate3d(${cx - w / 2}px,${cy - h / 2}px,${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg) scale(${s})`; }
+// tussen sleutelstanden [t, waarde...] rustig overgaan
+function key(t, ks){ if(t <= ks[0][0]) return ks[0].slice(1); for(let i = 0; i < ks.length - 1; i++){ const a = ks[i], b = ks[i + 1]; if(t <= b[0]){ const u = eio(seg(t, a[0], b[0])); return a.slice(1).map((v, k) => lerp(v, b[k + 1], u)); } } return ks[ks.length - 1].slice(1); }
+// het tikpatroon op de Watch: eerst links (tik-tik … tik-tik), dan rechts (tik-tik-tik)
+const TAPS = [...[0, .16, .61, .77].map(d => ({t:16.9 + d, dir:-1})), ...[0, .16, .32].map(d => ({t:18.05 + d, dir:1}))];
+window.TAPS = TAPS.map(p => p.t);
+
+let pending = [];
+function frame(imgEl, name, i){ const src = `clips/${LANG}/${name}/${String(Math.max(0, Math.min(CLIP[name] - 1, i))).padStart(4, "0")}.jpg`;
+  if(imgEl.dataset.src !== src){ imgEl.dataset.src = src; imgEl.src = src; pending.push(imgEl.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + src; })); } }
+
+function render(t){
+  t = Math.max(0, Math.min(DUR, t));
+  // ----- achtergrond -----
+  // opening: de 3D-berg uit de app, donker, langzaam draaiend
+  const open = Math.min(seg(t, 0, 1.2), 1 - seg(t, 2.9, 3.7));
+  if(t < 3.8) frame($("bgclip"), "orbit", Math.round(t / 3.8 * 46));
+  $("bgclip").style.opacity = open; $("bgshade").style.opacity = open; $("bgclip").style.transform = `scale(${1.12 + t * .012})`;
+  const [gy, go] = key(t, [[3.2, 900, 0], [4.2, 1000, .9], [13.2, 900, 1], [15, 1000, .8], [19, 1000, .8], [20, 1150, 1], [24, 1150, 1], [24.8, 1100, 0]]);
+  $("glow").style.transform = `translate(0px,${gy - 750}px)`; $("glow").style.opacity = go * (.85 + Math.sin(t * .9) * .1);
+  $("brand").style.opacity = eio(seg(t, 24.1, 25.2));
+
+  // ----- tekst: regel voor regel omhoog uit een masker -----
+  for(const x of texts){ const i = eo(seg(t, x.a, x.a + .7)), o = seg(t, x.b - .35, x.b); x.d.style.opacity = t >= x.a && t <= x.b ? 1 - o : 0;
+    x.d.style.transform = `translate(0px,${x.y - o * 24}px)`; x.d.firstChild.style.transform = `translateY(${(1 - i) * 110}%)`; }
+
+  // ----- de telefoon -----
+  // sleutelstanden: [t, cx, cy, schaal, rotX, rotY, rotZ]
+  const P = key(t, [[3.2, 1500, 1260, .92, 6, -42, 6], [4.4, 560, 1210, .86, 4, -14, 1.5], [8.1, 540, 1200, .88, 3, -9, 1], [9.0, 540, 1215, .93, 2, 0, 0], [13.0, 540, 1205, .96, 2, 6, 0],
+    [14.0, 500, 1210, .88, 3, 12, -1], [16.0, 330, 1190, .7, 4, 28, -2], [19.0, 300, 1190, .68, 4, 30, -2], [19.9, -500, 1250, .6, 4, 46, -6]]);
+  const pA = $("pA"); place(pA, 620, 1297, P[0], P[1], P[2], P[3], P[4] + Math.sin(t * .7) * 1.2, P[5]); pA.style.opacity = t > 3.2 && t < 19.95 ? 1 : 0;
+  pA.querySelector(".glare").style.backgroundPosition = `${P[4] * 6}px 0`;
+  // wat er op het scherm staat
+  const showClip = t >= 4.95 && t < 13.25;
+  $("sMap").style.opacity = t < 5.2 ? 1 : 0; $("sClip").style.opacity = showClip ? 1 : 0; $("sNav").style.opacity = eio(seg(t, 13.0, 13.5));
+  if(t >= 4.6 && t < 8.3) frame($("sClip"), "zoom", Math.round(seg(t, 5.0, 8.25) * (CLIP.zoom - 1)));
+  else if(t >= 8.3 && t < 13.6) frame($("sClip"), "orbit", Math.round(seg(t, 8.3, 13.3) * (CLIP.orbit - 1)));
+  const tp = seg(t, 4.55, 5.15), tap = $("tap"); tap.style.opacity = tp > 0 && tp < 1 ? (1 - tp) : 0; tap.style.transform = `translate(${215 * 1.349 - 75}px,${815 * 1.349 - 75}px) scale(${.25 + tp * 1.5})`;
+  $("wipe").style.opacity = Math.max(1 - Math.abs(seg(t, 4.85, 5.25) * 2 - 1), 1 - Math.abs(seg(t, 8.15, 8.5) * 2 - 1)) * .55;
+  const fl = $("fl"); fl.style.width = "760px"; fl.style.height = "120px"; fl.style.transform = `translate(${P[0] - 380}px,${P[1] + 620 * P[2]}px)`; fl.style.opacity = t > 3.6 && t < 19.5 ? .8 : 0;
+
+  // ----- de Watch -----
+  const Wk = key(t, [[15.4, 1500, 1180, 1.05, 4, -40, 8], [16.4, 720, 1150, 1.12, 3, -16, 3], [19.0, 710, 1150, 1.14, 3, -13, 3], [19.9, 1600, 1200, 1, 4, -44, 8]]);
+  let shake = 0; for(const p of TAPS){ const u = (t - p.t) / .15; if(u > 0 && u < 1) shake = p.dir * Math.sin(u * Math.PI) * (1 - u * .5) * 26; }
+  const wA = $("wA"); place(wA, 470, 560, Wk[0] + shake, Wk[1], Wk[2], Wk[3], Wk[4] + shake * .25, Wk[5] + shake * .12, 120); wA.style.opacity = t > 15.4 && t < 19.95 ? 1 : 0;
+  const ws = t < 16.75 ? "1-nav" : t < 17.95 ? "left" : "right"; for(const k of ["1-nav", "left", "right"]) wimg(k).style.opacity = k === ws ? 1 : 0;
+  TAPS.forEach((p, i) => { const u = seg(t, p.t, p.t + .6), e = rings[i]; e.style.opacity = u > 0 && u < 1 ? (1 - u) * .9 : 0; place(e, 470, 560, Wk[0], Wk[1], Wk[2] * (1 + u * .3), Wk[3], Wk[4], Wk[5], 110); });
+
+  // ----- drie toestellen: groep, laatste lift, je dag -----
+  [["f1", 19.7, 215, 14, "l1"], ["f2", 21.0, 540, 0, "l2"], ["f3", 22.3, 865, -14, "l3"]].forEach(([id, t0, cx, ry, lab], i) => {
+    const el = $(id), u = eo(seg(t, t0, t0 + .9)), out = eio(seg(t, 24.0, 24.7)), focus = Math.min(seg(t, t0, t0 + .5), 1 - seg(t, t0 + 1.15, t0 + 1.5)) * (i < 2 ? 1 : 0) + (i === 2 ? seg(t, t0, t0 + .5) : 0);
+    place(el, 620, 1297, cx, lerp(2500, 1240, u) + out * 1500 - focus * 40, .5 + focus * .06, 5, ry * (1 - focus * .4), 0, i === 1 ? 40 : 0); el.style.opacity = t > t0 && t < 24.75 ? 1 : 0; el.style.filter = `brightness(${.62 + focus * .38})`;
+    const L = $(lab), on = i < 2 ? Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, t0 + 1.2, t0 + 1.4)) : Math.min(seg(t, t0 + .1, t0 + .5), 1 - seg(t, 23.9, 24.2));
+    L.style.opacity = on; L.style.transform = `translate(0px,${300 + (1 - eo(seg(t, t0 + .1, t0 + .6))) * 40}px)`; });
+
+  // ----- slot -----
+  const en = $("end"), eu = eo(seg(t, 24.9, 25.9)); en.style.opacity = seg(t, 24.9, 25.4); en.style.transform = `translate(0px,${430 + (1 - eu) * 50}px)`;
+  en.querySelector("img").style.transform = `scale(${lerp(.8, 1, eu)})`;
+  en.querySelector("p").style.opacity = seg(t, 25.6, 26.2); const bt = en.querySelector(".btn"); bt.style.opacity = seg(t, 26.2, 26.8); bt.style.transform = `translateY(${(1 - eo(seg(t, 26.2, 26.9))) * 24}px)`;
+  en.querySelector("small").style.opacity = seg(t, 26.7, 27.3);
+  $("vig").style.opacity = 1 - eio(seg(t, 24.1, 25.2)) * .6;
+}
+window.seek = async t => { pending = []; render(t); if(pending.length) await Promise.all(pending); };
+window.DUR = DUR;
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].filter(i => i.src).map(i => i.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + i.src.split("/").pop(); }))]).then(() => window.seek(0)).then(() => { document.body.dataset.ready = "1"; });
+if(new URLSearchParams(location.search).has("play")){
+  const fit = () => { const k = Math.min(innerWidth / 1080, innerHeight / 1920); $("stage").style.transform = `translate(${(innerWidth - 1080 * k) / 2}px,${(innerHeight - 1920 * k) / 2}px) scale(${k})`; };
+  fit(); addEventListener("resize", fit);
+  let t0 = performance.now(); const loop = now => { render(((now - t0) / 1000) % (DUR + 1.5)); requestAnimationFrame(loop); };
+  addEventListener("keydown", e => { if(e.key === "r") t0 = performance.now(); }); window.ready.then(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>

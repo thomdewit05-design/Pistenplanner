@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 const req = createRequire(import.meta.url);
 const pw = await import("playwright").catch(() => req("playwright"));
 const { chromium } = pw.chromium ? pw : pw.default;
-const ROOT = new URL("..", import.meta.url).pathname, PORT = 8793, FPS = 30;
+const ROOT = new URL("..", import.meta.url).pathname, PORT = 8793, FPS = +process.env.FPS || 30;   // FPS=60 voor de hoofdfilm
 const PAGE = process.env.PAGE || "promo";   // PAGE=promo-tiktok voor de TikTok-versie
 const lang = process.argv[2] || "en", stills = process.argv[3] === "--stills" ? process.argv[4].split(",").map(Number) : null;
 const TYPES = {".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".svg":"image/svg+xml", ".png":"image/png", ".jpg":"image/jpeg", ".woff2":"font/woff2"};
