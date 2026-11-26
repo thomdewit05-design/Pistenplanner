@@ -10,3 +10,9 @@
 - Video opnieuw maken: `node tools/promo-video.mjs en`. Losse beelden om na te kijken: `node tools/promo-video.mjs en --stills 5,12,24 <map>`.
 
 Een andere taal: de schermen vastleggen in die taal, de Watch-schermen kopiëren, `TEXT` vertalen en de video maken met die taalcode.
+
+## Voice-over
+
+`skipilot-promo-tiktok-en-voice.wav` / `.mp3`: de Engelse stem bij de TikTok-versie, 22 s, elke zin op het begin van zijn scène. `skipilot-promo-tiktok-en-voiced.mp4` is de video met die stem eronder.
+
+Opnieuw maken: `python3 tools/promo-voice.py <map met het stemmodel> [stem]`. Het model is Kokoro (`pip install kokoro-onnx soundfile`; `kokoro-v1.0.onnx` en `voices-v1.0.bin` van de releases van github.com/thewh1teagle/kokoro-onnx) en hoort niet in het project. De zinnen en hun tijden staan bovenin het script; "POV" en "Skipilot" zijn daar anders geschreven zodat ze goed worden uitgesproken.
