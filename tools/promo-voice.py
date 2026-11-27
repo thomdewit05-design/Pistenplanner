@@ -61,7 +61,18 @@ SCRIPTS = {
     (11.10, 13.20, "The one who gets lost. Which lift?"),
     (13.35, 15.45, "The photographer. So many photos."),
     (15.65, 18.00, "Tag yours.")]),
+  # quiz: de tijden horen bij promo-quiz.html (T0 = 2.6, elke ronde 4 s: 3 s aftellen, dan het antwoord)
+  "quiz": (26.0, [
+    (0.15, 2.45, "Guess the ski resort. Ready?"),
+    (2.65, 3.55, "Number one."), (5.65, 6.55, "Lay twah valay!"),
+    (6.65, 7.55, "Number two."), (9.65, 10.55, "Arlberg!"),
+    (10.65, 11.55, "Number three."), (13.65, 14.55, "Zermatt!"),
+    (14.65, 15.55, "Number four."), (17.65, 18.55, "Whistler!"),
+    (18.65, 19.55, "Last one."), (21.65, 22.55, "Port doo so-lay!"),
+    (22.75, 26.00, "How many did you get? Comment your score.")]),
 }
+# Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
+SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)]}
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 
@@ -89,7 +100,13 @@ for name in WANT:
     out = np.zeros(int(DUR * sr), dtype=np.float32)
     for start, x in clips:
         i = int(start * sr); x = x[:max(0, len(out) - i)]; out[i:i + len(x)] += x
-    out = out / (float(np.max(np.abs(out))) or 1.0) * 0.89                 # luid maar zonder vervorming
+    out = out / (float(np.max(np.abs(out))) or 1.0) * 0.82
+    for kind, t0 in SFX.get(name, []):                                       # effecten onder de stem
+        n = int((.12 if kind == "tick" else .9) * sr); tt = np.arange(n) / sr
+        if kind == "tick": fx = (np.sin(2 * np.pi * 1500 * tt) * .6 + np.sin(2 * np.pi * 2300 * tt) * .3) * np.exp(-tt / .015) * .32
+        else: fx = sum(np.sin(2 * np.pi * f * tt) * w for f, w in [(1318.5, .5), (1975.5, .3), (2637, .15)]) * np.exp(-tt / .28) * .34   # een heldere "ding" (E6, B6)
+        i = int(t0 * sr); fx = fx[:max(0, len(out) - i)].astype(np.float32); out[i:i + len(fx)] += fx
+    out = out / max(1.0, float(np.max(np.abs(out))) / 0.92)                 # luid maar zonder vervorming
     print(f"{name}: stem {VOICE}, {DUR:.0f} s")
     for start, end, a, b, sp, text in plan:
         late = end > b + .15 or end > DUR; bad += late

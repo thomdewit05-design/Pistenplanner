@@ -46,3 +46,12 @@ Alle vier Engels, 1080×1920, zonder geluid; ze delen `kit.js` (hulpjes en het a
 - `promo-resort.html` → `skipilot-promo-resort-en.mp4` (14 s): per skigebied, met de 3D-kaart beeldvullend. Het fragment komt uit `DSF=2.5 node tools/promo-clips.mjs en full 150`; naam en cijfers staan bovenin de pagina. Voor een ander gebied: `AREA` in `tools/promo-clips.mjs` aanpassen en opnieuw opnemen.
 - `promo-wrapped.html` → `skipilot-promo-wrapped-en.mp4` (15 s): "Your ski day, wrapped", alleen cijfers (voorbeeldgegevens in `STATS`).
 - `promo-types.html` → `skipilot-promo-types-en.mp4` (18 s): "Which skier are you?", zes types met een getekend pictogram (`TYPES`).
+
+## Guess the ski resort (quiz)
+
+`skipilot-promo-quiz-en-voiced.mp4` (met stem, tikken en "ding") en `skipilot-promo-quiz-en.mp4` (stil), 26 s. Vijf echte pistekaarten uit de app zonder naam, per kaart 3 seconden aftellen en dan het antwoord; gemaakt om uit te kijken.
+
+- Kaarten: `node tools/promo-maps.mjs` → `shots/maps/1.png …` (zonder zoekbalk, namen, nummers, toppen en hutten). De gebieden staan in `AREAS` in dat script.
+- Video: `promo-quiz.html` (rondes in `ROUNDS`), maken met `PAGE=promo-quiz node tools/promo-video.mjs en`.
+- Geluid: `python3 tools/promo-voice.py <map met het stemmodel> quiz` (stem en effecten; de tijden horen bij `T0`, `R` en `COUNT` in de pagina).
+- Een "Part 2": andere gebieden in `AREAS` en `ROUNDS`, en de antwoorden in het script "quiz" van `tools/promo-voice.py`.
