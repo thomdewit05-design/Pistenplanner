@@ -78,7 +78,7 @@ SCRIPTS = {
     (10.00, 12.35, "And just like that, we're in Italy!"),
     (12.45, 14.45, "Thirty-eight hundred metres up."),
     (14.60, 17.25, "Back to Switzerland, before the lifts close."),
-    (17.35, 19.95, "Back at four forty. Seventy-three kilometres. One tap."),
+    (17.35, 19.95, "Back by four forty. Seventy-three kilometres!"),
     (20.05, 22.00, "Which resort next? Comment below.")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
