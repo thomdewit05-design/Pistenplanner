@@ -11,7 +11,7 @@ const pop = (t, a, d = .4) => { const u = seg(t, a, a + d); return u > 0 ? lerp(
 const count = (t, a, d, v, dec = 0, loc = "en-US") => (v * eo(seg(t, a, a + d))).toLocaleString(loc, {minimumFractionDigits:dec, maximumFractionDigits:dec});
 let PENDING = [];
 // een beeld uit een fragment (store/video/clips/<taal>/<naam>/0000.jpg …) in een <img> zetten; seek wacht tot het geladen is
-function clipFrame(img, name, i, n){ const src = `clips/${LANG}/${name}/${String(Math.max(0, Math.min(n - 1, i))).padStart(4, "0")}.jpg`;
+function clipFrame(img, name, i, n){ const src = `clips/${window.CLIPS || LANG}/${name}/${String(Math.max(0, Math.min(n - 1, i))).padStart(4, "0")}.jpg`;
   if(img.dataset.src !== src){ img.dataset.src = src; img.src = src; PENDING.push(img.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + src; })); } }
 function boot(DUR, render){
   window.DUR = DUR;

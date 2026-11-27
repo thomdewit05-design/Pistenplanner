@@ -10,14 +10,14 @@ const req = createRequire(import.meta.url);
 const pw = await import("playwright").catch(() => req("playwright"));
 const { chromium } = pw.chromium ? pw : pw.default;
 const ROOT = new URL("..", import.meta.url).pathname, PORT = 8794, lang = process.argv[2] || "en";
-const OUT = join(ROOT, "store/video/shots", lang);
+const OUT = join(ROOT, "store/video/shots", lang + (process.env.TAG ? "-" + process.env.TAG : ""));
 const TYPES = {".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".svg":"image/svg+xml", ".png":"image/png", ".jpg":"image/jpeg", ".woff2":"font/woff2"};
 const server = createServer(async (rq, res) => {
   const p = decodeURIComponent(new URL(rq.url, "http://x").pathname); const f = join(ROOT, p === "/" ? "index.html" : p);
   try{ const b = await readFile(f); res.writeHead(200, {"Content-Type":TYPES[extname(f)] || "application/octet-stream"}); res.end(b); }catch(e){ res.writeHead(404); res.end(); }
 }).listen(PORT);
 await mkdir(OUT, {recursive:true});
-const AREA = "Les Trois Vallées";
+const AREA = process.env.AREA || "Les Trois Vallées", TAG = process.env.TAG ? "-" + process.env.TAG : "";   // TAG: eigen map per gebied, bv. en-zermatt
 const browser = await chromium.launch();
 const ctx = await browser.newContext({viewport:{width:430, height:932}, deviceScaleFactor:2, isMobile:true, hasTouch:true, serviceWorkers:"block", locale:lang, permissions:["geolocation"], geolocation:{latitude:45.33, longitude:6.58, accuracy:8}});
 await ctx.addInitScript(l => {
@@ -59,6 +59,10 @@ if(want("group")){
 }
 // dagroute op de winterkaart, en het paneel met de stappen
 await p.evaluate(() => { dayRoute(); return 0; }); await p.waitForTimeout(9000);
+// de cijfers van de dagroute zoals de app ze toont, voor de video
+{ const info = await p.evaluate(() => { const pk = document.getElementById("peek"); const nodes = S.path.flatMap(s => [s.e.a, s.e.b]).map(n => S.area.nodes[n]);
+    return {area:S.area.row[1], cc:S.area.row[2], peek:pk ? pk.innerText.replace(/\s+/g, " ").trim() : "", top:Math.max(...nodes.map(n => n.ele || 0)), line:S.steps.flatMap(s => s.line).filter((p, i) => i % 3 === 0).map(p => { const q = map.latLngToContainerPoint([p[0], p[1]]); return [Math.round(q.x), Math.round(q.y), +p[0].toFixed(4)]; }), minLat:Math.min(...nodes.map(n => n.lat)), maxLat:Math.max(...nodes.map(n => n.lat))}; });
+  await (await import("node:fs/promises")).writeFile(join(OUT, "route.json"), JSON.stringify(info, null, 1)); console.log("route:", JSON.stringify(info)); }
 if(want("route")) await shot("route");
 if(want("steps")){ await p.click("#peek .eta").catch(() => {}); await p.waitForTimeout(1500); await shot("steps"); await p.click("#handle").catch(() => {}); await p.waitForTimeout(800); }
 // 3D

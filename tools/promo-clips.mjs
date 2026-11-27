@@ -18,7 +18,7 @@ const server = createServer(async (rq, res) => {
   const p = decodeURIComponent(new URL(rq.url, "http://x").pathname); const f = join(ROOT, p === "/" ? "index.html" : p);
   try{ const b = await readFile(f); res.writeHead(200, {"Content-Type":TYPES[extname(f)] || "application/octet-stream"}); res.end(b); }catch(e){ res.writeHead(404); res.end(); }
 }).listen(PORT);
-const AREA = "Les Trois Vallées";
+const AREA = process.env.AREA || "Les Trois Vallées", TAG = process.env.TAG ? "-" + process.env.TAG : "";   // TAG: eigen map per gebied, bv. en-zermatt
 const browser = await chromium.launch();
 const ctx = await browser.newContext({viewport:{width:430, height:932}, deviceScaleFactor:+process.env.DSF || 1.5, isMobile:true, hasTouch:true, serviceWorkers:"block", locale:lang, permissions:["geolocation"], geolocation:{latitude:45.33, longitude:6.58, accuracy:8}});
 await ctx.addInitScript(l => { localStorage.setItem("pp-onboarded", "1"); localStorage.setItem("pp-new-2", "1"); localStorage.setItem("pp-lang", l); localStorage.setItem("pp-theme", "light"); }, lang);
@@ -27,7 +27,7 @@ await p.goto(`http://localhost:${PORT}/index.html`); await p.waitForFunction(() 
 await p.evaluate(async name => { closePicker(); const r = S.index.find(r => r[1] === name); localStorage.setItem("pp-dl-" + r[0], JSON.stringify({v:1, t:Date.now()})); await openArea(r[0]); document.documentElement.classList.add("ios"); return 0; }, AREA);
 await p.waitForTimeout(12000);
 const clean = () => p.evaluate(() => { document.getElementById("toast")?.classList.remove("on"); document.querySelectorAll(".ad-slot,.adsbygoogle,#adState").forEach(e => e.hidden = true); });
-const dirOf = async name => { const d = join(ROOT, "store/video/clips", lang, name); await rm(d, {recursive:true, force:true}); await mkdir(d, {recursive:true}); return d; };
+const dirOf = async name => { const d = join(ROOT, "store/video/clips", lang + TAG, name); await rm(d, {recursive:true, force:true}); await mkdir(d, {recursive:true}); return d; };
 const ease = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
 await p.evaluate(() => { dayRoute(); return 0; }); await p.waitForTimeout(9000); await clean();
 
