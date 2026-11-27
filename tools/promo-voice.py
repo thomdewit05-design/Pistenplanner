@@ -70,9 +70,21 @@ SCRIPTS = {
     (14.65, 15.55, "Number four."), (17.65, 18.55, "Whistler!"),
     (18.65, 19.55, "Last one."), (21.65, 22.55, "Port doo so-lay!"),
     (22.75, 26.00, "How many did you get? Comment your score.")]),
+  # zermatt: tijden horen bij promo-zermatt.html (vlucht 3.8–17 s, Italië bij 9.97 s, terug in Zwitserland bij 14.56 s)
+  "zermatt": (22.0, [
+    (0.10, 2.60, "Can one tap plan a full day, from Switzerland to Italy?"),
+    (3.90, 6.60, "Eight thirty, Zermatt. Let's find out."),
+    (6.90, 9.85, "Your Watch taps every turn. Phone stays in your pocket."),
+    (10.00, 12.35, "And just like that, we're in Italy!"),
+    (12.45, 14.45, "Thirty-eight hundred metres up."),
+    (14.60, 17.25, "Back to Switzerland, before the lifts close."),
+    (17.35, 19.95, "Back at four forty. Seventy-three kilometres. One tap."),
+    (20.05, 22.00, "Which resort next? Comment below.")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
-SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)]}
+SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
+       "zermatt": [("tick", 1.12), ("whoosh", 2.55), ("tick", 7.3), ("tick", 7.46), ("tick", 7.62), ("tick", 8.3), ("tick", 8.46), ("tick", 8.62),
+                   ("ding", 9.97), ("whoosh", 14.4), ("ding", 17.35), ("whoosh", 19.9)]}
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 
@@ -102,8 +114,12 @@ for name in WANT:
         i = int(start * sr); x = x[:max(0, len(out) - i)]; out[i:i + len(x)] += x
     out = out / (float(np.max(np.abs(out))) or 1.0) * 0.82
     for kind, t0 in SFX.get(name, []):                                       # effecten onder de stem
-        n = int((.12 if kind == "tick" else .9) * sr); tt = np.arange(n) / sr
-        if kind == "tick": fx = (np.sin(2 * np.pi * 1500 * tt) * .6 + np.sin(2 * np.pi * 2300 * tt) * .3) * np.exp(-tt / .015) * .32
+        n = int({"tick": .12, "whoosh": .8}.get(kind, .9) * sr); tt = np.arange(n) / sr
+        if kind == "whoosh":                                                 # ruis die aanzwelt en wegsterft, met een lowpass die meeloopt
+            rng = np.random.default_rng(int(t0 * 100)); nz = rng.standard_normal(n); env = np.sin(np.pi * tt / tt[-1]) ** 2; fx = np.zeros(n); y = 0.0
+            for j in range(n): a = .02 + .25 * env[j]; y += a * (nz[j] - y); fx[j] = y
+            fx = fx / (np.max(np.abs(fx)) or 1) * env * .3
+        elif kind == "tick": fx = (np.sin(2 * np.pi * 1500 * tt) * .6 + np.sin(2 * np.pi * 2300 * tt) * .3) * np.exp(-tt / .015) * .32
         else: fx = sum(np.sin(2 * np.pi * f * tt) * w for f, w in [(1318.5, .5), (1975.5, .3), (2637, .15)]) * np.exp(-tt / .28) * .34   # een heldere "ding" (E6, B6)
         i = int(t0 * sr); fx = fx[:max(0, len(out) - i)].astype(np.float32); out[i:i + len(fx)] += fx
     out = out / max(1.0, float(np.max(np.abs(out))) / 0.92)                 # luid maar zonder vervorming

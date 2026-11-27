@@ -105,13 +105,13 @@ function along(u){ const L = R.line, d = u * TOT; let i = 1; while(i < CUM.lengt
 function render(t){
   if(!R) return;
   // ----- opening: de telefoon met de echte kaart, een tik, de route -----
-  const P = $("pA"), zoom = eio(seg(t, 2.5, 3.6)), s = lerp(.95, 2.6, zoom);
-  P.style.transform = `translate(${230}px,${520 + lerp(0, 260, zoom)}px) scale(${s})`; P.style.opacity = 1 - seg(t, 3.25, 3.6); P.style.transformOrigin = "50% 40%";
+  const P = $("pA"), zoom = eio(seg(t, 2.5, 3.6)), s = lerp(1.12, 2.8, zoom);
+  P.style.transform = `translate(${230}px,${440 + lerp(0, 260, zoom)}px) scale(${s})`; P.style.opacity = 1 - seg(t, 3.25, 3.6); P.style.transformOrigin = "50% 40%";
   $("sRoute").style.opacity = seg(t, 1.25, 1.45);
   const fg = $("finger"), fu = seg(t, .55, 1.1); fg.style.opacity = t > .55 && t < 1.35 ? Math.min(1, fu * 3) * (1 - seg(t, 1.2, 1.35)) : 0;
-  tf(fg, lerp(400, 252, eo(fu)), lerp(1200, 1044, eo(fu)), 1 - seg(t, 1.05, 1.2) * .25);
-  const tp = seg(t, 1.1, 1.6); $("tap").style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; tf($("tap"), 215, 970, .3 + tp * 1.7);
-  const hk = $("hook"); hk.style.opacity = Math.min(seg(t, .05, .35), 1 - seg(t, 3.3, 3.6)); hk.style.transform = `scale(${pop(t, .05, .45) || .4})`;
+  tf(fg, lerp(420, 248, eo(fu)), lerp(1220, 1063, eo(fu)), 1 - seg(t, 1.05, 1.2) * .25);
+  const tp = seg(t, 1.1, 1.6); $("tap").style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; tf($("tap"), 215, 1050, .3 + tp * 1.7);
+  const hk = $("hook"); hk.style.opacity = Math.min(seg(t, .05, .35), 1 - seg(t, 2.6, 2.9)); hk.style.transform = `scale(${pop(t, .05, .45) || .4})`;
   $("bgintro").style.opacity = 1 - seg(t, 3.0, 3.6);
   // ----- de 3D-vlucht -----
   clipFrame($("clip"), "full", FIRST + Math.round(seg(t, 3.0, F1 + 1) * (FRAMES - 1 - FIRST)), FRAMES);
