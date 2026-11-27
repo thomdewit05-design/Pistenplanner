@@ -80,11 +80,22 @@ SCRIPTS = {
     (14.60, 17.25, "Back to Switzerland, before the lifts close."),
     (17.35, 19.95, "Back by four forty. Seventy-three kilometres!"),
     (20.05, 22.00, "Which resort next? Comment below.")]),
+  # before: tijden horen bij promo-before.html (punten van 2,9 s vanaf 2,2 s, vinkje 2,3 s na het begin, slot vanaf 19,6 s)
+  "before": (22.0, [
+    (0.10, 2.15, "Do this before your ski trip. Save it!"),
+    (2.30, 5.05, "One. Plan the trip. Countdown, weather, packing list."),
+    (5.20, 7.95, "Two. Save the map offline. No signal? No problem."),
+    (8.10, 10.85, "Three. Plan day one, in one tap."),
+    (11.00, 13.75, "Four. Make a group, so nobody gets lost."),
+    (13.90, 16.65, "Five. Check the snow before you go."),
+    (16.80, 19.55, "Six. Turn on fall detection on your Watch."),
+    (19.70, 22.00, "Skipilot does it all. Comment ski for the link!")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
 SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
        "zermatt": [("tick", 1.12), ("whoosh", 2.55), ("tick", 7.3), ("tick", 7.46), ("tick", 7.62), ("tick", 8.3), ("tick", 8.46), ("tick", 8.62),
-                   ("ding", 9.97), ("whoosh", 14.4), ("ding", 17.35), ("whoosh", 19.9)]}
+                   ("ding", 9.97), ("whoosh", 14.4), ("ding", 17.35), ("whoosh", 19.9)],
+       "before": [("whoosh", 1.9)] + [("tick", 2.2 + i * 2.9 + 2.3) for i in range(6)] + [("ding", 19.65)]}
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 

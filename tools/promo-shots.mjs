@@ -46,6 +46,15 @@ if(want("closing")){
   if(ok && await p.evaluate(() => !!document.querySelector("#today .closing-card"))) await shot("today-closing"); else console.log("closing: de waarschuwing is nu niet na te bootsen");
   await p.evaluate(() => { if(window.__keepClose) S.liftClose = window.__keepClose; return 0; });
 }
+// de reisplanner: vertrek over 5 dagen, een deel van de paklijst al ingepakt (aftelkaart op Vandaag en het reispaneel)
+if(want("trip")){
+  await p.evaluate(() => { const f = new Date(Date.now() + 5 * 864e5), t = new Date(Date.now() + 11 * 864e5), iso = d => d.toISOString().slice(0, 10);
+    localStorage.setItem("pp-trip", JSON.stringify({area:S.area.id, from:iso(f), to:iso(t), pack:[0, 1, 2, 3, 4, 9]})); setTab("today"); return 0; });
+  await p.waitForTimeout(2500); await shot("trip-card");
+  await p.evaluate(() => { document.getElementById("tripOpen").click(); return 0; }); await p.waitForTimeout(2500); await shot("trip");
+  await p.evaluate(() => { const d = document.querySelector(".pack")?.closest("section"); d?.scrollIntoView({block:"start"}); return 0; }); await p.waitForTimeout(800); await shot("trip-pack");
+  await p.evaluate(() => { document.getElementById("detClose")?.click(); localStorage.removeItem("pp-trip"); return 0; });
+}
 await p.evaluate(() => { setTab("map"); return 0; }); await p.waitForTimeout(800);
 // de groep op de kaart: nagebootste groepsleden rond het midden van het gebied
 if(want("group")){
