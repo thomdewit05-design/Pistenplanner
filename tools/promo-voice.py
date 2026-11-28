@@ -125,6 +125,16 @@ SCRIPTS = {
     (9.30, 10.90, "Round three. Highest point."), (11.00, 12.70, "Zermatt strikes back."),
     (12.85, 14.45, "Final round. The day route."), (14.55, 16.25, "Zermatt! It's a tie."),
     (16.40, 20.00, "Two all. You decide. Comment your winner.")]),
+  # blue: promo-blue.html (telefoon 2,1–5,9 s, de tocht 6,3–15,4 s, antwoord 15,6 s, slot 18 s)
+  "blue": (20.0, [
+    (0.15, 2.05, "Lay twah valay, on blue runs only?"),
+    (2.25, 4.40, "Level: easy. No reds allowed."),
+    (4.50, 6.20, "Courchevel, to Val Thorens."),
+    (6.60, 9.20, "Green. Blue. Still no red."),
+    (9.70, 12.20, "Three valleys. Six lifts."),
+    (12.70, 15.30, "Almost there..."),
+    (15.65, 17.95, "Yes! Eight runs. Zero reds."),
+    (18.10, 20.00, "Which resort next?")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
 SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
@@ -134,6 +144,7 @@ SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] +
        "pov": [("tick", 3.3), ("tick", 5.2), ("thud", 6.8), ("thud", 7.9), ("thud", 9.0), ("ding", 10.35)]}
 SFX["tbar"] = SFX["pov"]
 SFX["vs"] = [("whoosh", 1.85)] + [("thud", 2.1 + i * 3.55) for i in range(4)] + [("ding", 2.1 + i * 3.55 + 1.75) for i in range(4)] + [("ding", 16.35)]
+SFX["blue"] = [("tick", 3.2), ("whoosh", 5.8), ("ding", 15.6), ("whoosh", 17.85)]
 SFX["top5"] = [("whoosh", 1.9)] + [(k, 2.2 + i * 3.2 + d) for i in range(5) for k, d in (("tick", .25), ("tick", .65), ("thud", 1.1))] + [("ding", 16.1), ("ding", 18.2)]
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))

@@ -71,6 +71,29 @@ if(only?.includes("tbar")){
   await writeFile(join(OUT, "tbar.json"), JSON.stringify(pos));
   await p.evaluate(() => { S.noDrag = false; S.board = false; update(); document.getElementById("menuClose").click(); return 0; }); await p.waitForTimeout(500);
 }
+// "alleen blauw": niveau Makkelijk, van Courchevel naar Val Thorens (FROM/TO = lat,lon). Schrijft wat de app echt plant naar blue.json:
+// per kleur het aantal pistes en de meters, de liften, en de lijn (schermpunten) met per punt welke stap het is.
+if(only?.includes("blue")){
+  const ll = (v, d) => (v || d).split(",").map(Number), F = ll(process.env.FROM, "45.4153,6.6347"), T = ll(process.env.TO, "45.2981,6.5800");
+  await p.evaluate(() => { S.level = 1; S.board = false; update(); openMenuAt("level"); return 0; }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { document.querySelector("#menu .flash")?.classList.remove("flash"); const g = document.getElementById("gear").previousElementSibling; g.scrollIntoView({block:"start"});
+    let sc = g.parentElement; while(sc && sc.scrollHeight <= sc.clientHeight + 2) sc = sc.parentElement; sc?.scrollBy(0, -78); return 0; }); await p.waitForTimeout(600);
+  const easy = await p.evaluate(() => { const r = document.querySelector('#level [data-v="1"]').getBoundingClientRect(); return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]; });
+  await shot("blue-set");
+  await p.evaluate(([F, T]) => { document.getElementById("menuClose").click(); S.fromMe = false; S.wps = []; S.target = null; S.via = null; S.from = nearestNode(F[0], F[1]).n; S.to = nearestNode(T[0], T[1]).n; update(); fitRoute(); return 0; }, [F, T]);
+  await p.waitForTimeout(7000); await shot("blue-route");
+  await p.addStyleTag({content:"#sheet,.topbar,.fabs,#tabbar,#ovBtn,#toast,.leaflet-control-container,#layerChips,.ad-slot,.sos-btn,#sosBtn{display:none!important}"});
+  await p.evaluate(() => { S.labels = false; S.nums = false; S.hutsOn = false; S.svcOn = false; applyBase(); drawHuts(); map.invalidateSize();
+    map.fitBounds(L.latLngBounds(S.steps.flatMap(s => s.line)), {paddingTopLeft:[30, 150], paddingBottomRight:[30, 200], animate:false}); return 0; });
+  await p.waitForTimeout(7000); await clean(); await p.screenshot({path:join(OUT, "blue-map.png")}); console.log("blue-map");
+  const info = await p.evaluate(() => { const by = {}, m = {}; let lifts = 0;
+    for(const s of S.path){ const e = s.e; if(e.t === "r"){ by[e.diff] = (by[e.diff] || 0) + 1; m[e.diff] = Math.round((m[e.diff] || 0) + e.len); } else if(e.t === "l") lifts++; }
+    return {peek:document.getElementById("peek")?.innerText.replace(/\s+/g, " ").trim(), runs:by, metres:m, lifts, kinds:[...new Set(S.path.map(s => s.e.t))],
+      path:S.path.map(s => [s.e.t, s.e.diff || "", s.e.name || "", Math.round(s.e.len)]),
+      line:S.steps.flatMap((s, i) => s.line.map(q => { const c = map.latLngToContainerPoint(q); return [Math.round(c.x), Math.round(c.y), i]; })), steps:S.steps.map(s => [s.t || "", s.e?.t || "", s.e?.diff || "", (s.title || "").replace(/<[^>]+>/g, ""), Math.round(s.len || 0)])}; });
+  await writeFile(join(OUT, "blue.json"), JSON.stringify({easy, ...info})); console.log("blue:", JSON.stringify({...info, line:info.line.length, path:info.path.length}));
+  await browser.close(); server.close(); process.exit(0);
+}
 if(want("trip")){
   await p.evaluate(() => { const f = new Date(Date.now() + 5 * 864e5), t = new Date(Date.now() + 11 * 864e5), iso = d => d.toISOString().slice(0, 10);
     localStorage.setItem("pp-trip", JSON.stringify({area:S.area.id, from:iso(f), to:iso(t), pack:[0, 1, 2, 3, 4, 9]})); setTab("today"); return 0; });

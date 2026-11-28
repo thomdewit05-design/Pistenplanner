@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: blue runs only</title>
+<!-- "Can you cross Les 3 Vallées on blue runs only?": 1080×1920, 20 s. De vraag in seconde 1, het antwoord aan het eind.
+     Alles komt uit de app (node tools/promo-shots.mjs en blue → shots/en/blue-set.png, blue-route.png, blue-map.png, blue.json):
+     niveau Makkelijk, Courchevel → Val Thorens. De stip volgt de echte lijn; de tellers volgen de echte stappen (kleur per piste, liften).
+     Geluid: tools/promo-voice.py blue. Maken: PAGE=promo-blue FPS=60 node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;font-family:'Barlow',system-ui,sans-serif;color:#fff;background:radial-gradient(120% 70% at 50% 30%,#16304C 0%,#0C1826 60%,#070D15 100%)}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #world{width:430px;height:932px;transform-origin:0 0;opacity:0}
+  #world img{position:absolute;left:0;top:0;width:430px;height:932px}
+  #dot{width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#FFC400;box-shadow:0 0 0 3px #fff,0 0 14px rgba(255,196,0,.95)}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(9,17,27,.88) 0%,rgba(9,17,27,.15) 22%,rgba(9,17,27,0) 45%,rgba(9,17,27,.35) 70%,rgba(9,17,27,.85) 100%);opacity:0}
+  #hook{left:60px;top:470px;width:960px;text-align:center}
+  #hook h1{margin:0;font-weight:700;font-size:128px;line-height:.98;letter-spacing:-4px}
+  #hook h1 em{font-style:normal;color:#4C9BFF}
+  #hook p{margin:50px 0 0;font-weight:700;font-size:58px;color:#FFC400}
+  #cap{left:60px;top:170px;width:960px;text-align:center}
+  #cap small{display:block;font-weight:700;font-size:44px;letter-spacing:3px;color:#FFC400}
+  #cap h2{margin:8px 0 0;font-weight:700;font-size:80px;line-height:1.02;letter-spacing:-2px}
+  .phone{width:620px;height:1297px}
+  .phone .body{position:absolute;inset:0;border-radius:92px;background:linear-gradient(145deg,#8E97A3 0%,#2A313B 22%,#141920 50%,#3B434F 80%,#9AA3AF 100%);box-shadow:0 50px 120px rgba(0,0,0,.6)}
+  .phone .bezel{position:absolute;inset:7px;border-radius:86px;background:#05080C}
+  .phone .scr{position:absolute;left:20px;top:20px;width:580px;height:1257px;border-radius:72px;overflow:hidden;background:#dfe9f3}
+  .phone .scr img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  #finger{width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:rgba(255,196,0,.92);box-shadow:0 0 0 12px rgba(255,196,0,.25);opacity:0}
+  #tap{width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:9px solid #FFC400;opacity:0}
+  #hud{left:60px;top:150px;width:960px;opacity:0}
+  #hud .box{display:inline-block;margin-right:18px;padding:16px 30px 18px;border-radius:30px;background:rgba(9,17,27,.8);box-shadow:0 0 0 3px rgba(255,255,255,.14) inset;vertical-align:top}
+  #hud b{display:block;font-weight:700;font-size:78px;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  #hud span{display:block;margin-top:6px;font-weight:600;font-size:30px;color:#9FD0FF;letter-spacing:1px}
+  #now{left:0;top:330px;width:1080px;text-align:center;opacity:0}
+  #now span{display:inline-block;padding:12px 34px 16px;border-radius:40px;font-weight:700;font-size:50px;box-shadow:0 16px 40px rgba(0,0,0,.45)}
+  #tally{left:60px;top:1150px;width:960px;opacity:0;display:flex;gap:18px}
+  #tally div{flex:1;padding:22px 10px 24px;border-radius:34px;background:rgba(9,17,27,.86);box-shadow:0 0 0 3px rgba(255,255,255,.14) inset;text-align:center}
+  #tally b{display:block;font-weight:700;font-size:110px;line-height:1;font-variant-numeric:tabular-nums}
+  #tally span{display:block;margin-top:6px;font-weight:700;font-size:34px;letter-spacing:1px}
+  #tally i{display:inline-block;width:26px;height:26px;border-radius:7px;margin-right:10px;vertical-align:-2px}
+  #ans{left:80px;top:430px;width:920px;padding:50px 54px 46px;box-sizing:border-box;border-radius:56px;background:#fff;color:#0F1C2B;box-shadow:0 50px 120px rgba(0,0,0,.55);opacity:0}
+  #ans .ok{display:inline-block;padding:10px 30px 14px;border-radius:34px;background:#30B35C;color:#fff;font-weight:700;font-size:70px}
+  #ans h2{margin:24px 0 0;font-weight:700;font-size:68px;line-height:1.06;letter-spacing:-2px}
+  #ans .grid{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:20px 30px}
+  #ans .grid b{display:block;font-weight:700;font-size:76px;line-height:1;letter-spacing:-2px}
+  #ans .grid span{font-weight:600;font-size:34px;color:#55687A}
+  #end{left:0;top:0;width:1080px;height:1920px;opacity:0;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);text-align:center}
+  #end h2{margin:560px 80px 0;font-weight:700;font-size:150px;line-height:.96;letter-spacing:-5px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end p{margin:40px 0 0;font-weight:600;font-size:52px;color:#D7E6F5}
+  #end .app{margin-top:90px} #end img{width:140px;height:140px;border-radius:32px;vertical-align:middle}
+  #end .app b{font-size:100px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:28px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="world" class="abs"><img src="shots/en/blue-map.png"><div id="dot" class="abs"></div></div>
+  <div id="shade" class="abs"></div>
+  <div id="pA" class="abs phone"><div class="body"></div><div class="bezel"></div><div class="scr"><img id="s0" src="shots/en/tbar-0.png"><img id="s1" src="shots/en/blue-set.png"><img id="s2" src="shots/en/blue-route.png"><div id="finger" class="abs"></div><div id="tap" class="abs"></div></div></div>
+  <div id="cap" class="abs"><small></small><h2></h2></div>
+  <div id="hud" class="abs"><div class="box"><b id="clock"></b><span>TIME</span></div><div class="box"><b id="km">0.0</b><span>KM</span></div><div class="box"><b id="lf">0</b><span>LIFTS</span></div></div>
+  <div id="now" class="abs"><span></span></div>
+  <div id="tally" class="abs"><div><b id="tb" style="color:#6FB1FF">0</b><span><i style="background:#1E66CC"></i>BLUE / GREEN</span></div><div><b id="tr">0</b><span><i style="background:#D22E2E"></i>RED</span></div><div><b id="tk">0</b><span><i style="background:#121417;box-shadow:0 0 0 2px #fff"></i>BLACK</span></div></div>
+  <div id="hook" class="abs"><h1>Can you cross Les 3 Vallées on <em>blue runs</em> only?</h1><p>Courchevel → Val Thorens</p></div>
+  <div id="ans" class="abs"><div class="ok"></div><h2></h2><div class="grid"></div></div>
+  <div id="end" class="abs"><h2>Which resort<br><em>next?</em></h2><p>Comment below 👇</p><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><p>Free on the App Store</p></div>
+</div>
+<script src="kit.js"></script>
+<script>
+const DUR = 20, K = 580 / 430, T = {set:2.1, tap:3.2, route:4.5, fly:5.9, f0:6.3, f1:15.4, ans:15.6, end:18.0};
+let B = null, CUM = [], TOT = 1, RUNEND = [], LIFTS = [], START = 0, DURMIN = 0, KM = 0;
+const hm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(Math.floor(m % 60)).padStart(2, "0");
+function setup(b){
+  B = b; const L = b.line; CUM = [0]; for(let i = 1; i < L.length; i++) CUM.push(CUM[i - 1] + Math.hypot(L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1])); TOT = CUM[CUM.length - 1];
+  // een afdaling = een aaneengesloten reeks pistestappen; een lift telt als hij begint. Per stap: hoeveel afdalingen en liften er dan geweest zijn.
+  const S = b.steps; let runs = 0, lifts = 0, names = b.path.filter(p => p[0] === "l").map(p => p[2]).filter((n, i, a) => n !== a[i - 1]);
+  S.forEach((s, i) => { if(s[1] === "l"){ s.lift = names[lifts] || ""; lifts++; } s.liftsSoFar = lifts; s.runsBefore = runs; if(s[1] === "r" && (i === S.length - 1 || S[i + 1][1] !== "r")) runs++; s.runsAfter = runs; });
+  const pk = b.peek, m = pk.match(/(\d+) h (\d+)/), dn = pk.match(/done at (\d+):(\d+)/); KM = parseFloat(pk.replace(/^\d+ h \d\d/, "").match(/([\d.]+) km/)[1]);
+  DURMIN = +m[1] * 60 + +m[2].slice(0, 2); START = +dn[1] * 60 + +dn[2] - DURMIN;
+  const red = b.runs.r || 0, black = (b.runs.s || 0) + (b.runs.f || 0), yes = !red && !black, nruns = S[S.length - 1].runsAfter, nl = b.lifts;
+  const A = $("ans"); A.querySelector(".ok").textContent = yes ? "✓ YES" : "ALMOST"; A.querySelector("h2").innerHTML = yes ? "Courchevel → Val Thorens<br>on blue and green only" : "Courchevel → Val Thorens<br>needs a red run";
+  A.querySelector(".grid").innerHTML = [[nruns, "runs"], [red, "red runs"], [KM.toFixed(1) + " km", "of skiing"], [`${m[1]} h ${m[2].slice(0, 2)}`, `with ${nl} lifts`]].map(([v, u]) => `<div><b>${v}</b><span>${u}</span></div>`).join("");
+  B.red = red; B.black = black;
+}
+function at(u){ const L = B.line, d = u * TOT; let i = 1; while(i < CUM.length - 1 && CUM[i] < d) i++; const a = L[i - 1], b = L[i], k = CUM[i] > CUM[i - 1] ? (d - CUM[i - 1]) / (CUM[i] - CUM[i - 1]) : 0; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, b[2]]; }
+function render(t){
+  if(!B) return;
+  const hk = $("hook"); hk.style.opacity = 1 - seg(t, T.set - .25, T.set); hk.querySelector("h1").style.transform = `scale(${pop(t, .05, .45) || .4})`; hk.querySelector("p").style.opacity = seg(t, .9, 1.2);
+  // telefoon: niveau Easy, dan de route
+  const P = $("pA"), pin = eo(seg(t, T.set - .2, T.set + .4)), z = eio(seg(t, T.fly, T.fly + .5));
+  P.style.transformOrigin = "50% 45%"; P.style.transform = `translate(${230}px,${440 + (1 - pin) * 1500}px) scale(${1.08 + z * 1.6})`; P.style.opacity = 1 - seg(t, T.fly + .2, T.fly + .5);
+  $("s0").style.opacity = 1; $("s1").style.opacity = seg(t, T.tap, T.tap + .15); $("s2").style.opacity = seg(t, T.route - .15, T.route + .1);
+  const fg = $("finger"), [ex, ey] = B.easy.map(v => v * K), u1 = eo(seg(t, T.tap - .6, T.tap - .1));
+  fg.style.left = lerp(430, ex, u1) + "px"; fg.style.top = lerp(620, ey, u1) + "px"; fg.style.opacity = Math.min(seg(t, T.tap - .6, T.tap - .4), 1 - seg(t, T.tap + .25, T.tap + .45));
+  fg.style.transform = `scale(${1 - Math.max(0, 1 - Math.abs(t - T.tap) / .12) * .25})`;
+  const tp = $("tap"), kk = seg(t, T.tap, T.tap + .5); tp.style.left = ex + "px"; tp.style.top = ey + "px"; tp.style.opacity = kk > 0 && kk < 1 ? 1 - kk : 0; tp.style.transform = `scale(${.3 + kk * 1.5})`;
+  const caps = [[T.set, T.route - .1, "LEVEL", "Easy: blue and green only"], [T.route - .1, T.fly + .2, "ROUTE", "Courchevel → Val Thorens"]], c = caps.find(c => t >= c[0] && t < c[1]), cp = $("cap");
+  if(c){ cp.querySelector("small").textContent = c[2]; cp.querySelector("h2").textContent = c[3]; cp.style.opacity = Math.min(seg(t, c[0] + .05, c[0] + .3), 1 - seg(t, c[1] - .2, c[1])); } else cp.style.opacity = 0;
+  // de kaart: de camera volgt de stip
+  const u = eio(seg(t, T.f0, T.f1)), [x, y, si] = at(u), s = B.steps[si], W = $("world"), sc = lerp(2.6, 3.3, seg(t, T.fly, T.f0 + 1)) - seg(t, T.f1 - .8, T.f1) * .5;
+  const wo = seg(t, T.fly + .1, T.fly + .5) * (1 - seg(t, T.end - .1, T.end + .2)); W.style.opacity = wo; $("shade").style.opacity = wo;
+  const cx = Math.min(0, Math.max(1080 - 430 * sc, 540 - x * sc)), cy = Math.min(0, Math.max(1920 - 872 * sc, 860 - y * sc));   // de kaart blijft beeldvullend
+  W.style.transform = `translate(${cx}px,${cy}px) scale(${sc})`; $("dot").style.left = x + "px"; $("dot").style.top = y + "px";
+  const ho = Math.min(seg(t, T.fly + .4, T.fly + .7), 1 - seg(t, T.ans - .1, T.ans + .2)); $("hud").style.opacity = ho; $("tally").style.opacity = ho * (1 - seg(t, T.f1 - 1.1, T.f1 - .8)); $("now").style.opacity = ho;   // de tellers wijken vlak voor het eind: de stip komt daar onderlangs
+  $("clock").textContent = hm(START + DURMIN * u); $("km").textContent = (KM * u).toFixed(1); $("lf").textContent = s.liftsSoFar;
+  $("tb").textContent = u >= 1 ? s.runsAfter : s.runsBefore + (s[1] === "r" ? 1 : 0); $("tr").textContent = B.red && u > .5 ? B.red : 0; $("tk").textContent = 0;
+  const nw = $("now").querySelector("span"); const col = {b:["#1E66CC", "Blue run"], g:["#22984A", "Green run"], r:["#D22E2E", "Red run"]}[s[2]];
+  if(s[1] === "l"){ nw.textContent = "⬆ Lift: " + s.lift; nw.style.background = "#fff"; nw.style.color = "#0F1C2B"; } else if(col){ nw.textContent = col[1]; nw.style.background = col[0]; nw.style.color = "#fff"; } else { nw.textContent = "Short walk"; nw.style.background = "#fff"; nw.style.color = "#0F1C2B"; }
+  // het antwoord
+  const A = $("ans"), au = seg(t, T.ans, T.ans + .4); A.style.opacity = au * (1 - seg(t, T.end - .1, T.end + .2)); A.style.transform = `scale(${au > 0 ? lerp(.6, 1, back(au)) : .6})`;
+  [...A.querySelectorAll(".grid div")].forEach((d, i) => { const q = seg(t, T.ans + .5 + i * .18, T.ans + .8 + i * .18); d.style.opacity = q; d.style.transform = `translateY(${(1 - eo(q)) * 24}px)`; });
+  const en = $("end"); en.style.opacity = seg(t, T.end, T.end + .3); en.querySelector("h2").style.transform = `scale(${pop(t, T.end + .05, .45) || .4})`;
+  [...en.querySelectorAll("p")].forEach((p, i) => p.style.opacity = seg(t, T.end + .5 + i * .6, T.end + .8 + i * .6)); en.querySelector(".app").style.opacity = seg(t, T.end + .8, T.end + 1.1);
+}
+fetch("shots/en/blue.json").then(r => r.json()).then(b => { setup(b); boot(DUR, render); });
+</script>
+</body>
+</html>
