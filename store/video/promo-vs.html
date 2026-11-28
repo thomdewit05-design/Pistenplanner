@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: resort vs resort</title>
+<!-- "Resort vs resort": 1080×1920, 20 s. Twee gebieden tegenover elkaar in vier rondes, met een punt per ronde. De kaarten zijn de
+     echte kaarten uit de app (shots/maps/…, zonder namen); de cijfers zijn wat de app toont (km, liften en hoogste punt uit
+     data/index.json en OFFICIAL_KM; de dagroute uit shots/<gebied>/route.json op de dag van de opname).
+     Een volgende aflevering: alleen A, B en ROUNDS aanpassen. Geluid: tools/promo-voice.py vs.
+     Maken: PAGE=promo-vs FPS=60 node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;font-family:'Barlow',system-ui,sans-serif;color:#fff;background:#0A121C}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  .side{top:0;width:540px;height:1920px;overflow:hidden}
+  .side img{position:absolute;left:-270px;top:0;width:1080px;height:1920px}
+  .side .tint{position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,17,27,.9) 0%,rgba(9,17,27,.35) 30%,rgba(9,17,27,.2) 50%,rgba(9,17,27,.75) 78%,rgba(9,17,27,.95) 100%)}
+  .side .win{position:absolute;inset:0;background:rgba(48,179,92,.42);box-shadow:0 0 0 10px #30B35C inset;opacity:0}
+  #sB{left:540px}
+  #mid{left:536px;top:0;width:8px;height:1920px;background:#FFC400}
+  #vs{left:465px;top:690px;width:150px;height:150px;border-radius:50%;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:74px;line-height:144px;text-align:center;box-shadow:0 0 0 10px #0A121C}
+  .nm{top:170px;width:540px;text-align:center}
+  .nm b{display:block;font-weight:700;font-size:62px;line-height:1;letter-spacing:-1.5px}
+  .nm small{display:block;margin-top:10px;font-size:64px}
+  .sc{top:380px;width:540px;text-align:center;font-weight:700;font-size:250px;line-height:1;letter-spacing:-8px;text-shadow:0 10px 40px rgba(0,0,0,.6)}
+  #cat{left:140px;top:960px;width:800px;text-align:center}
+  #cat span{display:inline-block;padding:14px 40px 18px;border-radius:50px;background:#fff;color:#0F1C2B;font-weight:700;font-size:58px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+  #cat small{display:table;margin:0 auto 16px;padding:6px 24px 8px;border-radius:26px;background:#0F1C2B;font-weight:700;font-size:38px;letter-spacing:4px;color:#FFC400}
+  .val{top:1130px;width:540px;text-align:center}
+  .val b{display:block;font-weight:700;font-size:150px;line-height:1;letter-spacing:-5px;font-variant-numeric:tabular-nums}
+  .val span{display:block;margin-top:4px;font-weight:600;font-size:44px;color:#C9DBEC}
+  .val em{display:inline-block;margin-top:18px;padding:6px 26px 10px;border-radius:30px;background:#30B35C;font-style:normal;font-weight:700;font-size:44px;opacity:0}
+  #hook{left:0;top:0;width:1080px;height:1920px;background:radial-gradient(120% 70% at 50% 30%,#16304C 0%,#0C1826 60%,#070D15 100%);text-align:center}
+  #hook h1{margin:500px 60px 0;font-weight:700;font-size:134px;line-height:1;letter-spacing:-4px}
+  #hook h1 em{font-style:normal;color:#FFC400;display:block;font-size:100px;margin:14px 0}
+  #hook p{margin:50px 0 0;font-weight:600;font-size:56px;color:#C9DBEC}
+  #end{left:0;top:0;width:1080px;height:1920px;opacity:0;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);text-align:center}
+  #end h2{margin:470px 60px 0;font-weight:700;font-size:260px;line-height:1;letter-spacing:-8px}
+  #end h3{margin:10px 0 0;font-weight:700;font-size:120px;letter-spacing:-3px;color:#FFC400}
+  #end p{margin:36px 0 0;font-weight:600;font-size:52px;color:#D7E6F5}
+  #end .app{margin-top:80px} #end img{width:130px;height:130px;border-radius:30px;vertical-align:middle}
+  #end .app b{font-size:92px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:26px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="sA" class="abs side"><img id="imgA"><div class="tint"></div><div class="win"></div></div>
+  <div id="sB" class="abs side"><img id="imgB"><div class="tint"></div><div class="win"></div></div>
+  <div id="mid" class="abs"></div>
+  <div class="abs nm" id="nA"><b></b><small></small></div><div class="abs nm" id="nB" style="left:540px"><b></b><small></small></div>
+  <div class="abs sc" id="scA">0</div><div class="abs sc" id="scB" style="left:540px">0</div>
+  <div id="vs" class="abs">VS</div>
+  <div id="cat" class="abs"><small></small><span></span></div>
+  <div class="abs val" id="vA"><b></b><span></span><em>+1</em></div><div class="abs val" id="vB" style="left:540px"><b></b><span></span><em>+1</em></div>
+  <div id="hook" class="abs"><h1></h1><p>4 rounds. Real numbers. 🥊</p></div>
+  <div id="end" class="abs"><h2></h2><h3>You decide 👇</h3><p>Which one wins for you?</p><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><p>Both are in the app. Free.</p></div>
+</div>
+<script src="kit.js"></script>
+<script>
+const A = {name:"Les 3 Vallées", flag:"🇫🇷", map:"shots/maps/1.png"}, B = {name:"Zermatt – Cervinia", flag:"🇨🇭🇮🇹", map:"shots/maps/3.png"};
+// [categorie, eenheid, waarde A, waarde B, decimalen]: de hoogste wint
+const ROUNDS = [["Km of runs", "km", 600, 360, 0], ["Lifts", "lifts", 169, 63, 0], ["Highest point", "m", 3221, 3892, 0], ["Today's day route", "km in one day", 64.5, 73.1, 1]];
+const DUR = 20, T0 = 2.1, RT = 3.55, WIN = 1.75, TEND = T0 + ROUNDS.length * RT;
+$("imgA").src = A.map; $("imgB").src = B.map;
+$("nA").querySelector("b").textContent = A.name; $("nA").querySelector("small").textContent = A.flag; $("nB").querySelector("b").textContent = B.name; $("nB").querySelector("small").textContent = B.flag;
+$("hook").querySelector("h1").innerHTML = `${A.name}<em>vs</em>${B.name}`;
+const fin = ROUNDS.reduce((s, r) => { s[r[2] > r[3] ? 0 : 1]++; return s; }, [0, 0]); $("end").querySelector("h2").textContent = `${fin[0]} – ${fin[1]}`;
+function render(t){
+  const hk = $("hook"); hk.style.opacity = 1 - seg(t, T0 - .25, T0); hk.querySelector("h1").style.transform = `scale(${pop(t, .05, .45) || .4})`; hk.querySelector("p").style.opacity = seg(t, .9, 1.2);
+  const k = Math.max(0, Math.min(ROUNDS.length - 1, Math.floor((t - T0) / RT))), lt = t - T0 - k * RT, [cat, unit, a, b, dec] = ROUNDS[k], aw = a > b;
+  $("imgA").style.transform = $("imgB").style.transform = `scale(${1.25 + seg(t, 0, DUR) * .12})`;
+  // stand: een punt erbij op het moment van de winnaar
+  let sa = 0, sb = 0, bump = [0, 0]; ROUNDS.forEach((r, i) => { const tw = T0 + i * RT + WIN; if(t >= tw){ r[2] > r[3] ? sa++ : sb++; bump[r[2] > r[3] ? 0 : 1] = Math.max(bump[r[2] > r[3] ? 0 : 1], t - tw < .4 ? (pop(t, tw, .4) || 1) : 1); } });
+  $("scA").textContent = sa; $("scB").textContent = sb; $("scA").style.transform = `scale(${bump[0] && t - (T0 + k * RT + WIN) < .4 && aw ? pop(t, T0 + k * RT + WIN, .4) || 1 : 1})`; $("scB").style.transform = `scale(${bump[1] && t - (T0 + k * RT + WIN) < .4 && !aw ? pop(t, T0 + k * RT + WIN, .4) || 1 : 1})`;
+  // ronde
+  const C = $("cat"), cin = seg(lt, 0, .3), cout = 1 - seg(lt, RT - .25, RT); C.querySelector("small").textContent = `ROUND ${k + 1}`; C.querySelector("span").textContent = cat;
+  C.style.opacity = cin * cout; C.style.transform = `scale(${cin > 0 ? lerp(.7, 1, back(cin)) : .7})`;
+  [["vA", a, aw], ["vB", b, !aw]].forEach(([id, v, w]) => { const el = $(id); el.querySelector("b").textContent = count(lt, .35, 1.2, v, dec); el.querySelector("span").textContent = unit;
+    el.style.opacity = seg(lt, .3, .5) * cout; const won = lt >= WIN && w; el.querySelector("em").style.opacity = won ? seg(lt, WIN, WIN + .15) : 0; el.querySelector("b").style.color = lt >= WIN ? (w ? "#7BE09B" : "rgba(255,255,255,.45)") : "#fff"; });
+  $("sA").querySelector(".win").style.opacity = lt >= WIN && aw ? (1 - seg(lt, WIN + .25, WIN + 1.2)) * .9 * cout : 0; $("sB").querySelector(".win").style.opacity = lt >= WIN && !aw ? (1 - seg(lt, WIN + .25, WIN + 1.2)) * .9 * cout : 0;
+  $("vs").style.transform = `rotate(${Math.sin(t * 3) * 4}deg)`;
+  const en = $("end"); en.style.opacity = seg(t, TEND, TEND + .3); en.querySelector("h2").style.transform = `scale(${pop(t, TEND + .05, .45) || .4})`; en.querySelector("h3").style.opacity = seg(t, TEND + .6, TEND + .9);
+  [...en.querySelectorAll("p")].forEach((p, i) => p.style.opacity = seg(t, TEND + 1.0 + i * .9, TEND + 1.3 + i * .9)); en.querySelector(".app").style.opacity = seg(t, TEND + 1.5, TEND + 1.8);
+}
+boot(DUR, render);
+</script>
+</body>
+</html>
