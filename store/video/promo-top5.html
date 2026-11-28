@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: top 5 biggest ski areas</title>
+<!-- "Top 5 biggest ski areas": 1080×1920, 21 s. Aftellen van 5 naar 1 met de echte kaarten uit de app (shots/top5/1..5.png, gemaakt met
+     OUT=top5 AREAS=… node tools/promo-maps.mjs). De volgorde en de cijfers zijn wat de app toont (km volgens het gebied waar we dat hebben,
+     anders gemeten; liften uit data/index.json); twee gebieden staan gelijk op 600 km. Geluid: tools/promo-voice.py top5.
+     Maken: PAGE=promo-top5 FPS=60 node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;font-family:'Barlow',system-ui,sans-serif;color:#fff;background:#0F1C2B}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  .map{width:1080px;height:1920px;opacity:0}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(9,17,27,.88) 0%,rgba(9,17,27,.25) 26%,rgba(9,17,27,0) 48%,rgba(9,17,27,.55) 72%,rgba(9,17,27,.9) 100%)}
+  #head{left:0;top:150px;width:1080px;text-align:center}
+  #head b{display:inline-block;padding:12px 34px 16px;border-radius:44px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:50px;letter-spacing:1px}
+  #head small{display:block;margin-top:14px;font-weight:600;font-size:34px;color:#C9DBEC}
+  #rank{left:340px;top:360px;width:400px;height:400px;border-radius:110px;background:rgba(9,17,27,.86);box-shadow:0 0 0 6px #FFC400 inset,0 30px 80px rgba(0,0,0,.5);text-align:center;font-weight:700;font-size:290px;line-height:380px;letter-spacing:-8px}
+  #rank small{font-size:110px;letter-spacing:0;color:#FFC400;vertical-align:top;margin-right:6px}
+  #rank em{position:absolute;left:-40px;top:420px;width:480px;font-style:normal;font-size:52px;line-height:84px;letter-spacing:0;border-radius:42px;background:#FFC400;color:#0F1C2B}
+  #card{left:70px;top:1120px;width:940px;padding:40px 50px 44px;box-sizing:border-box;border-radius:50px;background:#fff;color:#0F1C2B;box-shadow:0 40px 100px rgba(0,0,0,.55)}
+  #card h2{margin:0;font-weight:700;font-size:86px;line-height:1;letter-spacing:-2.5px}
+  #card .row{margin-top:26px;display:flex;gap:50px;align-items:baseline}
+  #card .row div b{font-weight:700;font-size:84px;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+  #card .row div span{font-weight:600;font-size:38px;color:#55687A;margin-left:10px}
+  #guess{left:70px;top:1120px;width:940px;height:236px;border-radius:50px;background:rgba(9,17,27,.82);box-shadow:0 0 0 4px rgba(255,255,255,.2) inset;text-align:center;font-weight:700;font-size:96px;line-height:236px;letter-spacing:12px;color:#FFC400}
+  #dots{left:0;top:1420px;width:1080px;text-align:center}
+  #dots i{display:inline-block;width:26px;height:26px;margin:0 9px;border-radius:50%;background:rgba(255,255,255,.3)} #dots i.on{background:#FFC400}
+  #hook{left:0;top:0;width:1080px;height:1920px;background:radial-gradient(120% 70% at 50% 30%,#16304C 0%,#0C1826 60%,#070D15 100%);text-align:center}
+  #hook h1{margin:560px 60px 0;font-weight:700;font-size:150px;line-height:.96;letter-spacing:-5px}
+  #hook h1 em{font-style:normal;color:#FFC400}
+  #hook p{margin:50px 0 0;font-weight:600;font-size:54px;color:#C9DBEC}
+  #end{left:0;top:0;width:1080px;height:1920px;opacity:0;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);text-align:center}
+  #end h2{margin:540px 70px 0;font-weight:700;font-size:136px;line-height:.98;letter-spacing:-4px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end p{margin:44px 0 0;font-weight:600;font-size:52px;color:#D7E6F5}
+  #end .app{margin-top:80px} #end img{width:140px;height:140px;border-radius:32px;vertical-align:middle}
+  #end .app b{font-size:100px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:28px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="maps"></div><div id="shade" class="abs"></div>
+  <div id="head" class="abs"><b>TOP 5 · BIGGEST SKI AREAS</b><small>by km of runs on one ski pass · as listed in Skipilot</small></div>
+  <div id="rank" class="abs"></div>
+  <div id="guess" class="abs">? ? ?</div>
+  <div id="card" class="abs"><h2></h2><div class="row"><div><b class="km"></b><span>km of runs</span></div><div><b class="li"></b><span>lifts</span></div></div></div>
+  <div id="dots" class="abs"></div>
+  <div id="hook" class="abs"><h1>The 5 <em>biggest</em> ski areas</h1><p>Can you guess number 1? 👀</p></div>
+  <div id="end" class="abs"><h2>Is yours <em>missing?</em></h2><p>Comment it below 👇</p><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><p>All of them are in the app. Free.</p></div>
+</div>
+<script src="kit.js"></script>
+<script>
+// [plek, naam, vlag, km, liften]: de volgorde en cijfers die de app toont; 600 km twee keer = gedeelde tweede plek
+const LIST = [["5", "Evasion Mont Blanc", "🇫🇷", 445, 105], ["4", "Ski amadé", "🇦🇹", 596, 235], ["2", "Portes du Soleil", "🇫🇷🇨🇭", 600, 193, "tie"], ["2", "Les 3 Vallées", "🇫🇷", 600, 169, "tie"], ["1", "Dolomiti Superski", "🇮🇹", 1200, 458]];
+const DUR = 21, T0 = 2.2, IT = 3.2, REV = 1.1, TEND = T0 + LIST.length * IT;      // per plek: 1,1 s raden, dan de naam
+const maps = LIST.map((_, i) => { const m = document.createElement("img"); m.className = "abs map"; m.src = `shots/top5/${i + 1}.png`; $("maps").appendChild(m); return m; });
+const dots = LIST.map(() => { const d = document.createElement("i"); $("dots").appendChild(d); return d; });
+function render(t){
+  const hk = $("hook"); hk.style.opacity = 1 - seg(t, T0 - .25, T0); hk.querySelector("h1").style.transform = `scale(${pop(t, .05, .45) || .4})`; hk.querySelector("p").style.opacity = seg(t, .8, 1.1);
+  const k = Math.max(0, Math.min(LIST.length - 1, Math.floor((t - T0) / IT))), lt = t - T0 - k * IT, [rk, name, flag, km, li, tie] = LIST[k];
+  maps.forEach((m, i) => { const a = T0 + i * IT; m.style.opacity = i === 0 ? 1 - seg(t, a + IT - .2, a + IT + .1) : Math.min(seg(t, a - .2, a + .1), 1 - seg(t, a + IT - .2, a + IT + .1)) || (i === LIST.length - 1 && t >= a ? 1 : 0);
+    m.style.transform = `scale(${1.05 + seg(t, a, a + IT) * .12})`; });
+  const R = $("rank"); R.innerHTML = `<small>#</small>${rk}${tie ? "<em>tied for 2nd</em>" : ""}`; R.style.transform = `scale(${pop(t, T0 + k * IT, .4) || .4})`; R.style.opacity = t >= T0 ? 1 : 0;
+  const rev = seg(lt, REV, REV + .2), C = $("card"), G = $("guess");
+  G.style.opacity = t >= T0 ? 1 - rev : 0; G.style.transform = `scale(${1 + Math.sin(lt * 14) * .015})`;
+  C.style.opacity = rev; C.style.transform = `scale(${rev > 0 ? lerp(.7, 1, back(seg(lt, REV, REV + .35))) : .7})`;
+  C.querySelector("h2").textContent = `${name} ${flag}`; C.querySelector(".km").textContent = count(lt, REV, .7, km); C.querySelector(".li").textContent = count(lt, REV, .7, li);
+  dots.forEach((d, i) => d.className = t >= T0 + i * IT + REV ? "on" : "");
+  const en = $("end"); en.style.opacity = seg(t, TEND, TEND + .3); en.querySelector("h2").style.transform = `scale(${pop(t, TEND + .05, .45) || .4})`;
+  [...en.querySelectorAll("p")].forEach((p, i) => p.style.opacity = seg(t, TEND + .5 + i * .9, TEND + .8 + i * .9)); en.querySelector(".app").style.opacity = seg(t, TEND + 1.0, TEND + 1.3);
+}
+boot(DUR, render);
+</script>
+</body>
+</html>

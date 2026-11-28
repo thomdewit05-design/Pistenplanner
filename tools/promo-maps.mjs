@@ -10,9 +10,9 @@ import { extname, join } from "node:path";
 const req = createRequire(import.meta.url);
 const pw = await import("playwright").catch(() => req("playwright"));
 const { chromium } = pw.chromium ? pw : pw.default;
-const ROOT = new URL("..", import.meta.url).pathname, PORT = 8790, OUT = join(ROOT, "store/video/shots/maps");
+const ROOT = new URL("..", import.meta.url).pathname, PORT = 8790, OUT = join(ROOT, "store/video/shots", process.env.OUT || "maps");   // OUT=top5 en AREAS='[["naam in de app","naam in de video"],…]' voor een andere reeks
 // [naam in de app, naam in de video]
-const AREAS = [["Les Trois Vallées", "Les 3 Vallées"], ["Ski Arlberg", "Ski Arlberg"], ["Zermatt - Breuil-Cervinia, Breuil-Cervinia Ski Paradise", "Zermatt – Cervinia"],
+const AREAS = process.env.AREAS ? JSON.parse(process.env.AREAS) : [["Les Trois Vallées", "Les 3 Vallées"], ["Ski Arlberg", "Ski Arlberg"], ["Zermatt - Breuil-Cervinia, Breuil-Cervinia Ski Paradise", "Zermatt – Cervinia"],
   ["Whistler Blackcomb", "Whistler Blackcomb"], ["Les Portes du Soleil", "Portes du Soleil"]];
 const TYPES = {".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".svg":"image/svg+xml", ".png":"image/png", ".jpg":"image/jpeg", ".woff2":"font/woff2"};
 const server = createServer(async (rq, res) => {

@@ -1,0 +1,37 @@
+[
+ {
+  "n": 1,
+  "name": "Evasion Mont Blanc",
+  "cc": "FR",
+  "region": "Haute-Savoie",
+  "sub": "Evasion Mont Blanc France · 445 km · 105 lifts SOS"
+ },
+ {
+  "n": 2,
+  "name": "Ski amadé",
+  "cc": "AT",
+  "region": "Salzburg",
+  "sub": "Ski areaSki amadéAustria · 596 km measured · 235 lifts SOS 0"
+ },
+ {
+  "n": 3,
+  "name": "Portes du Soleil",
+  "cc": "FR",
+  "region": "Haute-Savoie",
+  "sub": "Ski areaLes Portes du SoleilFrance · 600 km · 193 lifts SOS 0"
+ },
+ {
+  "n": 4,
+  "name": "Les 3 Vallées",
+  "cc": "FR",
+  "region": "Savoie",
+  "sub": "Ski areaLes Trois ValléesFrance · 600 km · 169 lifts SOS 0"
+ },
+ {
+  "n": 5,
+  "name": "Dolomiti Superski",
+  "cc": "IT",
+  "region": "Bolzano/Bozen",
+  "sub": "Ski areaDolomiti SuperskiItaly · 1200 km · 458 lifts SOS 0"
+ }
+]

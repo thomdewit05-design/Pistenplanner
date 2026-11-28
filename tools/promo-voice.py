@@ -108,6 +108,15 @@ SCRIPTS = {
     (7.90, 8.95, "Cat tracks? Fewer."),
     (9.00, 10.70, "Chairlift exit? Still on you."),
     (10.80, 13.00, "Your legs will thank you. Ski pilot.")]),
+  # top5: promo-top5.html (plekken van 3,2 s vanaf 2,2 s; de naam komt 1,1 s na het begin van elke plek)
+  "top5": (21.0, [
+    (0.20, 2.10, "The five biggest ski areas. Ready?"),
+    (2.30, 3.25, "Number five."), (3.35, 5.35, "Mont Blanc, France."),
+    (5.50, 6.45, "Number four."), (6.55, 8.55, "Ski ah-mah-day, Austria."),
+    (8.70, 9.65, "Tied for second."), (9.75, 11.75, "Port doo so-lay."),
+    (11.90, 12.85, "And..."), (12.95, 14.95, "Lay twah valay."),
+    (15.10, 16.05, "Number one."), (16.15, 18.15, "The Dolomites. Twelve hundred kilometres!"),
+    (18.30, 21.00, "Is yours missing? Comment it below.")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
 SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
@@ -116,6 +125,7 @@ SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] +
        "before": [("whoosh", 1.9)] + [("tick", 2.2 + i * 2.9 + 2.3) for i in range(6)] + [("ding", 19.65)],
        "pov": [("tick", 3.3), ("tick", 5.2), ("thud", 6.8), ("thud", 7.9), ("thud", 9.0), ("ding", 10.35)]}
 SFX["tbar"] = SFX["pov"]
+SFX["top5"] = [("whoosh", 1.9)] + [(k, 2.2 + i * 3.2 + d) for i in range(5) for k, d in (("tick", .25), ("tick", .65), ("thud", 1.1))] + [("ding", 16.1), ("ding", 18.2)]
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 
