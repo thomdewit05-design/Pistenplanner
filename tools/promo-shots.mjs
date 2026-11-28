@@ -58,6 +58,19 @@ if(only?.includes("settings")){
   await p.evaluate(() => { document.getElementById("noMogul").click(); return 0; }); await p.waitForTimeout(600); await shot("set-2");
   await p.evaluate(() => { S.noMogul = false; S.level = 2; update(); document.getElementById("menuClose").click(); return 0; }); await p.waitForTimeout(500);
 }
+// de instellingen voor snowboarders: Snowboard kiezen en "Sleepliften vermijden" (de hint onder Snowboard schuift de lijst op, dus elke plek na zijn stap meten)
+if(only?.includes("tbar")){
+  await p.evaluate(() => { S.board = false; S.noDrag = false; S.level = 2; update(); openMenuAt("level"); return 0; }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { document.querySelector("#menu .flash")?.classList.remove("flash"); const g = document.getElementById("gear").previousElementSibling; g.scrollIntoView({block:"start"});
+    let sc = g.parentElement; while(sc && sc.scrollHeight <= sc.clientHeight + 2) sc = sc.parentElement; sc?.scrollBy(0, -78); return 0; }); await p.waitForTimeout(600);
+  const box = sel => p.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]; }, sel);
+  const pos = {board:await box('#gear [data-v="board"]')};
+  await shot("tbar-0");
+  await p.click('#gear [data-v="board"]'); await p.waitForTimeout(600); await shot("tbar-1"); pos.drag = await box("#noDrag + i");
+  await p.evaluate(() => { document.getElementById("noDrag").click(); return 0; }); await p.waitForTimeout(600); await shot("tbar-2");
+  await writeFile(join(OUT, "tbar.json"), JSON.stringify(pos));
+  await p.evaluate(() => { S.noDrag = false; S.board = false; update(); document.getElementById("menuClose").click(); return 0; }); await p.waitForTimeout(500);
+}
 if(want("trip")){
   await p.evaluate(() => { const f = new Date(Date.now() + 5 * 864e5), t = new Date(Date.now() + 11 * 864e5), iso = d => d.toISOString().slice(0, 10);
     localStorage.setItem("pp-trip", JSON.stringify({area:S.area.id, from:iso(f), to:iso(t), pack:[0, 1, 2, 3, 4, 9]})); setTab("today"); return 0; });

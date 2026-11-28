@@ -99,6 +99,15 @@ SCRIPTS = {
     (7.90, 8.95, "Moguls? Nope."),
     (9.00, 10.25, "Ice? Still your problem."),
     (10.45, 13.00, "Your knees will thank you. Ski pilot. It's free.")]),
+  # tbar: zelfde tijden als pov (promo-tbar.html)
+  "tbar": (13.0, [
+    (0.25, 1.95, "Snowboarders. Let's talk tee bars."),
+    (2.20, 4.20, "Step one. Tell it you snowboard."),
+    (4.35, 6.30, "Step two. Flip this switch."),
+    (6.75, 7.85, "Tee bars? Nope."),
+    (7.90, 8.95, "Cat tracks? Fewer."),
+    (9.00, 10.70, "Chairlift exit? Still on you."),
+    (10.80, 13.00, "Your legs will thank you. Ski pilot.")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
 SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
@@ -106,6 +115,7 @@ SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] +
                    ("ding", 9.97), ("whoosh", 14.4), ("ding", 17.35), ("whoosh", 19.9)],
        "before": [("whoosh", 1.9)] + [("tick", 2.2 + i * 2.9 + 2.3) for i in range(6)] + [("ding", 19.65)],
        "pov": [("tick", 3.3), ("tick", 5.2), ("thud", 6.8), ("thud", 7.9), ("thud", 9.0), ("ding", 10.35)]}
+SFX["tbar"] = SFX["pov"]
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 
