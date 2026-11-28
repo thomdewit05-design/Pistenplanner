@@ -3,7 +3,7 @@
 // Zelfde werkwijze als tools/store-shots.mjs. Heeft internet nodig voor de winterkaart en 3D.
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
-import { readFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 const req = createRequire(import.meta.url);
@@ -47,6 +47,17 @@ if(want("closing")){
   await p.evaluate(() => { if(window.__keepClose) S.liftClose = window.__keepClose; return 0; });
 }
 // de reisplanner: vertrek over 5 dagen, een deel van de paklijst al ingepakt (aftelkaart op Vandaag en het reispaneel)
+// de instellingen "Mijn skiën": niveau en "Buckelpistes vermijden" (voor, na het niveau, na de schakelaar) plus de plek van beide knoppen
+if(only?.includes("settings")){
+  await p.evaluate(() => { S.level = 3; S.noMogul = false; update(); openMenuAt("level"); return 0; }); await p.waitForTimeout(1500);
+  await p.evaluate(() => { document.querySelector("#menu .flash")?.classList.remove("flash"); document.getElementById("gear").previousElementSibling.scrollIntoView({block:"start"}); return 0; }); await p.waitForTimeout(600);
+  const box = sel => p.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]; }, sel);
+  await writeFile(join(OUT, "settings.json"), JSON.stringify({level:await box('#level [data-v="2"]'), mogul:await box("#noMogul + i")}));
+  await shot("set-0");
+  await p.click('#level [data-v="2"]'); await p.waitForTimeout(600); await shot("set-1");
+  await p.evaluate(() => { document.getElementById("noMogul").click(); return 0; }); await p.waitForTimeout(600); await shot("set-2");
+  await p.evaluate(() => { S.noMogul = false; S.level = 2; update(); document.getElementById("menuClose").click(); return 0; }); await p.waitForTimeout(500);
+}
 if(want("trip")){
   await p.evaluate(() => { const f = new Date(Date.now() + 5 * 864e5), t = new Date(Date.now() + 11 * 864e5), iso = d => d.toISOString().slice(0, 10);
     localStorage.setItem("pp-trip", JSON.stringify({area:S.area.id, from:iso(f), to:iso(t), pack:[0, 1, 2, 3, 4, 9]})); setTab("today"); return 0; });

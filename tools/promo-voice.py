@@ -89,13 +89,23 @@ SCRIPTS = {
     (11.00, 13.75, "Four. Make a group, so nobody gets lost."),
     (13.90, 16.65, "Five. Check the snow before you go."),
     (16.80, 19.55, "Six. Turn on fall detection on your Watch."),
-    (19.70, 22.00, "Skipilot does it all. Comment ski for the link!")]),
+    (19.70, 22.00, "Ski pilot does it all. Comment ski!")]),
+  # pov: het deel achter een Stitch (promo-pov.html): instellingen 2–6,3 s, stempels op 6,8 / 7,9 / 9,0 s, slot vanaf 10,3 s
+  "pov": (13.0, [
+    (0.25, 1.95, "Yeah... there's a setting for that."),
+    (2.20, 4.20, "Step one. Be honest about your level."),
+    (4.35, 6.30, "Step two. Flip this switch."),
+    (6.75, 7.85, "Black runs? Nope."),
+    (7.90, 8.95, "Moguls? Nope."),
+    (9.00, 10.25, "Ice? Still your problem."),
+    (10.45, 13.00, "Your knees will thank you. Ski pilot. It's free.")]),
 }
 # Geluidseffecten per video: (soort, tijdstip). Met code gemaakt, geen bestanden.
 SFX = {"quiz": [("tick", 2.6 + i * 4 + k) for i in range(5) for k in range(3)] + [("ding", 2.6 + i * 4 + 3) for i in range(5)] + [("ding", 22.7)],
        "zermatt": [("tick", 1.12), ("whoosh", 2.55), ("tick", 7.3), ("tick", 7.46), ("tick", 7.62), ("tick", 8.3), ("tick", 8.46), ("tick", 8.62),
                    ("ding", 9.97), ("whoosh", 14.4), ("ding", 17.35), ("whoosh", 19.9)],
-       "before": [("whoosh", 1.9)] + [("tick", 2.2 + i * 2.9 + 2.3) for i in range(6)] + [("ding", 19.65)]}
+       "before": [("whoosh", 1.9)] + [("tick", 2.2 + i * 2.9 + 2.3) for i in range(6)] + [("ding", 19.65)],
+       "pov": [("tick", 3.3), ("tick", 5.2), ("thud", 6.8), ("thud", 7.9), ("thud", 9.0), ("ding", 10.35)]}
 WANT = args[1:] or list(SCRIPTS)
 k = Kokoro(os.path.join(KDIR, "kokoro-v1.0.onnx"), os.path.join(KDIR, "voices-v1.0.bin"))
 
@@ -125,11 +135,12 @@ for name in WANT:
         i = int(start * sr); x = x[:max(0, len(out) - i)]; out[i:i + len(x)] += x
     out = out / (float(np.max(np.abs(out))) or 1.0) * 0.82
     for kind, t0 in SFX.get(name, []):                                       # effecten onder de stem
-        n = int({"tick": .12, "whoosh": .8}.get(kind, .9) * sr); tt = np.arange(n) / sr
+        n = int({"tick": .12, "whoosh": .8, "thud": .35}.get(kind, .9) * sr); tt = np.arange(n) / sr
         if kind == "whoosh":                                                 # ruis die aanzwelt en wegsterft, met een lowpass die meeloopt
             rng = np.random.default_rng(int(t0 * 100)); nz = rng.standard_normal(n); env = np.sin(np.pi * tt / tt[-1]) ** 2; fx = np.zeros(n); y = 0.0
             for j in range(n): a = .02 + .25 * env[j]; y += a * (nz[j] - y); fx[j] = y
             fx = fx / (np.max(np.abs(fx)) or 1) * env * .3
+        elif kind == "thud": fx = (np.sin(2 * np.pi * (70 + 60 * np.exp(-tt / .03)) * tt) * np.exp(-tt / .07) + np.random.default_rng(7).standard_normal(n) * np.exp(-tt / .008) * .25) * .5   # doffe stempelklap
         elif kind == "tick": fx = (np.sin(2 * np.pi * 1500 * tt) * .6 + np.sin(2 * np.pi * 2300 * tt) * .3) * np.exp(-tt / .015) * .32
         else: fx = sum(np.sin(2 * np.pi * f * tt) * w for f, w in [(1318.5, .5), (1975.5, .3), (2637, .15)]) * np.exp(-tt / .28) * .34   # een heldere "ding" (E6, B6)
         i = int(t0 * sr); fx = fx[:max(0, len(out) - i)].astype(np.float32); out[i:i + len(fx)] += fx
