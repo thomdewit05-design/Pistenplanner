@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: snowboarders and T-bars</title>
+<!-- "Snowboarders, this switch is for you": 1080×1920, 13 s. Zelfde droge opzet als promo-pov.html: het echte instellingenscherm
+     (shots/en/tbar-0..2.png, plekken van de knoppen in tbar.json): Snowboard kiezen en "Avoid T-bars and drag lifts" aanzetten,
+     daarna de route met stempels. Geluid: tools/promo-voice.py tbar. Maken: PAGE=promo-tbar FPS=60 node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;font-family:'Barlow',system-ui,sans-serif;color:#fff;background:radial-gradient(120% 70% at 50% 30%,#1B2C40 0%,#0C1826 60%,#070D15 100%)}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #hook{left:70px;top:520px;width:940px;text-align:center}
+  #hook small{display:inline-block;padding:10px 30px 14px;border-radius:40px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:64px}
+  #hook h1{margin:36px 0 0;font-weight:700;font-size:128px;line-height:.98;letter-spacing:-4px}
+  #hook h1 em{font-style:normal;color:#FFC400}
+  #hook p{margin:50px 0 0;font-weight:600;font-size:56px;color:#9FB6CC;font-style:italic}
+  #cap{left:60px;top:160px;width:960px;text-align:center}
+  #cap small{display:block;font-weight:700;font-size:44px;letter-spacing:3px;color:#FFC400}
+  #cap h2{margin:8px 0 0;font-weight:700;font-size:84px;line-height:1.02;letter-spacing:-2px}
+  .phone{width:620px;height:1297px}
+  .phone .body{position:absolute;inset:0;border-radius:92px;background:linear-gradient(145deg,#8E97A3 0%,#2A313B 22%,#141920 50%,#3B434F 80%,#9AA3AF 100%);box-shadow:0 50px 120px rgba(0,0,0,.6)}
+  .phone .bezel{position:absolute;inset:7px;border-radius:86px;background:#05080C}
+  .phone .scr{position:absolute;left:20px;top:20px;width:580px;height:1257px;border-radius:72px;overflow:hidden;background:#dfe9f3}
+  #in{position:absolute;left:0;top:0;width:580px;height:1257px}
+  #in img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  #hl{position:absolute;left:22px;width:536px;height:72px;border-radius:20px;box-shadow:0 0 0 6px #FFC400,0 0 30px rgba(255,196,0,.6);opacity:0}
+  #finger{width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:rgba(255,196,0,.92);box-shadow:0 0 0 12px rgba(255,196,0,.25);opacity:0}
+  #tap{width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:9px solid #FFC400;opacity:0}
+  .stamp{left:0;top:0;width:1080px;text-align:center;opacity:0}
+  .stamp span{display:inline-block;padding:20px 44px 26px;border-radius:26px;background:#fff;color:#0F1C2B;font-weight:700;font-size:74px;letter-spacing:-1px;box-shadow:0 26px 60px rgba(0,0,0,.5)}
+  .stamp b{display:inline-block;margin-left:18px;padding:0 20px 4px;border:8px solid #E5352B;border-radius:16px;color:#E5352B;letter-spacing:2px;transform:rotate(-7deg)}
+  .stamp.ice span{background:#0F1C2B;color:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.25) inset,0 26px 60px rgba(0,0,0,.5)}
+  .stamp.ice i{font-style:italic;color:#9FD0FF}
+  #end{left:0;top:0;width:1080px;height:1920px;opacity:0;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);text-align:center}
+  #end h2{margin:520px 70px 0;font-weight:700;font-size:132px;line-height:.98;letter-spacing:-4px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end .app{margin-top:90px} #end img{width:140px;height:140px;border-radius:32px;vertical-align:middle}
+  #end .app b{font-size:100px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:28px}
+  #end p{margin:24px 0 0;font-weight:600;font-size:50px;color:#D7E6F5}
+  #end .cta{margin-top:70px} #end .cta span{display:inline-block;padding:20px 44px 24px;border-radius:60px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:54px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="pA" class="abs phone"><div class="body"></div><div class="bezel"></div><div class="scr"><div id="in"><img id="s0" src="shots/en/tbar-0.png"><img id="s1" src="shots/en/tbar-1.png"><img id="s2" src="shots/en/tbar-2.png"><img id="sR" src="shots/en/route.png"><div id="hl"></div><div id="finger" class="abs"></div><div id="tap" class="abs"></div></div></div></div>
+  <div id="cap" class="abs"><small></small><h2></h2></div>
+  <div id="hook" class="abs"><small>SNOWBOARDERS</small><h1>We need to talk about <em>T-bars.</em></h1><p>there's a switch for that</p></div>
+  <div class="abs stamp" id="st0"><span>T-bars?<b>NOPE</b></span></div>
+  <div class="abs stamp" id="st1"><span>Flat cat tracks?<b>FEWER</b></span></div>
+  <div class="abs stamp ice" id="st2"><span>The chairlift exit? <i>…still on you</i></span></div>
+  <div id="end" class="abs"><h2>Your legs will <em>thank you.</em></h2><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><p>Free on the App Store</p><div class="cta"><span>Tag a snowboarder 👇</span></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+const DUR = 13, K = 580 / 430;                       // schermpunten van de opname (430 breed) naar het telefoonscherm
+const T = {set:2.0, lvl:3.3, sw:5.2, map:6.3, st:[6.8, 7.9, 9.0], end:10.3};
+const CAPS = [[T.set, 4.25, "STEP 1", "Tell it you snowboard"], [4.25, T.map, "STEP 2", "Flip this switch"], [T.map, T.end, "RESULT", "A route made for boards"]];
+let POS = {level:[306, 122], mogul:[372, 591]};   // level = de knop Snowboard, mogul = de schakelaar voor sleepliften
+function render(t){
+  // haak
+  const hk = $("hook"); hk.style.opacity = 1 - seg(t, 1.85, 2.1); hk.querySelector("h1").style.transform = `scale(${pop(t, .05, .45) || .4})`; hk.querySelector("p").style.opacity = seg(t, .9, 1.2);
+  // telefoon
+  const P = $("pA"), pin = eo(seg(t, 1.9, 2.5)), pout = seg(t, T.end - .1, T.end + .2);
+  P.style.transformOrigin = "0 0"; P.style.transform = `translate(${205}px,${440 + (1 - pin) * 1500}px) scale(1.08)`; P.style.opacity = 1 - pout;
+  const a = seg(t, T.lvl, T.lvl + .15), b = seg(t, T.sw, T.sw + .15), m = seg(t, T.map - .2, T.map + .1);
+  $("s0").style.opacity = 1; $("s1").style.opacity = a; $("s2").style.opacity = b; $("sR").style.opacity = m;
+  // inzoomen op de schakelaar bij stap 2
+  const z = eio(seg(t, 4.2, 4.8)) * (1 - eio(seg(t, T.map - .45, T.map - .15))), zs = 1 + z * .14, [mx, my] = POS.mogul.map(v => v * K);
+  $("in").style.transformOrigin = `290px ${my}px`; const hl = $("hl"); hl.style.top = my - 36 + "px"; hl.style.opacity = z * (1 - seg(t, T.map - .3, T.map - .15)); $("in").style.transform = `scale(${zs})`;
+  // vinger: eerst het niveau, dan de schakelaar
+  const fg = $("finger"), [lx, ly] = POS.level.map(v => v * K);
+  const u1 = eo(seg(t, T.lvl - .6, T.lvl - .1)), u2 = eo(seg(t, T.sw - .7, T.sw - .1));
+  const fx = t < T.lvl + .4 ? lerp(430, lx, u1) : lerp(lx, mx, u2), fy = t < T.lvl + .4 ? lerp(520, ly, u1) : lerp(ly, my, u2);
+  fg.style.left = fx + "px"; fg.style.top = fy + "px"; fg.style.opacity = Math.min(seg(t, T.lvl - .6, T.lvl - .4), 1 - seg(t, T.sw + .25, T.sw + .45));
+  const press = Math.max(1 - Math.abs(t - T.lvl) / .12, 1 - Math.abs(t - T.sw) / .12, 0); fg.style.transform = `scale(${1 - press * .25})`;
+  const tp = $("tap"), k1 = seg(t, T.lvl, T.lvl + .5), k2 = seg(t, T.sw, T.sw + .5), kk = k2 > 0 ? k2 : k1, [tx, ty] = k2 > 0 ? [mx, my] : [lx, ly];
+  tp.style.left = tx + "px"; tp.style.top = ty + "px"; tp.style.opacity = kk > 0 && kk < 1 ? 1 - kk : 0; tp.style.transform = `scale(${.3 + kk * 1.5})`;
+  // bijschrift
+  const c = CAPS.find(c => t >= c[0] && t < c[1]), cp = $("cap");
+  if(c){ cp.querySelector("small").textContent = c[2]; cp.querySelector("h2").textContent = c[3]; const o = Math.min(seg(t, c[0] + .05, c[0] + .3), 1 - seg(t, c[1] - .2, c[1])); cp.style.opacity = o; cp.style.transform = `translateY(${(1 - eo(seg(t, c[0], c[0] + .35))) * 30}px)`; } else cp.style.opacity = 0;
+  // stempels
+  [[0, 830, -3], [1, 1010, 2], [2, 1200, -1]].forEach(([i, y, r]) => { const s = $("st" + i), t0 = T.st[i], u = seg(t, t0, t0 + .22);
+    s.style.opacity = Math.min(1, u * 3) * (1 - seg(t, T.end - .15, T.end + .1)); s.style.transform = `translateY(${y}px) rotate(${r}deg) scale(${u > 0 ? lerp(2.2, 1, eo(u)) : 2.2})`; });
+  // slot
+  const en = $("end"); en.style.opacity = seg(t, T.end, T.end + .3); en.querySelector("h2").style.transform = `scale(${pop(t, T.end + .05, .45) || .4})`;
+  en.querySelector(".app").style.opacity = seg(t, T.end + .6, T.end + .9); en.querySelector("p").style.opacity = seg(t, T.end + .8, T.end + 1.1);
+  en.querySelector(".cta").style.transform = `scale(${pop(t, T.end + 1.2, .4) || 0})`;
+}
+fetch("shots/en/tbar.json").then(r => r.json()).then(p => { POS = {level:p.board, mogul:p.drag}; boot(DUR, render); });
+</script>
+</body>
+</html>

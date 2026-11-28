@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: one tap, two countries</title>
+<!-- Zermatt – Cervinia: 1080×1920, 22 s. De app staat vanaf seconde 1 in beeld (de echte kaart, een tik, de dagroute);
+     daarna de 3D-vlucht over het gebied met een klok, een kilometerteller en een kaartje met een stip die over de route schuift.
+     De vraag uit de eerste seconde ("kan één tik een dag van Zwitserland naar Italië plannen?") wordt pas aan het eind beantwoord.
+     Alle cijfers komen uit de app bij de opname (shots/en-zermatt/route.json). Geluid: tools/promo-voice.py zermatt.
+     Maken: PAGE=promo-zermatt node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #clip{width:1080px;height:1920px;object-fit:cover;opacity:0}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(9,17,27,.85) 0%,rgba(9,17,27,.2) 24%,rgba(9,17,27,0) 50%,rgba(9,17,27,.55) 85%,rgba(9,17,27,.8) 100%);opacity:0}
+  #bgintro{width:1080px;height:1920px;background:radial-gradient(120% 70% at 50% 30%,#16304C 0%,#0C1826 60%,#070D15 100%)}
+  #hook{left:60px;top:150px;width:960px;text-align:center}
+  #hook h1{margin:0;font-weight:700;font-size:86px;line-height:1.02;letter-spacing:-2.5px;text-shadow:0 6px 30px rgba(0,0,0,.5)}
+  #hook h1 em{font-style:normal;color:#FFC400}
+  .phone{width:620px;height:1297px}
+  .phone .body{position:absolute;inset:0;border-radius:92px;background:linear-gradient(145deg,#8E97A3 0%,#2A313B 22%,#141920 50%,#3B434F 80%,#9AA3AF 100%);box-shadow:0 50px 120px rgba(0,0,0,.6)}
+  .phone .bezel{position:absolute;inset:7px;border-radius:86px;background:#05080C}
+  .phone .scr{position:absolute;left:20px;top:20px;width:580px;height:1257px;border-radius:72px;overflow:hidden;background:#dfe9f3}
+  .phone .scr img{position:absolute;left:0;top:0;width:100%;height:100%}
+  #finger{width:84px;height:84px;border-radius:50%;background:rgba(255,196,0,.92);box-shadow:0 0 0 12px rgba(255,196,0,.25);opacity:0}
+  #tap{width:150px;height:150px;border-radius:50%;border:9px solid #FFC400;opacity:0}
+  #hud{left:60px;top:150px;width:960px;opacity:0}
+  #hud .box{display:inline-block;margin-right:18px;padding:16px 30px 18px;border-radius:30px;background:rgba(9,17,27,.78);box-shadow:0 0 0 3px rgba(255,255,255,.14) inset;vertical-align:top}
+  #hud b{display:block;font-weight:700;font-size:80px;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  #hud span{display:block;margin-top:6px;font-weight:600;font-size:30px;color:#9FD0FF;letter-spacing:1px}
+  #mini{left:722px;top:300px;width:306px;height:369px;border-radius:30px;overflow:hidden;background:#dfe9f3;box-shadow:0 0 0 5px rgba(255,255,255,.85),0 24px 60px rgba(0,0,0,.45);opacity:0}
+  #mini img{position:absolute}
+  #dot{width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#FFC400;box-shadow:0 0 0 6px #fff,0 0 22px rgba(255,196,0,.9)}
+  .cap{left:0;top:1180px;width:1080px;text-align:center;opacity:0}
+  .cap span{display:inline-block;padding:22px 46px 26px;border-radius:60px;background:#fff;color:#0F1C2B;font-weight:700;font-size:66px;letter-spacing:-1px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+  #watch{left:70px;top:820px;width:300px;height:358px;opacity:0}
+  #watch .case{position:absolute;inset:0;border-radius:78px;background:linear-gradient(145deg,#9AA3AF 0%,#2A313B 20%,#0b0f14 50%,#3B434F 82%,#9AA3AF 100%);box-shadow:0 30px 70px rgba(0,0,0,.6)}
+  #watch img{position:absolute;left:17px;top:20px;width:266px;height:318px;border-radius:60px}
+  .ring{left:70px;top:820px;width:300px;height:358px;border-radius:86px;border:6px solid #FFC400;opacity:0}
+  #done{left:80px;top:420px;width:920px;padding:50px 54px 46px;box-sizing:border-box;border-radius:56px;background:#fff;color:#0F1C2B;box-shadow:0 50px 120px rgba(0,0,0,.5);opacity:0}
+  #done .ok{display:inline-block;padding:10px 26px 12px;border-radius:30px;background:#30B35C;color:#fff;font-weight:700;font-size:40px}
+  #done h2{margin:22px 0 0;font-weight:700;font-size:92px;line-height:1;letter-spacing:-3px}
+  #done .grid{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:20px 30px}
+  #done .grid div b{display:block;font-weight:700;font-size:72px;line-height:1;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+  #done .grid div span{font-weight:600;font-size:34px;color:#55687A}
+  #done .tap{margin-top:32px;padding-top:26px;border-top:3px solid #E3ECF5;font-weight:700;font-size:48px;color:#1F7FD6}
+  #end{left:0;top:0;width:1080px;height:1920px;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);opacity:0;text-align:center}
+  #end h2{margin:560px 80px 0;font-weight:700;font-size:150px;line-height:.96;letter-spacing:-5px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end .app{margin-top:100px} #end img{width:140px;height:140px;border-radius:32px;vertical-align:middle}
+  #end .app b{font-size:100px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:28px}
+  #end p{margin:40px 0 0;font-weight:600;font-size:52px;color:#D7E6F5}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bgintro" class="abs"></div>
+  <img id="clip" class="abs" alt=""><div id="shade" class="abs"></div>
+  <div id="pA" class="abs phone"><div class="body"></div><div class="bezel"></div><div class="scr"><img id="sMap"><img id="sRoute" style="opacity:0"><div id="finger" class="abs"></div><div id="tap" class="abs"></div></div></div>
+  <div id="hook" class="abs"><h1></h1></div>
+  <div id="hud" class="abs"><div class="box"><b id="clock">08:30</b><span>TIME</span></div><div class="box"><b id="km">0.0</b><span>KM</span></div></div>
+  <div id="mini" class="abs"><img id="miniImg"><div id="dot" class="abs"></div></div>
+  <div id="caps"></div>
+  <div id="rings"></div>
+  <div id="watch" class="abs"><div class="case"></div><img alt=""></div>
+  <div id="done" class="abs"><div class="ok"></div><h2></h2><div class="grid"></div><div class="tap"></div></div>
+  <div id="end" class="abs"><h2></h2><p></p><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+window.CLIPS = "en-zermatt"; const TAG = "en-zermatt", FRAMES = 300, FIRST = 6;
+const HOOK = "Can one tap plan a full day from <em>Switzerland</em> to <em>Italy?</em>";
+const END = ["Which resort<br><em>next?</em>", "Comment below 👇"];
+let R = null;                                   // de dagroute uit de app (route.json)
+const DUR = 22, F0 = 3.8, F1 = 17.0;            // de vlucht
+const ease = x => (1 - Math.cos(Math.PI * clamp(x))) / 2;
+const prog = t => ease(seg(t, F0, F1));          // aandeel van de route (afstand) op tijdstip t
+const timeAt = u => F0 + Math.acos(1 - 2 * u) / Math.PI * (F1 - F0);
+$("hook").querySelector("h1").innerHTML = HOOK; $("end").querySelector("h2").innerHTML = END[0]; $("end").querySelector("p").textContent = END[1];
+$("sMap").src = `shots/${TAG}/map.png`; $("sRoute").src = `shots/${TAG}/route.png`; $("miniImg").src = `shots/${TAG}/route.png`; $("watch").querySelector("img").src = "shots/watch-en/right.png";
+const rings = [0, 1, 2].map(() => { const r = document.createElement("div"); r.className = "abs ring"; $("rings").appendChild(r); return r; });
+const CAPS = [], caps = [];
+let CUM = [], TOT = 1, START = 510, END_MIN = 1000;
+
+function setup(r){
+  R = r; const L = r.line; CUM = [0]; for(let i = 1; i < L.length; i++) CUM.push(CUM[i - 1] + Math.hypot(L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1])); TOT = CUM[CUM.length - 1];
+  // "8 h 10 73.1 km of runs · done at 16:40 25 runs 30 lifts 11,886 m descent ..."
+  const m = r.peek.match(/(\d+) h (\d+)/), done = r.peek.match(/done at (\d+):(\d+)/);
+  R.km = parseFloat(r.peek.match(/([\d.]+) km/)[1]); R.runs = +r.peek.match(/(\d+) runs/)[1]; R.lifts = +r.peek.match(/(\d+) lifts/)[1]; R.desc = r.peek.match(/([\d,]+) m descent/)[1];
+  END_MIN = +done[1] * 60 + +done[2]; START = END_MIN - (+m[1] * 60 + +m[2]); R.done = `${done[1]}:${done[2]}`;
+  const f = i => CUM[i] / TOT, italy = L.findIndex(p => p[2] < 45.94), back = L.length - 1 - [...L].reverse().findIndex(p => p[2] < 45.94);
+  const tI = timeAt(f(italy)), tB = timeAt(f(back));
+  window.MOMENTS = {italy:tI, back:tB};
+  CAPS.push([4.1, 6.5, `${hm(START)} · Zermatt 🇨🇭`], [tI, tI + 2.3, "🇨🇭 → 🇮🇹 Welcome to Italy"], [tI + 2.45, tB - .15, `Up to ${r.top.toLocaleString("en-US")} m ⛰️`], [tB, F1 + .1, "🇮🇹 → 🇨🇭 Back to Switzerland"]);
+  CAPS.forEach(([a, b, txt]) => { const d = document.createElement("div"); d.className = "abs cap"; d.innerHTML = `<span>${txt}</span>`; $("caps").appendChild(d); caps.push({d, a, b}); });
+  const dn = $("done"); dn.querySelector(".ok").textContent = "✓ Done"; dn.querySelector("h2").innerHTML = `Back in Zermatt<br>at ${R.done}`;
+  dn.querySelector(".grid").innerHTML = [[R.km.toFixed(1), "km"], [R.runs, "runs"], [R.lifts, "lifts"], [R.desc + " m", "descent"]].map(([v, u]) => `<div><b>${v}</b><span>${u}</span></div>`).join("");
+  dn.querySelector(".tap").textContent = "2 countries · 1 tap · Skipilot";
+}
+const hm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(Math.round(m % 60)).padStart(2, "0");
+function along(u){ const L = R.line, d = u * TOT; let i = 1; while(i < CUM.length - 1 && CUM[i] < d) i++; const a = L[i - 1], b = L[i], k = CUM[i] > CUM[i - 1] ? (d - CUM[i - 1]) / (CUM[i] - CUM[i - 1]) : 0; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
+
+function render(t){
+  if(!R) return;
+  // ----- opening: de telefoon met de echte kaart, een tik, de route -----
+  const P = $("pA"), zoom = eio(seg(t, 2.5, 3.6)), s = lerp(1.12, 2.8, zoom);
+  P.style.transform = `translate(${230}px,${440 + lerp(0, 260, zoom)}px) scale(${s})`; P.style.opacity = 1 - seg(t, 3.25, 3.6); P.style.transformOrigin = "50% 40%";
+  $("sRoute").style.opacity = seg(t, 1.25, 1.45);
+  const fg = $("finger"), fu = seg(t, .55, 1.1); fg.style.opacity = t > .55 && t < 1.35 ? Math.min(1, fu * 3) * (1 - seg(t, 1.2, 1.35)) : 0;
+  tf(fg, lerp(420, 248, eo(fu)), lerp(1220, 1063, eo(fu)), 1 - seg(t, 1.05, 1.2) * .25);
+  const tp = seg(t, 1.1, 1.6); $("tap").style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; tf($("tap"), 215, 1050, .3 + tp * 1.7);
+  const hk = $("hook"); hk.style.opacity = Math.min(seg(t, .05, .35), 1 - seg(t, 2.6, 2.9)); hk.style.transform = `scale(${pop(t, .05, .45) || .4})`;
+  $("bgintro").style.opacity = 1 - seg(t, 3.0, 3.6);
+  // ----- de 3D-vlucht -----
+  clipFrame($("clip"), "full", FIRST + Math.round(seg(t, 3.0, F1 + 1) * (FRAMES - 1 - FIRST)), FRAMES);
+  const co = seg(t, 3.0, 3.6) * (1 - seg(t, 19.9, 20.3)); $("clip").style.opacity = co; $("shade").style.opacity = co; $("clip").style.transform = `scale(${lerp(1.25, 1.02, eo(seg(t, 3.0, 4.4)))})`;
+  // klok, teller, kaartje
+  const u = prog(t), hud = $("hud"), ho = Math.min(seg(t, 3.7, 4.0), 1 - seg(t, 17.2, 17.5)); hud.style.opacity = ho;
+  $("clock").textContent = hm(START + (END_MIN - START) * u); $("km").textContent = (R.km * u).toFixed(1);
+  const mini = $("mini"); mini.style.opacity = ho; const sc = .9, img = $("miniImg"); img.style.width = 430 * sc + "px"; img.style.left = -20 * sc + "px"; img.style.top = -130 * sc + "px";
+  const [x, y] = along(u); $("dot").style.left = (x - 20) * sc + "px"; $("dot").style.top = (y - 130) * sc + "px";
+  // momenten
+  for(const c of caps){ const o = Math.min(seg(t, c.a, c.a + .25), 1 - seg(t, c.b - .25, c.b)); c.d.style.opacity = o; c.d.style.transform = `translateY(${(1 - eo(seg(t, c.a, c.a + .4))) * 40}px) scale(${o > 0 ? lerp(.85, 1, back(seg(t, c.a, c.a + .4))) : .85})`; }
+  // de Watch tikt (rechts: drie snelle tikken)
+  const W = $("watch"), wa = 6.7, wo = Math.min(seg(t, wa, wa + .35), 1 - seg(t, wa + 2.6, wa + 2.9)); let sh = 0;
+  [wa + .6, wa + .76, wa + .92, wa + 1.6, wa + 1.76, wa + 1.92].forEach(t0 => { const k = (t - t0) / .14; if(k > 0 && k < 1) sh = Math.sin(k * Math.PI) * (1 - k * .5) * 20; });
+  W.style.opacity = wo; W.style.transform = `translate(${sh + (1 - eo(seg(t, wa, wa + .4))) * -400}px,0px) rotate(${-6 + sh * .2}deg)`;
+  rings.forEach((r, i) => { const t0 = [wa + .6, wa + .92, wa + 1.6][i], k = seg(t, t0, t0 + .55); r.style.opacity = k > 0 && k < 1 ? (1 - k) * wo : 0; r.style.transform = `rotate(-6deg) scale(${1 + k * .35})`; });
+  if(!caps.wcap){ const d = document.createElement("div"); d.className = "abs cap"; d.innerHTML = "<span>Your Watch taps every turn</span>"; $("caps").appendChild(d); caps.wcap = d; }
+  const wc = caps.wcap, wco = Math.min(seg(t, wa + .2, wa + .45), 1 - seg(t, wa + 2.6, wa + 2.85)); wc.style.opacity = wco; wc.style.transform = `translateY(${(1 - eo(seg(t, wa + .2, wa + .6))) * 40}px)`;
+  // ----- de clou -----
+  const dn = $("done"), du = seg(t, 17.3, 17.75), dout = seg(t, 19.95, 20.25); dn.style.opacity = du * (1 - dout);
+  dn.style.transform = `scale(${du > 0 ? lerp(.6, 1, back(du)) : .6})`;
+  [...dn.querySelector(".grid").children].forEach((c, i) => { const k = seg(t, 17.8 + i * .18, 18.1 + i * .18); c.style.opacity = k; c.style.transform = `translateY(${(1 - eo(k)) * 24}px)`; });
+  dn.querySelector(".tap").style.opacity = seg(t, 18.7, 19.0);
+  // ----- slot -----
+  const en = $("end"), eu = seg(t, 20.0, 20.35); en.style.opacity = eu; en.querySelector("h2").style.transform = `scale(${pop(t, 20.05, .45) || .4})`;
+  en.querySelector("p").style.opacity = seg(t, 20.5, 20.8); en.querySelector(".app").style.opacity = seg(t, 20.8, 21.1);
+}
+fetch(`shots/${TAG}/route.json`).then(r => r.json()).then(r => { setup(r); boot(DUR, render); });
+</script>
+</body>
+</html>

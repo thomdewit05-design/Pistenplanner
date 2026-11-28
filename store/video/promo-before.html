@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: before your ski trip</title>
+<!-- "Do this before your ski trip": 1080×1920, 22 s. Een lijst van 6 punten die zich afvinkt, elk met een echt scherm uit de app
+     (shots/en) of de Watch (shots/watch-en). Gemaakt om te bewaren ("save this") en met "comment SKI" als weg naar de link.
+     Geluid: tools/promo-voice.py before. Maken: PAGE=promo-before FPS=60 node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;font-family:'Barlow',system-ui,sans-serif;color:#0F1C2B;background:linear-gradient(180deg,#EAF3FC 0%,#D5E7F8 55%,#BFD9F2 100%)}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #snow i{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;opacity:.9}
+  #top{left:60px;top:140px;width:960px;height:80px}
+  #top .t{position:absolute;left:0;top:10px;font-weight:700;font-size:44px;letter-spacing:2px;color:#1F7FD6}
+  #top .boxes{position:absolute;right:0;top:6px;display:flex;gap:12px}
+  #top .boxes b{width:52px;height:52px;border-radius:14px;background:#fff;box-shadow:0 0 0 4px #A9C8E6 inset;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px}
+  #top .boxes b.on{background:#30B35C;box-shadow:none}
+  #item{left:60px;top:250px;width:960px}
+  #item .n{position:absolute;left:0;top:0;width:118px;height:118px;border-radius:34px;background:#0F1C2B;color:#FFC400;font-weight:700;font-size:84px;line-height:118px;text-align:center}
+  #item .n .ck{position:absolute;inset:0;border-radius:34px;background:#30B35C;color:#fff;opacity:0}
+  #item h2{position:absolute;left:146px;top:-6px;margin:0;font-weight:700;font-size:76px;letter-spacing:-2px;line-height:1.02;white-space:nowrap}
+  #item p{position:absolute;left:148px;top:78px;margin:0;font-weight:600;font-size:40px;color:#3E5A75;white-space:nowrap}
+  .phone{width:620px;height:1297px}
+  .phone .body{position:absolute;inset:0;border-radius:92px;background:linear-gradient(145deg,#8E97A3 0%,#2A313B 22%,#141920 50%,#3B434F 80%,#9AA3AF 100%);box-shadow:0 50px 120px rgba(15,28,43,.35)}
+  .phone .bezel{position:absolute;inset:7px;border-radius:86px;background:#05080C}
+  .phone .scr{position:absolute;left:20px;top:20px;width:580px;height:1257px;border-radius:72px;overflow:hidden;background:#dfe9f3}
+  .phone .scr img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  #finger{width:84px;height:84px;border-radius:50%;background:rgba(255,196,0,.92);box-shadow:0 0 0 12px rgba(255,196,0,.25);opacity:0}
+  #tap{width:150px;height:150px;border-radius:50%;border:9px solid #FFC400;opacity:0}
+  #off{left:40px;top:150px;padding:18px 30px;border-radius:40px;background:#0F1C2B;color:#fff;font-weight:700;font-size:36px;white-space:nowrap;opacity:0;box-shadow:0 20px 40px rgba(0,0,0,.35)}
+  #off em{font-style:normal;color:#7BE09B}
+  #watch{left:300px;top:640px;width:480px;height:573px;opacity:0}
+  #watch .case{position:absolute;inset:0;border-radius:124px;background:linear-gradient(145deg,#9AA3AF 0%,#2A313B 20%,#0b0f14 50%,#3B434F 82%,#9AA3AF 100%);box-shadow:0 40px 90px rgba(15,28,43,.4)}
+  #watch .set{position:absolute;left:27px;top:32px;width:426px;height:509px;border-radius:96px;background:#000;color:#fff;padding:48px 34px 0;box-sizing:border-box}
+  #watch .hd{font-weight:700;font-size:38px;color:#fff;margin:0 0 22px 14px} #watch .hd span{color:#FF9F0A;margin-right:6px}
+  #watch .row{display:flex;align-items:center;justify-content:space-between;height:100px;margin-bottom:12px;padding:0 26px;border-radius:30px;background:#222;font-weight:600;font-size:31px}
+  #watch .row.dim{color:#8E8E93} #watch .row b{color:#FF9F0A;font-size:38px}
+  #watch .sw{position:relative;width:96px;height:56px;border-radius:28px;background:#30D158} #watch .sw u{position:absolute;right:4px;top:4px;width:48px;height:48px;border-radius:50%;background:#fff}
+  #big{left:0;top:0;width:1080px;height:1920px;opacity:0;text-align:center}
+  #big h1{margin:560px 70px 0;font-weight:700;font-size:136px;line-height:.98;letter-spacing:-5px}
+  #big h1 em{font-style:normal;color:#1F7FD6}
+  #big .save{display:inline-block;margin-top:60px;padding:20px 44px 24px;border-radius:60px;background:#FFC400;font-weight:700;font-size:62px}
+  #end{left:0;top:0;width:1080px;height:1920px;opacity:0;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);color:#fff;text-align:center}
+  #end .list{position:absolute;left:150px;top:300px;width:780px;padding:40px 50px;box-sizing:border-box;border-radius:50px;background:#fff;color:#0F1C2B;text-align:left}
+  #end .list div{display:flex;align-items:center;gap:26px;font-weight:700;font-size:48px;height:84px}
+  #end .list b{width:56px;height:56px;border-radius:16px;background:#30B35C;color:#fff;font-size:40px;display:flex;align-items:center;justify-content:center;flex:none}
+  #end h2{position:absolute;left:0;top:930px;width:1080px;margin:0;font-weight:700;font-size:84px;letter-spacing:-2px;line-height:1.05}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end .app{position:absolute;left:0;top:1150px;width:1080px} #end img{width:120px;height:120px;border-radius:28px;vertical-align:middle}
+  #end .app b{font-size:86px;font-weight:700;letter-spacing:-2px;vertical-align:middle;margin-left:24px}
+  #end .cta{position:absolute;left:0;top:1310px;width:1080px}
+  #end .cta span{display:inline-block;padding:20px 44px 24px;border-radius:60px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:56px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="snow" class="abs"></div>
+  <div id="top" class="abs"><div class="t">BEFORE YOUR SKI TRIP</div><div class="boxes"></div></div>
+  <div id="item" class="abs"><div class="n"><span></span><div class="ck">✓</div></div><h2></h2><p></p></div>
+  <div id="pA" class="abs phone"><div class="body"></div><div class="bezel"></div><div class="scr" id="scr"><div id="finger" class="abs"></div><div id="tap" class="abs"></div><div id="off" class="abs"></div></div></div>
+  <div id="watch" class="abs"><div class="case"></div><div class="set"><div class="hd"><span>‹</span> Fall Detection</div><div class="row">Fall Detection<i class="sw"><u></u></i></div><div class="row">Always on<b>✓</b></div><div class="row dim">Workouts only</div></div></div>
+  <div id="big" class="abs"><h1>Do this before your <em>ski trip</em> ⛷️</h1><div class="save">Save this 🔖</div></div>
+  <div id="end" class="abs"><div class="list"></div><h2>Skipilot does<br><em>all of this.</em> Free.</h2><div class="app"><img src="../../icons/icon-512.png" alt=""><b>Skipilot</b></div><div class="cta"><span>Comment SKI for the link 👇</span></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+const DUR = 22, T0 = 2.2, IT = 2.9, TEND = T0 + 6 * IT;     // 6 punten van 2,9 s, slot vanaf 19,6 s
+const ITEMS = [
+  ["Plan the trip", "Countdown, weather, packing list", ["trip-card", "trip-pack"]],
+  ["Save the map offline", "No signal up top? Still works.", ["map"]],
+  ["Plan day one", "Your whole day route in one tap", ["map", "route"]],
+  ["Make a group", "So nobody gets lost", ["group-map"]],
+  ["Check the snow", "Weather, snow and lifts today", ["today"]],
+  ["Watch: Fall Detection on", "Settings → SOS → Fall Detection", []]];
+const SHORT = ["Plan the trip", "Map saved offline", "Day one planned", "Group made", "Snow checked", "Fall Detection on"];
+const IMGS = {}; for(const n of ["trip-card", "trip-pack", "map", "route", "group-map", "today"]){ const i = document.createElement("img"); i.src = `shots/en/${n}.png`; $("scr").insertBefore(i, $("finger")); IMGS[n] = i; }
+$("off").innerHTML = "📵 No signal · <em>map saved ✓</em>";
+const boxes = ITEMS.map(() => { const b = document.createElement("b"); $("top").querySelector(".boxes").appendChild(b); return b; });
+$("end").querySelector(".list").innerHTML = SHORT.map(s => `<div><b>✓</b>${s}</div>`).join("");
+const flakes = Array.from({length:40}, (_, i) => { const f = document.createElement("i"); $("snow").appendChild(f); return {f, x:(i * 197) % 1080, s:.4 + (i * 37 % 10) / 10, o:(i * 53) % 1920}; });
+
+function render(t){
+  flakes.forEach(k => { k.f.style.transform = `translate(${k.x + Math.sin(t * k.s + k.o) * 30}px,${(k.o + t * 160 * k.s) % 1960 - 20}px) scale(${k.s})`; });
+  // haak
+  const bg = $("big"); bg.style.opacity = 1 - seg(t, 1.95, 2.25); bg.querySelector("h1").style.transform = `scale(${pop(t, .05, .45) || .4})`;
+  bg.querySelector(".save").style.transform = `scale(${pop(t, .55, .4) || 0})`; bg.querySelector(".save").style.opacity = seg(t, .55, .7);
+  const show = seg(t, 2.0, 2.4) * (1 - seg(t, TEND - .1, TEND + .2));
+  $("top").style.opacity = show; $("item").style.opacity = show;
+  // welk punt
+  const k = Math.max(0, Math.min(5, Math.floor((t - T0) / IT))), lt = t - T0 - k * IT, [title, sub, scr] = ITEMS[k];
+  const it = $("item"); it.querySelector(".n span").textContent = k + 1; it.querySelector("h2").textContent = title; it.querySelector("p").textContent = sub;
+  const tin = seg(lt, 0, .35); it.querySelector("h2").style.transform = `translateX(${(1 - eo(tin)) * 60}px)`; it.querySelector("h2").style.opacity = tin; it.querySelector("p").style.opacity = seg(lt, .15, .45);
+  const tick = k * IT + T0 + 2.3, ck = seg(t, tick, tick + .2); it.querySelector(".ck").style.opacity = ck; it.querySelector(".n").style.transform = `scale(${t > tick ? (pop(t, tick, .35) || 1) : 1})`;
+  boxes.forEach((b, i) => { const on = t > T0 + i * IT + 2.3; b.className = on ? "on" : ""; b.textContent = on ? "✓" : ""; b.style.transform = `scale(${on ? (pop(t, T0 + i * IT + 2.3, .35) || 1) : 1})`; });
+  // telefoon (bij punt 6 de Watch)
+  const watchOn = k === 5 && t > T0 + 5 * IT - .2, P = $("pA");
+  const pin = eo(seg(t, 1.9, 2.5)), pout = seg(t, T0 + 5 * IT - .25, T0 + 5 * IT + .1);
+  P.style.transformOrigin = "0 0"; P.style.transform = `translate(${261}px,${520 + (1 - pin) * 1400 + pout * 1400}px) scale(.9)`;
+  for(const n in IMGS) IMGS[n].style.opacity = 0;
+  if(k <= 4){
+    if(k === 0){ const x = seg(lt, 1.2, 1.45); IMGS["trip-card"].style.opacity = 1 - x; IMGS["trip-pack"].style.opacity = x; }
+    else if(k === 2){ const x = seg(lt, 1.0, 1.2); IMGS.map.style.opacity = 1 - x; IMGS.route.style.opacity = x; }
+    else IMGS[scr[0]].style.opacity = 1;
+    for(const n in IMGS) IMGS[n].style.transform = `scale(${1 + seg(lt, 0, IT) * .04})`;
+  }
+  // de tik op "Today's day route" (punt 3)
+  const f0 = T0 + 2 * IT, fu = seg(t, f0 + .3, f0 + .8), fg = $("finger");
+  fg.style.opacity = t > f0 + .3 && t < f0 + 1.15 ? Math.min(1, fu * 3) * (1 - seg(t, f0 + 1.0, f0 + 1.15)) : 0;
+  tf(fg, lerp(420, 248, eo(fu)), lerp(1220, 1063, eo(fu)), 1 - seg(t, f0 + .8, f0 + .95) * .25);
+  const tp = seg(t, f0 + .85, f0 + 1.35); $("tap").style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; tf($("tap"), 215, 1030, .3 + tp * 1.7);
+  // geen bereik (punt 2)
+  const o0 = T0 + IT, oo = Math.min(seg(t, o0 + .5, o0 + .75), 1 - seg(t, o0 + IT - .2, o0 + IT)); $("off").style.opacity = oo; $("off").style.transform = `translate(${40}px,${150}px) scale(${oo > 0 ? (pop(t, o0 + .5, .35) || 1) : .5})`;
+  // Watch
+  const W = $("watch"), wu = seg(t, T0 + 5 * IT - .1, T0 + 5 * IT + .35), wo = wu * (1 - seg(t, TEND - .1, TEND + .2));
+  W.style.opacity = wo; W.style.transform = `translateY(${(1 - eo(wu)) * 300}px) rotate(${-4 * (1 - eo(wu))}deg)`;
+  // slot
+  const en = $("end"), eu = seg(t, TEND, TEND + .3); en.style.opacity = eu;
+  [...en.querySelectorAll(".list div")].forEach((d, i) => { const q = seg(t, TEND + .1 + i * .08, TEND + .35 + i * .08); d.style.opacity = q; d.style.transform = `translateX(${(1 - eo(q)) * 50}px)`; });
+  en.querySelector("h2").style.opacity = seg(t, TEND + .7, TEND + 1.0); en.querySelector(".app").style.opacity = seg(t, TEND + .9, TEND + 1.2);
+  en.querySelector(".cta").style.transform = `scale(${pop(t, TEND + 1.2, .4) || 0})`;
+}
+boot(DUR, render);
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: your ski day, wrapped</title>
+<!-- "Your ski day, wrapped": 1080×1920, 15 s. Alleen cijfers, in felgekleurde vlakken die elkaar wegschuiven, zoals een jaaroverzicht.
+     De cijfers zijn voorbeeldgegevens (bovenin, in STATS). Maken: PAGE=promo-wrapped node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  .panel{width:1080px;height:1920px;overflow:hidden}
+  .panel .shape{position:absolute;border-radius:50%;opacity:.9}
+  .kick{position:absolute;left:90px;top:330px;width:850px;font-weight:600;font-size:58px;line-height:1.12;letter-spacing:-.5px}
+  .num{position:absolute;left:84px;top:560px;width:900px;font-weight:700;font-size:330px;line-height:.9;letter-spacing:-14px;font-variant-numeric:tabular-nums}
+  .unit{position:absolute;left:92px;top:900px;width:860px;font-weight:700;font-size:96px;line-height:1;letter-spacing:-2px}
+  .note{position:absolute;left:92px;top:1040px;width:800px;font-weight:500;font-size:50px;line-height:1.18;opacity:.92}
+  #intro h1{position:absolute;left:90px;top:520px;width:900px;margin:0;font-weight:700;font-size:170px;line-height:.95;letter-spacing:-6px}
+  #intro p{position:absolute;left:96px;top:1000px;margin:0;font-weight:600;font-size:60px}
+  #card{left:120px;top:300px;width:840px;height:1080px;border-radius:64px;background:#fff;color:#0F1C2B;box-shadow:0 50px 120px rgba(0,0,0,.45);opacity:0;overflow:hidden}
+  #card .top{position:absolute;left:0;top:0;right:0;height:300px;background:linear-gradient(135deg,#1F7FD6,#12447C);color:#fff}
+  #card .top b{position:absolute;left:56px;top:70px;font-size:76px;font-weight:700;letter-spacing:-2px;line-height:1}
+  #card .top span{position:absolute;left:58px;top:168px;font-size:42px;font-weight:500;opacity:.9}
+  #card .top img{position:absolute;right:50px;top:76px;width:150px;height:150px;border-radius:34px}
+  #card .row{position:absolute;left:56px;right:56px;height:150px;border-bottom:3px solid #E3ECF5}
+  #card .row b{position:absolute;left:0;top:26px;font-size:92px;font-weight:700;letter-spacing:-3px;line-height:1}
+  #card .row span{position:absolute;right:0;top:56px;font-size:40px;font-weight:600;color:#55687A}
+  #card .tag{position:absolute;left:56px;bottom:56px;padding:18px 34px 20px;border-radius:50px;background:#FFC400;font-size:44px;font-weight:700}
+  #cta{left:0;width:1080px;text-align:center;font-weight:700;font-size:64px;letter-spacing:-1px;opacity:0}
+  #cta small{display:block;margin-top:14px;font-weight:500;font-size:44px;color:#B9CCE0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="panels"></div>
+  <div id="card" class="abs"><div class="top"><b></b><span></span><img src="../../icons/icon-512.png" alt=""></div><div id="rows"></div><div class="tag"></div></div>
+  <div id="cta" class="abs"></div>
+</div>
+<script src="kit.js"></script>
+<script>
+// ---------- inhoud (voorbeeldgegevens) ----------
+const AREA = "Les 3 Vallées", DATE = "Saturday 14 February";
+const INTRO = ["Your ski day,", "wrapped."];
+// [achtergrond, kleur van de vormen, tekstkleur, kop, getal, decimalen, eenheid, opmerking]
+const STATS = [
+  ["#1F7FD6", "#12447C", "#fff", "You skied", 31.4, 1, "kilometres", "That's further than the Channel Tunnel is deep. Twice over."],
+  ["#FFC400", "#F59E0B", "#0F1C2B", "You dropped", 6200, 0, "metres of descent", "Seven Eiffel Towers… per hour? No. But still."],
+  ["#D22E2E", "#8E1B1B", "#fff", "You did", 17, 0, "runs", "And 15 lifts to earn them."],
+  ["#14202B", "#1F7FD6", "#fff", "Your top speed", 71, 0, "km/h", "Easy, tiger."],
+];
+const TITLE = ["You're a", "Speed Hunter"], CTA = ["Track yours with Skipilot", "Free on the App Store"];
+STATS[0][7] = "That's 78 laps of an athletics track."; STATS[1][7] = "Like skiing down Mont Blanc. And then some.";
+
+const T0 = 1.8, STEP = 2.3;                       // begin van het eerste vlak en de tijd per vlak
+const P = $("panels"), els = [];
+{ const d = document.createElement("div"); d.id = "intro"; d.className = "abs panel"; d.style.background = "linear-gradient(160deg,#0F1C2B,#12447C)";
+  d.innerHTML = `<div class="shape" style="left:620px;top:-180px;width:760px;height:760px;background:#1F7FD6"></div><div class="shape" style="left:-260px;top:1300px;width:820px;height:820px;background:#FFC400"></div><h1>${INTRO[0]}<br>${INTRO[1]}</h1><p>${AREA} · ${DATE}</p>`; P.appendChild(d); }
+STATS.forEach(([bg, sh, fg, kick, v, dec, unit, note], i) => { const d = document.createElement("div"); d.className = "abs panel"; d.style.background = bg; d.style.color = fg;
+  d.innerHTML = `<div class="shape s1" style="left:${i % 2 ? -300 : 560}px;top:${i % 2 ? 1150 : -260}px;width:900px;height:900px;background:${sh}"></div><div class="shape s2" style="left:${i % 2 ? 700 : -200}px;top:${i % 2 ? -150 : 1400}px;width:520px;height:520px;background:${sh};opacity:.55"></div>
+    <div class="kick">${kick}</div><div class="num">0</div><div class="unit">${unit}</div><div class="note">${note}</div>`; P.appendChild(d); els.push(d); });
+{ const d = document.createElement("div"); d.id = "title"; d.className = "abs panel"; d.style.background = "linear-gradient(160deg,#12447C,#1F7FD6)";
+  d.innerHTML = `<div class="shape" style="left:-200px;top:-200px;width:700px;height:700px;background:#FFC400;opacity:.9"></div><div class="kick" style="top:620px">${TITLE[0]}</div><div class="unit" style="top:720px;font-size:170px;letter-spacing:-5px;line-height:.95;width:900px">${TITLE[1]}</div>`; P.appendChild(d); }
+$("card").querySelector(".top b").textContent = AREA; $("card").querySelector(".top span").textContent = DATE; $("card").querySelector(".tag").textContent = TITLE[1];
+$("rows").innerHTML = STATS.map(([, , , , v, dec, unit], i) => `<div class="row" style="top:${330 + i * 150}px"><b>${v.toLocaleString("en-US", {minimumFractionDigits:dec})}</b><span>${unit}</span></div>`).join("");
+$("cta").innerHTML = `${CTA[0]}<small>${CTA[1]}</small>`;
+const TT = T0 + STATS.length * STEP, TC = TT + 1.9;   // begin van de titel en van het kaartje
+
+function render(t){
+  // elk vlak schuift van onderen over het vorige heen
+  const slide = (el, a) => { const u = eio(seg(t, a - .45, a + .1)); el.style.transform = `translateY(${(1 - u) * 1920}px)`; el.style.opacity = t >= a - .45 ? 1 : 0; return u; };
+  $("intro").style.opacity = 1; $("intro").querySelector("h1").style.transform = `translateY(${(1 - eo(seg(t, .1, .8))) * 80}px)`; $("intro").querySelector("h1").style.opacity = seg(t, .1, .5); $("intro").querySelector("p").style.opacity = seg(t, .7, 1.1);
+  els.forEach((el, i) => { const a = T0 + i * STEP; slide(el, a); const [, , , , v, dec] = STATS[i];
+    el.querySelector(".kick").style.opacity = seg(t, a + .1, a + .4); el.querySelector(".num").textContent = count(t, a + .15, 1.0, v, dec);
+    el.querySelector(".num").style.transform = `scale(${pop(t, a + .1, .5) || .4})`; el.querySelector(".num").style.transformOrigin = "0 60%";
+    const uu = seg(t, a + .7, a + 1.0); el.querySelector(".unit").style.opacity = uu; el.querySelector(".unit").style.transform = `translateY(${(1 - eo(uu)) * 30}px)`;
+    el.querySelector(".note").style.opacity = seg(t, a + 1.1, a + 1.5);
+    el.querySelector(".s1").style.transform = `translate(${Math.sin(t * .8 + i) * 40}px,${Math.cos(t * .7 + i) * 40}px) scale(${1 + Math.sin(t + i) * .05})`; el.querySelector(".s2").style.transform = `translate(${Math.cos(t * .9 + i) * 50}px,${Math.sin(t * .6 + i) * 50}px)`; });
+  const ti = $("title"); slide(ti, TT); ti.querySelector(".unit").style.transform = `scale(${pop(t, TT + .2, .5) || .4})`; ti.querySelector(".unit").style.transformOrigin = "0 50%"; ti.querySelector(".kick").style.opacity = Math.min(seg(t, TT + .1, TT + .4), 1 - seg(t, TC - .1, TC + .2)); ti.querySelector(".unit").style.opacity = 1 - seg(t, TC - .1, TC + .2);
+  // het deelbare kaartje
+  const c = $("card"), cu = seg(t, TC, TC + .6); c.style.opacity = cu > 0 ? 1 : 0; tf(c, 0, (1 - eo(cu)) * 1400, cu > 0 ? lerp(.9, 1, back(cu)) : .9, lerp(-6, -2, eo(cu)) + Math.sin(t * 1.2) * .6);
+  const ct = $("cta"), ctu = seg(t, TC + .7, TC + 1.1); ct.style.opacity = ctu; tf(ct, 0, 1480 + (1 - eo(ctu)) * 30);
+}
+boot(15, render);
+</script>
+</body>
+</html>

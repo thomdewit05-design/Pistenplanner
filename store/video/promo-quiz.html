@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: guess the ski resort</title>
+<!-- "Guess the ski resort": 1080×1920, 26 s. Vijf echte pistekaarten uit de app (tools/promo-maps.mjs), zonder naam;
+     per kaart 3 seconden aftellen en dan het antwoord. Gemaakt om uit te kijken: een vraag, een aftelling, een score.
+     De rondes staan bovenin (ROUNDS); voor een "Part 2" alleen andere gebieden opnemen. Geluid: tools/promo-voice.py quiz.
+     Maken: PAGE=promo-quiz node tools/promo-video.mjs en -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  .map{width:1080px;height:1920px;object-fit:cover;object-position:50% 40%;opacity:0}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(15,28,43,.82) 0%,rgba(15,28,43,0) 26%,rgba(15,28,43,0) 62%,rgba(15,28,43,.85) 100%)}
+  #blur{width:1080px;height:1920px;backdrop-filter:blur(26px) brightness(.7);-webkit-backdrop-filter:blur(26px) brightness(.7);opacity:0}
+  #hook{left:70px;top:520px;width:940px;text-align:center;opacity:0}
+  #hook h1{margin:0;font-weight:700;font-size:118px;line-height:1;letter-spacing:-3px;text-shadow:0 8px 40px rgba(0,0,0,.5)}
+  #hook p{display:inline-block;margin:44px 0 0;padding:18px 40px 22px;border-radius:50px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:58px}
+  #top{left:0;top:200px;width:1080px;text-align:center;opacity:0}
+  #top .q{font-weight:700;font-size:72px;letter-spacing:-1.5px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+  #top .n{display:inline-block;margin-bottom:22px;padding:10px 30px 13px;border-radius:40px;background:rgba(15,28,43,.85);box-shadow:0 0 0 3px rgba(255,255,255,.2) inset;font-weight:700;font-size:46px;letter-spacing:2px}
+  #top .lvl{color:#FFC400}
+  #timer{left:140px;top:1440px;width:800px;height:30px;border-radius:15px;background:rgba(15,28,43,.75);box-shadow:0 0 0 3px rgba(255,255,255,.25) inset;overflow:hidden;opacity:0}
+  #timer b{display:block;height:100%;width:100%;background:#FFC400;border-radius:15px;transform-origin:0 50%}
+  #count{left:0;top:1250px;width:1080px;text-align:center;font-weight:700;font-size:170px;line-height:1;color:#fff;text-shadow:0 10px 40px rgba(0,0,0,.6);opacity:0}
+  #ans{left:80px;top:1230px;width:920px;padding:44px 50px 46px;box-sizing:border-box;border-radius:48px;background:#fff;color:#0F1C2B;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.5);opacity:0}
+  #ans .flag{font-size:64px;line-height:1}
+  #ans h2{margin:10px 0 0;font-weight:700;font-size:96px;line-height:1;letter-spacing:-3px}
+  #ans p{margin:14px 0 0;font-weight:600;font-size:44px;color:#55687A}
+  #end{width:1080px;height:1920px;background:linear-gradient(180deg,#0F1C2B,#12447C 55%,#1F7FD6);opacity:0;text-align:center}
+  #end h2{margin:500px 80px 0;font-weight:700;font-size:150px;line-height:.96;letter-spacing:-5px}
+  #end h2 em{font-style:normal;color:#FFC400}
+  #end p{margin:44px 100px 0;font-weight:600;font-size:62px;line-height:1.15}
+  #end .app{margin-top:110px;font-weight:500;font-size:44px;color:#D7E6F5}
+  #end img{width:110px;height:110px;border-radius:26px;vertical-align:middle;margin-right:22px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="maps"></div>
+  <div id="shade" class="abs"></div>
+  <div id="blur" class="abs"></div>
+  <div id="hook" class="abs"><h1></h1><p></p></div>
+  <div id="top" class="abs"><div class="n"></div><div class="q"></div></div>
+  <div id="count" class="abs"></div>
+  <div id="timer" class="abs"><b></b></div>
+  <div id="ans" class="abs"><div class="flag"></div><h2></h2><p></p></div>
+  <div id="end" class="abs"><h2></h2><p></p><div class="app"><img src="../../icons/icon-512.png" alt=""></div></div>
+</div>
+<script src="kit.js"></script>
+<script>
+// ---------- de rondes: [kaart, naam, land, weetje, moeilijkheid] ----------
+const ROUNDS = [
+  [1, "Les 3 Vallées", "🇫🇷 France", "World's largest ski area · 169 lifts", "Easy"],
+  [2, "Ski Arlberg", "🇦🇹 Austria", "Birthplace of modern skiing · 89 lifts", "Medium"],
+  [3, "Zermatt – Cervinia", "🇨🇭 🇮🇹 Switzerland & Italy", "Ski across a border · up to 3,892 m", "Hard"],
+  [4, "Whistler Blackcomb", "🇨🇦 Canada", "North America's biggest · 35 lifts", "Hard"],
+  [5, "Portes du Soleil", "🇫🇷 🇨🇭 France & Switzerland", "12 villages, 2 countries · 193 lifts", "Expert"],
+];
+const HOOK = ["Guess the ski resort from its map", "Only real skiers get 5/5"];
+const QUESTION = "Which resort is this?";
+const END = ["How many<br>did you <em>get?</em>", "Comment your score 👇", "Every map is in Skipilot · Free"];
+const T0 = 2.6, R = 4.0, COUNT = 3.0, TE = T0 + ROUNDS.length * R;
+window.QUIZ = {T0, R, COUNT, N:ROUNDS.length, TE};        // voor het geluid (tools/promo-voice.py)
+$("hook").querySelector("h1").textContent = HOOK[0]; $("hook").querySelector("p").textContent = HOOK[1];
+$("top").querySelector(".q").textContent = QUESTION;
+$("end").querySelector("h2").innerHTML = END[0]; $("end").querySelector("p").textContent = END[1]; $("end").querySelector(".app").insertAdjacentText("beforeend", END[2]);
+const maps = ROUNDS.map(([n]) => { const i = document.createElement("img"); i.className = "abs map"; i.src = `shots/maps/${n}.png`; $("maps").appendChild(i); return i; });
+
+function render(t){
+  // de uitdaging: eerste kaart wazig erachter
+  const h = $("hook"), hu = seg(t, .05, .45), ho = seg(t, T0 - .35, T0 - .05); h.style.opacity = hu * (1 - ho);
+  h.querySelector("h1").style.transform = `scale(${pop(t, .05, .5) || .4})`; const hp = h.querySelector("p"); hp.style.opacity = seg(t, .8, 1.1); hp.style.transform = `scale(${pop(t, .8, .4) || .4}) rotate(-2deg)`;
+  $("blur").style.opacity = 1 - seg(t, T0 - .4, T0);
+  // de kaarten
+  let cur = Math.floor((t - T0) / R); if(t < T0) cur = 0; cur = Math.min(cur, ROUNDS.length - 1);
+  maps.forEach((m, i) => { const a = T0 + i * R, on = i === cur && t < TE; m.style.opacity = on ? 1 : (t < T0 && i === 0 ? 1 : 0);
+    const u = clamp((t - a) / R); m.style.transform = `scale(${1.02 + u * .1})`; });
+  const a = T0 + cur * R, local = t - a, inRound = t >= T0 && t < TE;
+  // kop met de teller
+  const top = $("top"); top.style.opacity = inRound ? Math.min(1, seg(local, 0, .25)) * (1 - seg(t, TE - .3, TE)) : 0;
+  top.querySelector(".n").innerHTML = `${cur + 1} / ${ROUNDS.length} · <span class="lvl">${ROUNDS[cur][4]}</span>`;
+  top.querySelector(".n").style.transform = `scale(${local < .4 ? (pop(local, 0, .35) || .4) : 1})`;
+  // aftellen: balk loopt leeg, groot cijfer 3 2 1
+  const counting = inRound && local < COUNT, tm = $("timer"); tm.style.opacity = counting ? Math.min(1, seg(local, 0, .2)) : 0;
+  tm.firstChild.style.transform = `scaleX(${1 - clamp(local / COUNT)})`; tm.firstChild.style.background = local > COUNT - 1 ? "#D22E2E" : "#FFC400";
+  const ct = $("count"), sec = Math.floor(local), fr = local - sec; ct.textContent = 3 - sec;
+  ct.style.opacity = counting ? 1 - seg(fr, .7, .95) : 0; ct.style.transform = `scale(${counting ? lerp(1.35, 1, eo(clamp(fr / .3))) : 1})`;
+  // het antwoord
+  const an = $("ans"), au = inRound ? seg(local, COUNT, COUNT + .3) : 0, ao = inRound ? seg(local, R - .2, R) : 1;
+  an.style.opacity = au * (1 - ao); an.style.transform = `scale(${au > 0 ? lerp(.6, 1, back(au)) : .6}) rotate(${(1 - eo(au)) * -6}deg)`;
+  const [, name, cc, fact] = ROUNDS[cur]; an.querySelector(".flag").textContent = cc; an.querySelector("h2").textContent = name; an.querySelector("p").textContent = fact;
+  // slot
+  const en = $("end"), eu = seg(t, TE - .05, TE + .3); en.style.opacity = eu; en.querySelector("h2").style.transform = `scale(${pop(t, TE, .5) || .4})`;
+  const ep = en.querySelector("p"); ep.style.opacity = seg(t, TE + .6, TE + 1.0); ep.style.transform = `scale(${pop(t, TE + .6, .4) || .4})`;
+  en.querySelector(".app").style.opacity = seg(t, TE + 1.3, TE + 1.7);
+}
+boot(26, render);
+</script>
+</body>
+</html>

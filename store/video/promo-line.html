@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: follow the line</title>
+<!-- "Follow the line": een getekende animatie in één doorlopend shot, 1080×1920, 20 s.
+     De camera glijdt een getekende berg af langs de blauwe routelijn; een skiër volgt de lijn langs een kruising, een gondel,
+     vrienden bij een hut en het dorp. Aan het eind blijkt het beeld het scherm van een telefoon.
+     Alles is met code getekend (SVG); alleen het pictogram is een bestand. seek(t) zet de tijdlijn (PAGE=promo-line), ?play speelt af. -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #backdrop{width:1080px;height:1920px;background:linear-gradient(180deg,#0F1C2B 0%,#12447C 55%,#1F7FD6 100%);opacity:0}
+  #view{width:1080px;height:1920px;overflow:hidden;transform-origin:50% 0;background:#EEF6FD}
+  #frame{width:1080px;height:1920px;transform-origin:50% 0;border-radius:150px;box-shadow:0 0 0 34px #0b0f14,0 0 0 40px #2b3340,0 90px 200px rgba(0,0,0,.6);opacity:0;pointer-events:none}
+  #sky{width:1080px;height:1920px}
+  #world{width:1080px;height:6300px;transform-origin:0 0}
+  #tint{width:1080px;height:1920px;mix-blend-mode:multiply;opacity:0}
+  #glowtint{width:1080px;height:1920px;opacity:0;background:radial-gradient(80% 50% at 50% 100%,rgba(255,170,90,.55),transparent 75%)}
+  .pill{left:0;width:1080px;text-align:center;opacity:0}
+  .pill span{display:inline-block;padding:20px 44px 24px;border-radius:60px;background:#fff;color:#0F1C2B;font-weight:700;font-size:64px;line-height:1.05;box-shadow:0 18px 50px rgba(15,28,43,.28)}
+  .pill span b{color:#1F7FD6}
+  #wrist{width:360px;height:360px;border-radius:50%;background:#fff;box-shadow:0 20px 60px rgba(15,28,43,.3);opacity:0;overflow:hidden}
+  #chip{opacity:0}
+  #chip span{display:inline-block;padding:14px 30px 16px;border-radius:40px;background:#0F1C2B;color:#FFC400;font-weight:700;font-size:46px;box-shadow:0 14px 40px rgba(15,28,43,.3)}
+  #end{left:0;width:1080px;text-align:center;opacity:0}
+  #end img{width:150px;height:150px;border-radius:34px;vertical-align:middle;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  #end h1{display:inline-block;vertical-align:middle;margin:0 0 0 30px;font-weight:700;font-size:130px;letter-spacing:-3px;line-height:1}
+  #end p{margin:26px 0 0;font-weight:600;font-size:60px;color:#fff}
+  #end p b{color:#FFC400}
+  #end .btn{display:inline-block;margin-top:34px;padding:24px 54px;border-radius:60px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:50px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="backdrop" class="abs"></div>
+  <div id="view" class="abs">
+    <svg id="sky" class="abs" viewBox="0 0 1080 1920"></svg>
+    <svg id="world" class="abs" viewBox="0 0 1080 6300"></svg>
+    <div id="tint" class="abs"></div><div id="glowtint" class="abs"></div>
+    <div id="p1" class="abs pill"><span></span></div>
+    <div id="p2" class="abs pill"><span></span></div>
+    <div id="p3" class="abs pill"><span></span></div>
+    <div id="p4" class="abs pill"><span></span></div>
+    <div id="wrist" class="abs"><svg viewBox="0 0 360 360" width="360" height="360" id="wristsvg"></svg></div>
+    <div id="chip" class="abs"><span></span></div>
+  </div>
+  <div id="frame" class="abs"></div>
+  <div id="end" class="abs"><div><img src="../../icons/icon-512.png" alt=""><h1>Skipilot</h1></div><p></p><div class="btn"></div></div>
+</div>
+<script>
+// ---------- teksten ----------
+const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 20;
+const T = { en:{p1:"Which way?", p2:"Your Watch taps: <b>right</b>", p3:"Friends <b>found</b>", p4:"Lifts close soon", chip:"16:05", end:["Just <b>follow the line.</b>", "Free on the App Store"]} };
+const L = T[LANG] || T.en, $ = id => document.getElementById(id);
+for(const k of ["p1", "p2", "p3", "p4"]) $(k).querySelector("span").innerHTML = L[k];
+$("chip").querySelector("span").textContent = L.chip; $("end").querySelector("p").innerHTML = L.end[0]; $("end").querySelector(".btn").textContent = L.end[1];
+
+// ---------- hulpjes ----------
+const clamp = x => Math.max(0, Math.min(1, x)), seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = x => 1 - Math.pow(1 - x, 3), eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, lerp = (a, b, x) => a + (b - a) * x;
+const back = x => { const c = 2.0; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const tf = (el, x, y, s = 1, r = 0) => { el.style.transform = `translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`; };
+let seed = 42; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const mix = (c1, c2, x) => { const p = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)), a = p(c1), b = p(c2); return "#" + a.map((v, i) => Math.round(lerp(v, b[i], x)).toString(16).padStart(2, "0")).join(""); };
+
+// ---------- de route: vloeiende lijn door een rij punten ----------
+function smooth(pts, step = 14){
+  const out = []; const P = i => pts[Math.max(0, Math.min(pts.length - 1, i))];
+  for(let i = 0; i < pts.length - 1; i++){ const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2), n = Math.max(2, Math.round(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / step));
+    for(let k = 0; k < n; k++){ const u = k / n, u2 = u * u, u3 = u2 * u;
+      out.push([.5 * (2 * p1[0] + (-p0[0] + p2[0]) * u + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * u2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * u3),
+                .5 * (2 * p1[1] + (-p0[1] + p2[1]) * u + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * u2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * u3)]); } }
+  out.push(pts[pts.length - 1]); return out;
+}
+const A = smooth([[540, 880], [650, 1090], [420, 1330], [620, 1590], [440, 1830], [500, 2060], [670, 2300], [800, 2590], [850, 2880]]);
+const LIFT = [[850, 2880], [210, 2560]];
+const B = smooth([[210, 2560], [150, 2820], [330, 3080], [220, 3380], [380, 3650]]);
+const C = smooth([[380, 3650], [640, 3900], [760, 4250], [520, 4600], [420, 4950], [560, 5290]]);
+const ROUTE = [...A, ...LIFT.slice(1), ...B.slice(1), ...C.slice(1)];
+const CUM = [0]; for(let i = 1; i < ROUTE.length; i++) CUM.push(CUM[i - 1] + Math.hypot(ROUTE[i][0] - ROUTE[i - 1][0], ROUTE[i][1] - ROUTE[i - 1][1]));
+const TOTAL = CUM[CUM.length - 1], dA = CUM[A.length - 1], dL = CUM[A.length], dB = CUM[A.length + B.length - 1];
+function at(d){ d = Math.max(0, Math.min(TOTAL, d)); let lo = 0, hi = CUM.length - 1; while(hi - lo > 1){ const m = (lo + hi) >> 1; if(CUM[m] <= d) lo = m; else hi = m; }
+  const f = CUM[hi] > CUM[lo] ? (d - CUM[lo]) / (CUM[hi] - CUM[lo]) : 0, a = ROUTE[lo], b = ROUTE[hi]; return {x:lerp(a[0], b[0], f), y:lerp(a[1], b[1], f), ang:Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI}; }
+const pathD = pts => "M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L");
+const distTo = (x, y) => { let m = 1e9; for(let i = 0; i < ROUTE.length; i += 2) m = Math.min(m, Math.hypot(ROUTE[i][0] - x, ROUTE[i][1] - y)); return m; };
+
+// ---------- de lucht (staat stil; de kleur volgt de tijd van de dag) ----------
+$("sky").innerHTML = `<defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop id="sk1" offset="0"/><stop id="sk2" offset="1"/></linearGradient></defs>
+  <rect width="1080" height="1920" fill="url(#skyg)"/><circle id="sun" cx="810" cy="430" r="92" fill="#FFE9A8"/><circle cx="810" cy="430" r="150" fill="#FFE9A8" opacity=".25"/>
+  <g id="clouds" fill="#fff" opacity=".9"><ellipse cx="220" cy="330" rx="130" ry="34"/><ellipse cx="300" cy="306" rx="90" ry="38"/><ellipse cx="900" cy="640" rx="120" ry="30"/><ellipse cx="840" cy="620" rx="70" ry="30"/></g>`;
+
+// ---------- de wereld ----------
+const W = []; // stukjes SVG, van achter naar voor
+// verre bergruggen achter de top
+W.push(`<path d="M-50 1300 L120 930 L250 1060 L400 860 L520 1010 L700 840 L860 1000 L1000 880 L1130 1300Z" fill="#9CC3EA"/>`);
+W.push(`<path d="M400 860 L445 915 L415 925 L400 905 L378 925 L360 912Z M700 840 L748 898 L716 906 L700 884 L676 904 L660 890Z M120 930 L160 980 L132 990 L120 970 L98 990 L84 976Z M1000 880 L1040 930 L1012 940 L1000 920 L980 938 L966 926Z" fill="#fff" opacity=".9"/>`);
+// de berg zelf: een top die uitloopt in de helling
+W.push(`<path d="M-200 1420 L300 980 L470 850 L540 790 L610 850 L780 980 L1280 1420 L1280 6300 L-200 6300Z" fill="#EEF6FD"/>`);
+W.push(`<path d="M540 790 L610 850 L780 980 L1280 1420 L1280 1700 L700 1150 L560 900Z" fill="#DCEBF8"/>`);
+// schaduwbanen op de helling, voor diepte
+for(const [y, x1, x2, w] of [[1700, -100, 620, 240], [2350, 500, 1200, 300], [3200, 300, 1200, 260], [3900, -100, 500, 280], [4500, 600, 1200, 300], [5100, -100, 420, 260]])
+  W.push(`<path d="M${x1} ${y} Q${(x1 + x2) / 2} ${y - 160} ${x2} ${y + 40} L${x2} ${y + 40 + w} Q${(x1 + x2) / 2} ${y - 160 + w} ${x1} ${y + w}Z" fill="#E1EEF9"/>`);
+// andere pistes (blauw, rood, zwart), met een witte rand zoals op de kaart
+const piste = (pts, col, w = 13) => { const d = pathD(smooth(pts, 20)); return `<path d="${d}" fill="none" stroke="#fff" stroke-width="${w + 10}" stroke-linecap="round" opacity=".9"/><path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" opacity=".55"/>`; };
+W.push(piste([[500, 2060], [330, 2230], [120, 2330], [-80, 2400]], "#14202B"));        // de verkeerde afslag bij de splitsing
+W.push(piste([[650, 1090], [860, 1300], [980, 1650], [1150, 1900]], "#D22E2E"));
+W.push(piste([[420, 1330], [200, 1560], [90, 1900], [-60, 2100]], "#1E66CC"));
+W.push(piste([[330, 3080], [600, 3220], [900, 3180], [1140, 3320]], "#D22E2E"));
+W.push(piste([[760, 4250], [960, 4480], [1000, 4800], [1150, 5000]], "#1E66CC"));
+W.push(piste([[520, 4600], [260, 4700], [80, 4960], [-80, 5100]], "#14202B"));
+// bomen: niet op de route
+const tree = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="14" cy="6" rx="30" ry="9" fill="#C9DDF0"/><path d="M0 -92 L34 -18 L-34 -18Z" fill="#1E6B4F"/><path d="M0 -62 L42 0 L-42 0Z" fill="#17573F"/><path d="M0 -92 L18 -52 L-18 -52Z" fill="#fff" opacity=".85"/><rect x="-5" y="0" width="10" height="12" fill="#6B4A2E"/></g>`;
+const TREES = []; let guard = 0;
+while(TREES.length < 150 && guard++ < 4000){ const x = rnd() * 1080, y = 1250 + rnd() * 4200; if(distTo(x, y) < 115) continue;
+  if(Math.hypot(x - 600, y - 3600) < 230 || (y > 5200 && x > 150 && x < 950)) continue;            // ruimte voor de hut en het dorp
+  if(y > 2480 && y < 2960 && Math.abs((y - 2880) - (x - 850) * .5) < 110) continue;               // onder de kabel van de gondel
+  TREES.push([x, y, .55 + rnd() * .5]); }
+TREES.sort((a, b) => a[1] - b[1]);
+const TREE_SVG = TREES.map(t => tree(t[0].toFixed(0), t[1].toFixed(0), t[2].toFixed(2))).join("");
+// de route: gloed, lijn, en een lichte streep in het midden; getekend met een streepjespatroon dat meegroeit
+const RD = pathD(ROUTE);
+W.push(`<path id="rglow" d="${RD}" fill="none" stroke="#1F7FD6" stroke-width="54" stroke-linecap="round" stroke-linejoin="round" opacity=".22"/>
+  <path id="rline" d="${RD}" fill="none" stroke="#1F7FD6" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path id="rcore" d="${RD}" fill="none" stroke="#9FD0FF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`);
+W.push(TREE_SVG);
+// de wegwijzer op de top, vol pijlen
+const arrow = (y, dir, col, len) => `<g transform="translate(0 ${y}) scale(${dir} 1)"><path d="M6 -16 H${len} L${len + 22} 0 L${len} 16 H6Z" fill="${col}"/></g>`;
+W.push(`<g id="sign" transform="translate(385 905)"><ellipse cx="6" cy="4" rx="40" ry="10" fill="#C9DDF0"/><rect x="-6" y="-190" width="12" height="194" rx="5" fill="#5A4632"/>
+  ${arrow(-170, 1, "#D22E2E", 92)}${arrow(-132, -1, "#1E66CC", 104)}${arrow(-94, 1, "#14202B", 76)}${arrow(-56, -1, "#D22E2E", 84)}${arrow(-20, 1, "#1E66CC", 100)}</g>`);
+// gondel: stations, pylonen, kabel
+const station = (x, y) => `<g transform="translate(${x} ${y})"><ellipse cx="6" cy="34" rx="78" ry="14" fill="#C9DDF0"/><rect x="-60" y="-30" width="120" height="62" rx="10" fill="#33475B"/><rect x="-66" y="-46" width="132" height="24" rx="10" fill="#fff"/><rect x="-40" y="-8" width="80" height="26" rx="5" fill="#9FD0FF"/></g>`;
+const lerpP = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u)];
+W.push([.28, .52, .76].map(u => { const p = lerpP(LIFT[0], LIFT[1], u); return `<g transform="translate(${p[0]} ${p[1]})"><ellipse cx="8" cy="78" rx="26" ry="8" fill="#C9DDF0"/><rect x="-6" y="-8" width="12" height="86" fill="#55687A"/><rect x="-24" y="-12" width="48" height="10" rx="4" fill="#55687A"/></g>`; }).join(""));
+W.push(station(LIFT[0][0], LIFT[0][1] + 6) + station(LIFT[1][0], LIFT[1][1] + 6));
+W.push(`<line x1="${LIFT[0][0]}" y1="${LIFT[0][1] - 34}" x2="${LIFT[1][0]}" y2="${LIFT[1][1] - 34}" stroke="#33475B" stroke-width="5"/>`);
+W.push(`<g id="cabin"><line x1="0" y1="0" x2="0" y2="34" stroke="#33475B" stroke-width="5"/><rect x="-44" y="32" width="88" height="74" rx="20" fill="#FFC400"/><rect x="-32" y="44" width="64" height="30" rx="8" fill="#0F1C2B"/><circle id="cabhead" cx="0" cy="60" r="11" fill="#FFD9B8"/></g>`);
+// de hut met rook, en de vrienden
+W.push(`<g transform="translate(600 3610)"><ellipse cx="10" cy="92" rx="170" ry="24" fill="#C9DDF0"/><rect x="-120" y="-10" width="240" height="100" rx="8" fill="#8A5A36"/><rect x="-120" y="30" width="240" height="8" fill="#734A2B"/><rect x="-120" y="60" width="240" height="8" fill="#734A2B"/>
+  <path d="M-150 -6 L0 -110 L150 -6Z" fill="#fff"/><path d="M-150 -6 L0 -110 L150 -6 L128 -6 L0 -92 L-128 -6Z" fill="#DCEBF8"/><rect x="60" y="-98" width="30" height="46" fill="#734A2B"/><rect x="54" y="-106" width="42" height="12" rx="4" fill="#fff"/>
+  <rect x="-90" y="16" width="46" height="40" rx="5" fill="#FFD76A"/><rect x="44" y="16" width="46" height="40" rx="5" fill="#FFD76A"/><rect x="-22" y="26" width="44" height="64" rx="5" fill="#5A3A20"/>
+  <g id="smoke"></g><line x1="-150" y1="92" x2="-150" y2="-40" stroke="#5A4632" stroke-width="6"/><path id="flag" d="M-150 -40 L-90 -26 L-150 -10Z" fill="#D22E2E"/></g>`);
+W.push(`<g id="friends">${[["#D8327E", "E", 440, 3730], ["#F57C1F", "M", 500, 3760], ["#17A2B8", "N", 468, 3806]].map(([c, l, x, y], i) => `<g class="fr" data-i="${i}" transform="translate(${x} ${y})"><ellipse cx="4" cy="30" rx="26" ry="8" fill="#C9DDF0"/><circle r="28" fill="${c}" stroke="#fff" stroke-width="6"/><text y="11" text-anchor="middle" font-family="Barlow" font-weight="700" font-size="30" fill="#fff">${l}</text></g>`).join("")}</g>`);
+// het dorp met lichtjes en de finish
+const house = (x, y, w, col) => `<g transform="translate(${x} ${y})"><ellipse cx="8" cy="${w * .62}" rx="${w * .7}" ry="12" fill="#C9DDF0"/><rect x="${-w / 2}" y="0" width="${w}" height="${w * .6}" rx="6" fill="${col}"/><path d="M${-w / 2 - 14} 4 L0 ${-w * .5} L${w / 2 + 14} 4Z" fill="#fff"/><rect class="win" x="${-w * .3}" y="${w * .16}" width="${w * .2}" height="${w * .22}" rx="3" fill="#FFD76A"/><rect class="win" x="${w * .1}" y="${w * .16}" width="${w * .2}" height="${w * .22}" rx="3" fill="#FFD76A"/></g>`;
+W.push(house(250, 5420, 150, "#8A5A36") + house(820, 5400, 170, "#9A6A44") + house(400, 5560, 130, "#7A4F2E") + house(700, 5580, 140, "#8A5A36") + house(180, 5660, 120, "#9A6A44") + house(900, 5700, 130, "#7A4F2E"));
+W.push(`<g transform="translate(560 5640)"><ellipse cx="8" cy="120" rx="80" ry="14" fill="#C9DDF0"/><rect x="-50" y="20" width="100" height="100" rx="6" fill="#E9E2D6"/><rect x="-22" y="-80" width="44" height="110" fill="#E9E2D6"/><path d="M-30 -80 L0 -170 L30 -80Z" fill="#33475B"/><rect class="win" x="-10" y="-50" width="20" height="34" rx="8" fill="#FFD76A"/><rect x="-14" y="70" width="28" height="50" rx="12" fill="#5A3A20"/></g>`);
+W.push(`<g transform="translate(560 5290)"><ellipse cx="6" cy="6" rx="34" ry="9" fill="#C9DDF0"/><rect x="-5" y="-150" width="10" height="156" rx="4" fill="#5A4632"/><g id="finish"><rect x="5" y="-150" width="92" height="60" fill="#FFC400"/><path d="M5 -150h23v15h-23z M51 -150h23v15h-23z M28 -135h23v15h-23z M74 -135h23v15h-23z M5 -120h23v15h-23z M51 -120h23v15h-23z M28 -105h23v15h-23z M74 -105h23v15h-23z" fill="#0F1C2B"/></g></g>`);
+// de skiër: van boven gezien, gele jas, twee ski's, een spoor van sneeuw
+W.push(`<g id="spray"></g><g id="skier"><ellipse cx="-4" cy="10" rx="34" ry="13" fill="#B9D2EA" opacity=".8"/><rect x="-46" y="-17" width="92" height="8" rx="4" fill="#0F1C2B"/><rect x="-46" y="9" width="92" height="8" rx="4" fill="#0F1C2B"/>
+  <ellipse cx="-2" cy="0" rx="24" ry="21" fill="#FFC400"/><circle cx="12" cy="0" r="15" fill="#0F1C2B"/><rect x="17" y="-9" width="9" height="18" rx="4" fill="#9FD0FF"/><line x1="-6" y1="-22" x2="-34" y2="-36" stroke="#55687A" stroke-width="4" stroke-linecap="round"/><line x1="-6" y1="22" x2="-34" y2="36" stroke="#55687A" stroke-width="4" stroke-linecap="round"/></g>`);
+// het ballonnetje boven de skiër: eerst een vraagteken, dan een pijl
+W.push(`<g id="bub"><path d="M-46 -60 a46 46 0 1 1 60 44 l-14 26 l-10 -26 a46 46 0 0 1 -36 -44z" fill="#fff" stroke="#0F1C2B" stroke-width="5"/><text id="bubq" x="0" y="-38" text-anchor="middle" font-family="Barlow" font-weight="700" font-size="64" fill="#D22E2E">?</text>
+  <path id="buba" d="M-22 -60 h26 v-16 l26 22 l-26 22 v-16 h-26z" fill="#1F7FD6" transform="rotate(60 4 -54)"/></g>`);
+$("world").innerHTML = W.join("");
+const RLEN = $("rline").getTotalLength();
+for(let i = 0; i < 5; i++){ const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("fill", "#fff"); $("smoke").appendChild(c); }
+for(let i = 0; i < 10; i++){ const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"); c.setAttribute("fill", "#fff"); $("spray").appendChild(c); }
+// de pols met de Watch (in het rondje linksboven)
+$("wristsvg").innerHTML = `<rect width="360" height="360" fill="#DCEBF8"/><g id="wr"><rect x="-80" y="118" width="520" height="124" rx="50" fill="#0F1C2B"/><rect x="250" y="112" width="200" height="136" rx="40" fill="#33475B"/>
+  <rect x="112" y="92" width="136" height="176" rx="40" fill="#0b0f14"/><rect x="124" y="104" width="112" height="152" rx="30" fill="#1F7FD6"/><path d="M152 180 h36 v-22 l40 34 l-40 34 v-22 h-36z" fill="#FFC400"/></g>
+  <g id="wrings" fill="none" stroke="#FFC400" stroke-width="7"><rect id="wg1" x="112" y="92" width="136" height="176" rx="40"/><rect id="wg2" x="112" y="92" width="136" height="176" rx="40"/><rect id="wg3" x="112" y="92" width="136" height="176" rx="40"/></g>`;
+
+// ---------- de tijdlijn ----------
+// afgelegde afstand langs de route op tijdstip t
+function dist(t){
+  if(t < 3.6) return 0;
+  if(t < 8.6) return dA * eio(seg(t, 3.6, 8.6));
+  if(t < 11.6) return lerp(dA, dL, eio(seg(t, 8.6, 11.6)));
+  if(t < 14.8) return lerp(dL, dB, eio(seg(t, 11.6, 13.7)));
+  return lerp(dB, TOTAL, eio(seg(t, 14.8, 17.3)));
+}
+function render(t){
+  t = Math.max(0, Math.min(DUR, t));
+  const d = dist(t), p = at(d), onLift = t > 8.6 && t < 11.6;
+  // camera: de skiër iets boven het midden, de camera kijkt een stukje vooruit
+  // Ingezoomd tijdens de afdaling (de skiër moet goed te zien zijn), wijder op de top en in het dorp.
+  const look = at(d + 240), Z = lerp(lerp(1.22, 1.5, eio(seg(t, 3.4, 5.2))), 1.12, eio(seg(t, 16.2, 17.5)));
+  const fx = lerp(p.x, look.x, .4), fy = lerp(p.y, look.y, .5);
+  const camX = Math.max(1080 - 1080 * Z, Math.min(0, 540 - fx * Z)), camY = Math.max(1920 - 6300 * Z, Math.min(0, 880 - fy * Z));
+  $("world").style.transform = `translate(${camX.toFixed(1)}px,${camY.toFixed(1)}px) scale(${Z.toFixed(4)})`;
+  tf($("sky"), camX * .2, camY * .22, 1.15);
+  // de dag verloopt: ochtend → middag → zonsondergang
+  const day = seg(t, 2, 9), eve = seg(t, 14.6, 17.4);
+  $("sk1").setAttribute("stop-color", mix(mix("#8EC5F5", "#5AA9F0", day), "#3B2F6B", eve)); $("sk2").setAttribute("stop-color", mix(mix("#FFE7C7", "#CFE7FB", day), "#FF9E6B", eve));
+  $("tint").style.background = "#FF9A6A"; $("tint").style.opacity = eve * .34; $("glowtint").style.opacity = eve * .8;
+  // de lijn tekent zich: eerst een stuk vooruit, daarna steeds een eind voor de skiër uit
+  const shown = t < 2.5 ? 0 : Math.min(TOTAL, d + lerp(0, 820, eo(seg(t, 2.5, 3.7)))), dash = `${(shown / TOTAL * RLEN).toFixed(1)} ${RLEN + 50}`;
+  for(const id of ["rglow", "rline", "rcore"]) $(id).setAttribute("stroke-dasharray", dash);
+  $("rglow").setAttribute("opacity", (.2 + Math.sin(t * 5) * .06).toFixed(2));
+  // de skiër
+  const sk = $("skier"), wob = d > 0 && d < TOTAL && !onLift ? Math.sin(t * 9) * 7 : 0;
+  sk.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${(t < 3.6 ? 68 : p.ang + wob).toFixed(1)}) scale(1.35)`); sk.style.opacity = onLift ? 0 : 1;
+  // sneeuw die opspat achter de ski's
+  const moving = !onLift && ((t > 3.7 && t < 8.5) || (t > 11.7 && t < 13.6) || (t > 14.9 && t < 17.2));
+  [...$("spray").children].forEach((c, i) => { const age = ((t * 3 + i / 10) % 1), q = at(d - 30 - age * 150), side = (i % 2 ? 1 : -1) * (14 + age * 40);
+    c.setAttribute("cx", (q.x + Math.cos((q.ang + 90) * Math.PI / 180) * side).toFixed(1)); c.setAttribute("cy", (q.y + Math.sin((q.ang + 90) * Math.PI / 180) * side).toFixed(1));
+    c.setAttribute("r", (5 + age * 11).toFixed(1)); c.setAttribute("opacity", moving ? ((1 - age) * .9).toFixed(2) : 0); });
+  // het ballonnetje: vraagteken, dan de pijl, dan weg
+  const bub = $("bub"), bo = Math.min(seg(t, .5, .9), 1 - seg(t, 3.4, 3.7)), sw = eo(seg(t, 2.5, 2.9));
+  bub.setAttribute("transform", `translate(${p.x + 6} ${p.y - 52 + Math.sin(t * 4) * 5}) scale(${bo > 0 ? lerp(.3, 1, back(seg(t, .5, .9))) * (1 + Math.sin(sw * Math.PI) * .25) : 0})`); bub.style.opacity = bo;
+  $("bubq").style.opacity = 1 - sw; $("buba").style.opacity = sw;
+  $("sign").setAttribute("transform", `translate(385 905) rotate(${Math.sin(t * 2.2) * 2.5})`);
+  // gondel
+  const lu = seg(d, dA, dL), cp = lerpP(LIFT[0], LIFT[1], lu), cab = $("cabin"); cab.setAttribute("transform", `translate(${cp[0].toFixed(1)} ${(cp[1] - 34).toFixed(1)}) rotate(${Math.sin(t * 3) * 3})`); $("cabhead").style.opacity = onLift ? 1 : 0;
+  // hut: rook en vlag, de vrienden springen op als hij aankomt
+  [...$("smoke").children].forEach((c, i) => { const age = (t * .35 + i / 5) % 1; c.setAttribute("cx", (75 + Math.sin(age * 5 + i) * 16 + age * 40).toFixed(1)); c.setAttribute("cy", (-110 - age * 170).toFixed(1)); c.setAttribute("r", (10 + age * 26).toFixed(1)); c.setAttribute("opacity", ((1 - age) * .8).toFixed(2)); });
+  $("flag").setAttribute("d", `M-150 -40 L${-90 + Math.sin(t * 6) * 6} ${-26 + Math.sin(t * 6 + 1) * 5} L-150 -10Z`);
+  document.querySelectorAll("#friends .fr").forEach(g => { const i = +g.dataset.i, [x, y] = [[440, 3730], [500, 3760], [468, 3806]][i], hop = Math.abs(Math.sin(Math.max(0, t - 13.4 - i * .12) * 7)) * (t > 13.4 + i * .12 && t < 14.9 ? 26 : 0);
+    g.setAttribute("transform", `translate(${x} ${y - hop - Math.sin(t * 2 + i) * 3})`); });
+  // lichtjes in het dorp gaan aan bij zonsondergang; de finishvlag wappert
+  document.querySelectorAll("#world .win").forEach((w, i) => { w.setAttribute("fill", eve > .25 + (i % 5) * .08 ? "#FFE27A" : "#C8D6E2"); });
+  $("finish").setAttribute("transform", `skewY(${Math.sin(t * 5) * 4})`);
+
+  // ----- wat over het beeld heen ligt -----
+  const pill = (id, a, b, y) => { const e = $(id), o = Math.min(seg(t, a, a + .3), 1 - seg(t, b - .25, b)); e.style.opacity = o; tf(e, 0, y + (1 - eo(seg(t, a, a + .4))) * 40, o > 0 ? lerp(.8, 1, back(seg(t, a, a + .4))) : .8); };
+  pill("p1", .6, 2.6, 300); pill("p2", 5.5, 8.3, 300); pill("p3", 13.3, 14.9, 300); pill("p4", 15.3, 17.2, 300);
+  // de pols met de Watch: drie snelle tikken = rechts
+  const wr = $("wrist"), wi = seg(t, 5.3, 5.8), wo = seg(t, 8.0, 8.3); wr.style.opacity = wi > 0 ? 1 - wo : 0; tf(wr, 70, 440, wi > 0 ? lerp(.3, 1, back(wi)) : .3);
+  let shake = 0; const TAPS = [6.0, 6.16, 6.32, 7.1, 7.26, 7.42]; for(const t0 of TAPS){ const u = (t - t0) / .14; if(u > 0 && u < 1) shake = Math.sin(u * Math.PI * 2) * (1 - u) * 12; }
+  $("wr").setAttribute("transform", `translate(${shake} 0) rotate(${-14 + shake * .3} 180 180)`);
+  [["wg1", 6.0], ["wg2", 6.32], ["wg3", 7.1]].forEach(([id, t0]) => { const u = seg(t, t0, t0 + .55), e = $(id); e.setAttribute("opacity", u > 0 && u < 1 ? (1 - u).toFixed(2) : 0); e.setAttribute("transform", `rotate(-14 180 180) translate(180 180) scale(${1 + u * .45}) translate(-180 -180)`); });
+  // het klokje bij "liften sluiten"
+  const ch = $("chip"), co = Math.min(seg(t, 15.5, 15.8), 1 - seg(t, 16.95, 17.2)); ch.style.opacity = co; tf(ch, 0, 440); ch.style.width = "1080px"; ch.style.textAlign = "center";
+
+  // ----- de onthulling: het beeld blijkt het scherm van een telefoon -----
+  const rv = eio(seg(t, 17.4, 18.5)), s = lerp(1, .5, rv), ty = lerp(0, 190, rv);
+  $("view").style.transform = `translate(0px,${ty}px) scale(${s})`; $("view").style.borderRadius = `${rv * 150}px`;
+  $("frame").style.transform = `translate(0px,${ty}px) scale(${s})`; $("frame").style.opacity = seg(t, 17.4, 17.7);
+  $("backdrop").style.opacity = rv > 0 ? 1 : 0;
+  const en = $("end"), eu = seg(t, 18.3, 18.8); en.style.opacity = eu; tf(en, 0, 1230 + (1 - eo(eu)) * 60);
+  en.querySelector("p").style.opacity = seg(t, 18.6, 19.0);
+  const bu = seg(t, 18.9, 19.3), bt = en.querySelector(".btn"); bt.style.opacity = bu > 0 ? 1 : 0; bt.style.transform = `scale(${(bu > 0 ? lerp(.5, 1, back(bu)) : .5) * (t > 19.3 ? 1 + Math.sin((t - 19.3) * 6) * .03 : 1)})`;
+}
+window.seek = render; window.DUR = DUR;
+window.ready = Promise.all([document.fonts.ready, document.fonts.load("700 30px Barlow"), ...[...document.images].map(i => i.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + i.src.split("/").pop(); }))]).then(() => { render(0); document.body.dataset.ready = "1"; });
+if(new URLSearchParams(location.search).has("play")){
+  const fit = () => { const k = Math.min(innerWidth / 1080, innerHeight / 1920); $("stage").style.transform = `translate(${(innerWidth - 1080 * k) / 2}px,${(innerHeight - 1920 * k) / 2}px) scale(${k})`; };
+  fit(); addEventListener("resize", fit);
+  let t0 = performance.now(), paused = 0, at2 = 0;
+  const loop = now => { if(!paused) at2 = ((now - t0) / 1000) % (DUR + 1.5); render(Math.min(at2, DUR)); requestAnimationFrame(loop); };
+  addEventListener("keydown", e => { if(e.key === "r") t0 = performance.now(); if(e.key === "p"){ paused = !paused; if(!paused) t0 = performance.now() - at2 * 1000; } });
+  window.ready.then(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>

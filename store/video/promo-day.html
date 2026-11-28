@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Skipilot: one ski day</title>
+<!-- "A day with Skipilot": 1080×1920, 25 s. Een skidag van 08:45 tot 17:15 met een klok die doortikt; elke functie op het
+     moment dat je hem nodig hebt. Zelfde opzet als promo-tiktok.html: seek(t) zet de tijdlijn (PAGE=promo-day), ?play speelt af. -->
+<link rel="stylesheet" href="../../vendor/fonts.css">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;transform-origin:0 0;background:#0F1C2B;font-family:'Barlow',system-ui,sans-serif;color:#fff}
+  .abs{position:absolute;left:0;top:0;will-change:transform,opacity}
+  #bg{width:1080px;height:1920px;object-fit:cover;filter:blur(26px) saturate(1.4);opacity:.7}
+  #shade{width:1080px;height:1920px;background:linear-gradient(180deg,rgba(15,28,43,.9) 0%,rgba(18,68,124,.62) 40%,rgba(31,127,214,.55) 100%)}
+  #glow{width:1080px;height:1920px;background:radial-gradient(60% 40% at 50% 62%,rgba(31,127,214,.55),transparent 70%)}
+  .flake{position:absolute;border-radius:50%;background:#fff}
+  .cap{left:60px;width:880px;text-align:center;font-weight:700;font-size:104px;line-height:1.06;letter-spacing:-1px;text-transform:uppercase}
+  .cap span{display:inline-block;margin:0 .12em;opacity:0;text-shadow:0 6px 0 rgba(0,0,0,.35),0 0 34px rgba(0,0,0,.55)}
+  .cap span.hl{background:#FFC400;color:#0F1C2B;text-shadow:none;padding:.02em .2em;border-radius:22px;margin:.06em .1em}
+  .cap.sm{font-size:84px}
+  .cap.xl{font-size:150px;line-height:1}
+  .phone{width:600px;height:1258px;border-radius:86px;background:#0b0f14;box-shadow:0 60px 140px rgba(0,0,0,.65),0 0 0 3px #2b3340 inset;opacity:0}
+  .phone .scr{position:absolute;left:18px;top:18px;right:18px;bottom:18px;border-radius:70px;overflow:hidden;background:#0b0f14}
+  .phone img{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:5}
+  #tap{width:130px;height:130px;border-radius:50%;border:10px solid #FFC400;opacity:0;z-index:6}
+  #finger{width:74px;height:74px;border-radius:50%;background:rgba(255,196,0,.9);box-shadow:0 0 0 10px rgba(255,196,0,.25);opacity:0;z-index:6}
+  #watch{width:470px;height:560px;opacity:0}
+  #watch .band{position:absolute;left:95px;width:280px;height:250px;background:linear-gradient(90deg,#1b2430,#2b3848,#1b2430);border-radius:40px}
+  #watch .case{position:absolute;left:0;top:0;width:470px;height:560px;border-radius:118px;background:#0b0f14;box-shadow:0 50px 120px rgba(0,0,0,.7),0 0 0 4px #3a4554 inset}
+  #watch .wscr{position:absolute;left:27px;top:32px;width:416px;height:496px;border-radius:92px;overflow:hidden;background:#000}
+  #watch img{position:absolute;left:0;top:0;width:100%;height:100%}
+  #watch .crown{position:absolute;right:-18px;top:150px;width:22px;height:90px;border-radius:10px;background:#3a4554}
+  .ring{width:470px;height:560px;border-radius:130px;border:8px solid #FFC400;opacity:0}
+  .big{left:60px;width:880px;text-align:center;opacity:0}
+  .big b{display:block;font-weight:700;font-size:230px;line-height:.95;color:#FFC400;letter-spacing:-6px;font-variant-numeric:tabular-nums;text-shadow:0 10px 0 rgba(0,0,0,.3)}
+  .big i{display:block;font-style:normal;font-weight:600;font-size:60px;text-transform:uppercase;letter-spacing:2px;margin-top:6px}
+  #end{left:0;width:1080px;text-align:center;opacity:0}
+  #end img{width:320px;height:320px;border-radius:72px;box-shadow:0 40px 100px rgba(0,0,0,.5)}
+  #end h1{margin:46px 0 0;font-weight:700;font-size:170px;letter-spacing:-4px;line-height:1}
+  #end p{margin:18px 0 0;font-weight:600;font-size:54px;color:#CFE4F8}
+  #end .btn{display:inline-block;margin-top:56px;padding:32px 64px;border-radius:64px;background:#FFC400;color:#0F1C2B;font-weight:700;font-size:60px}
+  #clock{left:0;width:1080px;text-align:center;opacity:0}
+  #clock b{display:inline-block;padding:10px 44px 14px;border-radius:44px;background:rgba(15,28,43,.82);box-shadow:0 0 0 4px rgba(255,196,0,.9) inset,0 20px 50px rgba(0,0,0,.4);
+    font-weight:700;font-size:118px;line-height:1;letter-spacing:2px;color:#FFC400;font-variant-numeric:tabular-nums}
+  .cap{font-size:88px}
+  #bar{left:0;top:0;height:10px;background:#FFC400;width:1080px;transform-origin:0 0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <img id="bg" class="abs" alt="">
+  <div id="shade" class="abs"></div><div id="glow" class="abs"></div>
+  <div id="snow" class="abs" style="width:1080px;height:1920px"></div>
+
+  <div id="pA" class="abs phone"><div class="scr">
+      <img data-k="map"><img data-k="route"><img data-k="nav"><img data-k="group-map"><img data-k="group"><img data-k="today-closing">
+      <div id="flash"></div><div id="finger" class="abs"></div><div id="tap" class="abs"></div></div></div>
+
+  <div id="r1" class="abs ring"></div><div id="r2" class="abs ring"></div><div id="r3" class="abs ring"></div>
+  <div id="watch" class="abs"><div class="band" style="top:-150px"></div><div class="band" style="bottom:-150px"></div><div class="crown"></div>
+    <div class="case"></div><div class="wscr"><img data-w="1-nav"></div></div>
+
+  <div id="n1" class="abs big"><b>0</b><i>km today</i></div>
+  <div id="n2" class="abs big"><b>0</b><i>metres of descent</i></div>
+  <div id="n3" class="abs big"><b>0</b><i>km/h top speed</i></div>
+
+  <div id="clock" class="abs"><b>08:45</b></div>
+  <div id="caps"></div>
+  <div id="end" class="abs"><img src="../../icons/icon-512.png" alt=""><h1>Skipilot</h1><p></p><div class="btn"></div></div>
+  <div id="bar" class="abs"></div>
+</div>
+<script>
+// ---------- teksten. Ondertitels: [van, tot, y, tekst, klasse]; *woord* = geel gemarkeerd. ----------
+const LANG = new URLSearchParams(location.search).get("l") || "en", DUR = 25;
+const T = {
+  en:{caps:[
+      [0.10, 1.90, 600, "One ski day with *Skipilot*", "xl"],
+      [2.10, 5.90, 345, "Plan your day in *one tap*", ""],
+      [6.10, 10.90, 345, "Your Watch *taps* you the way", ""],
+      [11.10, 14.90, 345, "Lunch? *Find* your friends", ""],
+      [15.10, 18.90, 345, "Lifts close soon. *Head down.*", ""],
+      [19.10, 21.50, 345, "What a *day*", ""]],
+    nums:["km today", "metres of descent", "km/h top speed"], end:["Your navigation on the slopes", "Free on the App Store"], loc:"en-US"}
+};
+const L = T[LANG] || T.en, CAPS = L.caps, END = L.end;
+// de klok: [tijdstip in de video, uur, minuut]; daartussen draait hij door
+const CLOCK = [[0.3, 7, 0], [1.7, 8, 45], [5.6, 8, 45], [6.2, 10, 30], [10.6, 10, 30], [11.2, 12, 30], [14.6, 12, 30], [15.2, 16, 43], [18.7, 16, 43], [19.3, 17, 15]];
+const $ = id => document.getElementById(id);
+document.querySelectorAll("img[data-k]").forEach(i => i.src = `shots/${LANG}/${i.dataset.k}.png`);
+document.querySelectorAll("img[data-w]").forEach(i => i.src = `shots/watch-${LANG}/${i.dataset.w}.png`);
+$("bg").src = `shots/${LANG}/3d.png`;
+["n1", "n2", "n3"].forEach((id, k) => $(id).querySelector("i").textContent = L.nums[k]); document.documentElement.lang = LANG;
+$("end").querySelector("p").textContent = END[0]; $("end").querySelector(".btn").textContent = END[1];
+const img = k => document.querySelector(`img[data-k="${k}"]`);
+const capEls = CAPS.map(([a, b, y, txt, cls]) => { const d = document.createElement("div"); d.className = "abs cap " + cls;
+  d.innerHTML = txt.split(" ").map(w => /^\*.*\*$/.test(w) || w.startsWith("*") || w.endsWith("*") ? `<span class="hl">${w.replace(/\*/g, "")}</span>` : `<span>${w}</span>`).join("");
+  // een gemarkeerd stuk van meer woorden: elk woord krijgt de markering
+  $("caps").appendChild(d); return {d, a, b, y, w:[...d.children]}; });
+// markering over meer woorden ("*One tap*"): alles tussen de sterretjes
+CAPS.forEach(([, , , txt], i) => { let on = false; txt.split(" ").forEach((w, k) => { const st = w.startsWith("*"), en = w.endsWith("*"); if(st) on = true; if(on) capEls[i].w[k].className = "hl"; if(en) on = false; }); });
+
+const FL = []; { let s = 11; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for(let i = 0; i < 60; i++){ const d = document.createElement("div"); d.className = "flake"; const r = 3 + rnd() * 8; d.style.width = d.style.height = r + "px"; d.style.opacity = (.2 + rnd() * .5).toFixed(2);
+    $("snow").appendChild(d); FL.push({d, x:rnd() * 1080, y:rnd() * 1920, v:120 + rnd() * 220, a:20 + rnd() * 40, p:rnd() * 6.28}); } }
+
+const clamp = x => Math.max(0, Math.min(1, x)), seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = x => 1 - Math.pow(1 - x, 3), eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2, lerp = (a, b, x) => a + (b - a) * x;
+const back = x => { const c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };    // doorschieten en terugveren
+const tf = (el, x, y, s = 1, r = 0) => { el.style.transform = `translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`; };
+// de sneden: op elk van deze tijden wisselt het scherm, met een flits en een stootje
+const CUTS = [[3.70, "route"], [6.00, "nav"], [11.00, "group-map"], [12.70, "group"], [15.00, "today-closing"], [16.90, "route"]];
+// tikken op het scherm: [tijdstip, x, y] in punten van de app (430×932)
+const TAPSCR = [[3.45, 215, 815], [13.55, 240, 777], [17.75, 322, 822]];
+
+function render(t){
+  t = Math.max(0, Math.min(DUR, t));
+  // achtergrond: het 3D-scherm van de app, wazig en langzaam bewegend
+  tf($("bg"), 0, -40 + Math.sin(t * .35) * 30, 1.25 + t * .006);
+  for(const f of FL){ const y = (f.y + f.v * t) % 1960 - 20, x = f.x + Math.sin(f.p + t) * f.a; f.d.style.transform = `translate(${x}px,${y}px)`; }
+  tf($("bar"), 0, 0); $("bar").style.transform = `scaleX(${t / DUR})`;
+
+  // de klok: staat stil in een scène en draait snel door naar de volgende
+  { let h = CLOCK[0][1], m = CLOCK[0][2];
+    for(let i = 0; i < CLOCK.length - 1; i++){ const [a, h0, m0] = CLOCK[i], [b, h1, m1] = CLOCK[i + 1]; if(t >= a){ const u = eio(seg(t, a, b)), v = Math.round(lerp(h0 * 60 + m0, h1 * 60 + m1, u)); h = Math.floor(v / 60); m = v % 60; } }
+    const ck = $("clock"), turning = CLOCK.some(([a], i) => i < CLOCK.length - 1 && t > a && t < CLOCK[i + 1][0] && (CLOCK[i][1] !== CLOCK[i + 1][1] || CLOCK[i][2] !== CLOCK[i + 1][2]));
+    ck.querySelector("b").textContent = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+    ck.style.opacity = Math.min(seg(t, .3, .6), 1 - seg(t, 21.4, 21.65)); tf(ck, 0, 150, turning ? 1.06 : 1); }
+
+  // ondertitels: woord voor woord, met een veertje
+  for(const c of capEls){
+    const out = seg(t, c.b - .18, c.b); c.d.style.opacity = t >= c.a - .01 && t <= c.b ? 1 - out : 0; tf(c.d, 0, c.y - out * 40);
+    c.w.forEach((w, i) => { const u = seg(t, c.a + i * .085, c.a + i * .085 + .26); w.style.opacity = u > 0 ? 1 : 0; w.style.transform = `scale(${u > 0 ? lerp(.5, 1, back(u)) : .5}) translateY(${(1 - eo(u)) * 30}px)`; });
+  }
+
+  // ----- telefoon -----
+  const pA = $("pA"); let x = 240, y = 700, s = 1, r = 0;
+  const inn = seg(t, 1.6, 2.2); y = lerp(2100, 700, eo(inn)) - Math.sin(inn * Math.PI) * 26 * (inn < 1 ? 1 : 0); r = lerp(10, 0, eo(inn));          // klapt in beeld
+  // stootje bij elke snede, en afwisselend een tikje scheef
+  CUTS.forEach(([c], i) => { const u = seg(t, c, c + .4); if(u > 0 && u < 1) s *= 1 + Math.sin(u * Math.PI) * .06 * (1 - u); if(t >= c) r = (i % 2 ? 2.2 : -2.2) * (1 - eo(seg(t, c, c + 1.6)) * .6); });
+  s *= 1 + Math.sin(t * 1.1) * .008;                                                                // ademt een beetje
+  const side = eio(seg(t, 7.3, 7.9)) - eio(seg(t, 10.5, 10.95)); x += side * -230; s *= 1 - side * .22; r += side * -6;   // opzij voor de Watch
+  const st = eio(seg(t, 18.9, 19.45)); y += st * 1500; r += st * 12;                                // weg voor de cijfers
+  tf(pA, x, y, s, r); pA.style.opacity = t < 1.6 || t > 19.5 ? 0 : 1;
+  // welk scherm (harde snede) en de inzoom per scherm
+  let cur = "map", since = 1.6; for(const [c, k] of CUTS) if(t >= c){ cur = k; since = c; }
+  for(const k of ["map", "route", "nav", "group-map", "group", "today-closing"]) img(k).style.opacity = k === cur ? 1 : 0;
+  // inzoomen op de waarschuwing "Lifts close in 25 min"
+  const zc = img("today-closing"); zc.style.transformOrigin = "30% 45%"; zc.style.transform = `scale(${1 + eo(seg(t, 15.5, 16.2)) * .45})`;
+  let fl = 0; for(const [c] of CUTS){ const u = seg(t, c, c + .28); if(u > 0 && u < 1) fl = (1 - u) * .45; } $("flash").style.opacity = fl;
+  // de vinger en de tik op een knop
+  const fg = $("finger"), tap = $("tap"); let fo = 0, to = 0;
+  for(const [t0, px, py] of TAPSCR){ const X = px * 1.3116, Y = py * 1.3116, fu = seg(t, t0 - .6, t0), gone = seg(t, t0 + .15, t0 + .3);
+    if(t > t0 - .6 && t < t0 + .3){ fo = Math.min(1, fu * 3) * (1 - gone); tf(fg, lerp(X + 150, X - 37, eo(fu)), lerp(Y + 190, Y - 37, eo(fu)), 1 - seg(t, t0 - .03, t0 + .1) * .25); }
+    const tp = seg(t, t0, t0 + .5); if(tp > 0 && tp < 1){ to = 1 - tp; tf(tap, X - 65, Y - 65, .3 + tp * 1.6); } }
+  fg.style.opacity = fo; tap.style.opacity = to;
+
+  // ----- Watch -----
+  const w = $("watch"), wi = seg(t, 7.5, 8.05), wo = eio(seg(t, 10.45, 10.9));
+  const TAPS = [8.5, 8.66, 8.82, 9.45, 9.61, 9.77]; let shake = 0;
+  for(const t0 of TAPS){ const u = (t - t0) / .14; if(u > 0 && u < 1) shake = Math.sin(u * Math.PI * 2) * (1 - u) * 22; }
+  tf(w, lerp(1250, 520, back(wi)) + wo * 800 + shake, 1020, 1.06 + Math.abs(shake) * .002, lerp(14, 5, eo(wi)) + shake * .15); w.style.opacity = t > 7.5 && t < 10.95 ? 1 : 0;
+  [["r1", 8.5], ["r2", 8.82], ["r3", 9.45]].forEach(([id, t0]) => { const u = seg(t, t0, t0 + .6), e = $(id); e.style.opacity = u > 0 && u < 1 ? (1 - u) : 0; tf(e, 520, 1020, 1.06 + u * .4, 5); });
+
+  // ----- cijfers: drie klappen achter elkaar -----
+  [["n1", 19.35, 31.4, 1, 560], ["n2", 19.9, 6200, 0, 850], ["n3", 20.45, 71, 0, 1140]].forEach(([id, t0, val, dec, yy]) => {
+    const e = $(id), u = seg(t, t0, t0 + .3), o = 1 - seg(t, 21.45, 21.65), c = eo(seg(t, t0, t0 + .5));
+    e.style.opacity = u > 0 ? o : 0; tf(e, 0, yy, u > 0 ? lerp(1.6, 1, back(u)) : 1.6);
+    e.querySelector("b").textContent = dec ? (val * c).toLocaleString(L.loc, {minimumFractionDigits:1, maximumFractionDigits:1}) : Math.round(val * c).toLocaleString(L.loc); });
+
+  // ----- afsluiting -----
+  const en = $("end"), eu = seg(t, 21.7, 22.25); en.style.opacity = eu > 0 ? 1 : 0; tf(en, 0, 420);
+  en.querySelector("img").style.transform = `scale(${eu > 0 ? lerp(.3, 1, back(eu)) : .3}) rotate(${(1 - eo(eu)) * -20}deg)`;
+  const hu = seg(t, 22.0, 22.45), h = en.querySelector("h1"); h.style.opacity = hu > 0 ? 1 : 0; h.style.transform = `scale(${hu > 0 ? lerp(.6, 1, back(hu)) : .6})`;
+  en.querySelector("p").style.opacity = seg(t, 22.4, 22.75);
+  const bu = seg(t, 22.7, 23.15), bt = en.querySelector(".btn"), pulse = t > 23.15 ? 1 + Math.sin((t - 23.15) * 6) * .035 : 1;
+  bt.style.opacity = bu > 0 ? 1 : 0; bt.style.transform = `scale(${(bu > 0 ? lerp(.5, 1, back(bu)) : .5) * pulse})`;
+  $("glow").style.opacity = .6 + Math.sin(t * 1.3) * .2;
+}
+window.seek = render; window.DUR = DUR;
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map(i => i.decode().catch(() => { document.body.dataset.missing = (document.body.dataset.missing || "") + " " + i.src.split("/").pop(); }))]).then(() => { render(0); document.body.dataset.ready = "1"; });
+if(new URLSearchParams(location.search).has("play")){
+  const fit = () => { const k = Math.min(innerWidth / 1080, innerHeight / 1920); $("stage").style.transform = `translate(${(innerWidth - 1080 * k) / 2}px,${(innerHeight - 1920 * k) / 2}px) scale(${k})`; };
+  fit(); addEventListener("resize", fit);
+  let t0 = performance.now(), paused = 0, at = 0;
+  const loop = now => { if(!paused) at = ((now - t0) / 1000) % (DUR + 1.5); render(Math.min(at, DUR)); requestAnimationFrame(loop); };
+  addEventListener("keydown", e => { if(e.key === "r") t0 = performance.now(); if(e.key === "p"){ paused = !paused; if(!paused) t0 = performance.now() - at * 1000; } });
+  window.ready.then(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>
